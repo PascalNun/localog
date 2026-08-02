@@ -855,6 +855,14 @@ textarea::placeholder {
   font-size: 0.75rem;
 }
 
+.form-error {
+  margin: 20px 0 0;
+  padding: 12px 14px;
+  color: var(--danger);
+  border-left: 2px solid var(--danger);
+  font-size: 0.82rem;
+}
+
 .meeting-form {
   padding-bottom: 24px;
 }
@@ -1557,6 +1565,16 @@ textarea::placeholder {
   grid-column: 1 / -1;
   place-self: center;
   color: var(--muted);
+}
+
+.startup-failure {
+  grid-column: 1 / -1;
+  place-self: center;
+  width: min(calc(100% - 48px), 560px);
+}
+
+.startup-failure p:not(.eyebrow) {
+  max-width: 480px;
 }
 
 @keyframes pulse {

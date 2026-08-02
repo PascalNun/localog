@@ -111,7 +111,10 @@ export interface NewMeetingInput {
 // UI code depends on this contract; fake and real adapters must preserve the same semantics.
 export interface WorkflowBridge {
   getSnapshot(): Promise<WorkflowSnapshot>;
-  subscribe(listener: (snapshot: WorkflowSnapshot) => void): () => void;
+  subscribe(
+    listener: (snapshot: WorkflowSnapshot) => void,
+    onError?: (message: string) => void,
+  ): () => void;
   createProject(input: NewProjectInput): Promise<ProjectSummary>;
   createMeeting(input: NewMeetingInput): Promise<MeetingSummary>;
   importRecording(meetingId: string): Promise<void>;

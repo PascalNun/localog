@@ -19,6 +19,7 @@
   } from './lib/layout/sidebarSizing';
   import { resolveWindowChrome } from './lib/platform/windowChrome';
   import { FakeWorkflowBridge } from './lib/workflow/fakeBridge';
+  import { createNativeWorkspaceStore } from './lib/workflow/workspaceStore';
   import type {
     AppRoute,
     FakeJobOutcome,
@@ -28,7 +29,7 @@
   } from './lib/workflow/types';
 
   // The shell already depends on the boundary that future Rust-backed adapters will implement.
-  const bridge = new FakeWorkflowBridge();
+  const bridge = new FakeWorkflowBridge({ workspaceStore: createNativeWorkspaceStore() });
   let snapshot: WorkflowSnapshot | null = null;
   let route: AppRoute = { name: 'start' };
   let theme: 'light' | 'dark' = 'light';
@@ -36,6 +37,7 @@
   let sidebarWidth = DEFAULT_SIDEBAR_WIDTH;
   let lastHandledJobId: string | null = null;
   let announcement = '';
+  let startupError = '';
 
   // Route-derived context keeps project and meeting selection in one predictable place.
   $: meetingId = 'meetingId' in route ? route.meetingId : null;
@@ -68,10 +70,15 @@
     theme = savedTheme === 'dark' || (!savedTheme && prefersDark) ? 'dark' : 'light';
     applyTheme();
 
-    return bridge.subscribe((nextSnapshot) => {
-      snapshot = nextSnapshot;
-      handleCompletedJob(nextSnapshot);
-    });
+    return bridge.subscribe(
+      (nextSnapshot) => {
+        snapshot = nextSnapshot;
+        handleCompletedJob(nextSnapshot);
+      },
+      (message) => {
+        startupError = message;
+      },
+    );
   });
 
   function handleCompletedJob(nextSnapshot: WorkflowSnapshot) {
@@ -291,6 +298,13 @@
         <StartView onNavigate={navigate} />
       {/if}
     </div>
+  {:else if startupError}
+    <main class="startup-failure" id="main-content">
+      <p class="eyebrow">Local workspace</p>
+      <h1 tabindex="-1">Workspace could not be opened</h1>
+      <p>{startupError} Your existing files have not been changed.</p>
+      <button class="secondary-action" onclick={() => window.location.reload()}>Try again</button>
+    </main>
   {:else}
     <div class="app-loading" aria-live="polite">
       <span class="processing-dot"></span>Preparing local workspace…

@@ -10,12 +10,19 @@
   let description = '';
   let defaultLanguage = 'English';
   let submitting = false;
+  let submitError = '';
 
   async function submit(event: SubmitEvent) {
     event.preventDefault();
     if (!name.trim() || submitting) return;
     submitting = true;
-    await onCreate({ name, description, defaultLanguage });
+    submitError = '';
+    try {
+      await onCreate({ name, description, defaultLanguage });
+    } catch (error) {
+      submitError = error instanceof Error ? error.message : String(error);
+      submitting = false;
+    }
   }
 </script>
 
@@ -53,6 +60,7 @@
         after creation.
       </p>
     </details>
+    {#if submitError}<p class="form-error" role="alert">{submitError}</p>{/if}
     <footer class="form-actions">
       <button type="button" class="secondary-action" onclick={onCancel}>Cancel</button><button
         class="primary-action"

@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeWorkflowBridge } from './fakeBridge';
+import type { ProjectSummary } from './types';
+import type { WorkspaceStore } from './workspaceStore';
 
 describe('FakeWorkflowBridge', () => {
   beforeEach(() => vi.useFakeTimers());
@@ -59,5 +61,56 @@ describe('FakeWorkflowBridge', () => {
     expect(snapshot.meetings.find(({ id }) => id === 'meeting-envelope-options')?.lifecycle).toBe(
       'protocol_draft',
     );
+  });
+
+  it('loads and writes the native hierarchy through the workspace store', async () => {
+    const persistedProject: ProjectSummary = {
+      id: 'project-persisted',
+      name: 'Persisted synthetic project',
+      description: 'No real project data.',
+      meetingCount: 0,
+      defaultLanguage: 'English',
+      defaultStyleId: 'style-formal',
+    };
+    const createdProject: ProjectSummary = {
+      ...persistedProject,
+      id: 'project-created',
+      name: 'Created synthetic project',
+    };
+    const store: WorkspaceStore = {
+      loadWorkspace: vi
+        .fn<WorkspaceStore['loadWorkspace']>()
+        .mockResolvedValue({ projects: [persistedProject], meetings: [] }),
+      createProject: vi.fn<WorkspaceStore['createProject']>().mockResolvedValue(createdProject),
+      createMeeting: vi.fn<WorkspaceStore['createMeeting']>(),
+      updateMeetingTitle: vi.fn<WorkspaceStore['updateMeetingTitle']>(),
+    };
+    const bridge = new FakeWorkflowBridge({ workspaceStore: store });
+
+    expect((await bridge.getSnapshot()).projects).toEqual([persistedProject]);
+    await bridge.createProject({
+      name: createdProject.name,
+      description: createdProject.description,
+      defaultLanguage: createdProject.defaultLanguage,
+    });
+
+    expect(store.createProject).toHaveBeenCalledOnce();
+    expect((await bridge.getSnapshot()).projects).toEqual([persistedProject, createdProject]);
+  });
+
+  it('reports a bounded native-workspace startup failure', async () => {
+    const store: WorkspaceStore = {
+      loadWorkspace: vi
+        .fn<WorkspaceStore['loadWorkspace']>()
+        .mockRejectedValue('Storage unavailable'),
+      createProject: vi.fn<WorkspaceStore['createProject']>(),
+      createMeeting: vi.fn<WorkspaceStore['createMeeting']>(),
+      updateMeetingTitle: vi.fn<WorkspaceStore['updateMeetingTitle']>(),
+    };
+    const bridge = new FakeWorkflowBridge({ workspaceStore: store });
+    const onError = vi.fn();
+
+    bridge.subscribe(() => undefined, onError);
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledWith('Storage unavailable'));
   });
 });
