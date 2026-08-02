@@ -12,10 +12,12 @@ import type {
   WorkflowBridge,
   WorkflowSnapshot,
 } from './types';
+import type { WorkspaceStore } from './workspaceStore';
 
 interface FakeBridgeOptions {
   tickMs?: number;
   progressStep?: number;
+  workspaceStore?: WorkspaceStore | undefined;
 }
 
 const initialMeetings: MeetingSummary[] = [
@@ -212,6 +214,8 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   private readonly listeners = new Set<(snapshot: WorkflowSnapshot) => void>();
   private readonly tickMs: number;
   private readonly progressStep: number;
+  private readonly workspaceStore: WorkspaceStore | null;
+  private readonly ready: Promise<void>;
   // One supervised timer is intentional here; this demo is not a general workflow engine.
   private timer: ReturnType<typeof setInterval> | null = null;
   private meetingSequence = 1;
@@ -220,44 +224,73 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   constructor(options: FakeBridgeOptions = {}) {
     this.tickMs = options.tickMs ?? 420;
     this.progressStep = options.progressStep ?? 11;
+    this.workspaceStore = options.workspaceStore ?? null;
+    if (this.workspaceStore) {
+      // Native startup must not flash synthetic projects before SQLite has loaded.
+      this.snapshot.projects = [];
+      this.snapshot.meetings = [];
+      this.snapshot.transcripts = {};
+      this.snapshot.protocols = {};
+      this.ready = this.loadDurableWorkspace(this.workspaceStore);
+    } else {
+      this.ready = Promise.resolve();
+    }
   }
 
   async getSnapshot(): Promise<WorkflowSnapshot> {
+    await this.ready;
     return cloneSnapshot(this.snapshot);
   }
 
-  subscribe(listener: (snapshot: WorkflowSnapshot) => void): () => void {
+  subscribe(
+    listener: (snapshot: WorkflowSnapshot) => void,
+    onError?: (message: string) => void,
+  ): () => void {
     this.listeners.add(listener);
-    listener(cloneSnapshot(this.snapshot));
+    if (this.workspaceStore) {
+      void this.ready
+        .then(() => {
+          if (this.listeners.has(listener)) listener(cloneSnapshot(this.snapshot));
+        })
+        .catch((error: unknown) => onError?.(errorMessage(error)));
+    } else {
+      listener(cloneSnapshot(this.snapshot));
+    }
     return () => this.listeners.delete(listener);
   }
 
   async createProject(input: NewProjectInput): Promise<ProjectSummary> {
-    const project: ProjectSummary = {
-      id: `project-demo-${this.projectSequence++}`,
-      name: input.name.trim() || 'Untitled project',
-      description: input.description.trim(),
-      meetingCount: 0,
-      defaultLanguage: input.defaultLanguage,
-      defaultStyleId: 'style-formal',
-    };
+    await this.ready;
+    const project: ProjectSummary = this.workspaceStore
+      ? await this.workspaceStore.createProject(input)
+      : {
+          id: `project-demo-${this.projectSequence++}`,
+          name: input.name.trim() || 'Untitled project',
+          description: input.description.trim(),
+          meetingCount: 0,
+          defaultLanguage: input.defaultLanguage,
+          defaultStyleId: 'style-formal',
+        };
     this.snapshot.projects = [...this.snapshot.projects, project];
     this.emit();
     return structuredClone(project);
   }
 
   async createMeeting(input: NewMeetingInput): Promise<MeetingSummary> {
-    const meeting: MeetingSummary = {
-      id: `meeting-demo-${this.meetingSequence++}`,
-      projectId: input.projectId,
-      title: input.title.trim() || this.titleFromSource(input.sourceName),
-      occurredAt: input.occurredAt,
-      durationLabel: null,
-      lifecycle: 'draft',
-      language: input.language,
-      sourceName: input.sourceName,
-      styleId: input.styleId,
-    };
+    await this.ready;
+    const meeting: MeetingSummary = this.workspaceStore
+      ? await this.workspaceStore.createMeeting(input)
+      : {
+          id: `meeting-demo-${this.meetingSequence++}`,
+          projectId: input.projectId,
+          title: input.title.trim() || this.titleFromSource(input.sourceName),
+          occurredAt: input.occurredAt,
+          durationLabel: null,
+          lifecycle: 'draft',
+          language: input.language,
+          sourceName: input.sourceName,
+          styleId: input.styleId,
+        };
 
     this.snapshot.meetings = [meeting, ...this.snapshot.meetings];
     const project = this.snapshot.projects.find((candidate) => candidate.id === input.projectId);
@@ -294,9 +327,12 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async updateMeetingTitle(meetingId: string, title: string): Promise<void> {
+    await this.ready;
     const meeting = this.findMeeting(meetingId);
     const nextTitle = title.trim();
-    if (nextTitle) meeting.title = nextTitle;
+    if (!nextTitle) return;
+    if (this.workspaceStore) await this.workspaceStore.updateMeetingTitle(meetingId, nextTitle);
+    meeting.title = nextTitle;
     this.emit();
   }
 
@@ -362,6 +398,12 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     this.timer = setInterval(() => this.advanceJob(), this.tickMs);
   }
 
+  private async loadDurableWorkspace(store: WorkspaceStore): Promise<void> {
+    const workspace = await store.loadWorkspace();
+    this.snapshot.projects = workspace.projects;
+    this.snapshot.meetings = workspace.meetings;
+  }
+
   private advanceJob(): void {
     const job = this.snapshot.activeJob;
     if (!job) return this.stopTimer();
@@ -408,7 +450,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
 
   private completeJob(job: ActiveJob): void {
     const meeting = this.findMeeting(job.meetingId);
-    // Stable lifecycle advances only after the simulated job has completed successfully.
+    // Fake lifecycle advances after success but remains session-only until artifact commits exist.
     meeting.lifecycle = completionLifecycle[job.kind];
     if (job.kind === 'import') meeting.durationLabel = '42 min';
     if (job.kind === 'transcription') {
@@ -450,4 +492,12 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
   }
+}
+
+function errorMessage(error: unknown): string {
+  return typeof error === 'string'
+    ? error
+    : error instanceof Error
+      ? error.message
+      : 'LocaLog could not prepare its local workspace.';
 }

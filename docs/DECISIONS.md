@@ -31,6 +31,7 @@ Status values: **Accepted**, **Proposed**, **Approval required**, **Deferred**.
 | D-021 | Barlow is the primary application typeface                                                                           | Accepted | Its clear, contemporary character supports the calm professional interface; font assets must be bundled locally rather than fetched at runtime |
 | D-022 | `whisper.cpp` is the first candidate for the distributable transcription runtime                                     | Proposed | Installed Python Whisper validated the contract but was too slow/heavy; no compatible installed `whisper.cpp` model was available              |
 | D-023 | License LocaLog under `GPL-3.0-or-later`                                                                             | Accepted | Strong copyleft preserves the freedom to use, study, modify, and redistribute the application while allowing commercial use                    |
+| D-024 | Use UUIDv7 opaque identifiers and UTC Unix-millisecond storage timestamps for the first vertical slice               | Accepted | Provides collision-resistant sortable identities and ordinary time storage without a custom ID system or a general time abstraction            |
 
 ## Architecture risks and tensions
 
@@ -96,6 +97,38 @@ Known risks:
 - Timing and responsiveness under real CPU/GPU load remain unmeasured.
 - Transcript editing and protocol autosave need long-document, failure, revision, and accessibility evidence in their focused spike.
 - Native distribution signing, notarisation, sandbox behaviour, and the final runtime/provider model remain unresolved.
+
+## Phase 1A durable hierarchy implementation record
+
+Implemented and checked on 2026-08-02:
+
+- Added the first production schema inside the existing Rust/Tauri crate: projects, meetings, and one-to-many recording metadata. No storage crate, ORM, service process, or workflow framework was introduced.
+- Creating a meeting and its pending imported-source record uses one SQLite transaction, preserving the no-orphan-source invariant before the real copy job exists.
+- SQLite uses WAL mode, `synchronous = FULL`, foreign keys, a bounded busy timeout, and an explicit schema version. A database created by a newer schema is refused without mutation.
+- Project/meeting loading, creation, and title changes cross four narrow Tauri commands. Opening, migration, and every query run on the blocking executor rather than the interface thread.
+- The native shell loads the durable hierarchy without flashing or seeding synthetic projects. The ordinary browser preview continues using the deterministic fake workspace.
+- Storage startup and form submission failures have visible, bounded messages that do not expose SQL, content, or managed paths.
+- UUIDv7 was selected for opaque sortable record identity. Timestamps are stored as UTC Unix milliseconds; meeting dates remain explicit `YYYY-MM-DD` professional values.
+
+Verification:
+
+- Six Rust tests cover reopen/restart persistence, meeting/source transactionality, foreign-key placement, hostile source names, durable title updates, and refusing a newer schema.
+- Two additional TypeScript tests cover native-workspace hydration/writes and a bounded startup failure, while the existing fake lifecycle/job tests remain unchanged.
+- The native application created an empty schema-v1 workspace and reopened it cleanly. No synthetic project or meeting was written to app-managed storage.
+
+Keep/change decision:
+
+- **Keep** the small `domain` and `storage` modules, direct `rusqlite` repository, blocking-worker command helper, and narrow TypeScript `WorkspaceStore` port as the Phase 1A starting shape.
+- **Keep** browser-only synthetic fixtures for design and automated workflow development; native project/meeting state comes from SQLite.
+- **Do not persist fake lifecycle advancement.** A native meeting remains durably `draft` until the later import job has actually committed an original source; transcript/protocol lifecycle will advance only with immutable artifact revisions.
+- **Next:** add the minimum durable job envelope and original-source staged copy/recovery path. Do not add a scheduler or import the storage-spike crate.
+
+Known risks and deliberate limits:
+
+- The pending recording stores only the selected display name. No user file path or media bytes cross the Tauri boundary yet.
+- Jobs, source checksums, committed revisions, autosave, archive/restore, and exports are not part of this first production slice.
+- The first migration creates a new database. Backup/recovery-point behaviour must exist before a later migration transforms professional data.
+- Database-busy, permission, low/disk-full, real-process crash, Windows filesystem, and repair UX remain Phase 1A/1C boundaries rather than claims made by this implementation.
 
 ## Storage and recovery spike result
 

@@ -17,6 +17,7 @@
   let styleId =
     projects.find((project) => project.id === projectId)?.defaultStyleId ?? styles[0]?.id ?? '';
   let submitting = false;
+  let submitError = '';
 
   $: selectedProject = projects.find((project) => project.id === projectId);
 
@@ -48,7 +49,13 @@
     event.preventDefault();
     if (!projectId || !sourceName || submitting) return;
     submitting = true;
-    await onCreate({ projectId, title, occurredAt, language, sourceName, styleId });
+    submitError = '';
+    try {
+      await onCreate({ projectId, title, occurredAt, language, sourceName, styleId });
+    } catch (error) {
+      submitError = error instanceof Error ? error.message : String(error);
+      submitting = false;
+    }
   }
 </script>
 
@@ -101,7 +108,7 @@
           <span class="drop-icon"><Icon name="upload" size={30} /></span>
           {#if sourceName}<strong>{sourceName}</strong><small>Ready to assign to this meeting</small
             >{:else}<strong>Choose an audio or video file</strong><small
-              >The Phase 0 shell keeps only its name and never reads or uploads the file.</small
+              >This development build stores only its name and never reads or uploads the file.</small
             >{/if}
         </label>
         <button class="text-action demo-fixture-action" type="button" onclick={useFixture}
@@ -164,6 +171,7 @@
       </div>
     </section>
 
+    {#if submitError}<p class="form-error" role="alert">{submitError}</p>{/if}
     <footer class="form-actions">
       <button class="secondary-action" type="button" onclick={onCancel}>Cancel</button><button
         class="primary-action"

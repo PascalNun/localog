@@ -53,11 +53,12 @@ The repository currently contains:
 - a working Tauri, Rust, Svelte, and TypeScript desktop foundation;
 - the real navigation, visual language, light and dark themes, and primary workflow screens;
 - a synthetic end-to-end demonstration with import, progress, cancellation, failure, retry, transcript review, protocol editing, and export states;
+- the first production SQLite repository for projects, meetings, and pending source assignment, connected to the native shell;
 - completed architecture studies for durable storage, process supervision, media normalisation and transcription, local protocol generation, and Markdown autosave.
 
-The visible workflow still uses synthetic data and fake processing jobs. Project data is not yet durably connected to the interface, and the real transcription-to-protocol pipeline has not been integrated into the application. There are no release builds yet.
+The native shell now preserves created projects, meetings, assigned source names, and meeting-title changes across restarts. The selected media file is not copied yet, and processing jobs, transcripts, protocols, and exports still use synthetic in-memory behaviour. The real transcription-to-protocol pipeline has not been integrated, and there are no release builds yet.
 
-The next milestone is a durable project and meeting workflow using the established interface and fake runtimes. Real local-processing adapters will then enter one at a time behind the validated boundaries.
+The next milestone is to make the import job and original-source commit durable, then carry the fake transcription and generation results through the accepted immutable revision boundary. Real local-processing adapters will enter one at a time only after that recovery path is coherent.
 
 ## How the application is being built
 

@@ -85,6 +85,8 @@ Each spike records what was tested, measurements, risks, a keep/change decision,
 
 Implement only the recovery needed to protect this slice; do not delay it with a general persistence or workflow framework.
 
+Implementation note, 2026-08-02: step 1 has begun with the production SQLite schema, project/meeting/pending-source transaction, restart-safe listing and title updates, and a narrow Tauri workspace store. Fake processing remains session-only and does not advance durable lifecycle until the corresponding source or revision commit exists.
+
 ### Phase 1B — real local pipeline
 
 1. Import/normalise adapter.
