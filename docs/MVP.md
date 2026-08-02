@@ -86,7 +86,7 @@ Each spike records what was tested, measurements, risks, a keep/change decision,
 
 Implement only the recovery needed to protect this slice; do not delay it with a general persistence or workflow framework.
 
-Implementation note, 2026-08-02: steps 1 and 2 are complete. The production schema now preserves hierarchy, source metadata, import jobs, byte progress, cancellation, duplicate confirmation, and restart reconciliation. A native meeting advances to `source_ready` only after its managed source is durably committed. Fake transcription and generation remain session-only and do not advance durable native lifecycle until their immutable artifact boundaries exist.
+Implementation note, 2026-08-02: all four Phase 1A steps are complete. The production schema preserves hierarchy, source metadata, jobs, immutable transcript/protocol revisions, separate working state, exact review status, and restart location. A meeting advances only after the corresponding artifact transaction completes. Deterministic fake adapters exercise cancellation, failure, retry, progress, staged validation, and restart recovery through the same narrow boundaries intended for real runtimes. Starting generation commits dirty transcript work as its exact input revision.
 
 ### Phase 1B — real local pipeline
 

@@ -33,6 +33,7 @@ Status values: **Accepted**, **Proposed**, **Approval required**, **Deferred**.
 | D-023 | License LocaLog under `GPL-3.0-or-later`                                                                             | Accepted | Strong copyleft preserves the freedom to use, study, modify, and redistribute the application while allowing commercial use                    |
 | D-024 | Use UUIDv7 opaque identifiers and UTC Unix-millisecond storage timestamps for the first vertical slice               | Accepted | Provides collision-resistant sortable identities and ordinary time storage without a custom ID system or a general time abstraction            |
 | D-025 | Protocol review belongs to an exact revision; later edits become `changed since review`                              | Accepted | Keeps normal autosave simple while preserving the reviewed document and making later changes traceable                                         |
+| D-026 | Starting protocol generation commits dirty transcript working state as its exact input revision                      | Accepted | Keeps the user action clear while ensuring generation never consumes mutable autosave state or an ambiguous transcript                         |
 
 ## Architecture risks and tensions
 
@@ -68,6 +69,9 @@ Status values: **Accepted**, **Proposed**, **Approval required**, **Deferred**.
 - Autosave working state is separate from immutable committed revisions.
 - Imported original media is immutable.
 - A versioned structured JSON artifact is canonical for each committed transcript revision. Any SQLite projection is derived and rebuildable, never a separately editable canonical copy.
+- Transcript and protocol typing updates one replaceable working artifact. It never creates formal revisions continuously.
+- Starting generation is an explicit downstream boundary: if transcript working state differs from its base revision, LocaLog commits it first and records that exact transcript revision on the generation job.
+- Marking a protocol reviewed applies to one immutable revision. Autosaved edits based on it preserve the reviewed revision and present the working document as `changed since review`.
 
 ## Phase 0B/0C implementation record
 
@@ -171,6 +175,39 @@ Known risks and deliberate limits:
 - Directory syncing is implemented on Unix/macOS. Windows durability, rename, and quarantine behaviour still require its platform test lane.
 - A quarantined orphan is retained safely but does not yet have repair/cleanup UI. Backup/recovery points must precede migrations that transform professional content.
 - Import does not yet probe duration, streams, codecs, corrupt content, or normalize media. Those belong to the next real media adapter, after the persistent fake workflow is approved.
+
+## Phase 1A durable fake workflow implementation record
+
+Implemented and checked on 2026-08-02:
+
+- Schema v4 adds immutable transcript/protocol revision metadata, separate working-state pointers and checksums, exact generation-to-transcript links, protocol review identity, provenance snapshots, deterministic failure intent, and the last active meeting/workspace route.
+- Committed transcript content is one structured JSON artifact containing schema version, meeting/revision identity, language, and ordered stable segments with millisecond bounds, editable speaker labels, text, and an optional review flag. SQLite does not contain a second editable segment copy.
+- Committed protocol content is immutable Markdown. One separate transcript working JSON file and protocol working Markdown file use recoverable replacement; the previous complete working file remains until SQLite acknowledges the new checksum.
+- Two narrow Rust traits describe transcription and protocol generation. The deterministic fake adapters report stage progress, observe cancellation, inject one-shot failures, and produce repeatable synthetic professional content without bypassing job, validation, staging, or commit logic.
+- Starting generation commits dirty transcript working state first and records that exact revision as job input. Normal typing only updates autosave. Explicit revision, review, regeneration, and restoration boundaries retain immutable history.
+- Marking reviewed creates and records one exact reviewed revision. Later autosaved editing keeps meeting lifecycle stable, preserves that revision, and derives the visible state `changed since review`.
+- Startup changes abandoned processing work to `interrupted`, removes staged files, quarantines renamed-but-uncommitted artifacts, restores the database-acknowledged autosave backup when needed, and reopens the last durable meeting stage.
+- The transcript workspace now provides timestamped editable segments, source context, search, generic speaker renaming, keyboard movement between segments, visible save states, and truthful job controls. The protocol workspace provides Markdown editing, native undo/redo, contextual find, text scaling, save/review status, explicit revisions, restoration, and transcript navigation.
+
+Verification:
+
+- Twenty Rust tests cover the durable import suite plus fake adapter determinism, committed revision persistence, transcript-to-generation input identity, autosave reopen, cancellation, injected failure, retry, interruption, staged and renamed output recovery, autosave rollback, review/change semantics, revision restoration, and meeting-stage reopen.
+- Thirteen frontend tests preserve fake/native boundary behaviour, lifecycle/job separation, cancellation/retry, startup failure, and import recovery. Type checking, ESLint, Prettier, production build, Rust formatting, warning-denied Clippy, and the existing editor/spike checks pass.
+- Browser interaction at 1440 × 900 and 900 × 700 exercised transcript search/edit structure, protocol editing, review followed by changed-since-review, revision controls, the contextual inspector/drawer, and accessible control names. No browser warnings or errors were observed.
+
+Keep/change decision:
+
+- **Keep** the stage-specific adapter traits, shared durable job envelope, structured transcript JSON, Markdown protocol artifacts, atomic working-file replacement, exact input/review links, full-snapshot event boundary, and purpose-built transcript/protocol workspaces.
+- **Keep specific** transcription and generation orchestration. Do not turn the explicit stages into a workflow-definition system or provider ecosystem.
+- **Rewrite only the fake adapter implementations** when real runtimes enter. Their persistence, validation, cancellation, progress, and provenance contracts remain.
+
+Known risks and deliberate limits:
+
+- The fake work runs in a supervised blocking task but not an external process group. Real adapter cancellation/termination must use the accepted process-supervision boundary.
+- Transcript JSON is currently serialized and loaded as one bounded document. The 7,200-segment spike was responsive, but real long-recording integration should stream/hash where practical and remeasure on the M1/8 GB baseline.
+- Windows atomic replacement, directory durability, and quarantine behaviour still require a Windows test lane; Linux packaging and path behaviour also remain unverified.
+- Database-busy, real disk-full, application-process termination at every production boundary, migration backup, repair/cleanup UI, and polished backup/restore remain hardening work.
+- The source-context transport remains deliberately limited in this fake milestone. Real probing, duration, waveform/playback authority, transcription quality, diarisation, real provider output, and export are not claimed.
 
 ## Storage and recovery spike result
 
