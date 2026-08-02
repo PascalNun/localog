@@ -30,6 +30,21 @@ Phase 0 validation is complete. The next work is Phase 1A: a small durable proje
 
 Open a discussion before changing the project hierarchy, local-first promise, MVP scope, recording phase, repository licence, public location, or one of the contested alternatives in `docs/DECISIONS.md`. Networked services, telemetry, accounts, remote assets, or cloud dependencies always require an explicit product decision.
 
+## Implementation style
+
+Aim for code that is **lean, legible, proportionate, and responsive**.
+
+- Build the smallest coherent solution that proves the current workflow. Do not turn a local application into a general platform before the product needs it.
+- Prefer clear names, short focused functions, explicit data flow, and ordinary control structures over clever compression or hidden behaviour.
+- Let code explain what happens. Use comments to explain **why** something is necessary: an invariant, safety boundary, recovery rule, platform difference, or non-obvious trade-off. Do not narrate every line or preserve outdated implementation history in comments.
+- Keep modules focused, but split them only when a real boundary has emerged. Avoid universal workflow engines, public plugin systems, broad capability negotiation, or large crate/package graphs without evidence.
+- Make dependencies earn their place. A small maintained dependency is reasonable when it removes real risk; an abstraction layer for a hypothetical future is not.
+- Keep the interface thread free of media work, inference, migrations, large file operations, and synchronous database access. Ordinary navigation, selection, typing, and editing should generally feel immediate—around 100 ms or less—even while background work runs.
+- Bound and throttle progress events, process output, logs, queues, and retries. Avoid keeping large recordings or transcripts in duplicate memory buffers when streaming or incremental work is practical.
+- Optimise architecture before micro-optimising code: isolate heavy work, measure the real bottleneck, then improve it without making the code harder to understand than the gain justifies.
+- Treat errors and cancellation as normal states. A clear failure path is more valuable than a compact happy path that hides what remains safe.
+- Remove dead code and speculative options. If a future idea matters, document it in the roadmap or decision log rather than leaving half-built machinery in production modules.
+
 ## Privacy and test data
 
 Never commit or post:
