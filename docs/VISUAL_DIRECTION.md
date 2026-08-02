@@ -64,7 +64,7 @@ Phase 0 uses `@fontsource/barlow` 5.3.0 under the SIL Open Font License 1.1. Vit
 | `barlow-latin-500-normal.woff2` | `cd759df8ef9efc98fee14307b4eb5ba27f08b1f8f2f3ad2872432e25c89907a8` |
 | `barlow-latin-600-normal.woff2` | `4b52ddd4836b592df0e4832b8286956883cdc651b015126bdd18f184b7f90cc3` |
 
-The start-page sound mark uses seven rounded vertical strokes with a deliberately varied, slightly asymmetric rhythm. It is a provisional visual signature rather than a detailed audio waveform. The application icon remains a Phase 0 scaffold asset derived from this idea; neither is an approved final identity.
+The start-page sound mark uses seven rounded vertical strokes with a deliberately varied, slightly asymmetric rhythm. It is a provisional visual signature rather than a detailed audio waveform. The application icon remains a Phase 0 scaffold asset derived from this idea; its tile uses an optical margin so it sits at a conventional size beside other desktop icons. Neither mark is an approved final identity.
 
 No complementary document/editor typeface is selected yet. Add one only when reading and interaction tests demonstrate a real need.
 
