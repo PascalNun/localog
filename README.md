@@ -4,13 +4,15 @@
 
 LocaLog is an open-source, local-first AI desktop application being built to turn meeting audio into reviewed transcripts and structured, editable protocols—entirely on your own computer. It brings local transcription and language models into a calm project-based workflow, without making an account or cloud service part of the core path.
 
+Meeting recordings often contain confidential conversations, personal information, internal decisions, client details, or material that is not permitted to leave an organisation’s controlled environment. LocaLog is privacy-focused for that practical reason: its core workflow is designed to keep this sensitive content on the user’s device instead of requiring it to be sent to a third-party AI service.
+
 The difference is not simply that the models run locally. LocaLog treats documentation as a connected professional process: every recording belongs to a meeting, every meeting belongs to a project, transcripts are corrected before generation, and generated protocols remain drafts until a person reviews them. Privacy, human control, reliable data handling, and interface quality are designed as one product rather than added around an AI pipeline afterwards.
 
 In LocaLog, a **protocol** means the written record or minutes of a meeting—not a network protocol.
 
 ## The proposition
 
-- **Private by structure.** Meeting content stays on the device through LocaLog’s core workflow; there is no required LocaLog account, cloud workspace, or telemetry service.
+- **Private by structure.** Sensitive meeting content stays on the device through LocaLog’s core workflow; there is no required LocaLog account, cloud workspace, or third-party AI service.
 - **More than transcription.** The product carries a meeting from source material through correction, structured generation, editing, revision, and export.
 - **Context before files.** Projects and meetings keep recordings, vocabulary, transcripts, protocols, and exports meaningfully connected.
 - **Human review by design.** AI output is visible, editable, and provisional. LocaLog does not quietly turn generated text into an authoritative record.
