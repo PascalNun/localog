@@ -1,6 +1,8 @@
 # LocaLog documentation
 
-LocaLog is being designed as one connected product: the interface, local processing, data safety, and professional workflow are not separate layers of importance. These documents move from intention to implementation so that the project can be understood without beginning in source code.
+LocaLog is being designed around one clear outcome: helping people turn meeting recordings into useful, reviewed protocols with local AI. Transcription provides the source; the editable written record is the destination. The interface, local processing, data safety, and professional workflow are equally important parts of reaching it.
+
+These documents move from intention to implementation so that the project can be understood without beginning in source code.
 
 You do not need to be a software developer to read them. Technical terms are used where precision matters, but each document begins with the purpose behind the machinery.
 
