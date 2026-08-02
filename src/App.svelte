@@ -27,6 +27,7 @@
     WorkflowSnapshot,
   } from './lib/workflow/types';
 
+  // The shell already depends on the boundary that future Rust-backed adapters will implement.
   const bridge = new FakeWorkflowBridge();
   let snapshot: WorkflowSnapshot | null = null;
   let route: AppRoute = { name: 'start' };
@@ -36,6 +37,7 @@
   let lastHandledJobId: string | null = null;
   let announcement = '';
 
+  // Route-derived context keeps project and meeting selection in one predictable place.
   $: meetingId = 'meetingId' in route ? route.meetingId : null;
   $: meeting = meetingId
     ? (snapshot?.meetings.find((candidate) => candidate.id === meetingId) ?? null)
@@ -53,6 +55,7 @@
       : null;
 
   onMount(() => {
+    // Native overlay spacing belongs only to Tauri on macOS, never to browser previews or other OSes.
     document.documentElement.dataset.windowChrome = resolveWindowChrome(
       navigator.userAgent,
       '__TAURI_INTERNALS__' in window,
@@ -77,6 +80,7 @@
     lastHandledJobId = job.id;
     announcement = job.stage;
     if (job.outcome !== 'succeeded') return;
+    // Background completion must not pull someone away from a different meeting or view.
     if (routeMeetingId() !== job.meetingId) return;
     if (job.kind === 'transcription') navigate({ name: 'transcript', meetingId: job.meetingId });
     if (job.kind === 'generation') navigate({ name: 'protocol', meetingId: job.meetingId });
@@ -109,6 +113,7 @@
 
   function finishSidebarResize(width: number) {
     resizeSidebar(width);
+    // Persist once at interaction end instead of writing synchronously for every pointer movement.
     localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidth));
   }
 
@@ -143,6 +148,7 @@
       format === 'markdown'
         ? protocol.markdown
         : protocol.markdown.replace(/^#{1,6}\s+/gm, '').replace(/[*_`]/g, '');
+    // Phase 0 uses a browser download; durable exports will move behind the Rust file boundary.
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const href = URL.createObjectURL(blob);
     const anchor = document.createElement('a');

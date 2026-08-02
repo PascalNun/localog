@@ -1,3 +1,5 @@
+/* Local type assets and semantic design tokens */
+
 @font-face {
   font-family: 'Barlow';
   font-style: normal;
@@ -55,6 +57,7 @@
   --inspector-width: 304px;
 }
 
+/* Components share semantic tokens so light and dark themes keep the same hierarchy. */
 :root[data-theme='dark'] {
   --canvas: #1a1917;
   --sidebar: #1e1d1a;
@@ -75,6 +78,8 @@
   --focus: #d3bc8b;
   --shadow: 0 18px 55px rgb(0 0 0 / 24%);
 }
+
+/* Document foundations */
 
 * {
   box-sizing: border-box;
@@ -181,6 +186,8 @@ small {
   line-height: 1.4;
 }
 
+/* Accessibility helpers */
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -209,6 +216,8 @@ small {
   transform: translateY(0);
 }
 
+/* Native window shell and persistent navigation */
+
 .app-shell {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
@@ -221,6 +230,7 @@ small {
   display: none;
 }
 
+/* Tauri's macOS overlay lets app surfaces continue beneath the native traffic lights. */
 :root[data-window-chrome='macos-overlay'] .window-drag-region {
   display: block;
   position: fixed;
@@ -357,6 +367,7 @@ small {
   justify-content: space-between;
 }
 
+/* Keep the divider visually quiet while providing a forgiving pointer target. */
 .sidebar-resize-handle {
   position: absolute;
   z-index: 2;
@@ -455,6 +466,8 @@ body.sidebar-resizing * {
 .sidebar-scrim {
   display: none;
 }
+
+/* Shared workspace grid, headings, and controls */
 
 .workspace {
   height: 100%;
@@ -600,6 +613,8 @@ body.sidebar-resizing * {
   width: 100%;
 }
 
+/* Start and empty state */
+
 .start-workspace {
   position: relative;
   display: grid;
@@ -726,6 +741,8 @@ body.sidebar-resizing * {
   margin: 0;
 }
 
+/* Project overview and meeting index */
+
 .meeting-index-header,
 .meeting-row {
   display: grid;
@@ -784,6 +801,8 @@ body.sidebar-resizing * {
 .empty-inline p {
   max-width: 460px;
 }
+
+/* Project and meeting setup forms */
 
 .editorial-form,
 .meeting-form {
@@ -991,6 +1010,8 @@ textarea::placeholder {
   color: var(--line-strong);
 }
 
+/* Background jobs, progress, cancellation, and recovery */
+
 .progress-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
@@ -1115,6 +1136,8 @@ textarea::placeholder {
   font-size: 1.5rem;
   font-weight: 500;
 }
+
+/* Transcript review and protocol editing workspaces */
 
 .context-layout {
   display: grid;
@@ -1372,6 +1395,8 @@ textarea::placeholder {
   font-size: 0.74rem;
 }
 
+/* Libraries and settings */
+
 .library-header {
   align-items: center;
 }
@@ -1492,6 +1517,8 @@ textarea::placeholder {
   border-color: var(--warning);
 }
 
+/* Cross-workspace job notice and loading state */
+
 .global-job-strip {
   position: absolute;
   z-index: 20;
@@ -1543,6 +1570,8 @@ textarea::placeholder {
     transform: scale(1);
   }
 }
+
+/* Responsive layout: compact desktop, overlay navigation, then single-column forms */
 
 @media (max-width: 1180px) {
   :root {
@@ -1820,6 +1849,7 @@ textarea::placeholder {
   }
 }
 
+/* Preserve state changes without decorative movement when motion is reduced. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
