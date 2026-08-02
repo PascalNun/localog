@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeWorkflowBridge } from './fakeBridge';
-import type { ProjectSummary } from './types';
+import type { ActiveJob, MeetingSummary, ProjectSummary } from './types';
 import type { WorkspaceStore } from './workspaceStore';
 
 describe('FakeWorkflowBridge', () => {
@@ -29,7 +29,7 @@ describe('FakeWorkflowBridge', () => {
     const bridge = new FakeWorkflowBridge({ tickMs: 10, progressStep: 20 });
     await bridge.startTranscription('meeting-kickoff');
     await vi.advanceTimersByTimeAsync(10);
-    await bridge.cancelActiveJob();
+    await bridge.cancelActiveJob('meeting-kickoff');
     await vi.advanceTimersByTimeAsync(10);
 
     const snapshot = await bridge.getSnapshot();
@@ -46,7 +46,7 @@ describe('FakeWorkflowBridge', () => {
     await vi.advanceTimersByTimeAsync(10);
     expect((await bridge.getSnapshot()).activeJob?.state).toBe('failed');
 
-    await bridge.retryActiveJob();
+    await bridge.retryActiveJob('meeting-kickoff');
     await vi.advanceTimersByTimeAsync(20);
     const snapshot = await bridge.getSnapshot();
     expect(snapshot.activeJob?.outcome).toBe('succeeded');
@@ -80,10 +80,20 @@ describe('FakeWorkflowBridge', () => {
     const store: WorkspaceStore = {
       loadWorkspace: vi
         .fn<WorkspaceStore['loadWorkspace']>()
-        .mockResolvedValue({ projects: [persistedProject], meetings: [] }),
+        .mockResolvedValue({ projects: [persistedProject], meetings: [], jobs: [] }),
       createProject: vi.fn<WorkspaceStore['createProject']>().mockResolvedValue(createdProject),
       createMeeting: vi.fn<WorkspaceStore['createMeeting']>(),
       updateMeetingTitle: vi.fn<WorkspaceStore['updateMeetingTitle']>(),
+      selectMediaSource: vi
+        .fn<WorkspaceStore['selectMediaSource']>()
+        .mockResolvedValue({ name: 'synthetic-reselected.wav', path: '/synthetic/reselected.wav' }),
+      startImport: vi.fn<WorkspaceStore['startImport']>(),
+      cancelImport: vi.fn<WorkspaceStore['cancelImport']>(),
+      retryImport: vi.fn<WorkspaceStore['retryImport']>(),
+      replaceImportSource: vi
+        .fn<WorkspaceStore['replaceImportSource']>()
+        .mockResolvedValue(undefined),
+      subscribe: vi.fn<WorkspaceStore['subscribe']>().mockResolvedValue(() => undefined),
     };
     const bridge = new FakeWorkflowBridge({ workspaceStore: store });
 
@@ -106,11 +116,91 @@ describe('FakeWorkflowBridge', () => {
       createProject: vi.fn<WorkspaceStore['createProject']>(),
       createMeeting: vi.fn<WorkspaceStore['createMeeting']>(),
       updateMeetingTitle: vi.fn<WorkspaceStore['updateMeetingTitle']>(),
+      selectMediaSource: vi.fn<WorkspaceStore['selectMediaSource']>(),
+      startImport: vi.fn<WorkspaceStore['startImport']>(),
+      cancelImport: vi.fn<WorkspaceStore['cancelImport']>(),
+      retryImport: vi.fn<WorkspaceStore['retryImport']>(),
+      replaceImportSource: vi.fn<WorkspaceStore['replaceImportSource']>(),
+      subscribe: vi.fn<WorkspaceStore['subscribe']>().mockResolvedValue(() => undefined),
     };
     const bridge = new FakeWorkflowBridge({ workspaceStore: store });
     const onError = vi.fn();
 
     bridge.subscribe(() => undefined, onError);
     await vi.waitFor(() => expect(onError).toHaveBeenCalledWith('Storage unavailable'));
+  });
+
+  it('restores an interrupted native import and retries the selected meeting', async () => {
+    const project: ProjectSummary = {
+      id: 'project-recovery',
+      name: 'Synthetic recovery project',
+      description: '',
+      meetingCount: 1,
+      defaultLanguage: 'English',
+      defaultStyleId: 'style-formal',
+    };
+    const meeting: MeetingSummary = {
+      id: 'meeting-recovery',
+      projectId: project.id,
+      title: 'Synthetic interrupted import',
+      occurredAt: '2026-08-02',
+      durationLabel: null,
+      lifecycle: 'draft',
+      language: 'English',
+      sourceName: 'synthetic-recovery.wav',
+      sourceByteCount: null,
+      sourceMediaType: null,
+      styleId: 'style-formal',
+    };
+    const job: ActiveJob = {
+      id: 'job-recovery',
+      meetingId: meeting.id,
+      kind: 'import',
+      state: 'interrupted',
+      outcome: null,
+      progress: 42,
+      progressBytes: 420,
+      totalBytes: 1_000,
+      stage: 'Import was interrupted — original unchanged',
+      attempt: 1,
+      error: {
+        code: 'interrupted',
+        title: 'Import was interrupted',
+        detail: 'The meeting remains in Draft.',
+      },
+      requiresDuplicateConfirmation: false,
+    };
+    const store: WorkspaceStore = {
+      loadWorkspace: vi
+        .fn<WorkspaceStore['loadWorkspace']>()
+        .mockResolvedValue({ projects: [project], meetings: [meeting], jobs: [job] }),
+      createProject: vi.fn<WorkspaceStore['createProject']>(),
+      createMeeting: vi.fn<WorkspaceStore['createMeeting']>(),
+      updateMeetingTitle: vi.fn<WorkspaceStore['updateMeetingTitle']>(),
+      selectMediaSource: vi
+        .fn<WorkspaceStore['selectMediaSource']>()
+        .mockResolvedValue({ name: 'synthetic-reselected.wav', path: '/synthetic/reselected.wav' }),
+      startImport: vi.fn<WorkspaceStore['startImport']>(),
+      cancelImport: vi.fn<WorkspaceStore['cancelImport']>(),
+      retryImport: vi.fn<WorkspaceStore['retryImport']>().mockResolvedValue(undefined),
+      replaceImportSource: vi
+        .fn<WorkspaceStore['replaceImportSource']>()
+        .mockResolvedValue(undefined),
+      subscribe: vi.fn<WorkspaceStore['subscribe']>().mockResolvedValue(() => undefined),
+    };
+    const bridge = new FakeWorkflowBridge({ workspaceStore: store });
+
+    const snapshot = await bridge.getSnapshot();
+    expect(snapshot.meetings[0]?.lifecycle).toBe('draft');
+    expect(snapshot.activeJob).toEqual(job);
+
+    await bridge.retryActiveJob(meeting.id);
+    expect(store.retryImport).toHaveBeenCalledWith(meeting.id, false);
+
+    await bridge.reselectImportSource(meeting.id);
+    expect(store.replaceImportSource).toHaveBeenCalledWith(meeting.id, {
+      name: 'synthetic-reselected.wav',
+      path: '/synthetic/reselected.wav',
+    });
   });
 });

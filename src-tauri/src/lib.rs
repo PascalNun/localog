@@ -124,6 +124,28 @@ async fn retry_import(
     launch_import(app, root, imports.inner().clone(), meeting_id)
 }
 
+#[tauri::command]
+async fn replace_import_source(
+    app: AppHandle,
+    storage: State<'_, StorageState>,
+    imports: State<'_, ImportState>,
+    meeting_id: String,
+    source_name: String,
+    source_path: String,
+) -> Result<(), String> {
+    let root = storage.root.clone();
+    let snapshot = with_repository(root.clone(), {
+        let meeting_id = meeting_id.clone();
+        move |repository| {
+            repository.replace_import_source(&meeting_id, &source_name, &source_path)?;
+            repository.workspace_snapshot()
+        }
+    })
+    .await?;
+    let _ = app.emit("workspace://changed", snapshot);
+    launch_import(app, root, imports.inner().clone(), meeting_id)
+}
+
 fn launch_import(
     app: AppHandle,
     root: PathBuf,
@@ -226,6 +248,7 @@ pub fn run() {
             start_import,
             cancel_import,
             retry_import,
+            replace_import_source,
             update_meeting_title
         ])
         .run(tauri::generate_context!())

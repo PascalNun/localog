@@ -29,7 +29,8 @@
   } from './lib/workflow/types';
 
   // The shell already depends on the boundary that future Rust-backed adapters will implement.
-  const bridge = new FakeWorkflowBridge({ workspaceStore: createNativeWorkspaceStore() });
+  const workspaceStore = createNativeWorkspaceStore();
+  const bridge = new FakeWorkflowBridge({ workspaceStore });
   let snapshot: WorkflowSnapshot | null = null;
   let route: AppRoute = { name: 'start' };
   let theme: 'light' | 'dark' = 'light';
@@ -97,6 +98,21 @@
     return 'meetingId' in route ? route.meetingId : null;
   }
 
+  function compactJobStatus(job: NonNullable<WorkflowSnapshot['activeJob']>) {
+    if (job.requiresDuplicateConfirmation) return 'Needs your decision';
+    if (job.state === 'queued') return 'Ready to continue';
+    if (job.state === 'cancelling') return 'Cancelling safely';
+    if (job.kind === 'import' && job.totalBytes !== null) {
+      return `${formatBytes(job.progressBytes)} of ${formatBytes(job.totalBytes)} copied locally`;
+    }
+    return `${job.progress}% · running locally`;
+  }
+
+  function formatBytes(bytes: number) {
+    if (bytes < 1_000_000) return `${Math.round(bytes / 1_000)} KB`;
+    return `${(bytes / 1_000_000).toFixed(bytes >= 10_000_000 ? 0 : 1)} MB`;
+  }
+
   function navigate(nextRoute: AppRoute) {
     route = nextRoute;
     sidebarOpen = false;
@@ -135,8 +151,8 @@
 
   async function createMeeting(input: NewMeetingInput) {
     const created = await bridge.createMeeting(input);
-    navigate({ name: 'meeting', meetingId: created.id });
     await bridge.importRecording(created.id);
+    navigate({ name: 'meeting', meetingId: created.id });
   }
 
   function cancelNewProject(returnToImport: boolean) {
@@ -211,7 +227,7 @@
           onclick={() => navigate({ name: 'meeting', meetingId: snapshot!.activeJob!.meetingId })}
           ><span class="processing-dot"></span><span
             ><strong>{snapshot.activeJob.stage}</strong><small
-              >{snapshot.activeJob.progress}% · running locally</small
+              >{compactJobStatus(snapshot.activeJob)}</small
             ></span
           ><Icon name="arrow" /></button
         >
@@ -233,6 +249,7 @@
           styles={snapshot.styles}
           onCancel={() => cancelNewMeeting(route.name === 'new-meeting' ? route.projectId : null)}
           onCreateProject={() => navigate({ name: 'new-project', returnToImport: true })}
+          onSelectNativeSource={workspaceStore?.selectMediaSource.bind(workspaceStore)}
           onCreate={createMeeting}
         />
       {:else if route.name === 'project' && project}
@@ -247,11 +264,13 @@
         <MeetingView
           {project}
           {meeting}
-          job={snapshot.activeJob}
+          job={snapshot.jobs.find((job) => job.meetingId === meeting.id) ?? snapshot.activeJob}
           onNavigate={navigate}
           onTranscribe={() => bridge.startTranscription(meeting.id)}
-          onCancel={() => bridge.cancelActiveJob()}
-          onRetry={() => bridge.retryActiveJob()}
+          onCancel={() => bridge.cancelActiveJob(meeting.id)}
+          onRetry={() => bridge.retryActiveJob(meeting.id)}
+          onConfirmDuplicate={() => bridge.confirmDuplicateImport(meeting.id)}
+          onReselectSource={() => bridge.reselectImportSource(meeting.id)}
           onRename={(title) => bridge.updateMeetingTitle(meeting.id, title)}
         />
       {:else if route.name === 'transcript' && project && meeting}
@@ -262,8 +281,8 @@
           job={snapshot.activeJob}
           onNavigate={navigate}
           onGenerate={() => bridge.generateProtocol(meeting.id)}
-          onCancel={() => bridge.cancelActiveJob()}
-          onRetry={() => bridge.retryActiveJob()}
+          onCancel={() => bridge.cancelActiveJob(meeting.id)}
+          onRetry={() => bridge.retryActiveJob(meeting.id)}
           onUpdateSegment={(segmentId, text) =>
             bridge.updateTranscriptSegment(meeting.id, segmentId, text)}
           onUpdateSpeaker={(speaker, replacement) =>

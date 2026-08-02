@@ -16,7 +16,7 @@
       <line x1="75" y1="14" x2="75" y2="59" />
       <line x1="88" y1="27" x2="88" y2="45" />
     </svg>
-    <p class="eyebrow">Private meeting records, on your Mac</p>
+    <p class="eyebrow">Local AI for private meeting protocols</p>
     <h1 tabindex="-1">Start a meeting</h1>
     <p class="hero-copy">
       Import an audio or video file. Review every step before it becomes a protocol.
@@ -39,8 +39,8 @@
   <div class="local-promise">
     <span class="lock-mark" aria-hidden="true">⌂</span>
     <span
-      ><strong>Everything in this demo stays local.</strong><small
-        >No account, cloud service, or telemetry.</small
+      ><strong>Your meeting work stays on this device.</strong><small
+        >No LocaLog account, cloud service, or telemetry.</small
       ></span
     >
   </div>

@@ -30,6 +30,8 @@ const initialMeetings: MeetingSummary[] = [
     lifecycle: 'protocol_draft',
     language: 'English',
     sourceName: 'synthetic-envelope-review.m4a',
+    sourceByteCount: 48_200_000,
+    sourceMediaType: 'audio/mp4',
     styleId: 'style-formal',
   },
   {
@@ -41,6 +43,8 @@ const initialMeetings: MeetingSummary[] = [
     lifecycle: 'transcript_ready',
     language: 'English',
     sourceName: 'synthetic-access-review.wav',
+    sourceByteCount: 72_400_000,
+    sourceMediaType: 'audio/wav',
     styleId: 'style-formal',
   },
   {
@@ -52,6 +56,8 @@ const initialMeetings: MeetingSummary[] = [
     lifecycle: 'source_ready',
     language: 'English',
     sourceName: 'synthetic-kickoff.mp3',
+    sourceByteCount: 33_800_000,
+    sourceMediaType: 'audio/mpeg',
     styleId: 'style-working-note',
   },
 ];
@@ -207,6 +213,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         projectId: 'project-harbor-canopy',
       },
     ],
+    jobs: [],
     activeJob: null,
     nextJobOutcome: 'success',
   };
@@ -232,6 +239,10 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       this.snapshot.transcripts = {};
       this.snapshot.protocols = {};
       this.ready = this.loadDurableWorkspace(this.workspaceStore);
+      void this.workspaceStore.subscribe((workspace) => {
+        this.applyDurableWorkspace(workspace);
+        this.emit();
+      });
     } else {
       this.ready = Promise.resolve();
     }
@@ -289,6 +300,8 @@ export class FakeWorkflowBridge implements WorkflowBridge {
           lifecycle: 'draft',
           language: input.language,
           sourceName: input.sourceName,
+          sourceByteCount: null,
+          sourceMediaType: null,
           styleId: input.styleId,
         };
 
@@ -300,6 +313,10 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async importRecording(meetingId: string): Promise<void> {
+    if (this.workspaceStore) {
+      await this.workspaceStore.startImport(meetingId);
+      return;
+    }
     this.startJob(meetingId, 'import');
   }
 
@@ -311,19 +328,43 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     this.startJob(meetingId, 'generation');
   }
 
-  async cancelActiveJob(): Promise<void> {
-    const job = this.snapshot.activeJob;
+  async cancelActiveJob(meetingId: string): Promise<void> {
+    const job = this.workspaceStore
+      ? this.snapshot.jobs.find((candidate) => candidate.meetingId === meetingId)
+      : this.snapshot.activeJob;
     if (!job || !['queued', 'running'].includes(job.state)) return;
+    if (this.workspaceStore && job.kind === 'import') {
+      await this.workspaceStore.cancelImport(job.meetingId);
+      return;
+    }
     job.state = 'cancelling';
     job.stage = 'Stopping local process safely';
     this.emit();
   }
 
-  async retryActiveJob(): Promise<void> {
-    const job = this.snapshot.activeJob;
-    if (!job || !['failed', 'interrupted'].includes(job.state)) return;
+  async retryActiveJob(meetingId: string): Promise<void> {
+    const job = this.workspaceStore
+      ? this.snapshot.jobs.find((candidate) => candidate.meetingId === meetingId)
+      : this.snapshot.activeJob;
+    if (!job || !['queued', 'failed', 'cancelled', 'interrupted'].includes(job.state)) return;
+    if (this.workspaceStore && job.kind === 'import') {
+      await this.workspaceStore.retryImport(job.meetingId, false);
+      return;
+    }
     this.snapshot.nextJobOutcome = 'success';
     this.startJob(job.meetingId, job.kind, job.attempt + 1);
+  }
+
+  async confirmDuplicateImport(meetingId: string): Promise<void> {
+    if (!this.workspaceStore) return;
+    await this.workspaceStore.retryImport(meetingId, true);
+  }
+
+  async reselectImportSource(meetingId: string): Promise<void> {
+    if (!this.workspaceStore) return;
+    const source = await this.workspaceStore.selectMediaSource();
+    if (!source) return;
+    await this.workspaceStore.replaceImportSource(meetingId, source);
   }
 
   async updateMeetingTitle(meetingId: string, title: string): Promise<void> {
@@ -390,9 +431,12 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       state: 'queued',
       outcome: null,
       progress: 0,
+      progressBytes: 0,
+      totalBytes: null,
       stage: 'Queued locally',
       attempt,
       error: null,
+      requiresDuplicateConfirmation: false,
     };
     this.emit();
     this.timer = setInterval(() => this.advanceJob(), this.tickMs);
@@ -400,8 +444,17 @@ export class FakeWorkflowBridge implements WorkflowBridge {
 
   private async loadDurableWorkspace(store: WorkspaceStore): Promise<void> {
     const workspace = await store.loadWorkspace();
+    this.applyDurableWorkspace(workspace);
+  }
+
+  private applyDurableWorkspace(workspace: Awaited<ReturnType<WorkspaceStore['loadWorkspace']>>) {
     this.snapshot.projects = workspace.projects;
     this.snapshot.meetings = workspace.meetings;
+    this.snapshot.jobs = workspace.jobs;
+    this.snapshot.activeJob =
+      workspace.jobs.find((job) => ['queued', 'running', 'cancelling'].includes(job.state)) ??
+      workspace.jobs[0] ??
+      null;
   }
 
   private advanceJob(): void {
@@ -427,6 +480,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       job.state = 'failed';
       job.stage = `${this.labelForJob(job.kind)} stopped`;
       job.error = {
+        code: 'synthetic_failure',
         title: `${this.labelForJob(job.kind)} could not finish`,
         detail:
           'The synthetic runtime stopped as requested. The source and latest stable work are still safe.',

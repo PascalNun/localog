@@ -11,6 +11,8 @@
   export let onTranscribe: () => Promise<void>;
   export let onCancel: () => Promise<void>;
   export let onRetry: () => Promise<void>;
+  export let onConfirmDuplicate: () => Promise<void>;
+  export let onReselectSource: () => Promise<void>;
   export let onRename: (title: string) => Promise<void>;
 
   let editingTitle = false;
@@ -21,6 +23,12 @@
   async function saveTitle() {
     await onRename(titleDraft);
     editingTitle = false;
+  }
+
+  function formatBytes(bytes: number | null) {
+    if (bytes === null) return 'Stored locally';
+    if (bytes < 1_000_000) return `${Math.round(bytes / 1_000)} KB`;
+    return `${(bytes / 1_000_000).toFixed(bytes >= 10_000_000 ? 0 : 1)} MB`;
   }
 </script>
 
@@ -53,16 +61,23 @@
       job={relevantJob}
       {onCancel}
       {onRetry}
+      {onConfirmDuplicate}
+      {onReselectSource}
     />{/if}
 
   <section class="meeting-stage">
     {#if meeting.lifecycle === 'draft'}
       <div class="stage-message">
-        <p class="eyebrow">Import in progress</p>
+        <p class="eyebrow">Source import</p>
         <h2>Your original remains unchanged</h2>
         <p>
-          The fake boundary exercises the same stable-meeting and transient-job separation intended
-          for real local processing.
+          {#if relevantJob?.state === 'interrupted'}LocaLog was closed before the managed copy was
+            committed. The meeting remains in Draft and the import can be retried safely.{:else if relevantJob?.state === 'cancelled'}The
+            managed copy was cancelled. The meeting remains in Draft and the external file was not
+            modified.{:else if relevantJob?.state === 'failed'}The managed copy could not be
+            committed. The meeting remains in Draft and the external file was not modified.{:else}LocaLog
+            is copying this source into private managed storage. It will become ready only after the
+            copy has been validated and committed.{/if}
         </p>
       </div>
     {:else if meeting.lifecycle === 'source_ready'}
@@ -70,10 +85,22 @@
         <p class="eyebrow">Source ready</p>
         <h2>Ready to transcribe locally</h2>
         <p>
-          <strong>{meeting.sourceName}</strong> is assigned to this meeting. The Phase 0 fake has not
-          read its contents.
+          {#if meeting.sourceByteCount !== null}<strong>{meeting.sourceName}</strong> is safely stored
+            with this meeting. The external original was not modified.{:else}<strong
+              >{meeting.sourceName}</strong
+            > is assigned to this synthetic browser meeting. No real media file was copied.{/if}
         </p>
         <dl class="resolved-settings">
+          <div>
+            <dt>Managed source</dt>
+            <dd>
+              {meeting.sourceByteCount === null
+                ? 'Synthetic fixture'
+                : formatBytes(meeting.sourceByteCount)}<small
+                >{meeting.sourceMediaType ?? 'Browser preview'}</small
+              >
+            </dd>
+          </div>
           <div>
             <dt>Language</dt>
             <dd>{meeting.language}<small>Meeting setting</small></dd>

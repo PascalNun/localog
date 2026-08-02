@@ -1,5 +1,10 @@
 <script lang="ts">
-  import type { NewMeetingInput, ProjectSummary, ProtocolStyle } from '../workflow/types';
+  import type {
+    NewMeetingInput,
+    ProjectSummary,
+    ProtocolStyle,
+    SourceSelection,
+  } from '../workflow/types';
   import Icon from './Icon.svelte';
 
   export let projects: ProjectSummary[];
@@ -7,12 +12,14 @@
   export let styles: ProtocolStyle[];
   export let onCancel: () => void;
   export let onCreateProject: () => void;
+  export let onSelectNativeSource: (() => Promise<SourceSelection | null>) | undefined = undefined;
   export let onCreate: (input: NewMeetingInput) => Promise<void>;
 
   let projectId = initialProjectId ?? projects[0]?.id ?? '';
   let title = '';
   let occurredAt = new Date().toISOString().slice(0, 10);
   let sourceName = '';
+  let sourcePath: string | null = null;
   let language = projects.find((project) => project.id === projectId)?.defaultLanguage ?? 'English';
   let styleId =
     projects.find((project) => project.id === projectId)?.defaultStyleId ?? styles[0]?.id ?? '';
@@ -30,12 +37,27 @@
   function selectFile(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
     sourceName = input.files?.[0]?.name ?? '';
+    sourcePath = null;
     if (!title && sourceName) title = titleFromFile(sourceName);
   }
 
   function useFixture() {
     sourceName = 'synthetic-design-coordination.wav';
     if (!title) title = 'Design coordination';
+  }
+
+  async function chooseNativeSource() {
+    if (!onSelectNativeSource) return;
+    submitError = '';
+    try {
+      const selection = await onSelectNativeSource();
+      if (!selection) return;
+      sourceName = selection.name;
+      sourcePath = selection.path;
+      if (!title) title = titleFromFile(sourceName);
+    } catch (error) {
+      submitError = error instanceof Error ? error.message : String(error);
+    }
   }
 
   function titleFromFile(filename: string) {
@@ -51,7 +73,7 @@
     submitting = true;
     submitError = '';
     try {
-      await onCreate({ projectId, title, occurredAt, language, sourceName, styleId });
+      await onCreate({ projectId, title, occurredAt, language, sourceName, sourcePath, styleId });
     } catch (error) {
       submitError = error instanceof Error ? error.message : String(error);
       submitting = false;
@@ -101,19 +123,35 @@
             <p class="eyebrow">Source</p>
             <h2 id="source-heading">Import recording</h2>
           </div>
-          <span class="privacy-note">Local fake import</span>
+          <span class="privacy-note">Local managed import</span>
         </div>
-        <label class:has-source={sourceName} class="drop-zone">
-          <input type="file" accept="audio/*,video/*" onchange={selectFile} />
-          <span class="drop-icon"><Icon name="upload" size={30} /></span>
-          {#if sourceName}<strong>{sourceName}</strong><small>Ready to assign to this meeting</small
-            >{:else}<strong>Choose an audio or video file</strong><small
-              >This development build stores only its name and never reads or uploads the file.</small
-            >{/if}
-        </label>
-        <button class="text-action demo-fixture-action" type="button" onclick={useFixture}
-          >Use the synthetic demo recording</button
-        >
+        {#if onSelectNativeSource}<button
+            class:has-source={sourceName}
+            class="drop-zone"
+            type="button"
+            onclick={chooseNativeSource}
+          >
+            <span class="drop-icon"><Icon name="upload" size={30} /></span>
+            {#if sourceName}<strong>{sourceName}</strong><small
+                >Ready to copy after you confirm this meeting</small
+              >{:else}<strong>Choose an audio or video file</strong><small
+                >The original remains untouched. LocaLog creates its own managed copy.</small
+              >{/if}
+          </button>{:else}<label class:has-source={sourceName} class="drop-zone">
+            <input type="file" accept="audio/*,video/*" onchange={selectFile} />
+            <span class="drop-icon"><Icon name="upload" size={30} /></span>
+            {#if sourceName}<strong>{sourceName}</strong><small
+                >Ready to assign to this meeting</small
+              >{:else}<strong>Choose an audio or video file</strong><small
+                >The browser preview demonstrates the workflow without storing the file.</small
+              >{/if}
+          </label>
+        {/if}
+        {#if !onSelectNativeSource}<button
+            class="text-action demo-fixture-action"
+            type="button"
+            onclick={useFixture}>Use the synthetic demo recording</button
+          >{/if}
       </div>
     </section>
 
