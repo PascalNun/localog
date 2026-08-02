@@ -78,6 +78,7 @@ The sidebar never contains Inbox, Recordings, Transcripts, Protocols, account/av
 - Breadcrumbs or a compact context line identify the current project and meeting in dense workspaces.
 - Browser-like back/forward behaviour and restoration of the last useful selection are desirable. Route implementation is not part of the product contract.
 - On narrow windows, the sidebar may become a dismissible overlay. Keyboard focus returns to its opener when closed.
+- On desktop, the sidebar defaults to 248 px and may be resized between 216 px and 360 px. The divider supports pointer and keyboard adjustment, double-click or Enter restores the default, and the chosen width is stored locally. The narrow-window overlay ignores the desktop width.
 - Disabled placeholders are avoided. If a destination is not useful yet, hide it.
 
 ## Primary workflow

@@ -1,16 +1,20 @@
 <script lang="ts">
   import type { ActiveJob, AppRoute, ProjectSummary } from '../workflow/types';
   import Icon from './Icon.svelte';
+  import SidebarResizeHandle from './SidebarResizeHandle.svelte';
 
   export let projects: ProjectSummary[];
   export let route: AppRoute;
   export let currentProjectId: string | null;
   export let activeJob: ActiveJob | null;
+  export let width: number;
   export let open = false;
   export let theme: 'light' | 'dark';
   export let onNavigate: (route: AppRoute) => void;
   export let onClose: () => void;
   export let onToggleTheme: () => void;
+  export let onResize: (width: number) => void;
+  export let onResizeEnd: (width: number) => void;
 
   $: operationalJob = activeJob && !['completed'].includes(activeJob.state) ? activeJob : null;
   $: jobNeedsAttention =
@@ -106,4 +110,5 @@
       ><Icon name={theme === 'light' ? 'moon' : 'sun'} /></button
     >
   </div>
+  <SidebarResizeHandle {width} {onResize} {onResizeEnd} />
 </aside>
