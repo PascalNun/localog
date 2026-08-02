@@ -1368,7 +1368,7 @@ textarea::placeholder {
 }
 .protocol-main {
   display: grid;
-  grid-template-rows: 48px minmax(540px, 1fr);
+  grid-template-rows: auto auto minmax(540px, 1fr);
   background: var(--raised);
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1378,13 +1378,44 @@ textarea::placeholder {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 0 18px;
+  min-height: 48px;
+  padding: 7px 18px;
   color: var(--muted);
   border-bottom: 1px solid var(--line);
   font-size: 0.76rem;
 }
+.editor-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.editor-tools .text-action {
+  min-height: 30px;
+  padding: 4px 7px;
+  font-size: 0.72rem;
+}
 .save-state.busy {
   color: var(--warning);
+}
+.save-state.error {
+  color: var(--danger);
+}
+
+/* Find stays contextual to the writing surface instead of becoming a permanent toolbar. */
+.editor-find {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 9px 18px;
+  background: var(--subtle);
+  border-bottom: 1px solid var(--line);
+}
+.editor-find input,
+.editor-find .secondary-action {
+  min-height: 34px;
+}
+.editor-find .secondary-action {
+  padding: 6px 13px;
 }
 .protocol-editor {
   display: block;
@@ -1401,6 +1432,28 @@ textarea::placeholder {
   font-size: 1rem;
   line-height: 1.7;
   resize: none;
+}
+.revision-list {
+  display: grid;
+  gap: 2px;
+}
+.revision-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 38px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.78rem;
+}
+.revision-list span {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.revision-list small {
+  color: var(--muted);
+  text-transform: capitalize;
 }
 .export-actions {
   display: grid;
@@ -1730,6 +1783,13 @@ textarea::placeholder {
 }
 
 @media (max-width: 640px) {
+  .editor-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .editor-tools {
+    flex-wrap: wrap;
+  }
   .workspace {
     padding: 30px 20px 48px;
   }

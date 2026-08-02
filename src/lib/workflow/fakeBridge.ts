@@ -8,6 +8,7 @@ import type {
   NewProjectInput,
   ProjectSummary,
   ProtocolDraft,
+  TranscriptDocument,
   TranscriptSegment,
   WorkflowBridge,
   WorkflowSnapshot,
@@ -65,32 +66,32 @@ const initialMeetings: MeetingSummary[] = [
 const sampleTranscript: TranscriptSegment[] = [
   {
     id: 'segment-1',
-    startSeconds: 12,
-    startLabel: '00:00:12',
+    startMs: 12_000,
+    endMs: 30_000,
     speaker: 'Speaker 1',
     text: 'Let’s confirm the two options we want to carry into the next review.',
     needsReview: false,
   },
   {
     id: 'segment-2',
-    startSeconds: 31,
-    startLabel: '00:00:31',
+    startMs: 31_000,
+    endMs: 56_000,
     speaker: 'Speaker 2',
     text: 'The lighter assembly is preferable, provided the junction detail remains serviceable.',
     needsReview: false,
   },
   {
     id: 'segment-3',
-    startSeconds: 57,
-    startLabel: '00:00:57',
+    startMs: 57_000,
+    endMs: 80_000,
     speaker: 'Speaker 1',
     text: 'We still need the acoustic note and the updated cost range before deciding.',
     needsReview: true,
   },
   {
     id: 'segment-4',
-    startSeconds: 81,
-    startLabel: '00:01:21',
+    startMs: 81_000,
+    endMs: 102_000,
     speaker: 'Speaker 3',
     text: 'I will circulate both items before Thursday afternoon.',
     needsReview: false,
@@ -98,6 +99,9 @@ const sampleTranscript: TranscriptSegment[] = [
 ];
 
 const sampleProtocol: ProtocolDraft = {
+  meetingId: 'meeting-envelope-options',
+  revisionId: 'protocol-demo-1',
+  transcriptRevisionId: 'transcript-demo-1',
   markdown: `# Meeting protocol
 
 ## Purpose
@@ -119,9 +123,27 @@ No final assembly decision was made in this meeting.
 - Prepare the acoustic note and updated cost range before Thursday afternoon.
 - Carry both viable options into the next review.
 `,
-  savedAt: '10:42',
   styleId: 'style-formal',
+  reviewState: 'draft',
+  isDirty: false,
+  saveState: 'saved',
+  savedAtMs: Date.now(),
+  revisions: [{ id: 'protocol-demo-1', ordinal: 1, status: 'draft', createdAtMs: Date.now() }],
 };
+
+function sampleTranscriptDocument(meetingId: string): TranscriptDocument {
+  return {
+    schemaVersion: 1,
+    meetingId,
+    revisionId: `transcript-demo-${meetingId}`,
+    language: 'English',
+    segments: structuredClone(sampleTranscript),
+    baseRevisionId: `transcript-demo-${meetingId}`,
+    isDirty: false,
+    saveState: 'saved',
+    savedAtMs: Date.now(),
+  };
+}
 
 const jobStages: Record<JobKind, string[]> = {
   import: ['Checking source', 'Copying original', 'Preparing working audio'],
@@ -166,8 +188,8 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     ],
     meetings: structuredClone(initialMeetings),
     transcripts: {
-      'meeting-envelope-options': structuredClone(sampleTranscript),
-      'meeting-access-review': structuredClone(sampleTranscript),
+      'meeting-envelope-options': sampleTranscriptDocument('meeting-envelope-options'),
+      'meeting-access-review': sampleTranscriptDocument('meeting-access-review'),
     },
     protocols: { 'meeting-envelope-options': structuredClone(sampleProtocol) },
     styles: [
@@ -216,6 +238,8 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     jobs: [],
     activeJob: null,
     nextJobOutcome: 'success',
+    activeMeetingId: null,
+    activeRoute: null,
   };
 
   private readonly listeners = new Set<(snapshot: WorkflowSnapshot) => void>();
@@ -321,10 +345,22 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async startTranscription(meetingId: string): Promise<void> {
+    if (this.workspaceStore) {
+      const failRequested = this.snapshot.nextJobOutcome === 'failure';
+      this.snapshot.nextJobOutcome = 'success';
+      await this.workspaceStore.startTranscription(meetingId, failRequested);
+      return;
+    }
     this.startJob(meetingId, 'transcription');
   }
 
   async generateProtocol(meetingId: string): Promise<void> {
+    if (this.workspaceStore) {
+      const failRequested = this.snapshot.nextJobOutcome === 'failure';
+      this.snapshot.nextJobOutcome = 'success';
+      await this.workspaceStore.startGeneration(meetingId, failRequested);
+      return;
+    }
     this.startJob(meetingId, 'generation');
   }
 
@@ -335,6 +371,10 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     if (!job || !['queued', 'running'].includes(job.state)) return;
     if (this.workspaceStore && job.kind === 'import') {
       await this.workspaceStore.cancelImport(job.meetingId);
+      return;
+    }
+    if (this.workspaceStore) {
+      await this.workspaceStore.cancelProcessing(job.meetingId);
       return;
     }
     job.state = 'cancelling';
@@ -349,6 +389,10 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     if (!job || !['queued', 'failed', 'cancelled', 'interrupted'].includes(job.state)) return;
     if (this.workspaceStore && job.kind === 'import') {
       await this.workspaceStore.retryImport(job.meetingId, false);
+      return;
+    }
+    if (this.workspaceStore) {
+      await this.workspaceStore.retryProcessing(job.meetingId);
       return;
     }
     this.snapshot.nextJobOutcome = 'success';
@@ -378,42 +422,127 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async updateTranscriptSegment(meetingId: string, segmentId: string, text: string): Promise<void> {
-    const segment = this.snapshot.transcripts[meetingId]?.find(
-      (candidate) => candidate.id === segmentId,
-    );
+    if (this.workspaceStore) {
+      this.applyDurableWorkspace(
+        await this.workspaceStore.updateTranscriptSegment(meetingId, segmentId, text),
+      );
+      this.emit();
+      return;
+    }
+    const document = this.snapshot.transcripts[meetingId];
+    const segment = document?.segments.find((candidate) => candidate.id === segmentId);
     if (!segment) return;
     segment.text = text;
     segment.needsReview = false;
-    this.emit();
-  }
-
-  async updateSpeaker(meetingId: string, speaker: string, replacement: string): Promise<void> {
-    const nextSpeaker = replacement.trim();
-    if (!nextSpeaker) return;
-    for (const segment of this.snapshot.transcripts[meetingId] ?? []) {
-      if (segment.speaker === speaker) segment.speaker = nextSpeaker;
+    if (document) {
+      document.isDirty = true;
+      document.savedAtMs = Date.now();
     }
     this.emit();
   }
 
+  async updateSpeaker(meetingId: string, speaker: string, replacement: string): Promise<void> {
+    if (this.workspaceStore) {
+      this.applyDurableWorkspace(
+        await this.workspaceStore.renameTranscriptSpeaker(meetingId, speaker, replacement),
+      );
+      this.emit();
+      return;
+    }
+    const nextSpeaker = replacement.trim();
+    if (!nextSpeaker) return;
+    const document = this.snapshot.transcripts[meetingId];
+    for (const segment of document?.segments ?? []) {
+      if (segment.speaker === speaker) segment.speaker = nextSpeaker;
+    }
+    if (document) document.isDirty = true;
+    this.emit();
+  }
+
   async updateProtocol(meetingId: string, markdown: string): Promise<void> {
+    if (this.workspaceStore) {
+      this.applyDurableWorkspace(await this.workspaceStore.autosaveProtocol(meetingId, markdown));
+      this.emit();
+      return;
+    }
     const protocol = this.snapshot.protocols[meetingId];
     if (!protocol) return;
     protocol.markdown = markdown;
-    protocol.savedAt = new Intl.DateTimeFormat('en', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(new Date());
-    const meeting = this.findMeeting(meetingId);
-    if (meeting.lifecycle === 'reviewed') meeting.lifecycle = 'protocol_draft';
+    protocol.savedAtMs = Date.now();
+    protocol.isDirty = true;
+    if (protocol.reviewState === 'reviewed') protocol.reviewState = 'changed_since_review';
+    this.emit();
+  }
+
+  async createProtocolRevision(meetingId: string): Promise<void> {
+    if (this.workspaceStore) {
+      this.applyDurableWorkspace(await this.workspaceStore.createProtocolRevision(meetingId));
+      this.emit();
+      return;
+    }
+    const protocol = this.snapshot.protocols[meetingId];
+    if (!protocol) return;
+    protocol.revisionId = `protocol-demo-${Date.now()}`;
+    protocol.isDirty = false;
+    protocol.reviewState = 'draft';
+    protocol.revisions.unshift({
+      id: protocol.revisionId,
+      ordinal: protocol.revisions.length + 1,
+      status: 'draft',
+      createdAtMs: Date.now(),
+    });
+    this.findMeeting(meetingId).lifecycle = 'protocol_draft';
     this.emit();
   }
 
   async markReviewed(meetingId: string): Promise<void> {
+    if (this.workspaceStore) {
+      this.applyDurableWorkspace(await this.workspaceStore.markProtocolReviewed(meetingId));
+      this.emit();
+      return;
+    }
+    await this.createProtocolRevision(meetingId);
     const meeting = this.findMeeting(meetingId);
-    if (meeting.lifecycle === 'protocol_draft') meeting.lifecycle = 'reviewed';
+    const protocol = this.snapshot.protocols[meetingId];
+    if (protocol) {
+      protocol.reviewState = 'reviewed';
+      const revision = protocol.revisions.find((item) => item.id === protocol.revisionId);
+      if (revision) revision.status = 'reviewed';
+    }
+    meeting.lifecycle = 'reviewed';
     this.emit();
+  }
+
+  async restoreProtocolRevision(meetingId: string, revisionId: string): Promise<void> {
+    if (this.workspaceStore) {
+      this.applyDurableWorkspace(
+        await this.workspaceStore.restoreProtocolRevision(meetingId, revisionId),
+      );
+      this.emit();
+      return;
+    }
+    const protocol = this.snapshot.protocols[meetingId];
+    if (!protocol?.revisions.some((revision) => revision.id === revisionId)) return;
+    protocol.revisionId = `protocol-demo-restored-${Date.now()}`;
+    protocol.reviewState = 'draft';
+    protocol.isDirty = false;
+    protocol.revisions.unshift({
+      id: protocol.revisionId,
+      ordinal: protocol.revisions.length + 1,
+      status: 'draft',
+      createdAtMs: Date.now(),
+    });
+    this.findMeeting(meetingId).lifecycle = 'protocol_draft';
+    this.emit();
+  }
+
+  async saveWorkspaceLocation(
+    meetingId: string,
+    route: 'meeting' | 'transcript' | 'protocol',
+  ): Promise<void> {
+    this.snapshot.activeMeetingId = meetingId;
+    this.snapshot.activeRoute = route;
+    if (this.workspaceStore) await this.workspaceStore.saveWorkspaceLocation(meetingId, route);
   }
 
   async setNextJobOutcome(outcome: FakeJobOutcome): Promise<void> {
@@ -455,6 +584,10 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       workspace.jobs.find((job) => ['queued', 'running', 'cancelling'].includes(job.state)) ??
       workspace.jobs[0] ??
       null;
+    this.snapshot.transcripts = workspace.transcripts;
+    this.snapshot.protocols = workspace.protocols;
+    this.snapshot.activeMeetingId = workspace.activeMeetingId;
+    this.snapshot.activeRoute = workspace.activeRoute;
   }
 
   private advanceJob(): void {
@@ -508,11 +641,12 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     meeting.lifecycle = completionLifecycle[job.kind];
     if (job.kind === 'import') meeting.durationLabel = '42 min';
     if (job.kind === 'transcription') {
-      this.snapshot.transcripts[job.meetingId] = structuredClone(sampleTranscript);
+      this.snapshot.transcripts[job.meetingId] = sampleTranscriptDocument(job.meetingId);
     }
     if (job.kind === 'generation') {
       this.snapshot.protocols[job.meetingId] = {
         ...structuredClone(sampleProtocol),
+        meetingId: job.meetingId,
         styleId: meeting.styleId,
       };
     }

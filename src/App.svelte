@@ -39,6 +39,7 @@
   let lastHandledJobId: string | null = null;
   let announcement = '';
   let startupError = '';
+  let locationRestored = false;
 
   // Route-derived context keeps project and meeting selection in one predictable place.
   $: meetingId = 'meetingId' in route ? route.meetingId : null;
@@ -74,6 +75,15 @@
     return bridge.subscribe(
       (nextSnapshot) => {
         snapshot = nextSnapshot;
+        if (!locationRestored && nextSnapshot.activeMeetingId && nextSnapshot.activeRoute) {
+          route = {
+            name: nextSnapshot.activeRoute,
+            meetingId: nextSnapshot.activeMeetingId,
+          };
+          locationRestored = true;
+        } else if (!locationRestored) {
+          locationRestored = true;
+        }
         handleCompletedJob(nextSnapshot);
       },
       (message) => {
@@ -115,6 +125,12 @@
 
   function navigate(nextRoute: AppRoute) {
     route = nextRoute;
+    if (
+      'meetingId' in nextRoute &&
+      ['meeting', 'transcript', 'protocol'].includes(nextRoute.name)
+    ) {
+      void bridge.saveWorkspaceLocation(nextRoute.meetingId, nextRoute.name);
+    }
     sidebarOpen = false;
     requestAnimationFrame(() => document.querySelector<HTMLElement>('#main-content h1')?.focus());
   }
@@ -277,8 +293,8 @@
         <TranscriptView
           {project}
           {meeting}
-          segments={snapshot.transcripts[meeting.id] ?? []}
-          job={snapshot.activeJob}
+          transcript={snapshot.transcripts[meeting.id] ?? null}
+          job={snapshot.jobs.find((job) => job.meetingId === meeting.id) ?? snapshot.activeJob}
           onNavigate={navigate}
           onGenerate={() => bridge.generateProtocol(meeting.id)}
           onCancel={() => bridge.cancelActiveJob(meeting.id)}
@@ -296,7 +312,9 @@
           style={protocolStyle}
           onNavigate={navigate}
           onSave={(markdown) => bridge.updateProtocol(meeting.id, markdown)}
+          onCreateRevision={() => bridge.createProtocolRevision(meeting.id)}
           onMarkReviewed={() => bridge.markReviewed(meeting.id)}
+          onRestoreRevision={(revisionId) => bridge.restoreProtocolRevision(meeting.id, revisionId)}
           onExport={exportProtocol}
         />
       {:else if route.name === 'styles' || route.name === 'vocabulary'}

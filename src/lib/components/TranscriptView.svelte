@@ -5,7 +5,7 @@
     AppRoute,
     MeetingSummary,
     ProjectSummary,
-    TranscriptSegment,
+    TranscriptDocument,
   } from '../workflow/types';
   import Icon from './Icon.svelte';
   import ProgressPanel from './ProgressPanel.svelte';
@@ -13,7 +13,7 @@
 
   export let project: ProjectSummary;
   export let meeting: MeetingSummary;
-  export let segments: TranscriptSegment[];
+  export let transcript: TranscriptDocument | null;
   export let job: ActiveJob | null;
   export let onNavigate: (route: AppRoute) => void;
   export let onGenerate: () => Promise<void>;
@@ -27,6 +27,9 @@
   let query = '';
   let inspectorOpen = true;
   let playbackTimer: ReturnType<typeof setInterval> | null = null;
+  let saveState: 'saved' | 'saving' | 'failed' = transcript?.saveState ?? 'saved';
+
+  $: segments = transcript?.segments ?? [];
 
   $: relevantJob = job?.meetingId === meeting.id && job.kind === 'generation' ? job : null;
   $: generationUnavailable = Boolean(relevantJob && relevantJob.state !== 'completed');
@@ -56,6 +59,34 @@
 
   function seek(seconds: number) {
     currentSeconds = seconds;
+  }
+
+  function segmentTimeLabel(milliseconds: number) {
+    const seconds = Math.floor(milliseconds / 1000);
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainder = seconds % 60;
+    return [hours, minutes, remainder].map((value) => value.toString().padStart(2, '0')).join(':');
+  }
+
+  async function saveSegment(segmentId: string, text: string) {
+    saveState = 'saving';
+    try {
+      await onUpdateSegment(segmentId, text);
+      saveState = 'saved';
+    } catch {
+      saveState = 'failed';
+    }
+  }
+
+  function moveBetweenSegments(event: KeyboardEvent, segmentId: string) {
+    if (!(event.metaKey || event.ctrlKey) || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+    const index = filteredSegments.findIndex((segment) => segment.id === segmentId);
+    const next = event.key === 'ArrowUp' ? index - 1 : index + 1;
+    const target = filteredSegments[next];
+    if (!target) return;
+    event.preventDefault();
+    window.document.querySelector<HTMLTextAreaElement>(`[data-segment-id="${target.id}"]`)?.focus();
   }
 
   function timeLabel(seconds: number) {
@@ -93,7 +124,7 @@
 
   <div class:without-inspector={!inspectorOpen} class="context-layout">
     <div class="transcript-main">
-      <section class="audio-transport" aria-label="Synthetic audio transport">
+      <section class="audio-transport" aria-label="Meeting source context">
         <button
           class="play-button"
           onclick={togglePlayback}
@@ -128,15 +159,18 @@
       <section class="transcript-list" aria-label="Editable transcript">
         {#each filteredSegments as segment (segment.id)}
           <article class:needs-review={segment.needsReview} class="transcript-segment">
-            <button class="timestamp" onclick={() => seek(segment.startSeconds)}
-              >{segment.startLabel}</button
+            <button class="timestamp" onclick={() => seek(segment.startMs / 1000)}
+              >{segmentTimeLabel(segment.startMs)}</button
             >
             <span class="speaker-label">{segment.speaker}</span>
             <label
-              ><span class="sr-only">Transcript text at {segment.startLabel}</span><textarea
+              ><span class="sr-only">Transcript text at {segmentTimeLabel(segment.startMs)}</span
+              ><textarea
                 rows="2"
                 value={segment.text}
-                onblur={(event) => onUpdateSegment(segment.id, event.currentTarget.value)}
+                data-segment-id={segment.id}
+                onkeydown={(event) => moveBetweenSegments(event, segment.id)}
+                onblur={(event) => saveSegment(segment.id, event.currentTarget.value)}
               ></textarea></label
             >
             {#if segment.needsReview}<span class="review-flag"
@@ -148,9 +182,15 @@
 
       <footer class="workspace-action-bar">
         <div>
-          <strong>Transcript edits save locally</strong><small
-            >Speaker identity is never inferred in this demo.</small
-          >
+          <strong
+            >{saveState === 'saving'
+              ? 'Saving locally…'
+              : saveState === 'failed'
+                ? 'Autosave failed — your last saved work is intact'
+                : transcript?.isDirty
+                  ? 'Working edits saved locally'
+                  : 'Transcript revision saved'}</strong
+          ><small>Speaker identity is never inferred in this milestone.</small>
         </div>
         <button class="primary-action" onclick={onGenerate} disabled={generationUnavailable}
           >Generate protocol <Icon name="arrow" /></button

@@ -19,6 +19,12 @@
     job.kind === 'import' && job.totalBytes !== null
       ? `${formatBytes(job.progressBytes)} of ${formatBytes(job.totalBytes)}`
       : `${job.progress}%`;
+  $: continueLabel =
+    job.kind === 'import'
+      ? 'Continue import'
+      : job.kind === 'transcription'
+        ? 'Start transcription again'
+        : 'Start generation again';
 
   function formatBytes(bytes: number) {
     if (bytes < 1_000_000) return `${Math.round(bytes / 1_000)} KB`;
@@ -48,13 +54,15 @@
   {:else if ['failed', 'interrupted', 'cancelled'].includes(job.state) || (job.state === 'queued' && job.progressBytes === 0)}
     <div class="progress-actions">
       <span class="safe-note"
-        ><Icon name="check" size={15} /> Meeting retained · external original unchanged</span
+        ><Icon name="check" size={15} /> Latest stable work retained{job.kind === 'import'
+          ? ' · external original unchanged'
+          : ''}</span
       >{#if ['source_missing', 'source_reselection_required'].includes(job.error?.code ?? '')}<button
           class="secondary-action"
           onclick={onReselectSource}>Choose source again</button
         >{/if}{#if job.error?.code !== 'source_reselection_required'}<button
           class="primary-action"
-          onclick={onRetry}>{job.state === 'queued' ? 'Continue import' : 'Retry'}</button
+          onclick={onRetry}>{job.state === 'queued' ? continueLabel : 'Retry'}</button
         >{/if}
     </div>
   {:else if job.state === 'completed'}

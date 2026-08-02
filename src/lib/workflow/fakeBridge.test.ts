@@ -3,6 +3,43 @@ import { FakeWorkflowBridge } from './fakeBridge';
 import type { ActiveJob, MeetingSummary, ProjectSummary } from './types';
 import type { WorkspaceStore } from './workspaceStore';
 
+const emptyWorkspace = {
+  projects: [],
+  meetings: [],
+  jobs: [],
+  transcripts: {},
+  protocols: {},
+  activeMeetingId: null,
+  activeRoute: null,
+};
+
+function mockStore(overrides: Partial<WorkspaceStore> = {}): WorkspaceStore {
+  return {
+    loadWorkspace: vi.fn<WorkspaceStore['loadWorkspace']>().mockResolvedValue(emptyWorkspace),
+    createProject: vi.fn<WorkspaceStore['createProject']>(),
+    createMeeting: vi.fn<WorkspaceStore['createMeeting']>(),
+    updateMeetingTitle: vi.fn<WorkspaceStore['updateMeetingTitle']>(),
+    selectMediaSource: vi.fn<WorkspaceStore['selectMediaSource']>(),
+    startImport: vi.fn<WorkspaceStore['startImport']>(),
+    cancelImport: vi.fn<WorkspaceStore['cancelImport']>(),
+    retryImport: vi.fn<WorkspaceStore['retryImport']>(),
+    replaceImportSource: vi.fn<WorkspaceStore['replaceImportSource']>(),
+    startTranscription: vi.fn<WorkspaceStore['startTranscription']>(),
+    startGeneration: vi.fn<WorkspaceStore['startGeneration']>(),
+    cancelProcessing: vi.fn<WorkspaceStore['cancelProcessing']>(),
+    retryProcessing: vi.fn<WorkspaceStore['retryProcessing']>(),
+    updateTranscriptSegment: vi.fn<WorkspaceStore['updateTranscriptSegment']>(),
+    renameTranscriptSpeaker: vi.fn<WorkspaceStore['renameTranscriptSpeaker']>(),
+    autosaveProtocol: vi.fn<WorkspaceStore['autosaveProtocol']>(),
+    createProtocolRevision: vi.fn<WorkspaceStore['createProtocolRevision']>(),
+    markProtocolReviewed: vi.fn<WorkspaceStore['markProtocolReviewed']>(),
+    restoreProtocolRevision: vi.fn<WorkspaceStore['restoreProtocolRevision']>(),
+    saveWorkspaceLocation: vi.fn<WorkspaceStore['saveWorkspaceLocation']>(),
+    subscribe: vi.fn<WorkspaceStore['subscribe']>().mockResolvedValue(() => undefined),
+    ...overrides,
+  };
+}
+
 describe('FakeWorkflowBridge', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
@@ -50,16 +87,19 @@ describe('FakeWorkflowBridge', () => {
     await vi.advanceTimersByTimeAsync(20);
     const snapshot = await bridge.getSnapshot();
     expect(snapshot.activeJob?.outcome).toBe('succeeded');
-    expect(snapshot.transcripts['meeting-kickoff']).toHaveLength(4);
+    expect(snapshot.transcripts['meeting-kickoff']?.segments).toHaveLength(4);
   });
 
-  it('returns reviewed protocols to draft when their content changes', async () => {
+  it('preserves the reviewed revision when working content changes', async () => {
     const bridge = new FakeWorkflowBridge();
     await bridge.markReviewed('meeting-envelope-options');
     await bridge.updateProtocol('meeting-envelope-options', '# Revised protocol');
     const snapshot = await bridge.getSnapshot();
     expect(snapshot.meetings.find(({ id }) => id === 'meeting-envelope-options')?.lifecycle).toBe(
-      'protocol_draft',
+      'reviewed',
+    );
+    expect(snapshot.protocols['meeting-envelope-options']?.reviewState).toBe(
+      'changed_since_review',
     );
   });
 
@@ -77,24 +117,18 @@ describe('FakeWorkflowBridge', () => {
       id: 'project-created',
       name: 'Created synthetic project',
     };
-    const store: WorkspaceStore = {
+    const store = mockStore({
       loadWorkspace: vi
         .fn<WorkspaceStore['loadWorkspace']>()
-        .mockResolvedValue({ projects: [persistedProject], meetings: [], jobs: [] }),
+        .mockResolvedValue({ ...emptyWorkspace, projects: [persistedProject] }),
       createProject: vi.fn<WorkspaceStore['createProject']>().mockResolvedValue(createdProject),
-      createMeeting: vi.fn<WorkspaceStore['createMeeting']>(),
-      updateMeetingTitle: vi.fn<WorkspaceStore['updateMeetingTitle']>(),
       selectMediaSource: vi
         .fn<WorkspaceStore['selectMediaSource']>()
         .mockResolvedValue({ name: 'synthetic-reselected.wav', path: '/synthetic/reselected.wav' }),
-      startImport: vi.fn<WorkspaceStore['startImport']>(),
-      cancelImport: vi.fn<WorkspaceStore['cancelImport']>(),
-      retryImport: vi.fn<WorkspaceStore['retryImport']>(),
       replaceImportSource: vi
         .fn<WorkspaceStore['replaceImportSource']>()
         .mockResolvedValue(undefined),
-      subscribe: vi.fn<WorkspaceStore['subscribe']>().mockResolvedValue(() => undefined),
-    };
+    });
     const bridge = new FakeWorkflowBridge({ workspaceStore: store });
 
     expect((await bridge.getSnapshot()).projects).toEqual([persistedProject]);
@@ -109,20 +143,11 @@ describe('FakeWorkflowBridge', () => {
   });
 
   it('reports a bounded native-workspace startup failure', async () => {
-    const store: WorkspaceStore = {
+    const store = mockStore({
       loadWorkspace: vi
         .fn<WorkspaceStore['loadWorkspace']>()
         .mockRejectedValue('Storage unavailable'),
-      createProject: vi.fn<WorkspaceStore['createProject']>(),
-      createMeeting: vi.fn<WorkspaceStore['createMeeting']>(),
-      updateMeetingTitle: vi.fn<WorkspaceStore['updateMeetingTitle']>(),
-      selectMediaSource: vi.fn<WorkspaceStore['selectMediaSource']>(),
-      startImport: vi.fn<WorkspaceStore['startImport']>(),
-      cancelImport: vi.fn<WorkspaceStore['cancelImport']>(),
-      retryImport: vi.fn<WorkspaceStore['retryImport']>(),
-      replaceImportSource: vi.fn<WorkspaceStore['replaceImportSource']>(),
-      subscribe: vi.fn<WorkspaceStore['subscribe']>().mockResolvedValue(() => undefined),
-    };
+    });
     const bridge = new FakeWorkflowBridge({ workspaceStore: store });
     const onError = vi.fn();
 
@@ -170,24 +195,21 @@ describe('FakeWorkflowBridge', () => {
       },
       requiresDuplicateConfirmation: false,
     };
-    const store: WorkspaceStore = {
-      loadWorkspace: vi
-        .fn<WorkspaceStore['loadWorkspace']>()
-        .mockResolvedValue({ projects: [project], meetings: [meeting], jobs: [job] }),
-      createProject: vi.fn<WorkspaceStore['createProject']>(),
-      createMeeting: vi.fn<WorkspaceStore['createMeeting']>(),
-      updateMeetingTitle: vi.fn<WorkspaceStore['updateMeetingTitle']>(),
+    const store = mockStore({
+      loadWorkspace: vi.fn<WorkspaceStore['loadWorkspace']>().mockResolvedValue({
+        ...emptyWorkspace,
+        projects: [project],
+        meetings: [meeting],
+        jobs: [job],
+      }),
       selectMediaSource: vi
         .fn<WorkspaceStore['selectMediaSource']>()
         .mockResolvedValue({ name: 'synthetic-reselected.wav', path: '/synthetic/reselected.wav' }),
-      startImport: vi.fn<WorkspaceStore['startImport']>(),
-      cancelImport: vi.fn<WorkspaceStore['cancelImport']>(),
       retryImport: vi.fn<WorkspaceStore['retryImport']>().mockResolvedValue(undefined),
       replaceImportSource: vi
         .fn<WorkspaceStore['replaceImportSource']>()
         .mockResolvedValue(undefined),
-      subscribe: vi.fn<WorkspaceStore['subscribe']>().mockResolvedValue(() => undefined),
-    };
+    });
     const bridge = new FakeWorkflowBridge({ workspaceStore: store });
 
     const snapshot = await bridge.getSnapshot();
