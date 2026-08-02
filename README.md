@@ -35,6 +35,7 @@ This structure matters as much as the underlying transcription and language mode
 
 ## What guides the project
 
+- **The user’s task comes first.** Models, architecture, and features matter only when they help someone reach a trustworthy protocol with less effort, less uncertainty, and more control.
 - **Local by default.** Recordings, transcripts, vocabulary, drafts, and exports remain on the device through LocaLog’s core workflow.
 - **Human review is part of the process.** Generated text is a starting point, never an automatic final record.
 - **Projects provide context.** Meetings and their documents stay connected instead of becoming a loose collection of files.

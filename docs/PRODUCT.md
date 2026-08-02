@@ -20,6 +20,12 @@ Its differentiator is not local inference alone. LocaLog connects the full docum
 
 Interface quality is a core product requirement and principal differentiator, equal in importance to local-first architecture and reliable data handling. The product succeeds only when local processing becomes a calm, immediate, intuitive, and trustworthy professional desktop workflow; working transcription and generation engines alone are insufficient.
 
+## User-centred principle
+
+LocaLog is evaluated from the user’s point of view: can someone move from a meeting recording to a useful, trustworthy protocol clearly, quickly, and with control? Models, architecture, and feature breadth are means to that outcome, not measures of success by themselves.
+
+Product and implementation choices should reduce unnecessary effort, waiting, uncertainty, and cognitive load throughout that task. When the technically easiest option would materially weaken the workflow, the trade-off must be raised and reviewed. User focus does not override privacy, data integrity, or human review; those safeguards are part of what makes the product useful and trustworthy.
+
 ## Initial users
 
 The first proving context is architecture and planning work, including architects, engineers, project managers, consultants, construction teams, and public-sector project teams. The product model should remain useful to other professional project teams; architecture-specific language belongs in presets and vocabulary, not hard-coded application logic.
