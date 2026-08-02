@@ -17,8 +17,22 @@
 
   let editingTitle = false;
   let titleDraft = meeting.title;
+  let startingTranscription = false;
+  let transcriptionStartError = '';
   $: relevantJob = job?.meetingId === meeting.id ? job : null;
   $: transcriptionUnavailable = Boolean(relevantJob && relevantJob.state !== 'completed');
+
+  async function startTranscription() {
+    startingTranscription = true;
+    transcriptionStartError = '';
+    try {
+      await onTranscribe();
+    } catch {
+      transcriptionStartError = 'Transcription could not be started. Please try again.';
+    } finally {
+      startingTranscription = false;
+    }
+  }
 
   async function saveTitle() {
     await onRename(titleDraft);
@@ -114,10 +128,20 @@
             <dd>Global + project<small>Project default</small></dd>
           </div>
         </dl>
-        <button class="primary-action" onclick={onTranscribe} disabled={transcriptionUnavailable}
-          >{transcriptionUnavailable ? 'Use the job controls above' : 'Transcribe'}
+        <button
+          class="primary-action"
+          onclick={startTranscription}
+          disabled={startingTranscription || transcriptionUnavailable}
+          >{startingTranscription
+            ? 'Preparing local transcription…'
+            : transcriptionUnavailable
+              ? 'Use the job controls above'
+              : 'Transcribe'}
           <Icon name="arrow" /></button
         >
+        {#if transcriptionStartError}<p class="form-error" role="alert">
+            {transcriptionStartError}
+          </p>{/if}
       </div>
     {:else if meeting.lifecycle === 'transcript_ready'}
       <div class="stage-message">

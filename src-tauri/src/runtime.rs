@@ -4,6 +4,8 @@ use sha2::{Digest, Sha256};
 use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 use std::fs::File;
+#[cfg(unix)]
+use std::io::ErrorKind;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -159,14 +161,20 @@ pub(crate) fn run_process(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let mut child = command.spawn().map_err(|_| ProcessFailure::LaunchFailed)?;
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or(ProcessFailure::OutputReadFailed)?;
-    let stderr = child
-        .stderr
-        .take()
-        .ok_or(ProcessFailure::OutputReadFailed)?;
+    let stdout = match child.stdout.take() {
+        Some(stdout) => stdout,
+        None => {
+            terminate(&mut child, limits.termination_grace);
+            return Err(ProcessFailure::OutputReadFailed);
+        }
+    };
+    let stderr = match child.stderr.take() {
+        Some(stderr) => stderr,
+        None => {
+            terminate(&mut child, limits.termination_grace);
+            return Err(ProcessFailure::OutputReadFailed);
+        }
+    };
     let stdout_thread = thread::spawn(move || read_tail(stdout, limits.max_stdout_tail_bytes));
     let stderr_thread = thread::spawn(move || read_tail(stderr, limits.max_stderr_tail_bytes));
     let started_at = Instant::now();
@@ -183,11 +191,16 @@ pub(crate) fn run_process(
             let _ = stderr_thread.join();
             return Err(ProcessFailure::TimedOut);
         }
-        if child
-            .try_wait()
-            .map_err(|_| ProcessFailure::WaitFailed)?
-            .is_some()
-        {
+        let finished = match child.try_wait() {
+            Ok(status) => status.is_some(),
+            Err(_) => {
+                terminate(&mut child, limits.termination_grace);
+                let _ = stdout_thread.join();
+                let _ = stderr_thread.join();
+                return Err(ProcessFailure::WaitFailed);
+            }
+        };
+        if finished {
             break;
         }
         thread::sleep(Duration::from_millis(50));
@@ -238,41 +251,80 @@ fn read_tail(mut reader: impl Read, max: usize) -> std::io::Result<TailOutput> {
 
 fn terminate(child: &mut Child, grace: Duration) {
     #[cfg(unix)]
-    unsafe {
-        let _ = libc::kill(-(child.id() as i32), libc::SIGTERM);
-    }
-    let deadline = Instant::now() + grace;
-    while Instant::now() < deadline {
-        if child.try_wait().ok().flatten().is_some() {
-            return;
+    {
+        let process_group = -(child.id() as i32);
+        unsafe {
+            let _ = libc::kill(process_group, libc::SIGTERM);
         }
-        thread::sleep(Duration::from_millis(25));
+        let deadline = Instant::now() + grace;
+        while Instant::now() < deadline {
+            let child_finished = child.try_wait().ok().flatten().is_some();
+            if child_finished && !process_group_exists(process_group) {
+                return;
+            }
+            thread::sleep(Duration::from_millis(25));
+        }
+        unsafe {
+            // The runtime may have spawned children that ignore SIGTERM.
+            let _ = libc::kill(process_group, libc::SIGKILL);
+        }
+        let _ = child.wait();
     }
-    let _ = child.kill();
+    #[cfg(not(unix))]
+    {
+        let deadline = Instant::now() + grace;
+        while Instant::now() < deadline {
+            if child.try_wait().ok().flatten().is_some() {
+                return;
+            }
+            thread::sleep(Duration::from_millis(25));
+        }
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+}
+
+#[cfg(unix)]
+fn process_group_exists(process_group: i32) -> bool {
+    let result = unsafe { libc::kill(process_group, 0) };
+    result == 0 || std::io::Error::last_os_error().kind() == ErrorKind::PermissionDenied
 }
 
 pub(crate) fn executable_version(path: &Path) -> Option<String> {
+    executable_version_with_argument(path, "--version")
+}
+
+pub(crate) fn ffmpeg_version(path: &Path) -> Option<String> {
+    executable_version_with_argument(path, "-version")
+}
+
+fn executable_version_with_argument(path: &Path, argument: &str) -> Option<String> {
     let mut command = Command::new(path);
-    command.arg("--version");
+    command.arg(argument);
     let token = AtomicBool::new(false);
     run_process(command, &token, ProcessLimits::version())
         .ok()
-        .map(|output| {
-            output
-                .stdout
-                .lines()
-                .next()
-                .unwrap_or_default()
-                .trim()
-                .to_string()
+        .and_then(|output| {
+            first_non_empty_line(&output.stdout).or_else(|| first_non_empty_line(&output.stderr))
         })
-        .filter(|value| !value.is_empty())
+}
+
+fn first_non_empty_line(output: &str) -> Option<String> {
+    output
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .map(str::to_string)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
     use std::process::Command;
+    #[cfg(unix)]
+    use tempfile::tempdir;
 
     #[test]
     fn bounded_reader_drains_and_keeps_only_the_tail() {
@@ -344,5 +396,47 @@ mod tests {
             ProcessLimits::with_max_output(128),
         );
         assert_eq!(result.unwrap_err(), ProcessFailure::Exited(Some(7)));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn ffmpeg_version_uses_the_tool_specific_argument() {
+        let temporary = tempdir().unwrap();
+        let script = temporary.path().join("version-script");
+        std::fs::write(
+            &script,
+            b"#!/bin/sh\nif [ \"$1\" = \"-version\" ]; then echo 'ffmpeg synthetic 1'; else exit 7; fi\n",
+        )
+        .unwrap();
+        let mut permissions = std::fs::metadata(&script).unwrap().permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&script, permissions).unwrap();
+
+        assert_eq!(
+            ffmpeg_version(&script).as_deref(),
+            Some("ffmpeg synthetic 1")
+        );
+        assert_eq!(executable_version(&script), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn cancellation_kills_a_process_group_that_ignores_sigterm() {
+        let mut command = Command::new("sh");
+        command.args([
+            "-c",
+            "trap '' TERM; (trap '' TERM; while :; do sleep 1; done) & wait",
+        ]);
+        let result = run_process(
+            command,
+            &AtomicBool::new(true),
+            ProcessLimits {
+                timeout: Duration::from_secs(5),
+                termination_grace: Duration::from_millis(100),
+                max_stdout_tail_bytes: 128,
+                max_stderr_tail_bytes: 128,
+            },
+        );
+        assert_eq!(result.unwrap_err(), ProcessFailure::Cancelled);
     }
 }
