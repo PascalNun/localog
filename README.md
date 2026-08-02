@@ -1,14 +1,14 @@
 # LocaLog
 
-### Local-first AI for meeting records that remain yours.
+### Local AI that turns meeting recordings into clear, reviewable protocols.
 
-LocaLog is an open-source, local-first AI desktop application being built to turn meeting audio into reviewed transcripts and structured, editable protocols—entirely on your own computer. It brings local transcription and language models into a calm project-based workflow, without making an account or cloud service part of the core path.
+LocaLog is an open-source, local-first desktop application being built to turn meeting audio and video into structured, editable protocols—the written minutes or record of a meeting. It transcribes the recording, gives you a focused place to correct the transcript, and then uses a local language model to create a protocol draft that you can review, refine, and export.
+
+The protocol is the purpose of the workflow. Transcription is the essential, reviewable source for it—not a separate end product. Recordings, transcript revisions, protocol drafts, and exports remain connected to the right meeting and project, while AI output stays provisional until a person has reviewed it.
 
 Meeting recordings often contain confidential conversations, personal information, internal decisions, client details, or material that is not permitted to leave an organisation’s controlled environment. LocaLog is privacy-focused for that practical reason: its core workflow is designed to keep this sensitive content on the user’s device instead of requiring it to be sent to a third-party AI service.
 
-The difference is not simply that the models run locally. LocaLog treats documentation as a connected professional process: every recording belongs to a meeting, every meeting belongs to a project, transcripts are corrected before generation, and generated protocols remain drafts until a person reviews them. Privacy, human control, reliable data handling, and interface quality are designed as one product rather than added around an AI pipeline afterwards.
-
-In LocaLog, a **protocol** means the written record or minutes of a meeting—not a network protocol.
+The difference is not simply that the models run locally. Privacy, human control, reliable data handling, and a calm professional interface are designed as one product rather than added around an AI pipeline afterwards.
 
 ![LocaLog development shell showing the light meeting start screen](docs/assets/screenshots/localog-start-light.png)
 
@@ -16,8 +16,8 @@ _Current development shell using synthetic project data. The interface will cont
 
 ## The proposition
 
+- **The protocol is the outcome.** Transcription, correction, and local generation form one deliberate path toward useful, editable meeting minutes.
 - **Private by structure.** Sensitive meeting content stays on the device through LocaLog’s core workflow; there is no required LocaLog account, cloud workspace, or third-party AI service.
-- **More than transcription.** The product carries a meeting from source material through correction, structured generation, editing, revision, and export.
 - **Context before files.** Projects and meetings keep recordings, vocabulary, transcripts, protocols, and exports meaningfully connected.
 - **Human review by design.** AI output is visible, editable, and provisional. LocaLog does not quietly turn generated text into an authoritative record.
 - **A serious desktop tool.** The interface is designed for reading, writing, focus, failure, and recovery—not as a chatbot, model playground, or generic SaaS dashboard.
@@ -31,7 +31,7 @@ LocaLog treats meeting documentation as one connected piece of work:
 
 A recording is never left without context. It belongs to a meeting, and that meeting belongs to a project. The transcript can be corrected before it becomes the basis of a protocol. Generated text remains an editable draft until a person has reviewed it.
 
-This structure matters as much as the underlying transcription and language models. The aim is not simply to run local AI, but to translate it into a professional workflow that feels immediate, legible, and trustworthy.
+This structure matters as much as the underlying transcription and language models. The aim is not simply to produce a transcript or run local AI, but to help someone create a useful protocol through a professional workflow that feels immediate, legible, and trustworthy.
 
 ## What guides the project
 

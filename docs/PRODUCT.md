@@ -10,7 +10,9 @@ Professional meetings produce decisions, responsibilities, unresolved questions,
 
 ## Product promise
 
-LocaLog is an open-source, local-first AI desktop application for turning project meeting recordings into reviewed transcripts and structured, editable protocols on the user’s device. It combines local processing with project context, deliberate human review, and a carefully designed writing workflow; no LocaLog account or cloud service is required for the core path.
+LocaLog is an open-source, local-first AI desktop application for creating structured, editable meeting protocols from audio and video on the user’s device. The protocol is the intended result. Local transcription and transcript review provide controlled source material for a local language model to create a draft, which the user can then refine and export.
+
+This path combines project context, deliberate human review, and a carefully designed writing workflow; no LocaLog account or cloud service is required for the core experience. Transcription is an essential capability, but it serves the protocol rather than becoming a second, equally weighted product destination.
 
 The privacy focus follows from this architecture: the normal workflow should not require sensitive meeting content to be uploaded to a third-party transcription or language-model service. Local-first describes where the work happens and who remains in control of the data, not merely a deployment preference.
 
