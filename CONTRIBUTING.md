@@ -19,6 +19,7 @@ Phase 0 validation is complete. The next work is Phase 1A: a small durable proje
 
 ## Working principles
 
+- Begin with the user’s task: moving from a recording to a useful, trustworthy protocol. Treat models, architecture, and features as means to that outcome rather than achievements by themselves.
 - Plan a bounded change and state its acceptance criteria.
 - Prefer a coherent vertical slice over speculative abstractions.
 - Record material product or architecture choices in `docs/DECISIONS.md` or a focused ADR.

@@ -10,6 +10,8 @@ LocaLog is a project-based professional meeting-documentation application. It is
 
 The product succeeds only when private local processing becomes a calm, immediate, intuitive, and trustworthy desktop workflow. Interface quality is equal in importance to local-first architecture and reliable data handling.
 
+Every screen and interaction should be judged by whether it helps the user reach a useful protocol with less effort and greater confidence. The interface should follow the user’s task rather than expose the internal shape of the processing pipeline. Technical capability that adds friction, delay, or uncertainty without improving the result does not improve the product.
+
 The user must always be able to understand:
 
 1. which project and meeting are active;
