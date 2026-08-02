@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 2;
+const CURRENT_SCHEMA_VERSION: i64 = 3;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -524,6 +524,67 @@ impl WorkspaceRepository {
         Ok(job.id)
     }
 
+    pub(crate) fn replace_import_source(
+        &mut self,
+        meeting_id: &str,
+        source_name_value: &str,
+        source_path_value: &str,
+    ) -> Result<()> {
+        let meeting_id = required_text(meeting_id, 128, "Choose a valid meeting.")?;
+        let source_name = source_name(source_name_value)?;
+        let source_path = required_source_path(Some(source_path_value))?;
+        if self.import_is_active()? {
+            return Err(StorageError::ImportBusy);
+        }
+        let recording_id: String = self
+            .connection
+            .query_row(
+                "SELECT id FROM recordings
+                 WHERE meeting_id = ?1 AND state != 'committed'
+                 ORDER BY created_at_ms, id LIMIT 1",
+                [&meeting_id],
+                |row| row.get(0),
+            )
+            .optional()?
+            .ok_or(StorageError::MissingMeeting)?;
+        let now = unix_time_millis();
+        let transaction = self.connection.transaction()?;
+        transaction.execute(
+            "UPDATE recordings
+             SET original_name = ?1, state = 'pending', managed_path = NULL,
+                 checksum = NULL, byte_count = NULL, media_type = NULL
+             WHERE id = ?2",
+            params![source_name, recording_id],
+        )?;
+        let updated = transaction.execute(
+            "UPDATE jobs
+             SET state = 'queued', stage = 'ready_to_import', progress_bytes = 0,
+                 total_bytes = NULL, source_path = ?1, error_code = NULL,
+                 error_message = NULL, duplicate_allowed = 0,
+                 result_checksum = NULL, result_byte_count = NULL,
+                 result_media_type = NULL, final_relative_path = NULL,
+                 attempt = attempt + 1, updated_at_ms = ?2, finished_at_ms = NULL
+             WHERE id = (
+                 SELECT id FROM jobs WHERE meeting_id = ?3 AND kind = 'import'
+                 ORDER BY created_at_ms DESC, id DESC LIMIT 1
+             )",
+            params![source_path, now, meeting_id],
+        )?;
+        if updated == 0 {
+            transaction.execute(
+                "INSERT INTO jobs (
+                    id, meeting_id, recording_id, kind, state, stage,
+                    progress_bytes, attempt, source_path, duplicate_allowed,
+                    created_at_ms, updated_at_ms
+                 ) VALUES (?1, ?2, ?3, 'import', 'queued', 'ready_to_import',
+                           0, 1, ?4, 0, ?5, ?5)",
+                params![new_id("job"), meeting_id, recording_id, source_path, now],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(())
+    }
+
     fn list_projects(&self) -> Result<Vec<ProjectSummary>> {
         let mut statement = self.connection.prepare(
             "SELECT
@@ -777,6 +838,31 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             COMMIT;
             ",
         )?;
+        version = 2;
+    }
+    if version == 2 {
+        connection.execute_batch(
+            "
+            BEGIN IMMEDIATE;
+            INSERT INTO jobs (
+                id, meeting_id, recording_id, kind, state, stage,
+                progress_bytes, attempt, source_path, error_code,
+                duplicate_allowed, created_at_ms, updated_at_ms, finished_at_ms
+            )
+            SELECT
+                'job-migrated-' || r.id, r.meeting_id, r.id, 'import', 'failed', 'failed',
+                0, 1, NULL, 'source_reselection_required', 0,
+                r.created_at_ms, r.created_at_ms, r.created_at_ms
+            FROM recordings r
+            WHERE r.state = 'pending'
+              AND NOT EXISTS (
+                  SELECT 1 FROM jobs j
+                  WHERE j.recording_id = r.id AND j.kind = 'import'
+              );
+            PRAGMA user_version = 3;
+            COMMIT;
+            ",
+        )?;
     }
     Ok(())
 }
@@ -914,9 +1000,17 @@ fn job_error_summary(code: &str, stored_message: Option<&str>) -> JobErrorSummar
             "The selected recording is no longer available",
             "Restore the file to its original location or create a new meeting import. The meeting remains safely in Draft.",
         ),
+        "source_reselection_required" => (
+            "Choose the recording again",
+            "This meeting was created by an earlier development build that did not retain the source location. Choose the recording again to continue; the meeting has been preserved.",
+        ),
         "unsupported_media" => (
             "This media type is not supported yet",
             "Choose a common audio or video file. The external original was not changed.",
+        ),
+        "empty_source" => (
+            "The selected recording is empty",
+            "Choose a recording that contains audio or video data. The empty external file was not changed.",
         ),
         _ => (
             "Import could not finish",
@@ -1201,14 +1295,38 @@ mod tests {
             .unwrap();
         drop(connection);
 
-        let repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
         let snapshot = repository.workspace_snapshot().unwrap();
         assert_eq!(snapshot.projects[0].id, "project-v1");
         assert_eq!(snapshot.meetings[0].id, "meeting-v1");
-        assert!(snapshot.jobs.is_empty());
+        assert_eq!(snapshot.jobs.len(), 1);
+        assert_eq!(snapshot.jobs[0].state, JobState::Failed);
+        assert_eq!(
+            snapshot.jobs[0]
+                .error
+                .as_ref()
+                .map(|error| error.code.as_str()),
+            Some("source_reselection_required")
+        );
         assert_eq!(
             schema_version(&repository.connection).unwrap(),
             CURRENT_SCHEMA_VERSION
         );
+
+        let replacement = temporary.path().join("synthetic-v1-reselected.wav");
+        fs::write(&replacement, b"synthetic replacement source").unwrap();
+        repository
+            .replace_import_source(
+                "meeting-v1",
+                "synthetic-v1-reselected.wav",
+                &replacement.to_string_lossy(),
+            )
+            .unwrap();
+        let recovered = repository.workspace_snapshot().unwrap();
+        assert_eq!(
+            recovered.meetings[0].source_name.as_deref(),
+            Some("synthetic-v1-reselected.wav")
+        );
+        assert_eq!(recovered.jobs[0].state, JobState::Queued);
     }
 }

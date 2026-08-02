@@ -2,7 +2,8 @@
 export type MeetingLifecycle =
   'draft' | 'source_ready' | 'transcript_ready' | 'protocol_draft' | 'reviewed' | 'archived';
 
-export type JobState = 'queued' | 'running' | 'cancelling' | 'failed' | 'interrupted' | 'completed';
+export type JobState =
+  'queued' | 'running' | 'cancelling' | 'failed' | 'cancelled' | 'interrupted' | 'completed';
 export type JobOutcome = 'succeeded' | 'cancelled';
 export type JobKind = 'import' | 'transcription' | 'generation';
 export type FakeJobOutcome = 'success' | 'failure';
@@ -37,6 +38,8 @@ export interface MeetingSummary {
   lifecycle: MeetingLifecycle;
   language: string;
   sourceName: string | null;
+  sourceByteCount: number | null;
+  sourceMediaType: string | null;
   styleId: string;
 }
 
@@ -77,9 +80,12 @@ export interface ActiveJob {
   state: JobState;
   outcome: JobOutcome | null;
   progress: number;
+  progressBytes: number;
+  totalBytes: number | null;
   stage: string;
   attempt: number;
-  error: { title: string; detail: string } | null;
+  error: { code: string; title: string; detail: string } | null;
+  requiresDuplicateConfirmation: boolean;
 }
 
 export interface WorkflowSnapshot {
@@ -89,6 +95,7 @@ export interface WorkflowSnapshot {
   protocols: Record<string, ProtocolDraft>;
   styles: ProtocolStyle[];
   vocabulary: VocabularyEntry[];
+  jobs: ActiveJob[];
   activeJob: ActiveJob | null;
   nextJobOutcome: FakeJobOutcome;
 }
@@ -105,7 +112,13 @@ export interface NewMeetingInput {
   occurredAt: string;
   language: string;
   sourceName: string;
+  sourcePath: string | null;
   styleId: string;
+}
+
+export interface SourceSelection {
+  name: string;
+  path: string;
 }
 
 // UI code depends on this contract; fake and real adapters must preserve the same semantics.
@@ -120,8 +133,10 @@ export interface WorkflowBridge {
   importRecording(meetingId: string): Promise<void>;
   startTranscription(meetingId: string): Promise<void>;
   generateProtocol(meetingId: string): Promise<void>;
-  cancelActiveJob(): Promise<void>;
-  retryActiveJob(): Promise<void>;
+  cancelActiveJob(meetingId: string): Promise<void>;
+  retryActiveJob(meetingId: string): Promise<void>;
+  confirmDuplicateImport(meetingId: string): Promise<void>;
+  reselectImportSource(meetingId: string): Promise<void>;
   updateMeetingTitle(meetingId: string, title: string): Promise<void>;
   updateTranscriptSegment(meetingId: string, segmentId: string, text: string): Promise<void>;
   updateSpeaker(meetingId: string, speaker: string, replacement: string): Promise<void>;

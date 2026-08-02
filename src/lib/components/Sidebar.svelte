@@ -18,7 +18,30 @@
 
   $: operationalJob = activeJob && !['completed'].includes(activeJob.state) ? activeJob : null;
   $: jobNeedsAttention =
-    operationalJob?.state === 'failed' || operationalJob?.state === 'interrupted';
+    operationalJob?.state === 'failed' ||
+    operationalJob?.state === 'interrupted' ||
+    operationalJob?.state === 'cancelled' ||
+    operationalJob?.requiresDuplicateConfirmation;
+  $: jobHeading = jobNeedsAttention
+    ? operationalJob?.requiresDuplicateConfirmation
+      ? 'Import needs your decision'
+      : 'Local job needs attention'
+    : operationalJob?.state === 'queued'
+      ? 'Import ready to continue'
+      : 'Processing locally';
+
+  function jobDetail(job: ActiveJob) {
+    if (jobNeedsAttention || job.state === 'queued') return job.error?.title ?? job.stage;
+    if (job.kind === 'import' && job.totalBytes !== null) {
+      return `${formatBytes(job.progressBytes)} of ${formatBytes(job.totalBytes)}`;
+    }
+    return `${job.stage} · ${job.progress}%`;
+  }
+
+  function formatBytes(bytes: number) {
+    if (bytes < 1_000_000) return `${Math.round(bytes / 1_000)} KB`;
+    return `${(bytes / 1_000_000).toFixed(bytes >= 10_000_000 ? 0 : 1)} MB`;
+  }
 
   function navigate(nextRoute: AppRoute) {
     onNavigate(nextRoute);
@@ -92,15 +115,11 @@
   <div class:has-status={operationalJob} class="sidebar-footer">
     {#if operationalJob}
       <div class:attention={jobNeedsAttention} class="local-status" aria-live="polite">
-        <span class:processing-dot={!jobNeedsAttention} class:status-dot={jobNeedsAttention}></span>
         <span
-          ><strong>{jobNeedsAttention ? 'Local job needs attention' : 'Processing locally'}</strong
-          ><small
-            >{jobNeedsAttention
-              ? (operationalJob.error?.title ?? operationalJob.stage)
-              : `${operationalJob.stage} · ${operationalJob.progress}%`}</small
-          ></span
-        >
+          class:processing-dot={!jobNeedsAttention && operationalJob.state !== 'queued'}
+          class:status-dot={jobNeedsAttention || operationalJob.state === 'queued'}
+        ></span>
+        <span><strong>{jobHeading}</strong><small>{jobDetail(operationalJob)}</small></span>
       </div>
     {/if}
     <button

@@ -34,6 +34,7 @@ enum ImportBoundary {
 enum ImportRunError {
     Cancelled,
     UnsupportedMedia,
+    EmptySource,
     SourceMissing,
     PermissionDenied,
     InsufficientSpace,
@@ -143,6 +144,9 @@ fn execute_import(
         return Err(ImportRunError::SourceMissing);
     }
     let total_bytes = source_metadata.len();
+    if total_bytes == 0 {
+        return Err(ImportRunError::EmptySource);
+    }
     repository.mark_import_running(&job.id, total_bytes, media_type, &paths.final_relative)?;
     notify(repository.workspace_snapshot()?);
     hooks.checkpoint(ImportBoundary::BeforeCopy)?;
@@ -477,6 +481,7 @@ fn classify_destination_error(error: io::Error) -> ImportRunError {
 fn error_code(error: &ImportRunError) -> &'static str {
     match error {
         ImportRunError::UnsupportedMedia => "unsupported_media",
+        ImportRunError::EmptySource => "empty_source",
         ImportRunError::SourceMissing => "source_missing",
         ImportRunError::PermissionDenied => "permission_denied",
         ImportRunError::InsufficientSpace => "insufficient_space",
@@ -719,6 +724,29 @@ mod tests {
             );
             assert_eq!(fs::read(&fixture.source).unwrap(), fixture.source_bytes);
         }
+    }
+
+    #[test]
+    fn empty_media_never_becomes_source_ready() {
+        let fixture = ImportFixture::new(Vec::new());
+        let outcome = run_import_with_hooks(
+            &fixture.root,
+            &fixture.meeting_id,
+            &AtomicBool::new(false),
+            &|_| {},
+            &ProductionHooks,
+        )
+        .unwrap();
+        assert_eq!(outcome, ImportOutcome::Failed);
+        let snapshot = fixture.snapshot();
+        assert_eq!(snapshot.meetings[0].lifecycle, MeetingLifecycle::Draft);
+        assert_eq!(
+            snapshot.jobs[0]
+                .error
+                .as_ref()
+                .map(|error| error.code.as_str()),
+            Some("empty_source")
+        );
     }
 
     #[test]
