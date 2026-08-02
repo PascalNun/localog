@@ -111,8 +111,9 @@ Default to an OS-provided application-data directory, never the current director
 <app-data>/
 ├── localog.sqlite3
 ├── projects/<project-id>/meetings/<meeting-id>/
-│   ├── recordings/
-│   ├── working/
+│   ├── recordings/<source-artifact-id>.<validated-extension>
+│   ├── working/imports/<source-artifact-id>.part
+│   ├── working/recovery/<source-artifact-id>.orphan
 │   ├── transcripts/
 │   ├── protocols/
 │   └── exports/
@@ -133,6 +134,31 @@ The storage spike accepted this invariant for the vertical slice:
 
 Updates that touch SQLite and files use an explicit staged protocol and reconciliation scan because the two cannot share one atomic transaction. Committed transcript revisions use versioned structured JSON artifacts; SQLite segment/search projections, if later justified, are derived and rebuildable. Do not maintain a database copy and a file copy as separately editable authorities.
 
+### Durable source-import protocol
+
+The first production import implementation uses one explicit sequence:
+
+1. One SQLite transaction creates the meeting, pending source-artifact record, and queued import job after the user confirms project, meeting, and source.
+2. A blocking worker opens the external source read-only and copies it in bounded chunks to `working/imports/`, hashing the bytes in the same pass and persisting throttled byte progress.
+3. The temporary file is flushed and synced. Its checksum, byte count, provisional media type, and intended final relative path are recorded on the job.
+4. A checksum already attached to another committed source pauses the job at `duplicate_confirmation`. The complete temporary copy is retained until the user explicitly imports another copy or cancels.
+5. The temporary file is renamed to the source’s final managed path and the recordings directory is synced where the platform supports directory syncing.
+6. One SQLite transaction marks the source committed, changes the meeting to `source_ready`, completes the job, and clears the retained external source path.
+
+SQLite remains authoritative for whether a source is visible as committed. A final managed file alone never advances lifecycle. The managed file is authoritative for the committed source bytes once its metadata transaction exists. The external source path is retained locally only while an import may need retry; it is never included in ordinary logs or user-facing diagnostics and is cleared after successful commit.
+
+Startup reconciliation applies only rules supported by persisted evidence:
+
+- abandoned `running` or `cancelling` imports become `interrupted`;
+- queued intent that never began remains available to continue;
+- incomplete temporary copies are removed, except a validated copy awaiting duplicate confirmation;
+- a final file with persisted size/checksum metadata is verified and its interrupted database commit is completed;
+- a final file that cannot be verified is moved under `working/recovery/` and the job remains non-complete;
+- a legacy pending meeting without a retained source path remains visible and asks the user to choose its source again;
+- a committed database source is never downgraded merely because an earlier job state was observed.
+
+The first implementation classifies supported media from a validated filename extension. FFprobe becomes the content-based media authority when normalisation is integrated; the UI must not imply that extension classification is a full media probe.
+
 Startup reconciliation checks paths, incomplete writes, reference consistency, and interrupted jobs without hashing every large recording. Checksum verification happens on artifact access and in an explicit/on-demand full-integrity pass.
 
 App-managed working storage must not become opaque. Settings and documentation expose its location; exports go to explicit user-selected destinations. Preserve future boundaries for backup/restore and a portable project bundle. A basic backup/restore mechanism is considered during v0.1 hardening.
@@ -143,7 +169,7 @@ A job is a piece of background work such as importing media, transcribing audio,
 
 The Rust job manager owns a bounded queue. Model-heavy work is never run on the UI thread or inside a long-lived Tauri command response.
 
-Job states are independent of meeting lifecycle. The minimum persisted vocabulary is `queued`, `running`, `cancelling`, `failed`, `interrupted`, and `completed`; an explicit `cancelled` terminal result and internal stage detail may be added if the spike proves them useful.
+Job states are independent of meeting lifecycle. The persisted vocabulary is `queued`, `running`, `cancelling`, `failed`, `cancelled`, `interrupted`, and `completed`. Import stage detail remains explicit—such as copying, validating, duplicate confirmation, and finalising—without becoming a general workflow engine.
 
 - Persist intent and state before starting a process.
 - Emit throttled progress events; the UI can re-query authoritative state at any time.

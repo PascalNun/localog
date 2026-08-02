@@ -32,6 +32,7 @@ Status values: **Accepted**, **Proposed**, **Approval required**, **Deferred**.
 | D-022 | `whisper.cpp` is the first candidate for the distributable transcription runtime                                     | Proposed | Installed Python Whisper validated the contract but was too slow/heavy; no compatible installed `whisper.cpp` model was available              |
 | D-023 | License LocaLog under `GPL-3.0-or-later`                                                                             | Accepted | Strong copyleft preserves the freedom to use, study, modify, and redistribute the application while allowing commercial use                    |
 | D-024 | Use UUIDv7 opaque identifiers and UTC Unix-millisecond storage timestamps for the first vertical slice               | Accepted | Provides collision-resistant sortable identities and ordinary time storage without a custom ID system or a general time abstraction            |
+| D-025 | Protocol review belongs to an exact revision; later edits become `changed since review`                              | Accepted | Keeps normal autosave simple while preserving the reviewed document and making later changes traceable                                         |
 
 ## Architecture risks and tensions
 
@@ -121,14 +122,55 @@ Keep/change decision:
 - **Keep** the small `domain` and `storage` modules, direct `rusqlite` repository, blocking-worker command helper, and narrow TypeScript `WorkspaceStore` port as the Phase 1A starting shape.
 - **Keep** browser-only synthetic fixtures for design and automated workflow development; native project/meeting state comes from SQLite.
 - **Do not persist fake lifecycle advancement.** A native meeting remains durably `draft` until the later import job has actually committed an original source; transcript/protocol lifecycle will advance only with immutable artifact revisions.
-- **Next:** add the minimum durable job envelope and original-source staged copy/recovery path. Do not add a scheduler or import the storage-spike crate.
+- **Next at that milestone:** add the minimum durable job envelope and original-source staged copy/recovery path. This work is now recorded in the durable-import implementation section below.
 
 Known risks and deliberate limits:
 
-- The pending recording stores only the selected display name. No user file path or media bytes cross the Tauri boundary yet.
-- Jobs, source checksums, committed revisions, autosave, archive/restore, and exports are not part of this first production slice.
+- At this milestone the pending recording stored only the selected display name; the later durable-import milestone supersedes that limitation.
+- Committed transcript/protocol revisions, autosave, archive/restore, and exports were not part of this hierarchy slice.
 - The first migration creates a new database. Backup/recovery-point behaviour must exist before a later migration transforms professional data.
 - Database-busy, permission, low/disk-full, real-process crash, Windows filesystem, and repair UX remain Phase 1A/1C boundaries rather than claims made by this implementation.
+
+## Phase 1A durable source-import implementation record
+
+Implemented and checked on 2026-08-02:
+
+- Schema v2 adds a minimal persistent job envelope for import, transcription, and generation kinds while implementing import stages only; schema v3 adds a recovery backfill for legacy pending meetings that need source reselection. Persisted states are `queued`, `running`, `cancelling`, `failed`, `cancelled`, `interrupted`, and `completed`.
+- The user chooses a native file, then confirms its project and meeting before the source path enters the managed import command. Meeting, pending source artifact, and queued job are created in one SQLite transaction.
+- The Rust worker streams the external file read-only through a 256 KiB buffer into a managed temporary file, calculates SHA-256 in the same pass, and persists truthful byte progress at a roughly 10 Hz ceiling.
+- The temporary copy is flushed, synced, checked for a probable checksum duplicate, renamed to an opaque final managed path, and made visible through one SQLite artifact/lifecycle/job transaction. The meeting remains `draft` until that transaction completes.
+- Duplicate content pauses for an explicit **Import another copy** or cancellation choice. LocaLog does not merge, discard, or reuse it silently.
+- Missing or legacy source paths can be reselected for the same preserved meeting instead of forcing the user to recreate its context.
+- Native progress, cancellation, interruption, retry, duplicate choice, source size/type, and external-original safety are presented through the existing typed UI boundary. The browser preview retains its deterministic fake and explicitly does not claim to store media.
+- The official Tauri dialog plugin is the only new frontend/native capability. `sha2` provides incremental SHA-256; no scheduler, ORM, workflow framework, file-service process, or extra Rust crate was introduced.
+
+Authority and recovery decision:
+
+- SQLite is authoritative for import intent, job state, source metadata, and meeting lifecycle. The final managed file is authoritative for committed source bytes only after its database record exists.
+- Pending or failed imports retain the external source path locally for restart-safe retry; a successful commit clears it. Ordinary logs, events, errors, and UI copy exclude the path.
+- Startup turns abandoned running/cancelling jobs into `interrupted`. Partial temporary files are removed, while a validated duplicate-confirmation copy is retained for the user’s decision.
+- If termination happens after final rename but before the metadata transaction, startup verifies the persisted size/checksum and completes the transaction. Unverifiable final copies are quarantined under `working/recovery/` and are never shown as complete.
+- Media type is provisional extension classification until the accepted FFprobe adapter supplies content-based probing.
+
+Verification:
+
+- Rust tests cover the five explicit termination boundaries: before copy, during copy, after temporary-file durability, after final rename, and after database commit.
+- Additional Rust tests cover original preservation, checksum/size/type metadata, byte-copy cancellation, injected permission and no-space failures, explicit duplicate acceptance, schema-v1 migration, hierarchy restart, hostile source names, and newer-schema refusal.
+- TypeScript tests cover stable lifecycle versus jobs, cancellation, retry, native hydration/failure, and restart-visible interrupted imports routed to the correct meeting.
+- The native Tauri app launched with the dialog capability and schema migration. Browser visual checks covered project-first import, source-ready truthfulness, accessible labels, and the compact 900 × 700 layout.
+
+Keep/change decision:
+
+- **Keep** the job envelope, staged source layout, incremental hash/copy, explicit duplicate pause, startup reconciliation rules, throttled full-snapshot event, and narrow `WorkspaceStore` integration.
+- **Keep** the import stages specific. Do not add a scheduler or general workflow-definition layer when persistent fake transcription/generation begins.
+- **Change later** from extension classification to FFprobe metadata.
+
+Known risks and deliberate limits:
+
+- Real low-disk and permission failures are handled from OS errors but automated deterministically through injected boundaries; destructive device-level tests were not run.
+- Directory syncing is implemented on Unix/macOS. Windows durability, rename, and quarantine behaviour still require its platform test lane.
+- A quarantined orphan is retained safely but does not yet have repair/cleanup UI. Backup/recovery points must precede migrations that transform professional content.
+- Import does not yet probe duration, streams, codecs, corrupt content, or normalize media. Those belong to the next real media adapter, after the persistent fake workflow is approved.
 
 ## Storage and recovery spike result
 
@@ -303,15 +345,14 @@ Risks and required production changes:
 - The browser must still be profiled with large documents while real model work runs; DOM updates, spellcheck, text selection, IPC serialization, and durable file replacement are outside this synthetic measurement.
 - Navigating or closing with an in-flight/failed save requires explicit UX. A component destructor cannot silently promise that asynchronous persistence completed.
 - The writing workspace needs keyboard, focus, text scaling, screen-reader naming, undo/redo, find, selection, recovery, and long-document visual acceptance checks during the vertical slice.
-- The spike deliberately leaves edited-after-review semantics open. Production autosave must not encode a draft/review transition until that user-facing decision is approved.
+- Edited-after-review semantics are now accepted in D-025: autosave protects the changed working draft, the exact reviewed revision remains preserved, and the current presentation becomes `changed since review`. Implementation belongs to the later protocol stage.
 
 ## Remaining approval questions
 
 1. What runtime/distribution model should the first public build use? Ollama is approved only for spikes and early technical previews.
 2. What exact backup/restore scope is required for v0.1 hardening, and when should a portable project bundle become an acceptance criterion?
-3. What does “reviewed” mean, and which edits should return a reviewed protocol to a draft or changed-since-review state?
-4. Which interface locales ship initially, and how is the independent first-run meeting/content language selected?
-5. Will distribution use a direct notarized build, the Mac App Store, or both? This may affect sandbox and sidecar choices.
+3. Which interface locales ship initially, and how is the independent first-run meeting/content language selected?
+4. Will distribution use a direct notarized build, the Mac App Store, or both? This may affect sandbox and sidecar choices.
 
 ## Deferred decisions
 

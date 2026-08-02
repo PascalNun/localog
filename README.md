@@ -54,12 +54,13 @@ The repository currently contains:
 - a working Tauri, Rust, Svelte, and TypeScript desktop foundation;
 - the real navigation, visual language, light and dark themes, and primary workflow screens;
 - a synthetic end-to-end demonstration with import, progress, cancellation, failure, retry, transcript review, protocol editing, and export states;
-- the first production SQLite repository for projects, meetings, and pending source assignment, connected to the native shell;
+- a production SQLite repository for projects, meetings, source metadata, and durable import jobs, connected to the native shell;
+- staged managed-media copying with SHA-256 checksums, truthful byte progress, cancellation, duplicate confirmation, and restart recovery;
 - completed architecture studies for durable storage, process supervision, media normalisation and transcription, local protocol generation, and Markdown autosave.
 
-The native shell now preserves created projects, meetings, assigned source names, and meeting-title changes across restarts. The selected media file is not copied yet, and processing jobs, transcripts, protocols, and exports still use synthetic in-memory behaviour. The real transcription-to-protocol pipeline has not been integrated, and there are no release builds yet.
+The native shell now preserves created projects, meetings, meeting-title changes, committed source copies, source metadata, and import-job history across restarts. It can recover an interrupted import without presenting a partial file as complete. Transcription, protocols, and exports still use synthetic in-memory behaviour; the real transcription-to-protocol pipeline has not been integrated, and there are no release builds yet.
 
-The next milestone is to make the import job and original-source commit durable, then carry the fake transcription and generation results through the accepted immutable revision boundary. Real local-processing adapters will enter one at a time only after that recovery path is coherent.
+The next proposed milestone is to carry fake transcription and generation through the same durable job and immutable revision boundaries. That work begins only after review of the completed import milestone. Real local-processing adapters will enter one at a time after the persistent fake workflow is coherent.
 
 ## How the application is being built
 

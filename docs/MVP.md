@@ -80,12 +80,13 @@ Each spike records what was tested, measurements, risks, a keep/change decision,
 ### Phase 1A — vertical slice with fakes
 
 1. Project/meeting lifecycle and repository layer.
-2. Full UI workflow using synthetic fixtures and fake runtimes.
-3. Durable jobs, cancellation, restart recovery, and error states.
+2. Durable managed source import, cancellation, duplicate choice, and restart recovery.
+3. Durable fake transcription and protocol-generation jobs with immutable artifact commits.
+4. Full UI workflow using synthetic fixtures and fake runtimes.
 
 Implement only the recovery needed to protect this slice; do not delay it with a general persistence or workflow framework.
 
-Implementation note, 2026-08-02: step 1 has begun with the production SQLite schema, project/meeting/pending-source transaction, restart-safe listing and title updates, and a narrow Tauri workspace store. Fake processing remains session-only and does not advance durable lifecycle until the corresponding source or revision commit exists.
+Implementation note, 2026-08-02: steps 1 and 2 are complete. The production schema now preserves hierarchy, source metadata, import jobs, byte progress, cancellation, duplicate confirmation, and restart reconciliation. A native meeting advances to `source_ready` only after its managed source is durably committed. Fake transcription and generation remain session-only and do not advance durable native lifecycle until their immutable artifact boundaries exist.
 
 ### Phase 1B — real local pipeline
 
