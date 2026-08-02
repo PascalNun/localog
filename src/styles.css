@@ -237,30 +237,6 @@ small {
   background: var(--sidebar);
 }
 
-.window-dots {
-  display: flex;
-  gap: 8px;
-  height: 15px;
-  padding-left: 2px;
-}
-
-.window-dots span {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: var(--line-strong);
-}
-
-.window-dots span:nth-child(1) {
-  background: #e35b4f;
-}
-.window-dots span:nth-child(2) {
-  background: #ddb044;
-}
-.window-dots span:nth-child(3) {
-  background: #5cad62;
-}
-
 .wordmark,
 .mobile-wordmark {
   width: fit-content;
