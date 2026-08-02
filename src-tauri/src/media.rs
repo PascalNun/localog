@@ -1,6 +1,6 @@
 //! Media facts and the regenerable mono/16 kHz PCM cache.
 
-use crate::runtime::{RuntimeConfig, run_process};
+use crate::runtime::{ProcessLimits, RuntimeConfig, run_process};
 use serde::Deserialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -46,7 +46,12 @@ pub(crate) fn probe(
             "-show_streams",
         ])
         .arg(source);
-    let output = run_process(command, cancellation, 512 * 1024)?;
+    let output = run_process(
+        command,
+        cancellation,
+        ProcessLimits::with_max_output(512 * 1024),
+    )
+    .map_err(|error| error.to_string())?;
     parse_probe(&output.stdout)
 }
 
@@ -80,7 +85,12 @@ pub(crate) fn normalize(
         ])
         .arg(&temporary);
     progress(10);
-    run_process(command, cancellation, 512 * 1024)?;
+    run_process(
+        command,
+        cancellation,
+        ProcessLimits::with_max_output(512 * 1024),
+    )
+    .map_err(|error| error.to_string())?;
     progress(90);
     if !temporary.is_file() {
         return Err("The media normalizer did not produce an audio file.".into());

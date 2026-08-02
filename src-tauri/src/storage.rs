@@ -1422,6 +1422,10 @@ fn job_error_summary(code: &str, stored_message: Option<&str>) -> JobErrorSummar
             "Local transcription could not finish",
             "The whisper.cpp runtime stopped before a transcript revision was committed. Check its model and retry.",
         ),
+        "transcription_timeout" => (
+            "Local transcription took too long",
+            "The supervised transcription process was stopped before a transcript revision was committed. Check the recording and runtime, then retry.",
+        ),
         "invalid_transcript_output" => (
             "The transcription output could not be validated",
             "LocaLog did not commit the runtime output because it was incomplete or malformed. Your source remains safe.",
