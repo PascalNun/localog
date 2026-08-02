@@ -25,6 +25,7 @@
     startWidth = width;
     pendingWidth = width;
     const handle = event.currentTarget as HTMLElement;
+    // Pointer capture keeps the drag coherent after the cursor leaves the narrow divider.
     handle.setPointerCapture(event.pointerId);
     document.body.classList.add('sidebar-resizing');
   }

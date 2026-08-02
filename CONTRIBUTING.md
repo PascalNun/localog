@@ -37,6 +37,7 @@ Aim for code that is **lean, legible, proportionate, and responsive**.
 - Build the smallest coherent solution that proves the current workflow. Do not turn a local application into a general platform before the product needs it.
 - Prefer clear names, short focused functions, explicit data flow, and ordinary control structures over clever compression or hidden behaviour.
 - Let code explain what happens. Use comments to explain **why** something is necessary: an invariant, safety boundary, recovery rule, platform difference, or non-obvious trade-off. Do not narrate every line or preserve outdated implementation history in comments.
+- In long files, use sparse section headings to make the main responsibilities easy to scan. Avoid annotations on self-explanatory declarations or functions.
 - Keep modules focused, but split them only when a real boundary has emerged. Avoid universal workflow engines, public plugin systems, broad capability negotiation, or large crate/package graphs without evidence.
 - Make dependencies earn their place. A small maintained dependency is reasonable when it removes real risk; an abstraction layer for a hypothetical future is not.
 - Keep the interface thread free of media work, inference, migrations, large file operations, and synchronous database access. Ordinary navigation, selection, typing, and editing should generally feel immediate—around 100 ms or less—even while background work runs.

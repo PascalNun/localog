@@ -1,3 +1,4 @@
+// Stable document readiness and transient execution are deliberately separate domain axes.
 export type MeetingLifecycle =
   'draft' | 'source_ready' | 'transcript_ready' | 'protocol_draft' | 'reviewed' | 'archived';
 
@@ -107,6 +108,7 @@ export interface NewMeetingInput {
   styleId: string;
 }
 
+// UI code depends on this contract; fake and real adapters must preserve the same semantics.
 export interface WorkflowBridge {
   getSnapshot(): Promise<WorkflowSnapshot>;
   subscribe(listener: (snapshot: WorkflowSnapshot) => void): () => void;

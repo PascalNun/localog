@@ -128,9 +128,14 @@ const completionLifecycle: Record<JobKind, MeetingLifecycle> = {
 };
 
 function cloneSnapshot(snapshot: WorkflowSnapshot): WorkflowSnapshot {
+  // Adapter state crosses the boundary by value so consumers cannot mutate its authority.
   return structuredClone(snapshot);
 }
 
+/**
+ * Deterministic, in-memory implementation of the workflow boundary used by the Phase 0 shell.
+ * It exercises UI states without touching files, models, or confidential meeting data.
+ */
 export class FakeWorkflowBridge implements WorkflowBridge {
   private snapshot: WorkflowSnapshot = {
     projects: [
@@ -207,6 +212,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   private readonly listeners = new Set<(snapshot: WorkflowSnapshot) => void>();
   private readonly tickMs: number;
   private readonly progressStep: number;
+  // One supervised timer is intentional here; this demo is not a general workflow engine.
   private timer: ReturnType<typeof setInterval> | null = null;
   private meetingSequence = 1;
   private projectSequence = 1;
@@ -383,6 +389,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         detail:
           'The synthetic runtime stopped as requested. The source and latest stable work are still safe.',
       };
+      // Make failure one-shot so Retry demonstrates recovery without another settings change.
       this.snapshot.nextJobOutcome = 'success';
       this.stopTimer();
       this.emit();
@@ -401,6 +408,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
 
   private completeJob(job: ActiveJob): void {
     const meeting = this.findMeeting(job.meetingId);
+    // Stable lifecycle advances only after the simulated job has completed successfully.
     meeting.lifecycle = completionLifecycle[job.kind];
     if (job.kind === 'import') meeting.durationLabel = '42 min';
     if (job.kind === 'transcription') {
