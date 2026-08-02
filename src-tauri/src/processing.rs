@@ -568,17 +568,18 @@ fn execute_real_transcription(
     let output = runtime::run_process(
         media::whisper_command(&config, &normalized, &output_base, language),
         cancellation,
-        2 * 1024 * 1024,
+        runtime::ProcessLimits::with_max_output(2 * 1024 * 1024),
     )
-    .map_err(|message| {
-        if message == "cancelled" {
-            ProcessingError::Cancelled
-        } else {
-            ProcessingError::Runtime {
-                code: "transcription_failed",
-                message,
-            }
-        }
+    .map_err(|failure| match failure {
+        runtime::ProcessFailure::Cancelled => ProcessingError::Cancelled,
+        runtime::ProcessFailure::TimedOut => ProcessingError::Runtime {
+            code: "transcription_timeout",
+            message: failure.to_string(),
+        },
+        failure => ProcessingError::Runtime {
+            code: "transcription_failed",
+            message: failure.to_string(),
+        },
     })?;
     let json_path = media::expected_json_path(&output_base);
     let json = fs::read_to_string(&json_path).map_err(|_| ProcessingError::Runtime {
