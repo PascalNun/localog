@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -124,10 +125,64 @@ pub struct JobSummary {
     pub requires_duplicate_confirmation: bool,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscriptSegment {
+    pub id: String,
+    pub start_ms: u64,
+    pub end_ms: u64,
+    pub speaker: String,
+    pub text: String,
+    #[serde(default)]
+    pub needs_review: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscriptDocument {
+    pub schema_version: u8,
+    pub meeting_id: String,
+    pub revision_id: String,
+    pub language: String,
+    pub segments: Vec<TranscriptSegment>,
+    pub base_revision_id: String,
+    pub is_dirty: bool,
+    pub save_state: String,
+    pub saved_at_ms: i64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProtocolRevisionSummary {
+    pub id: String,
+    pub ordinal: u32,
+    pub status: String,
+    pub created_at_ms: i64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProtocolDocument {
+    pub meeting_id: String,
+    pub revision_id: String,
+    pub transcript_revision_id: String,
+    pub markdown: String,
+    pub style_id: String,
+    pub review_state: String,
+    pub is_dirty: bool,
+    pub save_state: String,
+    pub saved_at_ms: i64,
+    pub revisions: Vec<ProtocolRevisionSummary>,
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceSnapshot {
     pub projects: Vec<ProjectSummary>,
     pub meetings: Vec<MeetingSummary>,
     pub jobs: Vec<JobSummary>,
+    pub transcripts: HashMap<String, TranscriptDocument>,
+    pub protocols: HashMap<String, ProtocolDocument>,
+    pub active_meeting_id: Option<String>,
+    pub active_route: Option<String>,
 }

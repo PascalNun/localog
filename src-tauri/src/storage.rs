@@ -1,15 +1,18 @@
 use crate::domain::{
     JobErrorSummary, JobState, JobSummary, MeetingLifecycle, MeetingSummary, NewMeetingInput,
-    NewProjectInput, ProjectSummary, WorkspaceSnapshot,
+    NewProjectInput, ProjectSummary, ProtocolDocument, ProtocolRevisionSummary, TranscriptDocument,
+    TranscriptSegment, WorkspaceSnapshot,
 };
 use rusqlite::{Connection, OptionalExtension, params};
+use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 3;
+const CURRENT_SCHEMA_VERSION: i64 = 4;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -37,6 +40,30 @@ pub(crate) struct CommittedSource {
     pub byte_count: u64,
     pub media_type: String,
     pub final_relative_path: PathBuf,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ProcessingJobRecord {
+    pub id: String,
+    pub meeting_id: String,
+    pub project_id: String,
+    pub recording_id: String,
+    pub kind: String,
+    pub state: String,
+    pub input_revision_id: Option<String>,
+    pub result_revision_id: String,
+    pub final_relative_path: PathBuf,
+    pub fail_requested: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TranscriptArtifact {
+    pub schema_version: u8,
+    pub meeting_id: String,
+    pub revision_id: String,
+    pub language: String,
+    pub segments: Vec<TranscriptSegment>,
 }
 
 #[derive(Debug)]
@@ -105,7 +132,8 @@ impl From<rusqlite::Error> for StorageError {
 }
 
 pub struct WorkspaceRepository {
-    connection: Connection,
+    pub(crate) connection: Connection,
+    pub(crate) root: PathBuf,
 }
 
 impl WorkspaceRepository {
@@ -127,14 +155,21 @@ impl WorkspaceRepository {
             ",
         )?;
         migrate(&connection, version)?;
-        Ok(Self { connection })
+        Ok(Self {
+            connection,
+            root: root.to_path_buf(),
+        })
     }
 
     pub fn workspace_snapshot(&self) -> Result<WorkspaceSnapshot> {
         Ok(WorkspaceSnapshot {
             projects: self.list_projects()?,
             meetings: self.list_meetings()?,
-            jobs: self.list_import_jobs()?,
+            jobs: self.list_jobs()?,
+            transcripts: self.load_transcript_documents()?,
+            protocols: self.load_protocol_documents()?,
+            active_meeting_id: self.workspace_state("active_meeting_id")?,
+            active_route: self.workspace_state("active_route")?,
         })
     }
 
@@ -703,16 +738,183 @@ impl WorkspaceRepository {
             .is_some())
     }
 
-    fn list_import_jobs(&self) -> Result<Vec<JobSummary>> {
+    fn list_jobs(&self) -> Result<Vec<JobSummary>> {
         let mut statement = self.connection.prepare(
             "SELECT
                 id, meeting_id, kind, state, stage, progress_bytes, total_bytes,
                 attempt, error_code, error_message
              FROM jobs
-             WHERE kind = 'import'
              ORDER BY updated_at_ms DESC, id DESC",
         )?;
         let rows = statement.query_map([], job_from_row)?;
+        Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
+    fn workspace_state(&self, key: &str) -> Result<Option<String>> {
+        Ok(self
+            .connection
+            .query_row(
+                "SELECT value FROM workspace_state WHERE key = ?1",
+                [key],
+                |row| row.get(0),
+            )
+            .optional()?)
+    }
+
+    pub fn save_workspace_location(&self, meeting_id: &str, route: &str) -> Result<()> {
+        if !matches!(route, "meeting" | "transcript" | "protocol") {
+            return Err(StorageError::InvalidData("Choose a valid workspace view."));
+        }
+        if !self
+            .connection
+            .query_row(
+                "SELECT 1 FROM meetings WHERE id = ?1 AND archived_at_ms IS NULL",
+                [meeting_id],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some()
+        {
+            return Err(StorageError::MissingMeeting);
+        }
+        let transaction = self.connection.unchecked_transaction()?;
+        for (key, value) in [("active_meeting_id", meeting_id), ("active_route", route)] {
+            transaction.execute(
+                "INSERT INTO workspace_state (key, value, updated_at_ms) VALUES (?1, ?2, ?3)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value,
+                     updated_at_ms = excluded.updated_at_ms",
+                params![key, value, unix_time_millis()],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(())
+    }
+
+    fn load_transcript_documents(&self) -> Result<HashMap<String, TranscriptDocument>> {
+        let mut statement = self.connection.prepare(
+            "SELECT w.meeting_id, w.base_revision_id, w.artifact_path, w.checksum,
+                    w.updated_at_ms, r.checksum
+             FROM transcript_working w
+             JOIN transcript_revisions r ON r.id = w.base_revision_id",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, i64>(4)?,
+                row.get::<_, String>(5)?,
+            ))
+        })?;
+        let mut documents = HashMap::new();
+        for row in rows {
+            let (meeting_id, base_revision_id, path, working_checksum, saved_at_ms, base_checksum) =
+                row?;
+            let bytes = read_verified_artifact(&self.root, &path, &working_checksum)?;
+            let artifact: TranscriptArtifact = serde_json::from_slice(&bytes)
+                .map_err(|_| StorageError::InvalidData("The saved transcript is invalid."))?;
+            validate_transcript_artifact(&artifact, &meeting_id)?;
+            documents.insert(
+                meeting_id,
+                TranscriptDocument {
+                    schema_version: artifact.schema_version,
+                    meeting_id: artifact.meeting_id,
+                    revision_id: artifact.revision_id,
+                    language: artifact.language,
+                    segments: artifact.segments,
+                    base_revision_id,
+                    is_dirty: working_checksum != base_checksum,
+                    save_state: "saved".to_string(),
+                    saved_at_ms,
+                },
+            );
+        }
+        Ok(documents)
+    }
+
+    fn load_protocol_documents(&self) -> Result<HashMap<String, ProtocolDocument>> {
+        let mut statement = self.connection.prepare(
+            "SELECT w.meeting_id, w.base_revision_id, w.reviewed_revision_id,
+                    w.artifact_path, w.checksum, w.updated_at_ms,
+                    r.checksum, r.transcript_revision_id, r.style_id
+             FROM protocol_working w
+             JOIN protocol_revisions r ON r.id = w.base_revision_id",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, i64>(5)?,
+                row.get::<_, String>(6)?,
+                row.get::<_, String>(7)?,
+                row.get::<_, String>(8)?,
+            ))
+        })?;
+        let mut documents = HashMap::new();
+        for row in rows {
+            let (
+                meeting_id,
+                base_revision_id,
+                reviewed_revision_id,
+                path,
+                working_checksum,
+                saved_at_ms,
+                base_checksum,
+                transcript_revision_id,
+                style_id,
+            ) = row?;
+            let bytes = read_verified_artifact(&self.root, &path, &working_checksum)?;
+            let markdown = String::from_utf8(bytes)
+                .map_err(|_| StorageError::InvalidData("The saved protocol is invalid."))?;
+            let is_dirty = working_checksum != base_checksum;
+            let review_state = if reviewed_revision_id.as_deref() == Some(&base_revision_id) {
+                if is_dirty {
+                    "changed_since_review"
+                } else {
+                    "reviewed"
+                }
+            } else {
+                "draft"
+            };
+            documents.insert(
+                meeting_id.clone(),
+                ProtocolDocument {
+                    meeting_id: meeting_id.clone(),
+                    revision_id: base_revision_id,
+                    transcript_revision_id,
+                    markdown,
+                    style_id,
+                    review_state: review_state.to_string(),
+                    is_dirty,
+                    save_state: "saved".to_string(),
+                    saved_at_ms,
+                    revisions: self.protocol_revision_summaries(&meeting_id)?,
+                },
+            );
+        }
+        Ok(documents)
+    }
+
+    fn protocol_revision_summaries(
+        &self,
+        meeting_id: &str,
+    ) -> Result<Vec<ProtocolRevisionSummary>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id, ordinal, status, created_at_ms FROM protocol_revisions
+             WHERE meeting_id = ?1 ORDER BY ordinal DESC",
+        )?;
+        let rows = statement.query_map([meeting_id], |row| {
+            Ok(ProtocolRevisionSummary {
+                id: row.get(0)?,
+                ordinal: row.get::<_, i64>(1)? as u32,
+                status: row.get(2)?,
+                created_at_ms: row.get(3)?,
+            })
+        })?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
@@ -863,6 +1065,99 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             COMMIT;
             ",
         )?;
+        version = 3;
+    }
+    if version == 3 {
+        connection.execute_batch(
+            "
+            BEGIN IMMEDIATE;
+
+            ALTER TABLE jobs ADD COLUMN input_revision_id TEXT;
+            ALTER TABLE jobs ADD COLUMN result_revision_id TEXT;
+            ALTER TABLE jobs ADD COLUMN provider TEXT;
+            ALTER TABLE jobs ADD COLUMN runtime_version TEXT;
+            ALTER TABLE jobs ADD COLUMN model_digest TEXT;
+            ALTER TABLE jobs ADD COLUMN settings_json TEXT;
+            ALTER TABLE jobs ADD COLUMN style_revision TEXT;
+            ALTER TABLE jobs ADD COLUMN vocabulary_revision TEXT;
+            ALTER TABLE jobs ADD COLUMN fail_requested INTEGER NOT NULL DEFAULT 0
+                CHECK (fail_requested IN (0, 1));
+
+            CREATE TABLE transcript_revisions (
+                id TEXT PRIMARY KEY,
+                meeting_id TEXT NOT NULL REFERENCES meetings(id),
+                recording_id TEXT NOT NULL REFERENCES recordings(id),
+                ordinal INTEGER NOT NULL CHECK (ordinal >= 1),
+                artifact_path TEXT NOT NULL,
+                checksum TEXT NOT NULL,
+                byte_count INTEGER NOT NULL CHECK (byte_count > 0),
+                language TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                runtime_version TEXT NOT NULL,
+                model_digest TEXT NOT NULL,
+                settings_json TEXT NOT NULL,
+                source_checksum TEXT NOT NULL,
+                app_version TEXT NOT NULL,
+                created_at_ms INTEGER NOT NULL,
+                UNIQUE (meeting_id, ordinal)
+            );
+            CREATE INDEX transcript_revisions_meeting
+                ON transcript_revisions(meeting_id, ordinal DESC);
+
+            CREATE TABLE transcript_working (
+                meeting_id TEXT PRIMARY KEY REFERENCES meetings(id),
+                base_revision_id TEXT NOT NULL REFERENCES transcript_revisions(id),
+                artifact_path TEXT NOT NULL,
+                checksum TEXT NOT NULL,
+                byte_count INTEGER NOT NULL CHECK (byte_count > 0),
+                updated_at_ms INTEGER NOT NULL
+            );
+
+            CREATE TABLE protocol_revisions (
+                id TEXT PRIMARY KEY,
+                meeting_id TEXT NOT NULL REFERENCES meetings(id),
+                transcript_revision_id TEXT NOT NULL REFERENCES transcript_revisions(id),
+                ordinal INTEGER NOT NULL CHECK (ordinal >= 1),
+                artifact_path TEXT NOT NULL,
+                checksum TEXT NOT NULL,
+                byte_count INTEGER NOT NULL CHECK (byte_count > 0),
+                status TEXT NOT NULL CHECK (status IN ('draft', 'reviewed')),
+                provider TEXT NOT NULL,
+                runtime_version TEXT NOT NULL,
+                model_digest TEXT NOT NULL,
+                settings_json TEXT NOT NULL,
+                style_id TEXT NOT NULL,
+                style_revision TEXT NOT NULL,
+                vocabulary_revision TEXT NOT NULL,
+                transcript_checksum TEXT NOT NULL,
+                app_version TEXT NOT NULL,
+                restored_from_revision_id TEXT REFERENCES protocol_revisions(id),
+                created_at_ms INTEGER NOT NULL,
+                UNIQUE (meeting_id, ordinal)
+            );
+            CREATE INDEX protocol_revisions_meeting
+                ON protocol_revisions(meeting_id, ordinal DESC);
+
+            CREATE TABLE protocol_working (
+                meeting_id TEXT PRIMARY KEY REFERENCES meetings(id),
+                base_revision_id TEXT NOT NULL REFERENCES protocol_revisions(id),
+                reviewed_revision_id TEXT REFERENCES protocol_revisions(id),
+                artifact_path TEXT NOT NULL,
+                checksum TEXT NOT NULL,
+                byte_count INTEGER NOT NULL CHECK (byte_count > 0),
+                updated_at_ms INTEGER NOT NULL
+            );
+
+            CREATE TABLE workspace_state (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at_ms INTEGER NOT NULL
+            );
+
+            PRAGMA user_version = 4;
+            COMMIT;
+            ",
+        )?;
     }
     Ok(())
 }
@@ -939,7 +1234,7 @@ fn job_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<JobSummary> {
         progress_bytes: progress_bytes as u64,
         total_bytes: total_bytes.map(|value| value as u64),
         requires_duplicate_confirmation: stage == "duplicate_confirmation",
-        stage: job_stage_label(&stage, state),
+        stage: job_stage_label(&row.get::<_, String>(2)?, &stage, state),
         attempt: row.get::<_, i64>(7)? as u32,
         error,
     })
@@ -965,7 +1260,23 @@ fn import_job_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ImportJobRec
     })
 }
 
-fn job_stage_label(stage: &str, state: JobState) -> String {
+fn job_stage_label(kind: &str, stage: &str, state: JobState) -> String {
+    if stage == "completed" {
+        return match kind {
+            "transcription" => "Transcript revision committed".to_string(),
+            "generation" => "Protocol revision committed".to_string(),
+            _ => "Import complete — original unchanged".to_string(),
+        };
+    }
+    if stage == "cancelled" && kind != "import" {
+        return "Local processing was cancelled — stable work retained".to_string();
+    }
+    if stage == "interrupted" && kind != "import" {
+        return "Local processing was interrupted — stable work retained".to_string();
+    }
+    if stage == "failed" && kind != "import" {
+        return "Local processing could not finish — stable work retained".to_string();
+    }
     match (stage, state) {
         ("ready_to_import", _) => "Ready to copy into local storage".to_string(),
         ("copying", JobState::Cancelling) => "Cancelling the local copy safely".to_string(),
@@ -978,6 +1289,19 @@ fn job_stage_label(stage: &str, state: JobState) -> String {
         ("cancelled", _) => "Import cancelled — original unchanged".to_string(),
         ("interrupted", _) => "Import was interrupted — original unchanged".to_string(),
         ("failed", _) => "Import could not finish — original unchanged".to_string(),
+        ("transcription_queued", _) => "Transcription ready to start".to_string(),
+        ("checking_source", _) => "Checking the committed source".to_string(),
+        ("preparing_fake_transcriber", _) => "Preparing the local fake transcriber".to_string(),
+        ("transcribing_synthetic_segments", _) => {
+            "Creating transcript segments locally".to_string()
+        }
+        ("validating_transcript", _) => "Validating the transcript revision".to_string(),
+        ("generation_queued", _) => "Protocol generation ready to start".to_string(),
+        ("checking_transcript", _) => "Checking the committed transcript".to_string(),
+        ("resolving_protocol_inputs", _) => "Resolving style and vocabulary snapshots".to_string(),
+        ("generating_protocol", _) => "Creating the protocol draft locally".to_string(),
+        ("validating_protocol", _) => "Validating the protocol revision".to_string(),
+        ("output_staged", _) => "Committing the new revision safely".to_string(),
         _ => "Preparing local import".to_string(),
     }
 }
@@ -1011,6 +1335,18 @@ fn job_error_summary(code: &str, stored_message: Option<&str>) -> JobErrorSummar
         "empty_source" => (
             "The selected recording is empty",
             "Choose a recording that contains audio or video data. The empty external file was not changed.",
+        ),
+        "synthetic_failure" => (
+            "The development adapter stopped as requested",
+            "The injected failure occurred before a revision was committed. Your source and latest stable work remain safe, and you can retry.",
+        ),
+        "invalid_adapter_output" => (
+            "The local output could not be validated",
+            "LocaLog did not commit the incomplete result. Your latest stable source and document revisions remain safe.",
+        ),
+        "processing_failed" => (
+            "Local processing could not finish",
+            "No incomplete transcript or protocol was presented as ready. Your latest stable work remains available and you can retry.",
         ),
         _ => (
             "Import could not finish",
@@ -1078,6 +1414,59 @@ fn relative_path_text(path: &Path) -> Result<String> {
         ))
 }
 
+pub(crate) fn managed_relative_path(path: &Path) -> Result<String> {
+    relative_path_text(path)
+}
+
+pub(crate) fn checksum_bytes(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
+}
+
+fn read_verified_artifact(root: &Path, relative_path: &str, checksum: &str) -> Result<Vec<u8>> {
+    let relative = Path::new(relative_path);
+    relative_path_text(relative)?;
+    let bytes = fs::read(root.join(relative))?;
+    if checksum_bytes(&bytes) != checksum {
+        return Err(StorageError::InvalidData(
+            "A saved document did not pass its local integrity check.",
+        ));
+    }
+    Ok(bytes)
+}
+
+pub(crate) fn validate_transcript_artifact(
+    artifact: &TranscriptArtifact,
+    meeting_id: &str,
+) -> Result<()> {
+    if artifact.schema_version != 1
+        || artifact.meeting_id != meeting_id
+        || artifact.segments.is_empty()
+        || artifact.segments.len() > 100_000
+    {
+        return Err(StorageError::InvalidData(
+            "The transcript output is invalid.",
+        ));
+    }
+    let mut previous_end = 0;
+    let mut identifiers = std::collections::HashSet::new();
+    for segment in &artifact.segments {
+        if segment.id.is_empty()
+            || !identifiers.insert(&segment.id)
+            || segment.end_ms < segment.start_ms
+            || segment.start_ms < previous_end
+            || segment.speaker.chars().count() > 200
+            || segment.text.trim().is_empty()
+            || segment.text.chars().count() > 20_000
+        {
+            return Err(StorageError::InvalidData(
+                "The transcript output is invalid.",
+            ));
+        }
+        previous_end = segment.end_ms;
+    }
+    Ok(())
+}
+
 fn meeting_date(value: &str) -> Result<String> {
     let bytes = value.as_bytes();
     let valid = bytes.len() == 10
@@ -1105,11 +1494,11 @@ fn title_from_source(source_name: &str) -> String {
     }
 }
 
-fn new_id(prefix: &str) -> String {
+pub(crate) fn new_id(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::now_v7())
 }
 
-fn unix_time_millis() -> i64 {
+pub(crate) fn unix_time_millis() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("system clock is before Unix epoch")
