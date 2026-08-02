@@ -10,6 +10,10 @@ The difference is not simply that the models run locally. LocaLog treats documen
 
 In LocaLog, a **protocol** means the written record or minutes of a meeting—not a network protocol.
 
+![LocaLog development shell showing the light meeting start screen](docs/assets/screenshots/localog-start-light.png)
+
+_Current development shell using synthetic project data. The interface will continue to evolve._
+
 ## The proposition
 
 - **Private by structure.** Sensitive meeting content stays on the device through LocaLog’s core workflow; there is no required LocaLog account, cloud workspace, or third-party AI service.
