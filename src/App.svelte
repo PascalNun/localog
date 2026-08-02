@@ -25,6 +25,7 @@
     FakeJobOutcome,
     NewMeetingInput,
     NewProjectInput,
+    ProtocolProviderStatus,
     WorkflowSnapshot,
     TranscriptionRuntimeStatus,
   } from './lib/workflow/types';
@@ -49,6 +50,16 @@
     runtimeVersion: null,
     modelDigest: null,
     modelByteCount: null,
+  };
+  let providerStatus: ProtocolProviderStatus = {
+    endpoint: 'http://127.0.0.1:11434',
+    serverReachable: false,
+    runtimeVersion: null,
+    models: [],
+    selectedModel: null,
+    selectedModelDigest: null,
+    selectedModelReady: false,
+    message: 'Ollama has not been checked yet.',
   };
 
   // Route-derived context keeps project and meeting selection in one predictable place.
@@ -82,6 +93,7 @@
     theme = savedTheme === 'dark' || (!savedTheme && prefersDark) ? 'dark' : 'light';
     applyTheme();
     bridge.getTranscriptionRuntimeStatus().then((status) => (runtimeStatus = status));
+    bridge.getProtocolProviderStatus().then((status) => (providerStatus = status));
 
     return bridge.subscribe(
       (nextSnapshot) => {
@@ -190,15 +202,20 @@
     navigate(projectId ? { name: 'project', projectId } : { name: 'start' });
   }
 
-  function exportProtocol(format: 'markdown' | 'text') {
+  async function exportProtocol(format: 'markdown' | 'text') {
     if (!meeting || !snapshot) return;
     const protocol = snapshot.protocols[meeting.id];
     if (!protocol) return;
+    const nativeExported = await bridge.exportProtocol(meeting.id, format, meeting.title);
+    if (nativeExported) {
+      announcement = `${format === 'markdown' ? 'Markdown' : 'Plain text'} export saved locally`;
+      return;
+    }
     const content =
       format === 'markdown'
         ? protocol.markdown
         : protocol.markdown.replace(/^#{1,6}\s+/gm, '').replace(/[*_`]/g, '');
-    // Phase 0 uses a browser download; durable exports will move behind the Rust file boundary.
+    // Browser development keeps a download fallback; Tauri uses the native verified file boundary.
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const href = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
@@ -339,11 +356,18 @@
         <SettingsView
           {theme}
           {runtimeStatus}
+          {providerStatus}
           nextJobOutcome={snapshot.nextJobOutcome}
           onToggleTheme={toggleTheme}
           onSetNextJobOutcome={(outcome: FakeJobOutcome) => bridge.setNextJobOutcome(outcome)}
           onConfigureRuntime={async (executablePath, modelPath) => {
             runtimeStatus = await bridge.configureTranscriptionRuntime(executablePath, modelPath);
+          }}
+          onRefreshProvider={async () => {
+            providerStatus = await bridge.getProtocolProviderStatus();
+          }}
+          onConfigureProvider={async (model) => {
+            providerStatus = await bridge.configureProtocolProvider(model);
           }}
         />
       {:else}

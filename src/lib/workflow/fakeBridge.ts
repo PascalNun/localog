@@ -198,19 +198,19 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         id: 'style-formal',
         name: 'Formal minutes',
         description: 'Structured record of discussion, decisions, and actions.',
-        language: 'English',
+        language: 'Meeting language',
       },
       {
         id: 'style-working-note',
         name: 'Internal working note',
         description: 'Concise working record for an internal project team.',
-        language: 'English',
+        language: 'Meeting language',
       },
       {
         id: 'style-decision-log',
         name: 'Technical decision log',
         description: 'Emphasises alternatives, constraints, and explicit decisions.',
-        language: 'English',
+        language: 'Meeting language',
       },
     ],
     vocabulary: [
@@ -572,6 +572,43 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     return this.getTranscriptionRuntimeStatus();
   }
 
+  async exportProtocol(
+    meetingId: string,
+    format: 'markdown' | 'text',
+    title: string,
+  ): Promise<boolean> {
+    if (this.workspaceStore?.exportProtocol) {
+      return this.workspaceStore.exportProtocol(meetingId, format, title);
+    }
+    return false;
+  }
+
+  async getProtocolProviderStatus(): Promise<import('./types').ProtocolProviderStatus> {
+    if (this.workspaceStore?.getProtocolProviderStatus) {
+      return this.workspaceStore.getProtocolProviderStatus();
+    }
+    return {
+      endpoint: 'http://127.0.0.1:11434',
+      serverReachable: false,
+      runtimeVersion: null,
+      models: [],
+      selectedModel: null,
+      selectedModelDigest: null,
+      selectedModelReady: false,
+      message: 'Ollama is available as an optional local provider for development.',
+    };
+  }
+
+  async configureProtocolProvider(
+    model: string | null,
+  ): Promise<import('./types').ProtocolProviderStatus> {
+    if (this.workspaceStore?.configureProtocolProvider) {
+      return this.workspaceStore.configureProtocolProvider(model);
+    }
+    void model;
+    return this.getProtocolProviderStatus();
+  }
+
   private startJob(meetingId: string, kind: JobKind, attempt = 1): void {
     if (this.timer) clearInterval(this.timer);
     this.findMeeting(meetingId);
@@ -608,6 +645,8 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       null;
     this.snapshot.transcripts = workspace.transcripts;
     this.snapshot.protocols = workspace.protocols;
+    this.snapshot.styles = workspace.styles;
+    this.snapshot.vocabulary = workspace.vocabulary;
     this.snapshot.activeMeetingId = workspace.activeMeetingId;
     this.snapshot.activeRoute = workspace.activeRoute;
   }

@@ -92,9 +92,11 @@ Implementation note, 2026-08-02: all four Phase 1A steps are complete. The produ
 
 1. Import/probe/normalise adapter with a regenerable normalized-audio cache.
 2. User-configured `whisper.cpp` adapter and transcript persistence/review.
-3. Vocabulary resolution.
-4. Protocol style and selected provider integration.
-5. Protocol editor, revisions, Markdown/TXT export.
+3. Durable vocabulary resolution and professional protocol-style presets.
+4. Selected local provider integration through the supervised Ollama boundary.
+5. Protocol editor, revisions, and native Markdown/plain-text export.
+
+Implementation note, 2026-08-02: the durable style/vocabulary boundary, loopback Ollama adapter, provider readiness states, provenance snapshot, and native export boundary are implemented. The real whisper.cpp command contract and live Ollama generation still require manually supplied/started local runtimes; no model manager or automatic acquisition is part of this phase.
 
 ### Phase 1C — hardening
 

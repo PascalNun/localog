@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { open } from '@tauri-apps/plugin-dialog';
+import { open, save } from '@tauri-apps/plugin-dialog';
 import type {
   ActiveJob,
   MeetingSummary,
@@ -8,9 +8,12 @@ import type {
   NewProjectInput,
   ProjectSummary,
   ProtocolDraft,
+  ProtocolProviderStatus,
+  ProtocolStyle,
   SourceSelection,
   TranscriptDocument,
   TranscriptionRuntimeStatus,
+  VocabularyEntry,
 } from './types';
 
 export interface WorkspaceData {
@@ -19,13 +22,15 @@ export interface WorkspaceData {
   jobs: ActiveJob[];
   transcripts: Record<string, TranscriptDocument>;
   protocols: Record<string, ProtocolDraft>;
+  styles: ProtocolStyle[];
+  vocabulary: VocabularyEntry[];
   activeMeetingId: string | null;
   activeRoute: 'meeting' | 'transcript' | 'protocol' | null;
 }
 
 /**
- * Narrow persistence port for the hierarchy proven in Phase 1A.
- * Processing artifacts remain owned by the fake workflow until their Rust commit boundaries exist.
+ * Narrow persistence port for the durable workflow. Heavy file and model work
+ * remains behind Rust commands while the browser fallback stays deterministic.
  */
 export interface WorkspaceStore {
   loadWorkspace(): Promise<WorkspaceData>;
@@ -65,6 +70,13 @@ export interface WorkspaceStore {
     executablePath: string,
     modelPath: string,
   ) => Promise<TranscriptionRuntimeStatus>;
+  exportProtocol?: (
+    meetingId: string,
+    format: 'markdown' | 'text',
+    title: string,
+  ) => Promise<boolean>;
+  getProtocolProviderStatus?: () => Promise<ProtocolProviderStatus>;
+  configureProtocolProvider?: (model: string | null) => Promise<ProtocolProviderStatus>;
 }
 
 class TauriWorkspaceStore implements WorkspaceStore {
@@ -204,6 +216,37 @@ class TauriWorkspaceStore implements WorkspaceStore {
       executablePath,
       modelPath,
     });
+  }
+
+  async exportProtocol(
+    meetingId: string,
+    format: 'markdown' | 'text',
+    title: string,
+  ): Promise<boolean> {
+    const extension = format === 'markdown' ? 'md' : 'txt';
+    const safeTitle =
+      title
+        .trim()
+        .replace(/[^a-z0-9]+/gi, '-')
+        .replace(/^-|-$/g, '') || 'protocol';
+    const destination = await save({
+      title: `Export ${title}`,
+      defaultPath: `${safeTitle}.${extension}`,
+      filters: [
+        { name: format === 'markdown' ? 'Markdown' : 'Plain text', extensions: [extension] },
+      ],
+    });
+    if (!destination) return false;
+    await invoke('export_protocol', { meetingId, format, destination });
+    return true;
+  }
+
+  getProtocolProviderStatus(): Promise<ProtocolProviderStatus> {
+    return invoke<ProtocolProviderStatus>('protocol_provider_status');
+  }
+
+  configureProtocolProvider(model: string | null): Promise<ProtocolProviderStatus> {
+    return invoke<ProtocolProviderStatus>('configure_protocol_provider', { model });
   }
 }
 

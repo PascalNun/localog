@@ -1,6 +1,10 @@
 <script lang="ts">
   import { open } from '@tauri-apps/plugin-dialog';
-  import type { FakeJobOutcome, TranscriptionRuntimeStatus } from '../workflow/types';
+  import type {
+    FakeJobOutcome,
+    ProtocolProviderStatus,
+    TranscriptionRuntimeStatus,
+  } from '../workflow/types';
   import Icon from './Icon.svelte';
 
   export let theme: 'light' | 'dark';
@@ -8,7 +12,10 @@
   export let onToggleTheme: () => void;
   export let onSetNextJobOutcome: (outcome: FakeJobOutcome) => Promise<void>;
   export let runtimeStatus: TranscriptionRuntimeStatus;
+  export let providerStatus: ProtocolProviderStatus;
   export let onConfigureRuntime: (executablePath: string, modelPath: string) => Promise<void>;
+  export let onRefreshProvider: () => Promise<void>;
+  export let onConfigureProvider: (model: string | null) => Promise<void>;
 
   let section = 'General';
   const sections = [
@@ -22,8 +29,10 @@
   ];
   let executablePath = '';
   let modelPath = '';
+  let selectedProviderModel = '';
   $: executablePath = runtimeStatus?.executablePath ?? executablePath;
   $: modelPath = runtimeStatus?.modelPath ?? modelPath;
+  $: selectedProviderModel = providerStatus?.selectedModel ?? selectedProviderModel;
 
   async function chooseExecutable() {
     if (!('__TAURI_INTERNALS__' in window)) return;
@@ -85,10 +94,41 @@
             <h3>Protocol provider</h3>
             <p>Phase 0 discovers installed providers only. No model downloads.</p>
           </div>
-          <span class="setting-value">Not checked</span>
+          <span class:setting-value={providerStatus.serverReachable} class="setting-value">
+            {providerStatus.serverReachable
+              ? providerStatus.selectedModelReady
+                ? 'Ready'
+                : 'Choose a model'
+              : 'Not running'}
+          </span>
+        </div>
+        <p class="setting-hint">{providerStatus.message}</p>
+        <div class="setting-field">
+          <label for="ollama-model">Installed Ollama model</label>
+          <select
+            id="ollama-model"
+            bind:value={selectedProviderModel}
+            disabled={!providerStatus.serverReachable}
+          >
+            <option value="">No model selected</option>
+            {#each providerStatus.models as model (model.name)}
+              <option value={model.name}>{model.name}</option>
+            {/each}
+          </select>
+        </div>
+        <div class="setting-actions">
+          <button class="secondary-action" onclick={onRefreshProvider}
+            >Refresh local provider</button
+          >
+          <button
+            class="secondary-action"
+            onclick={() => onConfigureProvider(selectedProviderModel || null)}
+            disabled={!providerStatus.serverReachable}>Save selected model</button
+          >
         </div>
         <div class="notice-inline">
-          Ollama is a development-spike baseline, not the accepted public distribution model.
+          Ollama is a development and technical-preview baseline, not the accepted public
+          distribution model. LocaLog never starts Ollama or downloads models.
         </div>
       {:else if section === 'Transcription'}
         <div class="setting-row">

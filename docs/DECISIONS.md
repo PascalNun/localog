@@ -437,6 +437,27 @@ Risks and required production changes:
 3. Which interface locales ship initially, and how is the independent first-run meeting/content language selected?
 4. Will distribution use a direct notarized build, the Mac App Store, or both? This may affect sandbox and sidecar choices.
 
+## Phase 1B implementation result: durable inputs, local generation, and export
+
+Implementation date: 2026-08-02.
+
+The native application now owns a small protocol-input boundary. SQLite seeds the accepted professional protocol presets and provides a structured vocabulary table for future library editing. A generation job resolves the meeting language, selected style revision, enabled project/global vocabulary, model identity, and generation settings before the job becomes active. The resolved values are stored in the job snapshot; later edits cannot silently change that job.
+
+The first production-shaped provider is a loopback-only Ollama adapter. It discovers the already running runtime and installed models, requires an exact selected model and digest, streams bounded schema-constrained Markdown, throttles progress, observes cancellation, and validates required style sections before commit. LocaLog does not start Ollama, stop it, pull models, or download runtimes. Ollama remains a development and early technical-preview option, not the final public distribution decision.
+
+The native export boundary reads the verified protocol working artifact and writes user-selected Markdown or deterministic plain text through a durable temporary-file rename. Export does not mutate lifecycle or revision state. Existing files are not overwritten automatically.
+
+The deterministic fake adapter remains the browser/demo and automated-test implementation. The isolated provider spike remains a contract reference; its code is not imported into the application.
+
+Validation status:
+
+- Rust suite: 39 tests pass, including schema migration, provider validation/discovery, fake workflow recovery, and export integrity.
+- Frontend suite: 13 tests pass; Svelte diagnostics report no errors or warnings.
+- Real Ollama generation remains a manual test because the local server is not running and no model should be started or downloaded implicitly.
+- Real whisper.cpp inference remains blocked until an executable and compatible model are supplied by the user.
+
+Keep/change decision: keep the narrow provider, durable job snapshot, verified export, and user-managed runtime boundary. Change the provider or distribution model only after measurements on the M1/8 GB baseline and a public-runtime decision. Do not generalize this into a provider SDK or model-management system.
+
 ## Deferred decisions
 
 - Automatic model acquisition and management.

@@ -175,6 +175,26 @@ pub struct ProtocolDocument {
     pub revisions: Vec<ProtocolRevisionSummary>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProtocolStyle {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    /// Styles follow the meeting language; they do not impose an interface language.
+    pub language: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VocabularyEntry {
+    pub id: String,
+    pub term: String,
+    pub category: String,
+    pub scope: String,
+    pub project_id: Option<String>,
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceSnapshot {
@@ -183,6 +203,8 @@ pub struct WorkspaceSnapshot {
     pub jobs: Vec<JobSummary>,
     pub transcripts: HashMap<String, TranscriptDocument>,
     pub protocols: HashMap<String, ProtocolDocument>,
+    pub styles: Vec<ProtocolStyle>,
+    pub vocabulary: Vec<VocabularyEntry>,
     pub active_meeting_id: Option<String>,
     pub active_route: Option<String>,
 }

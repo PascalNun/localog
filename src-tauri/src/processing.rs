@@ -2,7 +2,9 @@
 
 use crate::domain::{TranscriptSegment, WorkspaceSnapshot};
 use crate::media;
+use crate::provider;
 use crate::runtime;
+use crate::storage;
 use crate::storage::{
     ProcessingJobRecord, Result as StorageResult, StorageError, TranscriptArtifact,
     WorkspaceRepository, checksum_bytes, managed_relative_path, new_id, unix_time_millis,
@@ -33,6 +35,21 @@ struct TranscriptionRequest<'a> {
 struct GenerationRequest<'a> {
     meeting_title: &'a str,
     transcript: &'a TranscriptArtifact,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+struct QueuedGenerationConfig {
+    model: String,
+    model_digest: String,
+    runtime_version: String,
+    meeting_language: String,
+    style: provider::GenerationStyle,
+    vocabulary_revision: String,
+    vocabulary: Vec<String>,
+    seed: u64,
+    temperature_milli: u16,
+    context_tokens: u32,
+    maximum_output_tokens: u32,
 }
 
 struct NormalizedCacheRecord {
@@ -129,6 +146,19 @@ enum ProcessingError {
     Runtime { code: &'static str, message: String },
 }
 
+impl std::fmt::Display for ProcessingError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Cancelled => write!(formatter, "processing was cancelled"),
+            Self::InjectedFailure => write!(formatter, "the synthetic adapter failed"),
+            Self::Storage(error) => write!(formatter, "{error}"),
+            Self::Io(error) => write!(formatter, "{error}"),
+            Self::InvalidOutput => write!(formatter, "the adapter output was invalid"),
+            Self::Runtime { message, .. } => write!(formatter, "{message}"),
+        }
+    }
+}
+
 impl From<StorageError> for ProcessingError {
     fn from(error: StorageError) -> Self {
         Self::Storage(error)
@@ -144,6 +174,40 @@ impl From<std::io::Error> for ProcessingError {
 impl From<rusqlite::Error> for ProcessingError {
     fn from(error: rusqlite::Error) -> Self {
         Self::Storage(StorageError::Sql(error))
+    }
+}
+
+fn provider_processing_error(error: provider::ProviderError) -> ProcessingError {
+    match error {
+        provider::ProviderError::Cancelled => ProcessingError::Cancelled,
+        provider::ProviderError::ModelMissing(_) => ProcessingError::Runtime {
+            code: "provider_model_missing",
+            message: "The selected Ollama model is no longer installed. Choose another model and retry.".into(),
+        },
+        provider::ProviderError::ModelChanged => ProcessingError::Runtime {
+            code: "provider_model_changed",
+            message: "The selected Ollama model changed after this job was queued. Retry to resolve it again.".into(),
+        },
+        provider::ProviderError::RuntimeChanged => ProcessingError::Runtime {
+            code: "provider_runtime_changed",
+            message: "The Ollama runtime changed after this job was queued. Retry to resolve it again.".into(),
+        },
+        provider::ProviderError::Unavailable(message) => ProcessingError::Runtime {
+            code: "provider_unavailable",
+            message: format!("Ollama could not complete the local request: {message}"),
+        },
+        provider::ProviderError::InvalidResponse(message) => ProcessingError::Runtime {
+            code: "provider_invalid_output",
+            message,
+        },
+        provider::ProviderError::ResponseTooLarge => ProcessingError::Runtime {
+            code: "provider_response_too_large",
+            message: "The local model response exceeded the safe limit and was not committed.".into(),
+        },
+        provider::ProviderError::IncompleteResponse => ProcessingError::Runtime {
+            code: "provider_incomplete_output",
+            message: "The local model stopped before returning a complete protocol.".into(),
+        },
     }
 }
 
@@ -341,17 +405,20 @@ pub(crate) fn queue_generation(
     let mut repository = WorkspaceRepository::open(root)?;
     ensure_no_active_processing(&repository.connection)?;
     let transcript_revision_id = commit_transcript_working_if_dirty(&mut repository, meeting_id)?;
-    let (project_id, recording_id, style_id): (String, String, String) = repository
+    let (project_id, recording_id): (String, String) = repository
         .connection
         .query_row(
-            "SELECT m.project_id, t.recording_id, m.style_id
+            "SELECT m.project_id, t.recording_id
              FROM meetings m JOIN transcript_revisions t ON t.id = ?2
              WHERE m.id = ?1",
             params![meeting_id, transcript_revision_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()?
         .ok_or(StorageError::MissingMeeting)?;
+    let protocol_inputs = repository.protocol_inputs(meeting_id)?;
+    let (provider_name, runtime_version, model_digest, settings_json, runtime_config_json) =
+        generation_metadata(&repository, &protocol_inputs, cfg!(test))?;
     let job_id = new_id("job");
     let revision_id = new_id("protocol");
     let final_relative_path = meeting_root(&project_id, meeting_id)
@@ -367,22 +434,23 @@ pub(crate) fn queue_generation(
             id, meeting_id, recording_id, kind, state, stage, progress_bytes,
             total_bytes, attempt, duplicate_allowed, input_revision_id,
             result_revision_id, provider, runtime_version, model_digest,
-            settings_json, style_revision, vocabulary_revision,
+            settings_json, runtime_config_json, style_revision, vocabulary_revision,
             final_relative_path, fail_requested, created_at_ms, updated_at_ms
          ) VALUES (?1, ?2, ?3, 'generation', 'queued', 'generation_queued',
-                   0, 100, 1, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?14)",
+                   0, 100, 1, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?15)",
         params![
             job_id,
             meeting_id,
             recording_id,
             transcript_revision_id,
             revision_id,
-            FAKE_PROVIDER,
-            FAKE_RUNTIME_VERSION,
-            FAKE_MODEL_DIGEST,
-            serde_json::json!({ "styleId": style_id, "temperature": 0 }).to_string(),
-            format!("{style_id}@1"),
-            VOCABULARY_REVISION,
+            provider_name,
+            runtime_version,
+            model_digest,
+            settings_json,
+            protocol_inputs.style.revision,
+            protocol_inputs.vocabulary_revision,
+            runtime_config_json,
             managed_relative_path(&final_relative_path)?,
             i64::from(fail_requested),
             now,
@@ -391,6 +459,82 @@ pub(crate) fn queue_generation(
     transaction.commit()?;
     let job = processing_job(&repository, &job_id)?;
     Ok((job, repository.workspace_snapshot()?))
+}
+
+fn generation_metadata(
+    repository: &WorkspaceRepository,
+    inputs: &storage::ResolvedProtocolInputs,
+    use_fake: bool,
+) -> StorageResult<(&'static str, String, String, String, Option<String>)> {
+    let settings_json = serde_json::json!({
+        "seed": 42,
+        "temperature": 0.2,
+        "contextTokens": 8192,
+        "maximumOutputTokens": 2048,
+        "meetingLanguage": inputs.meeting_language,
+    })
+    .to_string();
+    if use_fake {
+        return Ok((
+            FAKE_PROVIDER,
+            FAKE_RUNTIME_VERSION.to_string(),
+            FAKE_MODEL_DIGEST.to_string(),
+            settings_json,
+            None,
+        ));
+    }
+    let selected_model = repository
+        .read_setting("generation.ollamaModel")?
+        .filter(|value| !value.is_empty());
+    let status = provider::OllamaProvider::loopback().status(selected_model);
+    if !status.server_reachable {
+        return Err(StorageError::InvalidData(
+            "Start your existing Ollama installation before generating a protocol.",
+        ));
+    }
+    let model = status.selected_model.ok_or(StorageError::InvalidData(
+        "Choose an installed Ollama model in Settings → Protocol generation.",
+    ))?;
+    let model_digest = status
+        .selected_model_digest
+        .ok_or(StorageError::InvalidData(
+            "The selected Ollama model is no longer installed. Choose another model.",
+        ))?;
+    let runtime_version = status
+        .runtime_version
+        .unwrap_or_else(|| "unknown".to_string());
+    let config = QueuedGenerationConfig {
+        model: model.clone(),
+        model_digest: model_digest.clone(),
+        runtime_version: runtime_version.clone(),
+        meeting_language: inputs.meeting_language.clone(),
+        style: provider::GenerationStyle {
+            id: inputs.style.id.clone(),
+            revision: inputs.style.revision.clone(),
+            instructions: inputs.style.instructions.clone(),
+            required_sections: inputs.style.required_sections.clone(),
+        },
+        vocabulary_revision: inputs.vocabulary_revision.clone(),
+        vocabulary: inputs
+            .vocabulary
+            .iter()
+            .map(|entry| entry.preferred_spelling.clone())
+            .collect(),
+        seed: 42,
+        temperature_milli: 200,
+        context_tokens: 8192,
+        maximum_output_tokens: 2048,
+    };
+    let runtime_config_json = serde_json::to_string(&config).map_err(|_| {
+        StorageError::InvalidData("The protocol provider configuration could not be saved.")
+    })?;
+    Ok((
+        "ollama",
+        runtime_version,
+        model_digest,
+        settings_json,
+        Some(runtime_config_json),
+    ))
 }
 
 pub(crate) fn run_job(
@@ -546,18 +690,66 @@ fn execute_generation(
     let transcript: TranscriptArtifact =
         serde_json::from_slice(&bytes).map_err(|_| ProcessingError::InvalidOutput)?;
     validate_transcript_artifact(&transcript, &job.meeting_id)?;
-    let adapter = DeterministicFakeAdapter {
-        fail_requested: job.fail_requested,
-    };
     let mut report = |value, stage| progress(repository, job, value, stage, notify);
-    let markdown = adapter.generate(
-        GenerationRequest {
-            meeting_title: &meeting_title,
-            transcript: &transcript,
-        },
-        cancellation,
-        &mut report,
-    )?;
+    let markdown = if cfg!(test) {
+        DeterministicFakeAdapter {
+            fail_requested: job.fail_requested,
+        }
+        .generate(
+            GenerationRequest {
+                meeting_title: &meeting_title,
+                transcript: &transcript,
+            },
+            cancellation,
+            &mut report,
+        )?
+    } else {
+        let config: QueuedGenerationConfig = job
+            .runtime_config_json
+            .as_deref()
+            .ok_or_else(|| ProcessingError::Runtime {
+                code: "provider_missing",
+                message: "Choose an installed Ollama model in Settings → Protocol generation."
+                    .into(),
+            })
+            .and_then(|value| {
+                serde_json::from_str(value).map_err(|_| ProcessingError::Runtime {
+                    code: "provider_invalid",
+                    message: "The saved protocol provider configuration is invalid.".into(),
+                })
+            })?;
+        let request = provider::GenerationRequest {
+            model: config.model,
+            model_digest: config.model_digest,
+            runtime_version: config.runtime_version,
+            meeting_language: config.meeting_language,
+            style: config.style,
+            vocabulary_revision: config.vocabulary_revision,
+            vocabulary: config.vocabulary,
+            transcript: transcript
+                .segments
+                .iter()
+                .map(|segment| provider::GenerationSegment {
+                    start_ms: segment.start_ms,
+                    speaker: segment.speaker.clone(),
+                    text: segment.text.clone(),
+                })
+                .collect(),
+            seed: config.seed,
+            temperature_milli: config.temperature_milli,
+            context_tokens: config.context_tokens,
+            maximum_output_tokens: config.maximum_output_tokens,
+        };
+        let mut provider_progress = |value, stage| {
+            report(value, stage).map_err(|error| match error {
+                ProcessingError::Cancelled => provider::ProviderError::Cancelled,
+                other => provider::ProviderError::Unavailable(other.to_string()),
+            })
+        };
+        provider::OllamaProvider::loopback()
+            .generate(&request, cancellation, &mut provider_progress)
+            .map_err(provider_processing_error)?
+    };
     if markdown.trim().is_empty() || markdown.len() > 5_000_000 {
         return Err(ProcessingError::InvalidOutput);
     }
@@ -1046,6 +1238,21 @@ fn commit_protocol_output(
     bytes: &[u8],
 ) -> Result<(), ProcessingError> {
     let checksum = checksum_bytes(bytes);
+    let provider_name = job.provider.as_deref().unwrap_or(FAKE_PROVIDER);
+    let runtime_version = job
+        .runtime_version
+        .as_deref()
+        .unwrap_or(FAKE_RUNTIME_VERSION);
+    let model_digest = job.model_digest.as_deref().unwrap_or(FAKE_MODEL_DIGEST);
+    let settings_json = job
+        .settings_json
+        .as_deref()
+        .unwrap_or(r#"{"temperature":0}"#);
+    let style_revision = job.style_revision.as_deref().unwrap_or("style@1");
+    let vocabulary_revision = job
+        .vocabulary_revision
+        .as_deref()
+        .unwrap_or(VOCABULARY_REVISION);
     let staged = staged_path(root, job, "md");
     write_durable_new(&staged, bytes)?;
     record_staged(repository, job, &checksum, bytes.len())?;
@@ -1075,13 +1282,13 @@ fn commit_protocol_output(
             managed_relative_path(&job.final_relative_path)?,
             checksum,
             bytes.len() as i64,
-            FAKE_PROVIDER,
-            FAKE_RUNTIME_VERSION,
-            FAKE_MODEL_DIGEST,
-            r#"{"temperature":0}"#,
+            provider_name,
+            runtime_version,
+            model_digest,
+            settings_json,
             style_id,
-            format!("{style_id}@1"),
-            VOCABULARY_REVISION,
+            style_revision,
+            vocabulary_revision,
             transcript_checksum,
             APP_VERSION,
             Option::<String>::None,
@@ -1539,6 +1746,16 @@ pub(crate) fn retry_job(
     } else {
         None
     };
+    let generation_snapshot = if kind == "generation" {
+        let inputs = repository.protocol_inputs(meeting_id)?;
+        Some((
+            generation_metadata(&repository, &inputs, cfg!(test))?,
+            inputs.style.revision,
+            inputs.vocabulary_revision,
+        ))
+    } else {
+        None
+    };
     let transaction = repository
         .connection
         .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -1566,6 +1783,30 @@ pub(crate) fn retry_job(
                 model_digest,
                 settings_json,
                 runtime_config_json,
+                unix_time_millis(),
+                job_id,
+            ],
+        )?;
+    }
+    if let Some((
+        (provider, runtime_version, model_digest, settings_json, runtime_config_json),
+        style_revision,
+        vocabulary_revision,
+    )) = generation_snapshot
+    {
+        transaction.execute(
+            "UPDATE jobs SET provider = ?1, runtime_version = ?2, model_digest = ?3,
+                    settings_json = ?4, runtime_config_json = ?5,
+                    style_revision = ?6, vocabulary_revision = ?7, updated_at_ms = ?8
+             WHERE id = ?9",
+            params![
+                provider,
+                runtime_version,
+                model_digest,
+                settings_json,
+                runtime_config_json,
+                style_revision,
+                vocabulary_revision,
                 unix_time_millis(),
                 job_id,
             ],
@@ -1616,6 +1857,89 @@ pub(crate) fn reconcile(root: &Path) -> StorageResult<WorkspaceSnapshot> {
     repository.workspace_snapshot()
 }
 
+/// Export only the verified working protocol. Exporting never changes the meeting
+/// lifecycle or creates an application revision.
+pub(crate) fn export_protocol(
+    root: &Path,
+    meeting_id: &str,
+    format: &str,
+    destination: &str,
+) -> StorageResult<()> {
+    if !matches!(format, "markdown" | "text") {
+        return Err(StorageError::InvalidData("Choose a valid export format."));
+    }
+    let destination = PathBuf::from(destination);
+    if !destination.is_absolute()
+        || destination.to_string_lossy().contains('\0')
+        || destination.file_name().is_none()
+    {
+        return Err(StorageError::InvalidData(
+            "Choose a valid export destination.",
+        ));
+    }
+    if destination.exists() {
+        return Err(StorageError::InvalidData(
+            "Choose a new export filename; existing files are not overwritten automatically.",
+        ));
+    }
+    let parent = destination.parent().ok_or(StorageError::InvalidData(
+        "Choose a valid export destination.",
+    ))?;
+    if !parent.is_dir() {
+        return Err(StorageError::InvalidData(
+            "The selected export folder is not available.",
+        ));
+    }
+    let repository = WorkspaceRepository::open(root)?;
+    let markdown = String::from_utf8(repository.protocol_working_markdown(meeting_id)?)
+        .map_err(|_| StorageError::InvalidData("The saved protocol is not valid UTF-8."))?;
+    let content = if format == "text" {
+        markdown_to_plain_text(&markdown)
+    } else {
+        markdown
+    };
+    let temporary = parent.join(format!(
+        ".{}.localog-export-{}",
+        destination
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("protocol"),
+        new_id("tmp")
+    ));
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temporary)?;
+    file.write_all(content.as_bytes())?;
+    file.sync_all()?;
+    drop(file);
+    fs::rename(&temporary, &destination).map_err(|error| {
+        let _ = fs::remove_file(&temporary);
+        StorageError::Io(error)
+    })?;
+    Ok(())
+}
+
+pub(crate) fn markdown_to_plain_text(markdown: &str) -> String {
+    markdown
+        .lines()
+        .map(|line| {
+            let trimmed = line.trim_start();
+            let without_heading = trimmed.trim_start_matches('#').trim_start();
+            let without_bullet = without_heading
+                .strip_prefix("- ")
+                .or_else(|| without_heading.strip_prefix("* "))
+                .or_else(|| without_heading.strip_prefix("+ "))
+                .unwrap_or(without_heading);
+            without_bullet
+                .replace("**", "")
+                .replace("__", "")
+                .replace('`', "")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn reconcile_working_files(repository: &WorkspaceRepository, table: &str) -> StorageResult<()> {
     let sql = format!("SELECT artifact_path, checksum FROM {table}");
     let mut statement = repository.connection.prepare(&sql)?;
@@ -1660,7 +1984,7 @@ fn processing_job(
                     j.state, j.stage, j.attempt, j.input_revision_id,
                     j.result_revision_id, j.final_relative_path, j.fail_requested,
                     j.provider, j.runtime_version, j.model_digest, j.settings_json,
-                    j.runtime_config_json
+                    j.runtime_config_json, j.style_revision, j.vocabulary_revision
              FROM jobs j JOIN meetings m ON m.id = j.meeting_id
              WHERE j.id = ?1 AND j.kind IN ('transcription', 'generation')",
             [job_id],
@@ -1681,6 +2005,8 @@ fn processing_job(
                     model_digest: row.get(14)?,
                     settings_json: row.get(15)?,
                     runtime_config_json: row.get(16)?,
+                    style_revision: row.get(17)?,
+                    vocabulary_revision: row.get(18)?,
                 })
             },
         )
@@ -2129,6 +2455,51 @@ mod tests {
         );
     }
 
+    #[test]
+    fn export_reads_verified_working_protocol_without_mutating_lifecycle() {
+        let fixture = Fixture::source_ready();
+        fixture.transcribe();
+        let (generation, _) = queue_generation(&fixture.root, &fixture.meeting_id, false).unwrap();
+        run_job(
+            &fixture.root,
+            &generation.id,
+            Arc::new(AtomicBool::new(false)),
+            |_| {},
+        )
+        .unwrap();
+        let before = WorkspaceRepository::open(&fixture.root)
+            .unwrap()
+            .workspace_snapshot()
+            .unwrap();
+        let destination = fixture._temporary.path().join("protocol.md");
+        export_protocol(
+            &fixture.root,
+            &fixture.meeting_id,
+            "markdown",
+            destination.to_str().unwrap(),
+        )
+        .unwrap();
+        assert!(
+            fs::read_to_string(&destination)
+                .unwrap()
+                .contains("# Synthetic design review")
+        );
+        let text_destination = fixture._temporary.path().join("protocol.txt");
+        export_protocol(
+            &fixture.root,
+            &fixture.meeting_id,
+            "text",
+            text_destination.to_str().unwrap(),
+        )
+        .unwrap();
+        assert!(!fs::read_to_string(text_destination).unwrap().contains("# "));
+        let after = WorkspaceRepository::open(&fixture.root)
+            .unwrap()
+            .workspace_snapshot()
+            .unwrap();
+        assert_eq!(before.meetings[0].lifecycle, after.meetings[0].lifecycle);
+        assert_eq!(before.protocols, after.protocols);
+    }
     #[test]
     fn concurrent_transcription_starts_admit_only_one_active_job() {
         let fixture = Fixture::source_ready();

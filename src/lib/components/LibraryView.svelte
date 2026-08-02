@@ -38,18 +38,26 @@
         >Project vocabulary applies to its meetings without repeated selection.</span
       >
     </div>
-    <section class="library-list" aria-label="Vocabulary entries">
-      {#each vocabulary as entry (entry.id)}<article>
-          <div>
-            <h2>{entry.term}</h2>
-            <p>{entry.category}</p>
-          </div>
-          <span class="meta"
-            >{entry.scope === 'Project'
-              ? projects.find((project) => project.id === entry.projectId)?.name
-              : 'Global vocabulary'}</span
-          >
-        </article>{/each}
-    </section>
+    {#if vocabulary.length === 0}
+      <div class="empty-inline">
+        <Icon name="book" size={22} />
+        <h2>No vocabulary entries yet</h2>
+        <p>Reusable terminology can be added here when the vocabulary editor is introduced.</p>
+      </div>
+    {:else}
+      <section class="library-list" aria-label="Vocabulary entries">
+        {#each vocabulary as entry (entry.id)}<article>
+            <div>
+              <h2>{entry.term}</h2>
+              <p>{entry.category}</p>
+            </div>
+            <span class="meta"
+              >{entry.scope === 'Project'
+                ? projects.find((project) => project.id === entry.projectId)?.name
+                : 'Global vocabulary'}</span
+            >
+          </article>{/each}
+      </section>
+    {/if}
   {/if}
 </main>

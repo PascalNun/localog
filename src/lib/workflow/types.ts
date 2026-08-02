@@ -159,6 +159,23 @@ export interface TranscriptionRuntimeStatus {
   modelByteCount: number | null;
 }
 
+export interface ProtocolProviderModel {
+  name: string;
+  size: number;
+  digest: string;
+}
+
+export interface ProtocolProviderStatus {
+  endpoint: string;
+  serverReachable: boolean;
+  runtimeVersion: string | null;
+  models: ProtocolProviderModel[];
+  selectedModel: string | null;
+  selectedModelDigest: string | null;
+  selectedModelReady: boolean;
+  message: string;
+}
+
 // UI code depends on this contract; fake and real adapters must preserve the same semantics.
 export interface WorkflowBridge {
   getSnapshot(): Promise<WorkflowSnapshot>;
@@ -192,4 +209,7 @@ export interface WorkflowBridge {
     executablePath: string,
     modelPath: string,
   ): Promise<TranscriptionRuntimeStatus>;
+  exportProtocol(meetingId: string, format: 'markdown' | 'text', title: string): Promise<boolean>;
+  getProtocolProviderStatus(): Promise<ProtocolProviderStatus>;
+  configureProtocolProvider(model: string | null): Promise<ProtocolProviderStatus>;
 }
