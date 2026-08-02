@@ -11,6 +11,12 @@
   import StartView from './lib/components/StartView.svelte';
   import TranscriptView from './lib/components/TranscriptView.svelte';
   import Icon from './lib/components/Icon.svelte';
+  import {
+    DEFAULT_SIDEBAR_WIDTH,
+    SIDEBAR_WIDTH_STORAGE_KEY,
+    clampSidebarWidth,
+    parseStoredSidebarWidth,
+  } from './lib/layout/sidebarSizing';
   import { resolveWindowChrome } from './lib/platform/windowChrome';
   import { FakeWorkflowBridge } from './lib/workflow/fakeBridge';
   import type {
@@ -26,6 +32,7 @@
   let route: AppRoute = { name: 'start' };
   let theme: 'light' | 'dark' = 'light';
   let sidebarOpen = false;
+  let sidebarWidth = DEFAULT_SIDEBAR_WIDTH;
   let lastHandledJobId: string | null = null;
   let announcement = '';
 
@@ -50,6 +57,8 @@
       navigator.userAgent,
       '__TAURI_INTERNALS__' in window,
     );
+
+    sidebarWidth = parseStoredSidebarWidth(localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
 
     const savedTheme = localStorage.getItem('localog-theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -92,6 +101,15 @@
     theme = theme === 'light' ? 'dark' : 'light';
     localStorage.setItem('localog-theme', theme);
     applyTheme();
+  }
+
+  function resizeSidebar(width: number) {
+    sidebarWidth = clampSidebarWidth(width);
+  }
+
+  function finishSidebarResize(width: number) {
+    resizeSidebar(width);
+    localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidth));
   }
 
   async function createProject(input: NewProjectInput, returnToImport: boolean) {
@@ -141,7 +159,7 @@
 >
 
 <a class="skip-link" href="#main-content">Skip to workspace</a>
-<div class="app-shell">
+<div class="app-shell" style={`--sidebar-width: ${sidebarWidth}px`}>
   <div class="window-drag-region" data-tauri-drag-region aria-hidden="true"></div>
   {#if snapshot}
     <Sidebar
@@ -149,11 +167,14 @@
       {route}
       {currentProjectId}
       activeJob={snapshot.activeJob}
+      width={sidebarWidth}
       open={sidebarOpen}
       {theme}
       onNavigate={navigate}
       onClose={() => (sidebarOpen = false)}
       onToggleTheme={toggleTheme}
+      onResize={resizeSidebar}
+      onResizeEnd={finishSidebarResize}
     />
 
     <div class="app-main">
