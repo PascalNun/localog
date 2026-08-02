@@ -336,10 +336,14 @@ small {
 .sidebar-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
   padding: 20px 7px 0;
   border-top: 1px solid var(--line);
+}
+
+.sidebar-footer.has-status {
+  justify-content: space-between;
 }
 
 .local-status,
@@ -359,6 +363,10 @@ small {
 .local-status strong {
   color: var(--ink);
   font-weight: 500;
+}
+
+.local-status.attention .status-dot {
+  background: var(--warning);
 }
 
 .status-dot,
@@ -634,6 +642,8 @@ small {
   display: flex;
   align-items: flex-start;
   gap: 10px;
+  width: max-content;
+  max-width: calc(100% - 64px);
   transform: translateX(-50%);
   text-align: left;
 }

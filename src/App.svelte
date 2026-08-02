@@ -148,6 +148,7 @@
       projects={snapshot.projects}
       {route}
       {currentProjectId}
+      activeJob={snapshot.activeJob}
       open={sidebarOpen}
       {theme}
       onNavigate={navigate}
