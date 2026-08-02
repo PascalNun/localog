@@ -56,13 +56,14 @@ The repository currently contains:
 - a synthetic end-to-end demonstration with import, progress, cancellation, failure, retry, transcript review, protocol editing, and export states;
 - a production SQLite repository for projects, meetings, source metadata, and durable import jobs, connected to the native shell;
 - staged managed-media copying with SHA-256 checksums, truthful byte progress, cancellation, duplicate confirmation, and restart recovery;
-- deterministic fake transcription and protocol-generation adapters running through durable jobs, immutable revisions, cancellation, retry, and restart recovery;
+- durable transcription and protocol-generation jobs running through immutable revisions, cancellation, retry, and restart recovery;
+- a user-configured whisper.cpp boundary that probes imported media, caches derived mono/16 kHz audio safely, validates local JSON transcript output, and records runtime/model provenance (real inference still requires an installed runtime and model);
 - persistent transcript correction and Markdown protocol editing with atomic autosave, revision history, and exact review status;
 - completed architecture studies for durable storage, process supervision, media normalisation and transcription, local protocol generation, and Markdown autosave.
 
-The native shell now preserves created projects, meetings, committed source copies, structured transcript revisions, transcript corrections, Markdown protocol revisions, working edits, review state, and job history across restarts. It recovers interrupted work without presenting partial output as complete. The processing adapters are deliberately synthetic: real media normalisation, transcription, and local language-model integration have not been connected, and there are no release builds yet.
+The native shell now preserves created projects, meetings, committed source copies, structured transcript revisions, transcript corrections, Markdown protocol revisions, working edits, review state, normalized-media cache metadata, and job history across restarts. It recovers interrupted work without presenting partial output as complete. Protocol generation remains synthetic while the user-configured transcription boundary is validated against an installed whisper.cpp build; there are no release builds yet.
 
-The next proposed milestone is to replace one fake stage at a time behind these tested boundaries, beginning with media probing/normalisation and local transcription after review. Ollama or another real protocol provider will not be integrated until the transcription path and its packaging implications are understood.
+The next milestone is to validate the whisper.cpp command contract on the documented M1/8 GB baseline and then replace the fake protocol stage behind the same durable boundary. Ollama remains a development and early technical-preview option, not the final public distribution model.
 
 ## How the application is being built
 

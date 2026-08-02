@@ -115,6 +115,7 @@ Default to an OS-provided application-data directory, never the current director
 │   ├── working/imports/<source-artifact-id>.part
 │   ├── working/recovery/<source-artifact-id>.orphan
 │   ├── working/jobs/<job-id>.<json|md>.part
+│   ├── working/normalized/<recording-id>-<settings-hash>.wav
 │   ├── transcripts/
 │   │   ├── revisions/<transcript-revision-id>.json
 │   │   └── working.json
@@ -150,6 +151,8 @@ The durable fake workflow establishes the same boundaries later inference adapte
 5. A committed revision is copied atomically to the stage's replaceable working artifact. Autosave uses a sibling temporary file, flush, sync, and rename so interruption retains the previous complete working state.
 6. Starting protocol generation commits dirty transcript working state first. The generation job records that exact committed transcript revision and never reads mutable working content.
 7. Marking a protocol reviewed creates or selects the exact committed revision being reviewed and stores its identity. Later working edits do not alter it; the presentation state becomes `changed since review`.
+
+Normalization is a derived cache: its SQLite record contains the source recording checksum, normalized checksum, relative path, media probe facts, runtime version, and resolved settings. A cache mismatch causes regeneration. The imported original is never replaced, and normalized audio is not an additional user-visible revision.
 
 On startup, abandoned `running` or `cancelling` processing jobs become `interrupted`. Staged output is never shown as ready. A final artifact without matching visible revision metadata is quarantined unless the persisted job contains sufficient checksum/path evidence to finish the exact interrupted commit safely. Working artifacts are loaded only when their SQLite checksum metadata agrees; a failed autosave keeps the last verified working document visible and reports the failure.
 

@@ -12,6 +12,7 @@ import type {
   TranscriptSegment,
   WorkflowBridge,
   WorkflowSnapshot,
+  TranscriptionRuntimeStatus,
 } from './types';
 import type { WorkspaceStore } from './workspaceStore';
 
@@ -548,6 +549,27 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   async setNextJobOutcome(outcome: FakeJobOutcome): Promise<void> {
     this.snapshot.nextJobOutcome = outcome;
     this.emit();
+  }
+
+  async getTranscriptionRuntimeStatus(): Promise<TranscriptionRuntimeStatus> {
+    return {
+      executablePath: null,
+      modelPath: null,
+      executableFound: false,
+      modelFound: false,
+      runtimeVersion: null,
+      modelDigest: null,
+      modelByteCount: null,
+    };
+  }
+
+  async configureTranscriptionRuntime(
+    _executablePath: string,
+    _modelPath: string,
+  ): Promise<TranscriptionRuntimeStatus> {
+    void _executablePath;
+    void _modelPath;
+    return this.getTranscriptionRuntimeStatus();
   }
 
   private startJob(meetingId: string, kind: JobKind, attempt = 1): void {

@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 4;
+const CURRENT_SCHEMA_VERSION: i64 = 5;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -54,6 +54,10 @@ pub(crate) struct ProcessingJobRecord {
     pub result_revision_id: String,
     pub final_relative_path: PathBuf,
     pub fail_requested: bool,
+    pub provider: Option<String>,
+    pub runtime_version: Option<String>,
+    pub model_digest: Option<String>,
+    pub settings_json: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -171,6 +175,31 @@ impl WorkspaceRepository {
             active_meeting_id: self.workspace_state("active_meeting_id")?,
             active_route: self.workspace_state("active_route")?,
         })
+    }
+
+    pub(crate) fn read_setting(&self, key: &str) -> Result<Option<String>> {
+        Ok(self
+            .connection
+            .query_row(
+                "SELECT value FROM app_settings WHERE key = ?1",
+                [key],
+                |row| row.get(0),
+            )
+            .optional()?)
+    }
+
+    pub(crate) fn write_setting(&self, key: &str, value: &str) -> Result<()> {
+        if key.len() > 128 || value.len() > 32_768 || key.contains('\0') || value.contains('\0') {
+            return Err(StorageError::InvalidData(
+                "The local runtime setting is invalid.",
+            ));
+        }
+        self.connection.execute(
+            "INSERT INTO app_settings (key, value, updated_at_ms) VALUES (?1, ?2, ?3)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at_ms = excluded.updated_at_ms",
+            params![key, value, unix_time_millis()],
+        )?;
+        Ok(())
     }
 
     pub fn create_project(&mut self, input: NewProjectInput) -> Result<ProjectSummary> {
@@ -1158,6 +1187,35 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             COMMIT;
             ",
         )?;
+        version = 4;
+    }
+    if version == 4 {
+        connection.execute_batch(
+            "
+            BEGIN IMMEDIATE;
+            CREATE TABLE app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at_ms INTEGER NOT NULL
+            );
+            CREATE TABLE normalized_media (
+                recording_id TEXT PRIMARY KEY REFERENCES recordings(id),
+                source_checksum TEXT NOT NULL,
+                normalized_path TEXT NOT NULL,
+                normalized_checksum TEXT NOT NULL,
+                byte_count INTEGER NOT NULL CHECK (byte_count > 0),
+                duration_ms INTEGER,
+                audio_codec TEXT,
+                sample_rate INTEGER,
+                channels INTEGER,
+                runtime_version TEXT NOT NULL,
+                settings_json TEXT NOT NULL,
+                created_at_ms INTEGER NOT NULL
+            );
+            PRAGMA user_version = 5;
+            COMMIT;
+            ",
+        )?;
     }
     Ok(())
 }
@@ -1343,6 +1401,30 @@ fn job_error_summary(code: &str, stored_message: Option<&str>) -> JobErrorSummar
         "invalid_adapter_output" => (
             "The local output could not be validated",
             "LocaLog did not commit the incomplete result. Your latest stable source and document revisions remain safe.",
+        ),
+        "runtime_missing" => (
+            "Choose a local transcription runtime",
+            "Select an installed whisper.cpp executable in Settings → Transcription. LocaLog does not download runtimes.",
+        ),
+        "model_missing" => (
+            "Choose a local transcription model",
+            "Select an already available whisper.cpp model in Settings → Transcription. No model was downloaded or changed.",
+        ),
+        "media_probe_failed" => (
+            "The recording could not be inspected",
+            "Check that FFprobe is installed and that the imported source is still readable. The original remains unchanged.",
+        ),
+        "normalization_failed" => (
+            "The recording could not be prepared",
+            "Check that FFmpeg is installed and retry. The normalized cache can be regenerated and the original remains unchanged.",
+        ),
+        "transcription_failed" => (
+            "Local transcription could not finish",
+            "The whisper.cpp runtime stopped before a transcript revision was committed. Check its model and retry.",
+        ),
+        "invalid_transcript_output" => (
+            "The transcription output could not be validated",
+            "LocaLog did not commit the runtime output because it was incomplete or malformed. Your source remains safe.",
         ),
         "processing_failed" => (
             "Local processing could not finish",

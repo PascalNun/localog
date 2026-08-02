@@ -10,6 +10,7 @@ import type {
   ProtocolDraft,
   SourceSelection,
   TranscriptDocument,
+  TranscriptionRuntimeStatus,
 } from './types';
 
 export interface WorkspaceData {
@@ -59,6 +60,11 @@ export interface WorkspaceStore {
     route: 'meeting' | 'transcript' | 'protocol',
   ): Promise<void>;
   subscribe(listener: (workspace: WorkspaceData) => void): Promise<UnlistenFn>;
+  getTranscriptionRuntimeStatus?: () => Promise<TranscriptionRuntimeStatus>;
+  configureTranscriptionRuntime?: (
+    executablePath: string,
+    modelPath: string,
+  ) => Promise<TranscriptionRuntimeStatus>;
 }
 
 class TauriWorkspaceStore implements WorkspaceStore {
@@ -184,6 +190,20 @@ class TauriWorkspaceStore implements WorkspaceStore {
 
   subscribe(listener: (workspace: WorkspaceData) => void): Promise<UnlistenFn> {
     return listen<WorkspaceData>('workspace://changed', (event) => listener(event.payload));
+  }
+
+  getTranscriptionRuntimeStatus(): Promise<TranscriptionRuntimeStatus> {
+    return invoke<TranscriptionRuntimeStatus>('transcription_runtime_status');
+  }
+
+  configureTranscriptionRuntime(
+    executablePath: string,
+    modelPath: string,
+  ): Promise<TranscriptionRuntimeStatus> {
+    return invoke<TranscriptionRuntimeStatus>('configure_transcription_runtime', {
+      executablePath,
+      modelPath,
+    });
   }
 }
 
