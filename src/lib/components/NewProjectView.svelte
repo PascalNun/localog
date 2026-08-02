@@ -1,0 +1,66 @@
+<script lang="ts">
+  import type { NewProjectInput } from '../workflow/types';
+  import Icon from './Icon.svelte';
+
+  export let returnToImport: boolean;
+  export let onCancel: () => void;
+  export let onCreate: (input: NewProjectInput) => Promise<void>;
+
+  let name = '';
+  let description = '';
+  let defaultLanguage = 'English';
+  let submitting = false;
+
+  async function submit(event: SubmitEvent) {
+    event.preventDefault();
+    if (!name.trim() || submitting) return;
+    submitting = true;
+    await onCreate({ name, description, defaultLanguage });
+  }
+</script>
+
+<main class="workspace narrow-workspace" id="main-content">
+  <header class="workspace-header compact-header">
+    <div>
+      <p class="eyebrow">Projects</p>
+      <h1 tabindex="-1">New project</h1>
+      <p>Create the professional context that meetings and sources belong to.</p>
+    </div>
+  </header>
+  <form class="editorial-form" onsubmit={submit}>
+    <label
+      ><span>Project name</span><input
+        bind:value={name}
+        placeholder="e.g. Community hall study"
+        required
+      /></label
+    >
+    <label
+      ><span>Description <em>optional</em></span><textarea
+        bind:value={description}
+        rows="3"
+        placeholder="A concise internal description"></textarea></label
+    >
+    <label
+      ><span>Default meeting language</span><select bind:value={defaultLanguage}
+        ><option>English</option><option>German</option></select
+      ><small>Independent from the application interface language.</small></label
+    >
+    <details class="advanced-disclosure">
+      <summary>Project defaults</summary>
+      <p>
+        Vocabulary, recurring participants, and a protocol style can be configured in the project
+        after creation.
+      </p>
+    </details>
+    <footer class="form-actions">
+      <button type="button" class="secondary-action" onclick={onCancel}>Cancel</button><button
+        class="primary-action"
+        type="submit"
+        disabled={!name.trim() || submitting}
+        >{submitting ? 'Creating…' : returnToImport ? 'Create and continue' : 'Create project'}
+        <Icon name="arrow" /></button
+      >
+    </footer>
+  </form>
+</main>

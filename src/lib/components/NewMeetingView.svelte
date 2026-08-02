@@ -1,0 +1,177 @@
+<script lang="ts">
+  import type { NewMeetingInput, ProjectSummary, ProtocolStyle } from '../workflow/types';
+  import Icon from './Icon.svelte';
+
+  export let projects: ProjectSummary[];
+  export let initialProjectId: string | null;
+  export let styles: ProtocolStyle[];
+  export let onCancel: () => void;
+  export let onCreateProject: () => void;
+  export let onCreate: (input: NewMeetingInput) => Promise<void>;
+
+  let projectId = initialProjectId ?? projects[0]?.id ?? '';
+  let title = '';
+  let occurredAt = new Date().toISOString().slice(0, 10);
+  let sourceName = '';
+  let language = projects.find((project) => project.id === projectId)?.defaultLanguage ?? 'English';
+  let styleId =
+    projects.find((project) => project.id === projectId)?.defaultStyleId ?? styles[0]?.id ?? '';
+  let submitting = false;
+
+  $: selectedProject = projects.find((project) => project.id === projectId);
+
+  function useProjectDefaults() {
+    if (!selectedProject) return;
+    language = selectedProject.defaultLanguage;
+    styleId = selectedProject.defaultStyleId;
+  }
+
+  function selectFile(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    sourceName = input.files?.[0]?.name ?? '';
+    if (!title && sourceName) title = titleFromFile(sourceName);
+  }
+
+  function useFixture() {
+    sourceName = 'synthetic-design-coordination.wav';
+    if (!title) title = 'Design coordination';
+  }
+
+  function titleFromFile(filename: string) {
+    return filename
+      .replace(/\.[^.]+$/, '')
+      .replace(/[-_]+/g, ' ')
+      .replace(/^\w/, (letter) => letter.toUpperCase());
+  }
+
+  async function submit(event: SubmitEvent) {
+    event.preventDefault();
+    if (!projectId || !sourceName || submitting) return;
+    submitting = true;
+    await onCreate({ projectId, title, occurredAt, language, sourceName, styleId });
+  }
+</script>
+
+<main class="workspace" id="main-content">
+  <header class="workspace-header compact-header">
+    <div>
+      <p class="eyebrow">Structured import</p>
+      <h1 tabindex="-1">New meeting</h1>
+      <p>Place the source, confirm the essentials, then process it locally.</p>
+    </div>
+  </header>
+
+  <form class="meeting-form" onsubmit={submit}>
+    <section class="form-step" aria-labelledby="context-heading">
+      <div class="step-number">1</div>
+      <div class="step-content">
+        <p class="eyebrow">Context</p>
+        <h2 id="context-heading">Choose a project</h2>
+        <div class="field-with-action">
+          <label
+            ><span>Project</span><select bind:value={projectId} onchange={useProjectDefaults}
+              >{#each projects as project (project.id)}<option value={project.id}
+                  >{project.name}</option
+                >{/each}</select
+            ></label
+          >
+          <button type="button" class="secondary-action" onclick={onCreateProject}
+            ><Icon name="plus" size={15} /> New project</button
+          >
+        </div>
+        <p class="field-note">
+          Every source belongs to a meeting, and every meeting belongs to a project. There is no
+          inbox.
+        </p>
+      </div>
+    </section>
+
+    <section class="form-step" aria-labelledby="source-heading">
+      <div class="step-number">2</div>
+      <div class="step-content">
+        <div class="section-heading-row">
+          <div>
+            <p class="eyebrow">Source</p>
+            <h2 id="source-heading">Import recording</h2>
+          </div>
+          <span class="privacy-note">Local fake import</span>
+        </div>
+        <label class:has-source={sourceName} class="drop-zone">
+          <input type="file" accept="audio/*,video/*" onchange={selectFile} />
+          <span class="drop-icon"><Icon name="upload" size={30} /></span>
+          {#if sourceName}<strong>{sourceName}</strong><small>Ready to assign to this meeting</small
+            >{:else}<strong>Choose an audio or video file</strong><small
+              >The Phase 0 shell keeps only its name and never reads or uploads the file.</small
+            >{/if}
+        </label>
+        <button class="text-action demo-fixture-action" type="button" onclick={useFixture}
+          >Use the synthetic demo recording</button
+        >
+      </div>
+    </section>
+
+    <section class="form-step" aria-labelledby="details-heading">
+      <div class="step-number">3</div>
+      <div class="step-content">
+        <p class="eyebrow">Essentials</p>
+        <h2 id="details-heading">Meeting information</h2>
+        <div class="field-grid">
+          <label
+            ><span>Title</span><input
+              bind:value={title}
+              placeholder="Derived from the file if left empty"
+            /></label
+          >
+          <label><span>Date</span><input type="date" bind:value={occurredAt} required /></label>
+          <label
+            ><span>Meeting language</span><select bind:value={language}
+              ><option>English</option><option>German</option></select
+            ><small
+              >{selectedProject?.defaultLanguage === language
+                ? 'Project default'
+                : 'Meeting override'}</small
+            ></label
+          >
+          <label
+            ><span>Protocol style</span><select bind:value={styleId}
+              >{#each styles as style (style.id)}<option value={style.id}>{style.name}</option
+                >{/each}</select
+            ><small
+              >{selectedProject?.defaultStyleId === styleId
+                ? 'Project default'
+                : 'Meeting override'}</small
+            ></label
+          >
+          <label
+            ><span>Transcription preset</span><select
+              ><option>Balanced</option><option>Fast</option><option>Accurate</option></select
+            ><small>Exact local model remains an advanced setting.</small></label
+          >
+          <label
+            ><span>Vocabulary</span><select
+              ><option>Global + project vocabulary</option><option>Global vocabulary only</option
+              ></select
+            ><small>Project terms apply automatically.</small></label
+          >
+        </div>
+        <details class="advanced-disclosure">
+          <summary>Advanced processing options</summary>
+          <p>
+            Exact runtime and model controls remain intentionally absent until the focused
+            transcription and provider spikes validate them.
+          </p>
+        </details>
+      </div>
+    </section>
+
+    <footer class="form-actions">
+      <button class="secondary-action" type="button" onclick={onCancel}>Cancel</button><button
+        class="primary-action"
+        type="submit"
+        disabled={!projectId || !sourceName || submitting}
+        >{submitting ? 'Starting local import…' : 'Create meeting and import'}
+        <Icon name="arrow" /></button
+      >
+    </footer>
+  </form>
+</main>
