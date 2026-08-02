@@ -353,6 +353,13 @@ Implementation follow-up, 2026-08-02:
 - Normalized-cache reuse now streams and verifies the cached file checksum and byte count, in addition to the source checksum, derived path, runtime version, and settings. A stale or modified cache is regenerated without touching the imported original.
 - These safeguards improve provenance and crash recovery without promising byte-identical model output. The implementation remains a narrow vertical-slice boundary, not a generalized workflow or provider framework.
 
+Runtime-correctness follow-up, 2026-08-02:
+
+- Job admission now rechecks the single-active-processing rule inside an SQLite transaction for both transcription and generation. Retry state resets and refreshed transcription snapshots commit together, so concurrent starts cannot create multiple active jobs.
+- FFmpeg and whisper.cpp version discovery use explicit tool arguments, and version output may come from either stdout or stderr. Normalized-cache records therefore retain the actual FFmpeg version when the installed tool supports the expected command.
+- Unix cancellation and timeout now terminate the whole supervised process group, including descendants that ignore the initial termination signal, before output readers are joined. Windows process-tree supervision remains a later platform-specific task.
+- The native suite now covers concurrent admission, tool-specific version arguments, and a signal-ignoring process group. The frontend disables the Transcribe action immediately while queueing is being prepared.
+
 ## Local protocol-provider spike result
 
 The isolated crate under `spikes/local-provider/` exercised an already-installed Ollama runtime and model through loopback HTTP only. It did not download a model, call a pull endpoint, or make a non-loopback request. The installed coding model was a convenient contract fixture, not a product-model selection.

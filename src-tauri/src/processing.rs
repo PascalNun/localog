@@ -8,7 +8,7 @@ use crate::storage::{
     WorkspaceRepository, checksum_bytes, managed_relative_path, new_id, unix_time_millis,
     validate_transcript_artifact,
 };
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{OptionalExtension, TransactionBehavior, params};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
@@ -152,8 +152,8 @@ pub(crate) fn queue_transcription(
     meeting_id: &str,
     fail_requested: bool,
 ) -> StorageResult<(ProcessingJobRecord, WorkspaceSnapshot)> {
-    let repository = WorkspaceRepository::open(root)?;
-    ensure_no_active_processing(&repository)?;
+    let mut repository = WorkspaceRepository::open(root)?;
+    ensure_no_active_processing(&repository.connection)?;
     let (project_id, recording_id, lifecycle, language): (String, String, String, String) =
         repository
             .connection
@@ -184,7 +184,11 @@ pub(crate) fn queue_transcription(
     let (provider, runtime_version, model_digest, settings_json, runtime_config_json) =
         transcription_metadata(&repository, &language, cfg!(test))?;
     let now = unix_time_millis();
-    repository.connection.execute(
+    let transaction = repository
+        .connection
+        .transaction_with_behavior(TransactionBehavior::Immediate)?;
+    ensure_no_active_processing(&transaction)?;
+    transaction.execute(
         "INSERT INTO jobs (
             id, meeting_id, recording_id, kind, state, stage, progress_bytes,
             total_bytes, attempt, duplicate_allowed, result_revision_id,
@@ -210,6 +214,7 @@ pub(crate) fn queue_transcription(
             now,
         ],
     )?;
+    transaction.commit()?;
     let job = processing_job(&repository, &job_id)?;
     Ok((job, repository.workspace_snapshot()?))
 }
@@ -301,7 +306,7 @@ pub(crate) fn queue_generation(
     fail_requested: bool,
 ) -> StorageResult<(ProcessingJobRecord, WorkspaceSnapshot)> {
     let mut repository = WorkspaceRepository::open(root)?;
-    ensure_no_active_processing(&repository)?;
+    ensure_no_active_processing(&repository.connection)?;
     let transcript_revision_id = commit_transcript_working_if_dirty(&mut repository, meeting_id)?;
     let (project_id, recording_id, style_id): (String, String, String) = repository
         .connection
@@ -320,7 +325,11 @@ pub(crate) fn queue_generation(
         .join("protocols/revisions")
         .join(format!("{revision_id}.md"));
     let now = unix_time_millis();
-    repository.connection.execute(
+    let transaction = repository
+        .connection
+        .transaction_with_behavior(TransactionBehavior::Immediate)?;
+    ensure_no_active_processing(&transaction)?;
+    transaction.execute(
         "INSERT INTO jobs (
             id, meeting_id, recording_id, kind, state, stage, progress_bytes,
             total_bytes, attempt, duplicate_allowed, input_revision_id,
@@ -346,6 +355,7 @@ pub(crate) fn queue_generation(
             now,
         ],
     )?;
+    transaction.commit()?;
     let job = processing_job(&repository, &job_id)?;
     Ok((job, repository.workspace_snapshot()?))
 }
@@ -621,7 +631,7 @@ fn execute_real_transcription(
     let normalized = root.join(&normalized_relative);
     let normalized_relative_text = managed_relative_path(&normalized_relative)?;
     let normalizer_version =
-        runtime::executable_version(&ffmpeg).unwrap_or_else(|| "unknown".to_string());
+        runtime::ffmpeg_version(&ffmpeg).unwrap_or_else(|| "unknown".to_string());
     let audio_stream = probe
         .streams
         .iter()
@@ -1472,7 +1482,7 @@ pub(crate) fn retry_job(
     root: &Path,
     meeting_id: &str,
 ) -> StorageResult<(ProcessingJobRecord, WorkspaceSnapshot)> {
-    let repository = WorkspaceRepository::open(root)?;
+    let mut repository = WorkspaceRepository::open(root)?;
     let (job_id, kind): (String, String) = repository
         .connection
         .query_row(
@@ -1484,22 +1494,22 @@ pub(crate) fn retry_job(
         )
         .optional()?
         .ok_or(StorageError::MissingJob)?;
-    let another_active = repository
+    ensure_no_other_active_processing(&repository.connection, &job_id)?;
+    let transcription_snapshot = if kind == "transcription" {
+        let language: String = repository.connection.query_row(
+            "SELECT language FROM meetings WHERE id = ?1",
+            [meeting_id],
+            |row| row.get(0),
+        )?;
+        Some(transcription_metadata(&repository, &language, cfg!(test))?)
+    } else {
+        None
+    };
+    let transaction = repository
         .connection
-        .query_row(
-            "SELECT 1 FROM jobs WHERE id != ?1 AND kind IN ('transcription', 'generation')
-             AND state IN ('queued', 'running', 'cancelling') LIMIT 1",
-            [&job_id],
-            |_| Ok(()),
-        )
-        .optional()?
-        .is_some();
-    if another_active {
-        return Err(StorageError::InvalidData(
-            "Another local processing job is already active.",
-        ));
-    }
-    repository.connection.execute(
+        .transaction_with_behavior(TransactionBehavior::Immediate)?;
+    ensure_no_other_active_processing(&transaction, &job_id)?;
+    transaction.execute(
         "UPDATE jobs SET state = 'queued', stage = CASE kind
                 WHEN 'transcription' THEN 'transcription_queued' ELSE 'generation_queued' END,
                 progress_bytes = 0,
@@ -1509,15 +1519,10 @@ pub(crate) fn retry_job(
                 started_at_ms = NULL, finished_at_ms = NULL WHERE id = ?2",
         params![unix_time_millis(), job_id],
     )?;
-    if kind == "transcription" {
-        let language: String = repository.connection.query_row(
-            "SELECT language FROM meetings WHERE id = ?1",
-            [meeting_id],
-            |row| row.get(0),
-        )?;
-        let (provider, runtime_version, model_digest, settings_json, runtime_config_json) =
-            transcription_metadata(&repository, &language, cfg!(test))?;
-        repository.connection.execute(
+    if let Some((provider, runtime_version, model_digest, settings_json, runtime_config_json)) =
+        transcription_snapshot
+    {
+        transaction.execute(
             "UPDATE jobs SET provider = ?1, runtime_version = ?2, model_digest = ?3,
                     settings_json = ?4, runtime_config_json = ?5, updated_at_ms = ?6
              WHERE id = ?7",
@@ -1532,6 +1537,7 @@ pub(crate) fn retry_job(
             ],
         )?;
     }
+    transaction.commit()?;
     let job = processing_job(&repository, &job_id)?;
     Ok((job, repository.workspace_snapshot()?))
 }
@@ -1648,13 +1654,33 @@ fn processing_job(
         .ok_or(StorageError::MissingJob)
 }
 
-fn ensure_no_active_processing(repository: &WorkspaceRepository) -> StorageResult<()> {
-    let active = repository
-        .connection
+fn ensure_no_active_processing(connection: &rusqlite::Connection) -> StorageResult<()> {
+    let active = connection
         .query_row(
             "SELECT 1 FROM jobs WHERE kind IN ('transcription', 'generation')
              AND state IN ('queued', 'running', 'cancelling') LIMIT 1",
             [],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if active {
+        return Err(StorageError::InvalidData(
+            "Another local processing job is already active.",
+        ));
+    }
+    Ok(())
+}
+
+fn ensure_no_other_active_processing(
+    connection: &rusqlite::Connection,
+    job_id: &str,
+) -> StorageResult<()> {
+    let active = connection
+        .query_row(
+            "SELECT 1 FROM jobs WHERE id != ?1 AND kind IN ('transcription', 'generation')
+             AND state IN ('queued', 'running', 'cancelling') LIMIT 1",
+            [job_id],
             |_| Ok(()),
         )
         .optional()?
@@ -1923,6 +1949,8 @@ mod tests {
     use super::*;
     use crate::domain::{JobState, MeetingLifecycle, NewMeetingInput, NewProjectInput};
     use crate::imports;
+    use std::sync::{Arc, Barrier};
+    use std::thread;
     use tempfile::{TempDir, tempdir};
 
     struct Fixture {
@@ -2064,6 +2092,45 @@ mod tests {
         assert_eq!(
             reopened.protocols[&fixture.meeting_id].revision_id,
             reviewed_revision
+        );
+    }
+
+    #[test]
+    fn concurrent_transcription_starts_admit_only_one_active_job() {
+        let fixture = Fixture::source_ready();
+        let root = Arc::new(fixture.root.clone());
+        let barrier = Arc::new(Barrier::new(2));
+        let handles = (0..2)
+            .map(|_| {
+                let root = Arc::clone(&root);
+                let barrier = Arc::clone(&barrier);
+                let meeting_id = fixture.meeting_id.clone();
+                thread::spawn(move || {
+                    barrier.wait();
+                    queue_transcription(root.as_path(), &meeting_id, false).map(|_| ())
+                })
+            })
+            .collect::<Vec<_>>();
+        let results = handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .collect::<Vec<_>>();
+
+        assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 1);
+        assert!(results.iter().any(|result| {
+            matches!(result, Err(StorageError::InvalidData(message)) if message.contains("already active"))
+        }));
+        let snapshot = WorkspaceRepository::open(&fixture.root)
+            .unwrap()
+            .workspace_snapshot()
+            .unwrap();
+        assert_eq!(
+            snapshot
+                .jobs
+                .iter()
+                .filter(|job| matches!(job.state, JobState::Queued | JobState::Running))
+                .count(),
+            1
         );
     }
 
