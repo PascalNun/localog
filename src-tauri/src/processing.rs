@@ -35,6 +35,15 @@ struct GenerationRequest<'a> {
     transcript: &'a TranscriptArtifact,
 }
 
+struct NormalizedCacheRecord {
+    source_checksum: String,
+    normalized_path: String,
+    normalized_checksum: String,
+    byte_count: i64,
+    runtime_version: String,
+    settings_json: String,
+}
+
 /// A real runtime will implement this same narrow, stage-specific port.
 trait TranscriptionAdapter {
     fn transcribe(
@@ -145,18 +154,19 @@ pub(crate) fn queue_transcription(
 ) -> StorageResult<(ProcessingJobRecord, WorkspaceSnapshot)> {
     let repository = WorkspaceRepository::open(root)?;
     ensure_no_active_processing(&repository)?;
-    let (project_id, recording_id, lifecycle): (String, String, String) = repository
-        .connection
-        .query_row(
-            "SELECT m.project_id, r.id, m.lifecycle
+    let (project_id, recording_id, lifecycle, language): (String, String, String, String) =
+        repository
+            .connection
+            .query_row(
+                "SELECT m.project_id, r.id, m.lifecycle, m.language
              FROM meetings m JOIN recordings r ON r.meeting_id = m.id
              WHERE m.id = ?1 AND r.state = 'committed'
              ORDER BY r.created_at_ms LIMIT 1",
-            [meeting_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        )
-        .optional()?
-        .ok_or(StorageError::MissingMeeting)?;
+                [meeting_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .optional()?
+            .ok_or(StorageError::MissingMeeting)?;
     if !matches!(
         lifecycle.as_str(),
         "source_ready" | "transcript_ready" | "protocol_draft" | "reviewed"
@@ -171,41 +181,18 @@ pub(crate) fn queue_transcription(
     let final_relative_path = meeting_root(&project_id, meeting_id)
         .join("transcripts/revisions")
         .join(format!("{revision_id}.json"));
-    let configured_executable = repository.read_setting("transcription.whisperExecutable")?;
-    let configured_model = repository.read_setting("transcription.whisperModel")?;
-    let provider = if cfg!(test) {
-        FAKE_PROVIDER
-    } else if configured_executable.is_some() && configured_model.is_some() {
-        "whisper.cpp"
-    } else {
-        FAKE_PROVIDER
-    };
-    let runtime_version = configured_executable
-        .as_deref()
-        .map(Path::new)
-        .and_then(runtime::executable_version)
-        .unwrap_or_else(|| FAKE_RUNTIME_VERSION.to_string());
-    let model_digest = configured_model
-        .as_deref()
-        .map(Path::new)
-        .and_then(|path| runtime::model_provenance(path).ok())
-        .map(|value| value.digest)
-        .unwrap_or_else(|| FAKE_MODEL_DIGEST.to_string());
-    let settings_json = if provider == "whisper.cpp" {
-        r#"{"language":"meeting","timestamps":"segments","normalization":{"sampleRate":16000,"channels":1}}"#
-    } else {
-        r#"{"language":"meeting","timestamps":"segments"}"#
-    };
+    let (provider, runtime_version, model_digest, settings_json, runtime_config_json) =
+        transcription_metadata(&repository, &language, cfg!(test))?;
     let now = unix_time_millis();
     repository.connection.execute(
         "INSERT INTO jobs (
             id, meeting_id, recording_id, kind, state, stage, progress_bytes,
             total_bytes, attempt, duplicate_allowed, result_revision_id,
             provider, runtime_version, model_digest, settings_json,
-            style_revision, vocabulary_revision, final_relative_path,
+            runtime_config_json, style_revision, vocabulary_revision, final_relative_path,
             fail_requested, created_at_ms, updated_at_ms
          ) VALUES (?1, ?2, ?3, 'transcription', 'queued', 'transcription_queued',
-                   0, 100, 1, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?13)",
+                   0, 100, 1, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?14)",
         params![
             job_id,
             meeting_id,
@@ -215,6 +202,7 @@ pub(crate) fn queue_transcription(
             runtime_version,
             model_digest,
             settings_json,
+            runtime_config_json,
             STYLE_REVISION,
             VOCABULARY_REVISION,
             managed_relative_path(&final_relative_path)?,
@@ -224,6 +212,87 @@ pub(crate) fn queue_transcription(
     )?;
     let job = processing_job(&repository, &job_id)?;
     Ok((job, repository.workspace_snapshot()?))
+}
+
+fn transcription_metadata(
+    repository: &WorkspaceRepository,
+    language: &str,
+    use_fake: bool,
+) -> StorageResult<(&'static str, String, String, String, Option<String>)> {
+    // Queueing captures the exact runtime inputs that execution must validate later.
+    let language_code = transcription_language_code(language);
+    if use_fake {
+        return Ok((
+            FAKE_PROVIDER,
+            FAKE_RUNTIME_VERSION.to_string(),
+            FAKE_MODEL_DIGEST.to_string(),
+            r#"{"language":"meeting","timestamps":"segments"}"#.to_string(),
+            None,
+        ));
+    }
+
+    let executable = repository
+        .read_setting("transcription.whisperExecutable")?
+        .map(PathBuf::from);
+    let model = repository
+        .read_setting("transcription.whisperModel")?
+        .map(PathBuf::from);
+    let resolved = executable.zip(model).and_then(|(executable, model)| {
+        let runtime_config = runtime::validate_config(&executable, &model).ok()?;
+        let runtime_version = runtime::executable_version(&runtime_config.executable)?;
+        let provenance = runtime::model_provenance(&runtime_config.model).ok()?;
+        Some(runtime::ResolvedTranscriptionConfig {
+            executable_path: runtime_config.executable,
+            model_path: runtime_config.model,
+            runtime_version,
+            model_digest: provenance.digest,
+            model_byte_count: provenance.byte_count,
+            language_code: language_code.to_string(),
+            sample_rate: 16_000,
+            channels: 1,
+            codec: "pcm_s16le".to_string(),
+            container: "wav".to_string(),
+        })
+    });
+    let settings_json = serde_json::json!({
+        "language": language,
+        "languageCode": language_code,
+        "timestamps": "segments",
+        "normalization": { "sampleRate": 16_000, "channels": 1, "codec": "pcm_s16le", "container": "wav" }
+    })
+    .to_string();
+    let runtime_version = resolved
+        .as_ref()
+        .map(|value| value.runtime_version.clone())
+        .unwrap_or_else(|| "unconfigured".to_string());
+    let model_digest = resolved
+        .as_ref()
+        .map(|value| value.model_digest.clone())
+        .unwrap_or_else(|| "unconfigured".to_string());
+    let runtime_config_json = resolved
+        .map(|value| serde_json::to_string(&value))
+        .transpose()
+        .map_err(|_| {
+            StorageError::InvalidData("The transcription runtime configuration could not be saved.")
+        })?;
+    Ok((
+        "whisper.cpp",
+        runtime_version,
+        model_digest,
+        settings_json,
+        runtime_config_json,
+    ))
+}
+
+fn transcription_language_code(language: &str) -> &str {
+    match language.trim().to_ascii_lowercase().as_str() {
+        "en" | "english" => "en",
+        "de" | "deutsch" | "german" => "de",
+        "fr" | "french" => "fr",
+        "es" | "spanish" => "es",
+        "it" | "italian" => "it",
+        _ => "auto",
+    }
 }
 
 pub(crate) fn queue_generation(
@@ -474,26 +543,54 @@ fn execute_real_transcription(
     cancellation: &AtomicBool,
     report: &mut dyn FnMut(u64, &'static str) -> Result<(), ProcessingError>,
 ) -> Result<TranscriptArtifact, ProcessingError> {
-    let executable = repository
-        .read_setting("transcription.whisperExecutable")?
-        .map(PathBuf::from)
+    let resolved: runtime::ResolvedTranscriptionConfig = job
+        .runtime_config_json
+        .as_deref()
         .ok_or_else(|| ProcessingError::Runtime {
             code: "runtime_missing",
-            message: "Choose a whisper.cpp executable in Settings → Transcription.".into(),
+            message: "Choose a whisper.cpp executable and model in Settings → Transcription."
+                .into(),
+        })
+        .and_then(|value| {
+            serde_json::from_str(value).map_err(|_| ProcessingError::Runtime {
+                code: "runtime_missing",
+                message: "The saved transcription runtime configuration is invalid.".into(),
+            })
         })?;
-    let model = repository
-        .read_setting("transcription.whisperModel")?
-        .map(PathBuf::from)
-        .ok_or_else(|| ProcessingError::Runtime {
-            code: "model_missing",
-            message: "Choose a whisper.cpp model in Settings → Transcription.".into(),
-        })?;
-    let config = runtime::validate_config(&executable, &model).map_err(|message| {
-        ProcessingError::Runtime {
-            code: "runtime_missing",
+    let config = runtime::validate_config(&resolved.executable_path, &resolved.model_path)
+        .map_err(|message| ProcessingError::Runtime {
+            code: "runtime_changed",
             message,
-        }
-    })?;
+        })?;
+    let current_runtime_version =
+        runtime::executable_version(&config.executable).ok_or_else(|| {
+            ProcessingError::Runtime {
+                code: "runtime_changed",
+                message:
+                    "The configured whisper.cpp executable no longer reports a usable version."
+                        .into(),
+            }
+        })?;
+    if current_runtime_version != resolved.runtime_version {
+        return Err(ProcessingError::Runtime {
+            code: "runtime_changed",
+            message: "The configured whisper.cpp executable changed after this job was queued."
+                .into(),
+        });
+    }
+    let current_model =
+        runtime::model_provenance(&config.model).map_err(|error| ProcessingError::Runtime {
+            code: "model_changed",
+            message: error.to_string(),
+        })?;
+    if current_model.digest != resolved.model_digest
+        || current_model.byte_count != resolved.model_byte_count
+    {
+        return Err(ProcessingError::Runtime {
+            code: "model_changed",
+            message: "The configured whisper.cpp model changed after this job was queued.".into(),
+        });
+    }
     let ffprobe = find_tool("ffprobe").ok_or_else(|| ProcessingError::Runtime {
         code: "media_probe_failed",
         message: "Install FFprobe to inspect imported media.".into(),
@@ -510,12 +607,21 @@ fn execute_real_transcription(
             message,
         }
     })?;
-    let settings = r#"{"sampleRate":16000,"channels":1,"format":"wav"}"#;
+    let settings = serde_json::json!({
+        "sampleRate": resolved.sample_rate,
+        "channels": resolved.channels,
+        "codec": resolved.codec,
+        "container": resolved.container,
+    })
+    .to_string();
     let settings_hash = &checksum_bytes(settings.as_bytes())[..16];
     let normalized_relative = meeting_root(&job.project_id, &job.meeting_id)
         .join("working/normalized")
         .join(format!("{}-{settings_hash}.wav", job.recording_id));
     let normalized = root.join(&normalized_relative);
+    let normalized_relative_text = managed_relative_path(&normalized_relative)?;
+    let normalizer_version =
+        runtime::executable_version(&ffmpeg).unwrap_or_else(|| "unknown".to_string());
     let audio_stream = probe
         .streams
         .iter()
@@ -524,19 +630,37 @@ fn execute_real_transcription(
         .and_then(|stream| stream.sample_rate.as_deref())
         .and_then(|value| value.parse::<u32>().ok());
     let source_channels = audio_stream.and_then(|stream| stream.channels);
-    let cached: Option<(String, String)> = repository
+    let cached: Option<NormalizedCacheRecord> = repository
         .connection
         .query_row(
-            "SELECT source_checksum, normalized_path FROM normalized_media WHERE recording_id = ?1",
+            "SELECT source_checksum, normalized_path, normalized_checksum, byte_count,
+                    runtime_version, settings_json
+             FROM normalized_media WHERE recording_id = ?1",
             [&job.recording_id],
-            |row| Ok((row.get(0)?, row.get(1)?)),
+            |row| {
+                Ok(NormalizedCacheRecord {
+                    source_checksum: row.get(0)?,
+                    normalized_path: row.get(1)?,
+                    normalized_checksum: row.get(2)?,
+                    byte_count: row.get(3)?,
+                    runtime_version: row.get(4)?,
+                    settings_json: row.get(5)?,
+                })
+            },
         )
         .optional()?;
-    if cached.as_ref().is_none_or(|(checksum, path)| {
-        checksum != source_checksum
-            || path != normalized_relative.to_str().unwrap_or_default()
-            || !root.join(path).is_file()
-    }) {
+    let cache_is_valid = cached.as_ref().map_or(Ok(false), |record| {
+        normalized_cache_matches(
+            root,
+            record,
+            source_checksum,
+            &normalized_relative_text,
+            &normalizer_version,
+            &settings,
+            cancellation,
+        )
+    })?;
+    if !cache_is_valid {
         report(25, "normalizing_audio")?;
         media::normalize(&ffmpeg, &source, &normalized, cancellation, |value| {
             let _ = report(25 + value / 3, "normalizing_audio");
@@ -545,20 +669,16 @@ fn execute_real_transcription(
             code: "normalization_failed",
             message,
         })?;
-        let normalized_bytes = fs::read(&normalized)?;
+        let (normalized_checksum, normalized_byte_count) =
+            streamed_checksum(root, &normalized_relative_text, cancellation)?;
         repository.connection.execute(
             "INSERT INTO normalized_media (recording_id, source_checksum, normalized_path, normalized_checksum, byte_count, duration_ms, audio_codec, sample_rate, channels, runtime_version, settings_json, created_at_ms)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
              ON CONFLICT(recording_id) DO UPDATE SET source_checksum=excluded.source_checksum, normalized_path=excluded.normalized_path, normalized_checksum=excluded.normalized_checksum, byte_count=excluded.byte_count, duration_ms=excluded.duration_ms, audio_codec=excluded.audio_codec, sample_rate=excluded.sample_rate, channels=excluded.channels, runtime_version=excluded.runtime_version, settings_json=excluded.settings_json, created_at_ms=excluded.created_at_ms",
-            params![job.recording_id, source_checksum, managed_relative_path(&normalized_relative)?, checksum_bytes(&normalized_bytes), normalized_bytes.len() as i64, probe.format.as_ref().and_then(|format| format.duration.as_deref()).and_then(|value| value.parse::<f64>().ok()).map(|value| (value * 1000.0) as i64), audio_stream.and_then(|stream| stream.codec_name.clone()).or_else(|| probe.format.as_ref().and_then(|format| format.format_name.clone())), source_sample_rate, source_channels, runtime::executable_version(&ffmpeg).unwrap_or_else(|| "unknown".into()), settings, unix_time_millis()],
+            params![job.recording_id, source_checksum, normalized_relative_text, normalized_checksum, normalized_byte_count as i64, probe.format.as_ref().and_then(|format| format.duration.as_deref()).and_then(|value| value.parse::<f64>().ok()).map(|value| (value * 1000.0) as i64), audio_stream.and_then(|stream| stream.codec_name.clone()).or_else(|| probe.format.as_ref().and_then(|format| format.format_name.clone())), source_sample_rate, source_channels, normalizer_version, settings, unix_time_millis()],
         )?;
     }
     report(65, "loading_transcription_model")?;
-    let provenance =
-        runtime::model_provenance(&config.model).map_err(|error| ProcessingError::Runtime {
-            code: "model_missing",
-            message: error.to_string(),
-        })?;
     let output_base = root
         .join(meeting_root(&job.project_id, &job.meeting_id))
         .join("working/jobs")
@@ -566,7 +686,7 @@ fn execute_real_transcription(
     fs::create_dir_all(output_base.parent().ok_or(ProcessingError::InvalidOutput)?)?;
     report(70, "transcribing_audio")?;
     let output = runtime::run_process(
-        media::whisper_command(&config, &normalized, &output_base, language),
+        media::whisper_command(&config, &normalized, &output_base, &resolved.language_code),
         cancellation,
         runtime::ProcessLimits::with_max_output(2 * 1024 * 1024),
     )
@@ -596,7 +716,6 @@ fn execute_real_transcription(
     report(88, "validating_transcript")?;
     let _ = fs::remove_file(json_path);
     let _ = output.stderr;
-    let _ = provenance;
     Ok(artifact)
 }
 
@@ -1354,14 +1473,14 @@ pub(crate) fn retry_job(
     meeting_id: &str,
 ) -> StorageResult<(ProcessingJobRecord, WorkspaceSnapshot)> {
     let repository = WorkspaceRepository::open(root)?;
-    let job_id: String = repository
+    let (job_id, kind): (String, String) = repository
         .connection
         .query_row(
-            "SELECT id FROM jobs WHERE meeting_id = ?1 AND kind IN ('transcription', 'generation')
+            "SELECT id, kind FROM jobs WHERE meeting_id = ?1 AND kind IN ('transcription', 'generation')
              AND state IN ('queued', 'failed', 'cancelled', 'interrupted')
              ORDER BY created_at_ms DESC LIMIT 1",
             [meeting_id],
-            |row| row.get(0),
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()?
         .ok_or(StorageError::MissingJob)?;
@@ -1390,6 +1509,29 @@ pub(crate) fn retry_job(
                 started_at_ms = NULL, finished_at_ms = NULL WHERE id = ?2",
         params![unix_time_millis(), job_id],
     )?;
+    if kind == "transcription" {
+        let language: String = repository.connection.query_row(
+            "SELECT language FROM meetings WHERE id = ?1",
+            [meeting_id],
+            |row| row.get(0),
+        )?;
+        let (provider, runtime_version, model_digest, settings_json, runtime_config_json) =
+            transcription_metadata(&repository, &language, cfg!(test))?;
+        repository.connection.execute(
+            "UPDATE jobs SET provider = ?1, runtime_version = ?2, model_digest = ?3,
+                    settings_json = ?4, runtime_config_json = ?5, updated_at_ms = ?6
+             WHERE id = ?7",
+            params![
+                provider,
+                runtime_version,
+                model_digest,
+                settings_json,
+                runtime_config_json,
+                unix_time_millis(),
+                job_id,
+            ],
+        )?;
+    }
     let job = processing_job(&repository, &job_id)?;
     Ok((job, repository.workspace_snapshot()?))
 }
@@ -1477,7 +1619,8 @@ fn processing_job(
             "SELECT j.id, j.meeting_id, m.project_id, j.recording_id, j.kind,
                     j.state, j.stage, j.attempt, j.input_revision_id,
                     j.result_revision_id, j.final_relative_path, j.fail_requested,
-                    j.provider, j.runtime_version, j.model_digest, j.settings_json
+                    j.provider, j.runtime_version, j.model_digest, j.settings_json,
+                    j.runtime_config_json
              FROM jobs j JOIN meetings m ON m.id = j.meeting_id
              WHERE j.id = ?1 AND j.kind IN ('transcription', 'generation')",
             [job_id],
@@ -1497,6 +1640,7 @@ fn processing_job(
                     runtime_version: row.get(13)?,
                     model_digest: row.get(14)?,
                     settings_json: row.get(15)?,
+                    runtime_config_json: row.get(16)?,
                 })
             },
         )
@@ -1582,10 +1726,49 @@ fn verify_streamed_checksum(
     expected: &str,
     cancellation: &AtomicBool,
 ) -> Result<(), ProcessingError> {
+    let (checksum, _) = streamed_checksum(root, relative, cancellation)?;
+    if checksum != expected {
+        return Err(ProcessingError::InvalidOutput);
+    }
+    Ok(())
+}
+
+fn normalized_cache_matches(
+    root: &Path,
+    record: &NormalizedCacheRecord,
+    source_checksum: &str,
+    expected_path: &str,
+    runtime_version: &str,
+    settings_json: &str,
+    cancellation: &AtomicBool,
+) -> Result<bool, ProcessingError> {
+    // A cache row is only a hint; the file itself remains the authority for its bytes.
+    if managed_relative_path(Path::new(&record.normalized_path)).is_err() {
+        return Ok(false);
+    }
+    if record.source_checksum != source_checksum
+        || record.normalized_path != expected_path
+        || record.runtime_version != runtime_version
+        || record.settings_json != settings_json
+        || record.byte_count <= 0
+        || !root.join(&record.normalized_path).is_file()
+    {
+        return Ok(false);
+    }
+    let (checksum, byte_count) = streamed_checksum(root, &record.normalized_path, cancellation)?;
+    Ok(checksum == record.normalized_checksum && byte_count == record.byte_count as u64)
+}
+
+fn streamed_checksum(
+    root: &Path,
+    relative: &str,
+    cancellation: &AtomicBool,
+) -> Result<(String, u64), ProcessingError> {
     managed_relative_path(Path::new(relative))?;
     let mut file = File::open(root.join(relative))?;
     let mut hasher = Sha256::new();
     let mut buffer = vec![0_u8; 256 * 1024];
+    let mut byte_count = 0_u64;
     loop {
         if cancellation.load(Ordering::Acquire) {
             return Err(ProcessingError::Cancelled);
@@ -1595,11 +1778,9 @@ fn verify_streamed_checksum(
             break;
         }
         hasher.update(&buffer[..read]);
+        byte_count += read as u64;
     }
-    if format!("{:x}", hasher.finalize()) != expected {
-        return Err(ProcessingError::InvalidOutput);
-    }
-    Ok(())
+    Ok((format!("{:x}", hasher.finalize()), byte_count))
 }
 
 fn read_verified(root: &Path, relative: &str, expected: &str) -> Result<Vec<u8>, ProcessingError> {
@@ -2128,5 +2309,87 @@ mod tests {
         assert_eq!(artifact.segments[0].start_ms, 0);
         assert_eq!(artifact.segments[0].speaker, "Speaker 1");
         assert_eq!(artifact.segments[1].text, "Second point");
+    }
+
+    #[test]
+    fn transcription_language_mapping_is_conservative() {
+        assert_eq!(transcription_language_code("English"), "en");
+        assert_eq!(transcription_language_code("de"), "de");
+        assert_eq!(transcription_language_code(" Français "), "auto");
+        assert_eq!(transcription_language_code("unknown language"), "auto");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn real_transcription_metadata_snapshots_runtime_and_model_provenance() {
+        let temporary = tempdir().unwrap();
+        let model = temporary.path().join("model.ggml");
+        fs::write(&model, b"synthetic model bytes").unwrap();
+        let repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        repository
+            .write_setting("transcription.whisperExecutable", "/bin/echo")
+            .unwrap();
+        repository
+            .write_setting("transcription.whisperModel", &model.to_string_lossy())
+            .unwrap();
+
+        let (_, runtime_version, model_digest, settings_json, runtime_config_json) =
+            transcription_metadata(&repository, "English", false).unwrap();
+        let config: runtime::ResolvedTranscriptionConfig =
+            serde_json::from_str(&runtime_config_json.unwrap()).unwrap();
+        let provenance = runtime::model_provenance(&model).unwrap();
+
+        assert_eq!(runtime_version, config.runtime_version);
+        assert_eq!(model_digest, provenance.digest);
+        assert_eq!(config.model_byte_count, provenance.byte_count);
+        assert_eq!(config.language_code, "en");
+        assert!(settings_json.contains("\"languageCode\":\"en\""));
+    }
+
+    #[test]
+    fn normalized_cache_requires_matching_bytes_and_metadata() {
+        let temporary = tempdir().unwrap();
+        let relative = "working/normalized/synthetic.wav";
+        let path = temporary.path().join(relative);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let bytes = b"synthetic normalized audio";
+        fs::write(&path, bytes).unwrap();
+        let checksum = checksum_bytes(bytes);
+        let record = NormalizedCacheRecord {
+            source_checksum: "source-sha".to_string(),
+            normalized_path: relative.to_string(),
+            normalized_checksum: checksum,
+            byte_count: bytes.len() as i64,
+            runtime_version: "ffmpeg 8".to_string(),
+            settings_json: "{\"sampleRate\":16000}".to_string(),
+        };
+        let cancellation = AtomicBool::new(false);
+
+        assert!(
+            normalized_cache_matches(
+                temporary.path(),
+                &record,
+                "source-sha",
+                relative,
+                "ffmpeg 8",
+                "{\"sampleRate\":16000}",
+                &cancellation,
+            )
+            .unwrap()
+        );
+
+        fs::write(&path, b"changed normalized audio").unwrap();
+        assert!(
+            !normalized_cache_matches(
+                temporary.path(),
+                &record,
+                "source-sha",
+                relative,
+                "ffmpeg 8",
+                "{\"sampleRate\":16000}",
+                &cancellation,
+            )
+            .unwrap()
+        );
     }
 }

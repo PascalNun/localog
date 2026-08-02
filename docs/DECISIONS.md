@@ -326,7 +326,7 @@ What was tested:
 - Added a production-shaped FFprobe JSON parser and FFmpeg normalisation boundary for mono 16 kHz PCM WAV.
 - Added a bounded child-process supervisor with cancellation polling, process-group termination on Unix, and capped stdout/stderr capture.
 - Added a user-configured whisper.cpp command boundary and JSON transcript parser. The parser accepts the common `transcription` and `segments` arrays, validates non-empty timestamped text, and assigns a conservative `Speaker 1` label because diarisation is not an MVP requirement.
-- Added schema v5 settings and `normalized_media` records. A normalised file is reused only when source checksum, settings-derived path, and file presence still match; otherwise it is regenerated. The imported source is never overwritten.
+- Added schema v5 settings and `normalized_media` records. A normalised file is reused only when source checksum, settings-derived path, runtime/settings metadata, recorded byte count, and a freshly streamed file checksum all match; otherwise it is regenerated. The imported source is never overwritten.
 - Added native Settings controls for existing whisper.cpp executable/model paths. No download manager or automatic runtime acquisition was introduced.
 
 Measurements and environment:
@@ -346,6 +346,12 @@ Known risks:
 - whisper.cpp CLI flags and JSON details vary by build; the first real runtime fixture must lock the supported command contract.
 - Large model hashing is currently performed when Settings status is requested; cache that provenance by file identity before exposing it in a frequent UI path.
 - FFmpeg/FFprobe remain user-installed development dependencies until distribution licensing and packaging are explicitly decided.
+
+Implementation follow-up, 2026-08-02:
+
+- Schema v6 snapshots the resolved transcription runtime inputs on each durable transcription job: executable and model paths, runtime version, model digest/size, language, and normalization settings. Queue and retry capture a fresh snapshot; execution validates that the recorded files and provenance still match before invoking the runtime.
+- Normalized-cache reuse now streams and verifies the cached file checksum and byte count, in addition to the source checksum, derived path, runtime version, and settings. A stale or modified cache is regenerated without touching the imported original.
+- These safeguards improve provenance and crash recovery without promising byte-identical model output. The implementation remains a narrow vertical-slice boundary, not a generalized workflow or provider framework.
 
 ## Local protocol-provider spike result
 

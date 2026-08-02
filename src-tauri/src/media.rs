@@ -85,17 +85,33 @@ pub(crate) fn normalize(
         ])
         .arg(&temporary);
     progress(10);
-    run_process(
+    if let Err(error) = run_process(
         command,
         cancellation,
         ProcessLimits::with_max_output(512 * 1024),
-    )
-    .map_err(|error| error.to_string())?;
+    ) {
+        let _ = fs::remove_file(&temporary);
+        return Err(error.to_string());
+    }
     progress(90);
     if !temporary.is_file() {
         return Err("The media normalizer did not produce an audio file.".into());
     }
-    fs::rename(&temporary, destination).map_err(|error| error.to_string())?;
+    // Make the derived cache durable before exposing it at its final path.
+    if let Err(error) = fs::File::open(&temporary).and_then(|file| file.sync_all()) {
+        let _ = fs::remove_file(&temporary);
+        return Err(error.to_string());
+    }
+    if destination.exists()
+        && let Err(error) = fs::remove_file(destination)
+    {
+        let _ = fs::remove_file(&temporary);
+        return Err(error.to_string());
+    }
+    if let Err(error) = fs::rename(&temporary, destination) {
+        let _ = fs::remove_file(&temporary);
+        return Err(error.to_string());
+    }
     progress(100);
     Ok(())
 }

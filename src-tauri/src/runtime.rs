@@ -17,6 +17,21 @@ pub(crate) struct RuntimeConfig {
     pub model: PathBuf,
 }
 
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ResolvedTranscriptionConfig {
+    pub executable_path: PathBuf,
+    pub model_path: PathBuf,
+    pub runtime_version: String,
+    pub model_digest: String,
+    pub model_byte_count: u64,
+    pub language_code: String,
+    pub sample_rate: u32,
+    pub channels: u8,
+    pub codec: String,
+    pub container: String,
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct ModelProvenance {
     pub digest: String,
