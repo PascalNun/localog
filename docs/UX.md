@@ -408,6 +408,8 @@ The Phase 2 recording design requires a separate platform and permission review.
 
 These details may appear in Advanced settings where justified and validated.
 
+Local-first operation is a product invariant, not an on/off mode, so the interface must not use a permanent green “local mode active” badge. Persistent operational status is reserved for information that can actually change and require attention: local runtime or model availability, active processing, cancellation, failure, or missing setup. Privacy explanations belong in appropriate trust and onboarding context rather than masquerading as live status.
+
 ## Progress, failure, cancellation, and recovery
 
 - Heavy work never blocks navigation, typing, selection, audio control, or document editing.

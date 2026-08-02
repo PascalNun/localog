@@ -1,15 +1,20 @@
 <script lang="ts">
-  import type { AppRoute, ProjectSummary } from '../workflow/types';
+  import type { ActiveJob, AppRoute, ProjectSummary } from '../workflow/types';
   import Icon from './Icon.svelte';
 
   export let projects: ProjectSummary[];
   export let route: AppRoute;
   export let currentProjectId: string | null;
+  export let activeJob: ActiveJob | null;
   export let open = false;
   export let theme: 'light' | 'dark';
   export let onNavigate: (route: AppRoute) => void;
   export let onClose: () => void;
   export let onToggleTheme: () => void;
+
+  $: operationalJob = activeJob && !['completed'].includes(activeJob.state) ? activeJob : null;
+  $: jobNeedsAttention =
+    operationalJob?.state === 'failed' || operationalJob?.state === 'interrupted';
 
   function navigate(nextRoute: AppRoute) {
     onNavigate(nextRoute);
@@ -80,11 +85,20 @@
     </section>
   </nav>
 
-  <div class="sidebar-footer">
-    <div class="local-status">
-      <span class="status-dot success"></span>
-      <span><strong>Local mode active</strong><small>Fake runtime · device only</small></span>
-    </div>
+  <div class:has-status={operationalJob} class="sidebar-footer">
+    {#if operationalJob}
+      <div class:attention={jobNeedsAttention} class="local-status" aria-live="polite">
+        <span class:processing-dot={!jobNeedsAttention} class:status-dot={jobNeedsAttention}></span>
+        <span
+          ><strong>{jobNeedsAttention ? 'Local job needs attention' : 'Processing locally'}</strong
+          ><small
+            >{jobNeedsAttention
+              ? (operationalJob.error?.title ?? operationalJob.stage)
+              : `${operationalJob.stage} · ${operationalJob.progress}%`}</small
+          ></span
+        >
+      </div>
+    {/if}
     <button
       class="icon-button"
       onclick={onToggleTheme}
