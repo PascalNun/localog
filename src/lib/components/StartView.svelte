@@ -7,9 +7,15 @@
 
 <main class="workspace start-workspace" id="main-content">
   <div class="start-hero">
-    <div class="sound-mark" aria-hidden="true">
-      <span></span><span></span><span></span><span></span><span></span>
-    </div>
+    <svg class="sound-mark" viewBox="0 0 96 72" aria-hidden="true">
+      <line x1="8" y1="27" x2="8" y2="45" />
+      <line x1="21" y1="17" x2="21" y2="56" />
+      <line x1="34" y1="5" x2="34" y2="67" />
+      <line x1="48" y1="17" x2="48" y2="56" />
+      <line x1="62" y1="25" x2="62" y2="48" />
+      <line x1="75" y1="14" x2="75" y2="59" />
+      <line x1="88" y1="27" x2="88" y2="45" />
+    </svg>
     <p class="eyebrow">Private meeting records, on your Mac</p>
     <h1 tabindex="-1">Start a meeting</h1>
     <p class="hero-copy">
