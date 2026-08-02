@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, UNIX_EPOCH};
 
 #[derive(Clone, Debug)]
 pub(crate) struct RuntimeConfig {
@@ -38,6 +38,12 @@ pub(crate) struct ResolvedTranscriptionConfig {
 pub(crate) struct ModelProvenance {
     pub digest: String,
     pub byte_count: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ModelFileIdentity {
+    pub byte_count: u64,
+    pub modified_at_ns: String,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -127,6 +133,18 @@ pub(crate) fn model_provenance(path: &Path) -> std::io::Result<ModelProvenance> 
     Ok(ModelProvenance {
         digest: format!("sha256:{:x}", hasher.finalize()),
         byte_count: bytes,
+    })
+}
+
+pub(crate) fn model_file_identity(path: &Path) -> std::io::Result<ModelFileIdentity> {
+    let metadata = std::fs::metadata(path)?;
+    let modified_at = metadata
+        .modified()?
+        .duration_since(UNIX_EPOCH)
+        .map_err(std::io::Error::other)?;
+    Ok(ModelFileIdentity {
+        byte_count: metadata.len(),
+        modified_at_ns: modified_at.as_nanos().to_string(),
     })
 }
 

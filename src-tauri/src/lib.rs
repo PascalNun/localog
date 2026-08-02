@@ -70,7 +70,7 @@ fn runtime_status(repository: &WorkspaceRepository) -> TranscriptionRuntimeStatu
     let runtime_version = executable.as_deref().and_then(runtime::executable_version);
     let provenance = model
         .as_deref()
-        .and_then(|path| runtime::model_provenance(path).ok());
+        .and_then(|path| processing::cached_model_provenance(repository, path).ok());
     TranscriptionRuntimeStatus {
         executable_path,
         model_path,

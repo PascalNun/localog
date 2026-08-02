@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 6;
+const CURRENT_SCHEMA_VERSION: i64 = 7;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -199,6 +199,58 @@ impl WorkspaceRepository {
             "INSERT INTO app_settings (key, value, updated_at_ms) VALUES (?1, ?2, ?3)
              ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at_ms = excluded.updated_at_ms",
             params![key, value, unix_time_millis()],
+        )?;
+        Ok(())
+    }
+
+    pub(crate) fn read_model_provenance_cache(
+        &self,
+        model_path: &str,
+        byte_count: u64,
+        modified_at_ns: &str,
+    ) -> Result<Option<(String, u64)>> {
+        let cached: Option<(String, i64)> = self
+            .connection
+            .query_row(
+                "SELECT digest, byte_count FROM model_provenance_cache
+                 WHERE model_path = ?1 AND byte_count = ?2 AND modified_at_ns = ?3",
+                params![model_path, i64::try_from(byte_count).ok(), modified_at_ns],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        Ok(cached.and_then(|(digest, byte_count)| {
+            u64::try_from(byte_count)
+                .ok()
+                .map(|byte_count| (digest, byte_count))
+        }))
+    }
+
+    pub(crate) fn write_model_provenance_cache(
+        &self,
+        model_path: &str,
+        byte_count: u64,
+        modified_at_ns: &str,
+        digest: &str,
+    ) -> Result<()> {
+        let Some(byte_count) = i64::try_from(byte_count).ok() else {
+            return Ok(());
+        };
+        self.connection.execute(
+            "INSERT INTO model_provenance_cache
+                (model_path, byte_count, modified_at_ns, digest, updated_at_ms)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(model_path) DO UPDATE SET
+                byte_count = excluded.byte_count,
+                modified_at_ns = excluded.modified_at_ns,
+                digest = excluded.digest,
+                updated_at_ms = excluded.updated_at_ms",
+            params![
+                model_path,
+                byte_count,
+                modified_at_ns,
+                digest,
+                unix_time_millis()
+            ],
         )?;
         Ok(())
     }
@@ -1228,6 +1280,23 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             COMMIT;
             ",
         )?;
+        version = 6;
+    }
+    if version == 6 {
+        connection.execute_batch(
+            "
+            BEGIN IMMEDIATE;
+            CREATE TABLE model_provenance_cache (
+                model_path TEXT PRIMARY KEY,
+                byte_count INTEGER NOT NULL CHECK (byte_count >= 0),
+                modified_at_ns TEXT NOT NULL,
+                digest TEXT NOT NULL,
+                updated_at_ms INTEGER NOT NULL
+            );
+            PRAGMA user_version = 7;
+            COMMIT;
+            ",
+        )?;
     }
     Ok(())
 }
@@ -1816,6 +1885,16 @@ mod tests {
             )
             .unwrap();
         assert_eq!(runtime_config_columns, 1);
+        let model_cache_tables: i64 = repository
+            .connection
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master
+                 WHERE type = 'table' AND name = 'model_provenance_cache'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(model_cache_tables, 1);
 
         let replacement = temporary.path().join("synthetic-v1-reselected.wav");
         fs::write(&replacement, b"synthetic replacement source").unwrap();

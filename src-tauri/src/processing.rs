@@ -245,7 +245,7 @@ fn transcription_metadata(
     let resolved = executable.zip(model).and_then(|(executable, model)| {
         let runtime_config = runtime::validate_config(&executable, &model).ok()?;
         let runtime_version = runtime::executable_version(&runtime_config.executable)?;
-        let provenance = runtime::model_provenance(&runtime_config.model).ok()?;
+        let provenance = cached_model_provenance(repository, &runtime_config.model).ok()?;
         Some(runtime::ResolvedTranscriptionConfig {
             executable_path: runtime_config.executable,
             model_path: runtime_config.model,
@@ -287,6 +287,39 @@ fn transcription_metadata(
         settings_json,
         runtime_config_json,
     ))
+}
+
+pub(crate) fn cached_model_provenance(
+    repository: &WorkspaceRepository,
+    path: &Path,
+) -> StorageResult<runtime::ModelProvenance> {
+    // Provenance is authoritative; the SQLite entry is only an acceleration cache.
+    let identity_before = runtime::model_file_identity(path).ok();
+    let path_key = path.to_string_lossy().into_owned();
+    if let Some(identity) = identity_before.as_ref()
+        && let Ok(Some((digest, byte_count))) = repository.read_model_provenance_cache(
+            &path_key,
+            identity.byte_count,
+            &identity.modified_at_ns,
+        )
+    {
+        return Ok(runtime::ModelProvenance { digest, byte_count });
+    }
+
+    let provenance = runtime::model_provenance(path)?;
+    if let Some(identity_before) = identity_before
+        && let Ok(identity_after) = runtime::model_file_identity(path)
+        && identity_before == identity_after
+        && provenance.byte_count == identity_after.byte_count
+    {
+        let _ = repository.write_model_provenance_cache(
+            &path_key,
+            provenance.byte_count,
+            &identity_after.modified_at_ns,
+            &provenance.digest,
+        );
+    }
+    Ok(provenance)
 }
 
 fn transcription_language_code(language: &str) -> &str {
@@ -588,6 +621,7 @@ fn execute_real_transcription(
                 .into(),
         });
     }
+    // Rehash at execution so a changed model cannot be hidden by the acceleration cache.
     let current_model =
         runtime::model_provenance(&config.model).map_err(|error| ProcessingError::Runtime {
             code: "model_changed",
@@ -2411,6 +2445,32 @@ mod tests {
         assert_eq!(config.model_byte_count, provenance.byte_count);
         assert_eq!(config.language_code, "en");
         assert!(settings_json.contains("\"languageCode\":\"en\""));
+    }
+
+    #[test]
+    fn model_provenance_cache_reuses_and_invalidates_by_file_identity() {
+        let temporary = tempdir().unwrap();
+        let model = temporary.path().join("model.ggml");
+        fs::write(&model, b"synthetic model bytes").unwrap();
+        let repository = WorkspaceRepository::open(temporary.path()).unwrap();
+
+        let first = cached_model_provenance(&repository, &model).unwrap();
+        let second = cached_model_provenance(&repository, &model).unwrap();
+        assert_eq!(first.digest, second.digest);
+        assert_eq!(first.byte_count, second.byte_count);
+        let cache_rows: i64 = repository
+            .connection
+            .query_row("SELECT COUNT(*) FROM model_provenance_cache", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(cache_rows, 1);
+
+        thread::sleep(Duration::from_millis(2));
+        fs::write(&model, b"changed model bytes with a new size").unwrap();
+        let changed = cached_model_provenance(&repository, &model).unwrap();
+        assert_ne!(first.digest, changed.digest);
+        assert_ne!(first.byte_count, changed.byte_count);
     }
 
     #[test]
