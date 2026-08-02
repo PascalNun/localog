@@ -231,7 +231,7 @@ Persistence and domain logic keep two independent axes.
 - `reviewed`: the current protocol revision has been explicitly reviewed;
 - `archived`: the meeting is retained but removed from active work.
 
-Editing a reviewed protocol must not silently leave it reviewed. Exact reviewed/changed-since-review semantics remain an approval question.
+Review status belongs to one exact protocol revision. Editing after review preserves that historical reviewed revision, but the current working document becomes **Changed since review** and must not silently remain reviewed. The user can explicitly mark the changed document reviewed again, creating a new meaningful revision.
 
 Export is a related record, not a lifecycle replacement. A meeting can have multiple exports while remaining protocol-draft or reviewed.
 
@@ -241,8 +241,9 @@ Export is a related record, not a lifecycle replacement. A meeting can have mult
 - `running`;
 - `cancelling`;
 - `failed`;
+- `cancelled`;
 - `interrupted`;
-- `completed`, with a success or cancellation outcome.
+- `completed`.
 
 Job kind and stage explain whether import, transcription, or generation is active. A UI presentation state combines stable lifecycle, active/latest job, and recoverable error without persisting fake meeting states such as `transcribing`.
 
@@ -315,6 +316,8 @@ Required behaviour:
 - provide Markdown and plain-text export;
 - provide access back to the reviewed transcript;
 - retain revision/provenance information without overwhelming the document.
+
+Autosave continuously protects the current working draft; it does not create a formal revision for every edit. A meaningful revision is created when a protocol is generated or regenerated, when the user explicitly creates a revision, when a revision is marked reviewed, or when an older revision is restored. The normal editor exposes only **Draft**, **Reviewed**, and **Changed since review**. Detailed revision history remains secondary and appears only when requested.
 
 The document remains visually dominant. Formatting support should be conservative and Markdown-safe. A full toolbar, section visibility controls, sharing, and rich editor features are not automatic MVP requirements.
 
@@ -560,10 +563,9 @@ Every control defines default, hover, active, `focus-visible`, disabled, loading
 
 ## Remaining product approval questions
 
-1. What exact action marks a protocol reviewed, and does any content edit move it to `protocol_draft` or to a distinct changed-since-review presentation?
-2. Are participants a manually managed meeting list in v0.1, and should speaker mapping be allowed to create participants from the transcript workspace?
-3. Which interface locales ship initially, and how is the independent first-run meeting/content language chosen?
-4. For a file dropped on Start, should project placement precede the file chooser strictly, or is retaining the temporary OS file reference through placement acceptable as specified here?
-5. Which project/meeting archive and restore actions are required in v0.1, and is permanent deletion intentionally absent?
-6. What minimum backup/restore controls must appear during v0.1 hardening?
-7. Should contextual protocol refinement enter v0.1 only if the generation/editor spikes show it can be implemented without weakening revision clarity?
+1. Are participants a manually managed meeting list in v0.1, and should speaker mapping be allowed to create participants from the transcript workspace?
+2. Which interface locales ship initially, and how is the independent first-run meeting/content language chosen?
+3. For a file dropped on Start, should project placement precede the file chooser strictly, or is retaining the temporary OS file reference through placement acceptable as specified here?
+4. Which project/meeting archive and restore actions are required in v0.1, and is permanent deletion intentionally absent?
+5. What minimum backup/restore controls must appear during v0.1 hardening?
+6. Should contextual protocol refinement enter v0.1 only if the generation/editor spikes show it can be implemented without weakening revision clarity?

@@ -97,6 +97,7 @@ Styles are content, not model settings. Temperature, context size, quantisation,
 ## Trust and privacy
 
 - The generated protocol is visibly labelled a draft until the user marks it reviewed.
+- Review status belongs to one exact protocol revision. Later edits preserve the reviewed revision and present the current document as changed since review until it is explicitly reviewed again.
 - The source recording and transcript are never deleted as an implicit side effect of generation or export.
 - No telemetry, analytics SDK, remote crash reporting, cloud sync, or automatic upload.
 - Network-capable local runtimes must be documented and explicitly configured; LocaLog binds or connects to loopback only where it controls the endpoint.
