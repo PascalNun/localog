@@ -1,0 +1,60 @@
+# OS and editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Rust / Tauri
+target/
+**/target/
+src-tauri/gen/
+
+# JavaScript
+node_modules/
+dist/
+.svelte-kit/
+coverage/
+*.tsbuildinfo
+
+# Local LocaLog data
+*.sqlite
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+*.db
+models/
+recordings/
+transcripts/
+protocols/
+exports/
+logs/
+diagnostics/
+
+# Media and model weights (fixtures must be explicitly allowlisted later)
+docs/assets/ui-reference/
+*.wav
+*.mp3
+*.m4a
+*.aac
+*.flac
+*.ogg
+*.mp4
+*.mov
+*.mkv
+*.gguf
+*.ggml
+*.bin
+*.safetensors
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.part

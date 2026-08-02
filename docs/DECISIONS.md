@@ -1,0 +1,303 @@
+# Decisions and open questions
+
+This is the project’s memory. It records not only what was chosen, but why, what evidence supports it, and which risks remain. Readers looking for the product story should begin with [PRODUCT.md](PRODUCT.md); readers looking for definitions of technical terms can use the [documentation guide](README.md).
+
+Status values: **Accepted**, **Proposed**, **Approval required**, **Deferred**.
+
+## Decision summary
+
+| ID    | Decision                                                                                                             | Status   | Rationale                                                                                                                                      |
+| ----- | -------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| D-001 | LocaLog is desktop-first and local-first; no cloud/account/telemetry in the core workflow                            | Accepted | Product trust and sensitive professional data                                                                                                  |
+| D-002 | Hierarchy is Project → Meeting → Recording(s)/Transcript/Protocol/Exports; no Inbox                                  | Accepted | Context and professional organisation are the differentiator                                                                                   |
+| D-003 | Imported audio is the v0.1 input; integrated recording is Phase 2 and omitted from the first functional shell        | Accepted | System audio and permissions are cross-platform risks; inactive controls must not compete with the working path                                |
+| D-004 | Tauri desktop shell + Rust application core + Svelte/TypeScript UI                                                   | Accepted | Responsive desktop shell and explicit native/process boundary                                                                                  |
+| D-005 | Modular monolith, typed UI boundary, supervised external engines                                                     | Accepted | Shell, storage, and process spikes validated the boundaries without services, plugins, or workflow infrastructure                              |
+| D-006 | App-managed working storage for v0.1, with explicit exports and documented data location                             | Accepted | Protects storage invariants without making professional data opaque                                                                            |
+| D-007 | FFmpeg normalization plus a narrow validated local transcription boundary                                            | Accepted | Installed-runtime spike proved probing, normalization, cancellation, provenance, timestamps, and validation                                    |
+| D-008 | Validate Ollama for spikes and early technical previews behind a narrow local provider boundary                      | Accepted | Ollama accelerates validation but is not accepted as the final public distribution model                                                       |
+| D-009 | Markdown is canonical protocol source; Markdown/TXT are first exports                                                | Accepted | Inspectable, portable, and simple to transform                                                                                                 |
+| D-010 | Global defaults < project defaults < meeting overrides; snapshot resolved inputs and provenance at job start         | Accepted | Simplicity and repeatability of inputs without promising byte-identical inference output                                                       |
+| D-011 | Generated protocols are drafts and revisions are retained                                                            | Accepted | Professional review and recovery                                                                                                               |
+| D-012 | Svelte with TypeScript is the frontend                                                                               | Accepted | Compact fit for the bounded desktop workflow                                                                                                   |
+| D-013 | Stable meeting lifecycle and transient job state are separate persisted axes                                         | Accepted | Domain state must not be distorted by temporary processing activity                                                                            |
+| D-014 | Phase 0 discovers installed or user-provided models only; no model-download manager                                  | Accepted | Validate the workflow before taking on acquisition, licence, storage, and consent UX                                                           |
+| D-015 | Provisional v0.1 baseline is macOS 13+, Apple Silicon; weakest test machine is M1/8 GB                               | Accepted | Provides a concrete performance target subject to spike and packaging evidence                                                                 |
+| D-016 | Publish the repository as `PascalNun/localog` on GitHub                                                              | Accepted | Public development makes the product reasoning and progress visible; private directional studies remain outside the repository                 |
+| D-017 | Protocol styles are controlled professional presets, not arbitrary per-meeting prompt boxes                          | Accepted | Keeps the primary workflow understandable while permitting structured internal LLM instructions                                                |
+| D-018 | Interface language and meeting/content language are separate settings                                                | Accepted | Transcription and protocol language must not determine application localisation                                                                |
+| D-019 | SQLite metadata/jobs plus immutable versioned artifact files; structured JSON is canonical for committed transcripts | Accepted | The storage spike validated file-before-database visibility, reconciliation, checksums, working-state separation, and long-transcript handling |
+| D-020 | Interface quality is a core requirement equal to local-first behaviour and data reliability                          | Accepted | The product differentiator is a calm, immediate, trustworthy professional workflow, not inference engines alone                                |
+| D-021 | Barlow is the primary application typeface                                                                           | Accepted | Its clear, contemporary character supports the calm professional interface; font assets must be bundled locally rather than fetched at runtime |
+| D-022 | `whisper.cpp` is the first candidate for the distributable transcription runtime                                     | Proposed | Installed Python Whisper validated the contract but was too slow/heavy; no compatible installed `whisper.cpp` model was available              |
+| D-023 | License LocaLog under `GPL-3.0-or-later`                                                                             | Accepted | Strong copyleft preserves the freedom to use, study, modify, and redistribute the application while allowing commercial use                    |
+
+## Architecture risks and tensions
+
+1. **Local-first versus external runtimes.** Ollama is local but separately installed, versioned, and configured. A first adapter can accelerate validation, but a self-contained product may eventually need a supervised `llama.cpp` runtime.
+2. **Portable artifacts versus relational authority.** SQLite is authoritative for identity, relationships, lifecycle, revision metadata, jobs, and artifact path/checksum records. The immutable file is authoritative for the content of its committed revision. The storage spike validated the basic dual-write/reconciliation sequence; low-disk, migration, real-process crash, and repair UX remain production hardening risks.
+3. **Vocabulary expectations.** Prompt/context injection can improve recognition but does not guarantee transcription spelling. The UI must not promise training or perfect terminology.
+4. **Cancellation versus resumability.** Sidecars can usually be terminated, but arbitrary inference checkpoints are runtime-specific. v0.1 resumes from durable stages, not from an exact token/audio frame.
+5. **macOS-first versus portability.** Metal and macOS permissions should be adapters, not assumptions in domain/application layers.
+6. **Bundling versus download size/licensing.** `ffmpeg`, model files, and inference binaries have provenance, architecture, signing, size, and licence implications. Resolve before distribution.
+7. **Markdown editor versus rich formatting.** A calm writing experience is required, but premature rich-text adoption can make Markdown round-tripping unreliable.
+8. **Responsiveness versus process visibility.** High-frequency runtime output must be bounded and converted into throttled or batched progress events; the frontend must not mirror raw process streams.
+9. **Professional portability versus managed storage.** App-managed storage protects invariants but cannot become opaque. User-selected exports, documented data locations, backup/restore, and a later portable project bundle remain required architectural paths.
+
+## Approved Phase 0 constraints
+
+- Ordinary navigation, selection, typing, and editing should generally respond within approximately 100 ms even during background processing.
+- Media work, inference, migrations, and large file operations never run on the UI thread.
+- Background work is supervised; progress traffic and logs are bounded, and content is excluded from ordinary logs.
+- Do not retain large media or transcript bodies in duplicate memory buffers when streaming or incremental processing is practical.
+- Start with a small number of modules. Do not begin with five Rust crates, a universal workflow engine, an export crate, a provider SDK, or broad capability negotiation.
+- Profile before low-level optimisation; preserve architectural responsiveness first.
+- Early visual studies were directional only. Avatars, account controls, sharing, rich formatting tools, recording controls, speaker automation, and generic dashboard elements are not inferred MVP requirements.
+- The Phase 0 shell establishes the real navigation, light/dark tokens, typography, spacing, hierarchy, interaction states, accessibility foundation, and responsive behaviour; it is not disposable backend chrome.
+- Before detailed UI work, document the design tokens, typography hierarchy, spacing/layout grid, sidebar/workspace behaviour, common control states, contextual-inspector rules, and visual acceptance criteria for key screens.
+- Use locally bundled Barlow for the application interface with an appropriate system sans-serif fallback. Add only required weights/styles, and record font source, licence, version, and checksums before committing the assets.
+- Raise technical trade-offs for review when they materially weaken the documented calmness, clarity, accessibility, or professional quality of the workflow.
+
+## Accepted storage invariant after the spike
+
+- SQLite is authoritative for identity, relationships, lifecycle state, revision metadata, job state, and artifact path/checksum records.
+- An immutable versioned artifact file is authoritative for the content of that specific committed revision.
+- A revision becomes visible only after its artifact file has been durably written and its database transaction has completed.
+- Autosave working state is separate from immutable committed revisions.
+- Imported original media is immutable.
+- A versioned structured JSON artifact is canonical for each committed transcript revision. Any SQLite projection is derived and rebuildable, never a separately editable canonical copy.
+
+## Phase 0B/0C implementation record
+
+Implemented and checked on 2026-08-02:
+
+- One Tauri/Rust crate and one Svelte/TypeScript frontend; no workflow framework, provider SDK, storage crate, or export crate was introduced.
+- Locally bundled Barlow 400/500/600, semantic light/dark tokens, a persistent/overlay sidebar, focused workspaces, contextual inspectors, keyboard-visible focus, reduced-motion handling, and compact-window rules.
+- Start, project overview, new project, new meeting/import, meeting stage, transcript review, protocol editor, library, and settings surfaces using synthetic content only.
+- A typed in-memory `WorkflowBridge` fake covering import, transcription, cancellation, failure, retry, transcript edits, generation, protocol edits, review state, and Markdown/plain-text browser export.
+- Meeting lifecycle and active-job state remain distinct in the fake model and tests. A cancelled or failed job does not advance stable lifecycle.
+
+Measurements and checks:
+
+- Production web assets: approximately 106 kB JavaScript, 25 kB CSS, and three Barlow WOFF2 files totalling approximately 67 kB before gzip.
+- The production frontend build completed in under one second on the development machine; this is a scaffold observation, not the M1/8 GB acceptance measurement.
+- The workflow was visually exercised at 1280 × 720 and at a 900 × 700 compact breakpoint in both themes. No browser console errors or warnings were observed.
+- Type checking, linting/formatting, four fake-boundary tests, the production frontend build, Rust formatting, one Rust unit test, and warning-denied Clippy all passed.
+
+Keep/change decision:
+
+- **Keep** the visual tokens, navigation/workspace composition, contextual-inspector pattern, typed UI boundary, and fake adapter as the default automated/demo runtime.
+- **Rewrite behind the boundary** when spikes add persistence, supervised processes, and real providers. The in-memory fake is not persistence or recovery architecture.
+- **Keep provisional** the waveform app icon and browser-only export implementation; revisit identity separately and replace export with the Rust file boundary in the vertical slice.
+
+Known risks:
+
+- Refresh or restart loses all fake workflow changes; no storage or recovery claim is made.
+- Timing and responsiveness under real CPU/GPU load remain unmeasured.
+- Transcript editing and protocol autosave need long-document, failure, revision, and accessibility evidence in their focused spike.
+- Native distribution signing, notarisation, sandbox behaviour, and the final runtime/provider model remain unresolved.
+
+## Storage and recovery spike result
+
+The isolated crate under `spikes/storage-recovery/` tested the provisional authority model without wiring it into the application.
+
+What was tested:
+
+- SQLite in WAL mode with `synchronous = FULL` for meeting lifecycle, job state, revision metadata, and original-media path/checksum records.
+- Durable file write, file sync, atomic rename, directory-chain sync, then database transaction; an injected failure between file durability and database commit did not expose a revision.
+- Startup reconciliation of incomplete/unreferenced/missing files and queued/running/cancelling jobs; terminal jobs were preserved.
+- A separate full-integrity mode for checksum scans, so ordinary startup does not read every large recording.
+- Immutable committed revisions, replaceable autosave working state, source-preserving original import, verified reads, checksum mismatch detection, and hostile identifier rejection.
+- A canonical structured JSON transcript with 7,200 synthetic segments (approximately 1.18 MB). No real meeting data was used.
+
+Measurements on an Apple M1 Pro with 16 GB RAM running macOS 26.3 (not the weakest representative machine):
+
+- Schema/open: approximately 2.4–3.4 ms.
+- Durable artifact commit plus SQLite visibility: approximately 13–24 ms.
+- Verified artifact read: approximately 0.9–1.2 ms; JSON parse: approximately 3.0–3.7 ms.
+- Lightweight startup reconciliation: approximately 0.7 ms; full checksum scan of the 1.18 MB artifact: approximately 1.0 ms.
+- SQLite main/WAL/shared-memory set after the synthetic commit: approximately 128 kB.
+
+Keep/change decision:
+
+- **Keep** SQLite as metadata/job authority and immutable versioned files as committed-content authority.
+- **Keep** `rusqlite` as the initial Rust binding. Execute it on a bounded blocking worker; synchronous calls never run on the UI thread. The spike used bundled SQLite for deterministic validation, but final bundling remains part of distribution hardening.
+- **Accept** a versioned structured JSON artifact as canonical for each committed transcript revision. Future SQLite segment/search rows, if needed, are derived, rebuildable, and not editable authority.
+- **Keep** mutable autosave outside committed revisions and split lightweight startup reconciliation from an explicit/on-demand full integrity scan.
+- **Retain the spike only as an executable reference and fault-test oracle. Rewrite the production repository/storage module behind the application boundary; do not import the spike crate.**
+
+Risks and required production changes:
+
+- Measurements must be repeated on the M1/8 GB baseline with much larger artifacts and a realistic number of meetings/files.
+- The spike injected crash windows in-process; production work still needs subprocess termination, database-busy, migration, permission, low/disk-full, and real restart tests.
+- Production transcript serialization/loading should stream and hash in one pass where practical instead of holding raw JSON and a parsed transcript in duplicate buffers.
+- Windows-safe atomic autosave replacement and filesystem-specific durability behaviour require verification before cross-platform release.
+- Backup/restore, repair UX, and policy for quarantining or deleting unreferenced files remain hardening work; recovery must report before destructive cleanup.
+
+## Process supervision spike result
+
+The isolated crate under `spikes/process-supervision/` tested Unix/macOS process mechanics with a purpose-built synthetic worker and descendant process.
+
+What was tested:
+
+- Direct executable launch with argument arrays, a controlled working directory, an allowlisted environment, and no shell.
+- A dedicated process group for each job, including a spawned descendant.
+- Typed progress parsing with approximately 100 ms throttling and a bounded event channel.
+- Concurrent stdout/stderr draining with bounded diagnostic tails under thousands of synthetic lines.
+- Cooperative SIGTERM cancellation, forced SIGKILL escalation, process-tree termination, single-heavy-job rejection, malformed progress, missing executables, and hostile-looking literal arguments.
+
+Measurements on the M1 Pro/16 GB development machine:
+
+- Synthetic process launch: approximately 0.7–1.3 ms.
+- Six progress events crossed the boundary during a 550 ms high-frequency run.
+- Diagnostic storage remained approximately 16 kB after 1,000 long stderr lines.
+- Cooperative process-group cancellation completed in approximately 10–15 ms; the forced escalation path was also verified.
+
+Keep/change decision:
+
+- **Keep** one supervised process group per external job, direct argument-array execution, a controlled environment/working directory, bounded concurrent pipe readers, and a roughly 10 Hz typed progress ceiling.
+- **Keep** one model-heavy lane initially. Separate lightweight import/export work only after measurements justify it; do not introduce a general scheduler.
+- **Keep** cooperative termination followed by a short grace period and forced group termination. The production adapter must persist `cancelling` before signalling and record the terminal outcome after reaping.
+- **Retain the spike only as an executable test oracle. Rewrite the supervisor behind a small platform adapter and application job service; do not import the spike crate.**
+
+Risks and required production changes:
+
+- The spike validates Unix process groups on macOS. Windows requires a Job Object adapter and its own descendant/cancellation tests.
+- Runtime-specific parsers must never forward raw stdout/stderr or transcript/model content to the UI or ordinary logs.
+- Real `ffmpeg`, transcription, and LLM runtimes may buffer output or ignore signals differently; each adapter needs contract tests.
+- Application restart classification still relies on the accepted durable-job storage design; this spike did not wire process identity into SQLite.
+
+## Media normalization and transcription spike result
+
+The isolated crate under `spikes/media-transcription/` used only already-installed runtimes and models. It generated synthetic speech and a synthetic MP4 at test time; no media, model, or runtime was downloaded or committed.
+
+What was tested:
+
+- FFprobe structured discovery of audio/video streams and duration from a hostile-looking literal path.
+- FFmpeg conversion of an AAC/video container into mono 16 kHz PCM WAV, with bounded progress and source checksum preservation.
+- Real FFmpeg process-group cancellation, missing runtime/model/audio diagnostics, and malformed transcript rejection.
+- Installed OpenAI Whisper CLI 20250625 with the user-provided `medium.pt` model, producing non-empty ordered timestamped segments and a JSON artifact.
+- Provenance capture for runtime version, model name/size/checksum, resolved settings, normalized input checksum, transcript checksum, and timings.
+
+Measurements on the M1 Pro/16 GB development machine:
+
+- FFmpeg 8.1.2 normalized an 8.263-second synthetic MP4 in approximately 37 ms.
+- Real FFmpeg process-group cancellation completed in approximately 27 ms.
+- The installed `medium.pt` model was 1,528,008,539 bytes with SHA-256 `345ae4da62f9b3d59415adc60127b97c714f32e89e936602e85993674d08dcb1`.
+- Hashing that model took approximately 17 seconds, proving model digests must be cached/computed outside startup rather than rescanned synchronously.
+- CPU transcription took approximately 21.8 seconds for 8.263 seconds of audio (real-time factor 2.64) and produced two timestamped segments.
+
+Keep/change decision:
+
+- **Keep** FFprobe + FFmpeg behind a narrow media-normalization adapter with explicit arguments, structured probing/progress, temporary working output, source checksum protection, and process supervision.
+- **Keep** the normalized contract as mono 16 kHz PCM WAV for the first transcription adapters.
+- **Keep** a narrow transcription result containing language, ordered timestamped segments, resolved settings, runtime/model provenance, and checksums. Validate before committing the canonical JSON revision.
+- **Reject** Python/PyTorch Whisper as the public distribution baseline: its runtime/model footprint and CPU real-time factor are unsuitable despite validating the contract.
+- **Keep `whisper.cpp` proposed**, not accepted. Validate a user-provided compatible model with Metal on the M1/8 GB machine before selecting it for production.
+- **Retain the spike as an installed-runtime contract test and reference. Rewrite production adapters behind the application ports; do not import the spike crate.**
+
+Risks and required production changes:
+
+- The installed Homebrew FFmpeg build enables GPL components. Do not redistribute it. Distribution needs a deliberately configured, licensed, checksummed, signed, and size-measured audio-focused build or another approved acquisition strategy.
+- Transcription quality was only checked structurally against synthetic speech, not scored on representative consented multilingual/noisy meetings.
+- Model hashing, loading, and inference must run off the UI thread; digest results should be persisted against stable file identity and recomputed only when needed.
+- Long-file chunking, memory pressure, thermal behavior, vocabulary effectiveness, and Metal cancellation remain for the `whisper.cpp` validation.
+
+## Local protocol-provider spike result
+
+The isolated crate under `spikes/local-provider/` exercised an already-installed Ollama runtime and model through loopback HTTP only. It did not download a model, call a pull endpoint, or make a non-loopback request. The installed coding model was a convenient contract fixture, not a product-model selection.
+
+What was tested:
+
+- Loopback-only endpoint validation, runtime-version discovery, installed-model discovery, and exact model-name/digest capture before generation.
+- A controlled protocol-style request with versioned style and vocabulary inputs, resolved settings, timestamped transcript input, and a JSON-schema-constrained Markdown response.
+- Streaming newline-delimited responses with bounded response size and approximately 10 Hz typed progress updates rather than token-by-token UI traffic.
+- Required-section validation, malformed/oversized output handling, cancellation by closing the in-flight request, and a post-cancellation health check.
+- Rejection of an uninstalled model without attempting an automatic pull, plus provenance capture for provider/runtime/model, settings, style/vocabulary revisions, input checksum, and application version.
+
+Measurements on the M1 Pro/16 GB development machine with Ollama 0.30.10 and the installed `qwen2.5-coder:7b` fixture:
+
+- The installed model was 4,683,087,561 bytes with digest `dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364`.
+- A cold generation loaded the model in approximately 4.5 seconds and completed in approximately 16.7 seconds; a warm run loaded in approximately 0.14 seconds and completed in approximately 10.6 seconds.
+- The synthetic request used 257 prompt tokens and produced 120 output tokens. Throttling reduced raw token/chunk traffic to at most roughly 10 progress events per second.
+- Closing a generation request cancelled the client path in approximately 71 ms, and the separately owned Ollama server remained healthy.
+
+Keep/change decision:
+
+- **Keep** a narrow `ProtocolGenerator` port with explicit discovery, generation/cancellation, bounded progress, strict input/output validation, and complete provenance.
+- **Keep** Ollama as the first development and early technical-preview adapter only. Require an exact installed model and never pull or select a cloud-backed model implicitly.
+- **Keep** synchronous loopback HTTP on a bounded blocking worker for this adapter; it does not justify adopting a general async runtime. Restrict the endpoint to loopback and do not add TLS dependencies for this local-only path.
+- **Keep** schema-constrained generation followed by application validation before an output can become a protocol draft revision. Schema validity is not factual correctness; human review remains mandatory.
+- **Retain the spike as an installed-runtime contract test and reference. Rewrite the production provider adapter behind the application port; do not import the spike crate.**
+
+Risks and required production changes:
+
+- Ollama remains a separately installed/configured privacy and lifecycle boundary. LocaLog must not start, stop, reconfigure, download through, or assume ownership of a user-managed server without explicit consent.
+- The public distribution runtime/model choice, licensing, acquisition UX, memory use on the M1/8 GB baseline, multilingual protocol quality, and model suitability remain unresolved.
+- Cancellation closes LocaLog's request but does not terminate a user-owned Ollama server. A future bundled sidecar would instead use the accepted process-supervision contract.
+- Required-section checks only prove structure. Representative, consented evaluation data and a review rubric are needed before accepting a protocol model or preset for professional use.
+
+## Markdown editing and autosave spike result
+
+The isolated TypeScript spike under `spikes/markdown-editor/` validated the writing-state boundary without importing spike code into the Svelte application or selecting a rich-text framework.
+
+What was tested:
+
+- Exact canonical Markdown round-tripping and a deterministic, deliberately conservative plain-text transformation.
+- Debounced autosave to a mutable working record identified by document, immutable base revision, and monotonically increasing sequence.
+- A single in-flight save with coalescing to the newest full document, so rapid edits do not create unbounded IPC traffic or queued duplicate buffers.
+- Dirty/waiting/saving/failed states, explicit retry after disk-style failure, immediate flush, and rejection of stale or malformed acknowledgements.
+- A generated Markdown document over 1 MB with no real project data.
+
+Measurements on the development machine:
+
+- Applying an edit to a 1,080,044-byte synthetic document took approximately 0.02 ms in the state model.
+- Conservative plain-text export of that document took approximately 6.2 ms.
+- Rapid edits produced one debounced save; edits made during a slow write produced one follow-up save containing only the latest complete value.
+
+These are state-model measurements, not browser rendering, IPC, durable-disk, or M1/8 GB acceptance measurements.
+
+Keep/change decision:
+
+- **Keep** canonical Markdown and separate mutable working state. Immutable revisions are created only through the accepted storage commit boundary, never by each keystroke.
+- **Keep** a 500 ms starting debounce, one in-flight full-document save, one coalesced latest value, sequence/base-revision guards, explicit failure state, and flush at deliberate navigation/commit boundaries.
+- **Keep** exact Markdown export and the initial narrow plain-text transform in the application layer; do not create an export crate or add a Markdown dependency until supported syntax requires one.
+- **Do not adopt a rich-text/editor framework from this spike.** Begin the vertical slice with the deliberate Markdown-backed writing workspace and add editing technology only when interaction testing demonstrates a concrete need that native controls cannot satisfy.
+- **Retain the spike as a state-machine test oracle. Rewrite the production autosave coordinator against the real typed UI/storage boundary; do not import the spike module.**
+
+Risks and required production changes:
+
+- The browser must still be profiled with large documents while real model work runs; DOM updates, spellcheck, text selection, IPC serialization, and durable file replacement are outside this synthetic measurement.
+- Navigating or closing with an in-flight/failed save requires explicit UX. A component destructor cannot silently promise that asynchronous persistence completed.
+- The writing workspace needs keyboard, focus, text scaling, screen-reader naming, undo/redo, find, selection, recovery, and long-document visual acceptance checks during the vertical slice.
+- The spike deliberately leaves edited-after-review semantics open. Production autosave must not encode a draft/review transition until that user-facing decision is approved.
+
+## Remaining approval questions
+
+1. What runtime/distribution model should the first public build use? Ollama is approved only for spikes and early technical previews.
+2. What exact backup/restore scope is required for v0.1 hardening, and when should a portable project bundle become an acceptance criterion?
+3. What does “reviewed” mean, and which edits should return a reviewed protocol to a draft or changed-since-review state?
+4. Which interface locales ship initially, and how is the independent first-run meeting/content language selected?
+5. Will distribution use a direct notarized build, the Mac App Store, or both? This may affect sandbox and sidecar choices.
+
+## Deferred decisions
+
+- Automatic model acquisition and management.
+- Portable project-bundle format beyond the v0.1 backup/restore consideration.
+- Integrated microphone/system-audio recording and automatic diarisation.
+- Public provider/plugin SDK and broad provider capability negotiation.
+
+## GitHub publication
+
+The public repository is `PascalNun/localog`. Private directional studies are excluded; the written design contract and the implemented application remain public. Representative screenshots may be added when the working interface is ready to stand on its own.
+
+Issues, milestones, and a project board should follow real implementation needs rather than reproduce the speculative roadmap. The intended milestone outline is:
+
+- Phase 0 — Architecture validation and UI shell
+- v0.1 — Imported audio vertical slice
+- v0.1 Hardening — Packaging, privacy, accessibility, recovery
+- Phase 2 — Recording and traceability
+
+Suggested labels: `area:ui`, `area:rust-core`, `area:storage`, `area:jobs`, `area:transcription`, `area:generation`, `area:export`, `platform:macos`, `platform:windows`, `platform:linux`, `type:decision`, `type:spike`, `type:bug`, `privacy`, `accessibility`, `blocked:approval`.
+
+Create issues from the implementation sequence; do not create a large speculative backlog from the later roadmap.
