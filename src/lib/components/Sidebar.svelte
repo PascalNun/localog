@@ -22,7 +22,6 @@
 {/if}
 
 <aside class:open class="sidebar" aria-label="Primary navigation">
-  <div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
   <button class="wordmark" onclick={() => navigate({ name: 'start' })}>LocaLog</button>
 
   <nav class="sidebar-nav">
