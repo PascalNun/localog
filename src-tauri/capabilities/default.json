@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Minimal capabilities for the LocaLog desktop shell",
   "windows": ["main"],
-  "permissions": ["core:default", "core:window:allow-start-dragging"]
+  "permissions": ["core:default", "core:window:allow-start-dragging", "dialog:allow-open"]
 }
