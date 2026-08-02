@@ -217,6 +217,20 @@ small {
   background: var(--canvas);
 }
 
+.window-drag-region {
+  display: none;
+}
+
+:root[data-window-chrome='macos-overlay'] .window-drag-region {
+  display: block;
+  position: fixed;
+  z-index: 32;
+  top: 0;
+  right: 0;
+  left: 84px;
+  height: 38px;
+}
+
 .app-main {
   position: relative;
   min-width: 0;
@@ -1442,6 +1456,10 @@ textarea::placeholder {
   box-shadow: var(--shadow);
   text-align: left;
 }
+
+:root[data-window-chrome='macos-overlay'] .global-job-strip {
+  top: 48px;
+}
 .global-job-strip > span:nth-child(2) {
   display: grid;
   gap: 2px;
@@ -1495,6 +1513,9 @@ textarea::placeholder {
 }
 
 @media (max-width: 900px) {
+  :root[data-window-chrome='macos-overlay'] .window-drag-region {
+    display: none;
+  }
   body {
     overflow: auto;
   }
@@ -1518,6 +1539,10 @@ textarea::placeholder {
     background: color-mix(in srgb, var(--workspace) 94%, transparent);
     border-bottom: 1px solid var(--line);
     backdrop-filter: blur(12px);
+  }
+  :root[data-window-chrome='macos-overlay'] .mobile-topbar {
+    height: 84px;
+    padding-top: 28px;
   }
   .mobile-wordmark {
     margin: 0;
@@ -1545,6 +1570,9 @@ textarea::placeholder {
     height: calc(100% - 56px);
     padding: 38px 32px 54px;
   }
+  :root[data-window-chrome='macos-overlay'] .workspace {
+    height: calc(100% - 84px);
+  }
   .context-layout {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1558,6 +1586,9 @@ textarea::placeholder {
     background: var(--workspace);
     border-left: 1px solid var(--line);
     box-shadow: var(--shadow);
+  }
+  :root[data-window-chrome='macos-overlay'] .context-inspector {
+    inset-block-start: 84px;
   }
   .inspector-toggle {
     display: inline-flex;

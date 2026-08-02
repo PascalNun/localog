@@ -11,6 +11,7 @@
   import StartView from './lib/components/StartView.svelte';
   import TranscriptView from './lib/components/TranscriptView.svelte';
   import Icon from './lib/components/Icon.svelte';
+  import { resolveWindowChrome } from './lib/platform/windowChrome';
   import { FakeWorkflowBridge } from './lib/workflow/fakeBridge';
   import type {
     AppRoute,
@@ -45,6 +46,11 @@
       : null;
 
   onMount(() => {
+    document.documentElement.dataset.windowChrome = resolveWindowChrome(
+      navigator.userAgent,
+      '__TAURI_INTERNALS__' in window,
+    );
+
     const savedTheme = localStorage.getItem('localog-theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     theme = savedTheme === 'dark' || (!savedTheme && prefersDark) ? 'dark' : 'light';
@@ -136,6 +142,7 @@
 
 <a class="skip-link" href="#main-content">Skip to workspace</a>
 <div class="app-shell">
+  <div class="window-drag-region" data-tauri-drag-region aria-hidden="true"></div>
   {#if snapshot}
     <Sidebar
       projects={snapshot.projects}
@@ -149,7 +156,7 @@
     />
 
     <div class="app-main">
-      <div class="mobile-topbar">
+      <div class="mobile-topbar" data-tauri-drag-region>
         <button
           class="icon-button"
           aria-label="Open navigation"

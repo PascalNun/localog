@@ -44,6 +44,7 @@ The authoritative tokens, hierarchy, grid, control states, inspector rules, and 
 
 - Prefer planes, columns, spacing, type, and thin rules over nested cards.
 - Keep the persistent sidebar narrow and quiet; project names carry more weight than icons.
+- Integrate the shell with native window chrome. On macOS, the sidebar and workspace surfaces extend beneath the native title bar and traffic-light controls; never imitate operating-system controls inside the interface.
 - Let the central work surface dominate.
 - Introduce a contextual inspector only when a task needs it; do not reserve a permanent empty panel.
 - Dense screens such as transcript review may tighten spacing, but must preserve the same hierarchy and calmness.
