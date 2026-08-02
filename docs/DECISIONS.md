@@ -344,7 +344,7 @@ Keep/change decision:
 Known risks:
 
 - whisper.cpp CLI flags and JSON details vary by build; the first real runtime fixture must lock the supported command contract.
-- Large model hashing is currently performed when Settings status is requested; cache that provenance by file identity before exposing it in a frequent UI path.
+- Model provenance is cached by configured path, byte count, and modification timestamp for Settings and job preparation. The cache is an acceleration only; execution still rehashes the model before inference, and a cache miss falls back to hashing.
 - FFmpeg/FFprobe remain user-installed development dependencies until distribution licensing and packaging are explicitly decided.
 
 Implementation follow-up, 2026-08-02:
@@ -359,6 +359,7 @@ Runtime-correctness follow-up, 2026-08-02:
 - FFmpeg and whisper.cpp version discovery use explicit tool arguments, and version output may come from either stdout or stderr. Normalized-cache records therefore retain the actual FFmpeg version when the installed tool supports the expected command.
 - Unix cancellation and timeout now terminate the whole supervised process group, including descendants that ignore the initial termination signal, before output readers are joined. Windows process-tree supervision remains a later platform-specific task.
 - The native suite now covers concurrent admission, tool-specific version arguments, and a signal-ignoring process group. The frontend disables the Transcribe action immediately while queueing is being prepared.
+- Model provenance is now cached in schema v7 by file identity for frequent Settings and queue/retry checks. The cache is deliberately non-authoritative: a missing or unreadable entry falls back to hashing, and execution rehashes the model before comparing it with the job snapshot.
 
 ## Local protocol-provider spike result
 
