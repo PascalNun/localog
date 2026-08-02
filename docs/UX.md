@@ -468,14 +468,14 @@ Load only the required 400, 500, and 600 styles initially. Record font source, l
 
 | Semantic token   | Light     | Dark      | Role                        |
 | ---------------- | --------- | --------- | --------------------------- |
-| Canvas           | `#f4f2ee` | `#1a1917` | Window background           |
-| Sidebar          | `#efede8` | `#1e1d1a` | Persistent navigation plane |
-| Workspace        | `#f8f7f4` | `#23211e` | Dominant work surface       |
+| Canvas           | `#f5f2ec` | `#1a1917` | Window background           |
+| Sidebar          | `#eeeae3` | `#1e1d1a` | Persistent navigation plane |
+| Workspace        | `#fbf9f5` | `#23211e` | Dominant work surface       |
 | Raised surface   | `#fffefa` | `#2a2824` | Contextual controls only    |
-| Subtle selection | `#ece9e4` | `#302e29` | Quiet selected/hover state  |
+| Subtle selection | `#eeeae4` | `#302e29` | Quiet selected/hover state  |
 | Primary ink      | `#282621` | `#f3ede2` | Essential text              |
 | Muted ink        | `#6e6961` | `#b8b0a5` | Secondary text              |
-| Fine line        | `#ddd9d2` | `#403d37` | Dividers/borders            |
+| Fine line        | `#ddd7ce` | `#403d37` | Dividers/borders            |
 | Primary action   | `#34322d` | `#eee5d6` | Restrained primary control  |
 | Action ink       | `#faf8f3` | `#211f1c` | Text on primary control     |
 | Success          | `#4f825d` | `#76ad80` | Safe/completed state        |
