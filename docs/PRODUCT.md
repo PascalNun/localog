@@ -6,11 +6,13 @@ In LocaLog, a **protocol** is the structured written record or minutes of a meet
 
 ## Problem
 
-Professional meetings produce decisions, responsibilities, unresolved questions, and technical detail that must become a reliable written record. Manual protocols are slow; generic cloud meeting assistants are often unsuitable for sensitive project content and tend to optimise for summaries rather than controlled documentation.
+Professional meetings produce decisions, responsibilities, unresolved questions, and technical detail that must become a reliable written record. Their recordings can also contain confidential conversations, personal information, internal decisions, client details, or other material that should not leave the organisation’s controlled environment. Manual protocols are slow; generic cloud meeting assistants are often unsuitable for this sensitive project content and tend to optimise for summaries rather than controlled documentation.
 
 ## Product promise
 
 LocaLog is an open-source, local-first AI desktop application for turning project meeting recordings into reviewed transcripts and structured, editable protocols on the user’s device. It combines local processing with project context, deliberate human review, and a carefully designed writing workflow; no LocaLog account or cloud service is required for the core path.
+
+The privacy focus follows from this architecture: the normal workflow should not require sensitive meeting content to be uploaded to a third-party transcription or language-model service. Local-first describes where the work happens and who remains in control of the data, not merely a deployment preference.
 
 Its differentiator is not local inference alone. LocaLog connects the full documentation sequence—from source preservation and transcription to correction, controlled generation, revision, and export—without separating privacy, professional structure, and interface quality into secondary concerns.
 
