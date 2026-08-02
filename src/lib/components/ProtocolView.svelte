@@ -16,21 +16,75 @@
   export let style: ProtocolStyle;
   export let onNavigate: (route: AppRoute) => void;
   export let onSave: (markdown: string) => Promise<void>;
+  export let onCreateRevision: () => Promise<void>;
   export let onMarkReviewed: () => Promise<void>;
+  export let onRestoreRevision: (revisionId: string) => Promise<void>;
   export let onExport: (format: 'markdown' | 'text') => void;
 
   let markdown = protocol.markdown;
-  let saveState: 'saved' | 'saving' = 'saved';
+  let saveState: 'saved' | 'saving' | 'failed' = protocol.saveState;
   let inspectorOpen = true;
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
+  let editor: HTMLTextAreaElement;
+  let findQuery = '';
+  let findOpen = false;
+  let textScale = 1;
+
+  $: statusLabel =
+    protocol.reviewState === 'changed_since_review'
+      ? 'Changed since review'
+      : protocol.reviewState === 'reviewed'
+        ? 'Reviewed'
+        : 'Draft';
 
   function scheduleSave() {
     saveState = 'saving';
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
-      await onSave(markdown);
-      saveState = 'saved';
+      try {
+        await onSave(markdown);
+        saveState = 'saved';
+      } catch {
+        saveState = 'failed';
+      }
     }, 420);
+  }
+
+  function editorCommand(command: 'undo' | 'redo') {
+    editor.focus();
+    document.execCommand(command);
+    markdown = editor.value;
+    scheduleSave();
+  }
+
+  function findNext() {
+    if (!findQuery) return;
+    const from = editor.selectionEnd;
+    const lowerText = markdown.toLowerCase();
+    const lowerQuery = findQuery.toLowerCase();
+    let index = lowerText.indexOf(lowerQuery, from);
+    if (index < 0) index = lowerText.indexOf(lowerQuery);
+    if (index < 0) return;
+    editor.focus();
+    editor.setSelectionRange(index, index + findQuery.length);
+  }
+
+  async function createRevision() {
+    await onCreateRevision();
+    markdown = protocol.markdown;
+    saveState = protocol.saveState;
+  }
+
+  async function markReviewed() {
+    await onMarkReviewed();
+    markdown = protocol.markdown;
+    saveState = protocol.saveState;
+  }
+
+  async function restoreRevision(revisionId: string) {
+    await onRestoreRevision(revisionId);
+    markdown = protocol.markdown;
+    saveState = protocol.saveState;
   }
 
   onDestroy(() => {
@@ -44,7 +98,7 @@
       <p class="breadcrumb">{project.name} <span>›</span> {meeting.title}</p>
       <h1 tabindex="-1">Protocol editor</h1>
       <p>
-        {meeting.lifecycle === 'reviewed' ? 'Reviewed revision' : 'Editable draft'} · Markdown backed
+        {statusLabel} · Markdown backed
       </p>
     </div>
     <button
@@ -57,14 +111,50 @@
   <div class:without-inspector={!inspectorOpen} class="context-layout protocol-layout">
     <div class="protocol-main">
       <div class="editor-toolbar">
-        <span>Markdown source</span><span class:busy={saveState === 'saving'} class="save-state"
-          >{saveState === 'saving' ? 'Saving locally…' : `Saved ${protocol.savedAt}`}</span
+        <div class="editor-tools" aria-label="Editor tools">
+          <button class="text-action" onclick={() => editorCommand('undo')}>Undo</button>
+          <button class="text-action" onclick={() => editorCommand('redo')}>Redo</button>
+          <button class="text-action" onclick={() => (findOpen = !findOpen)}>Find</button>
+          <button
+            class="text-action"
+            aria-label="Decrease text size"
+            onclick={() => (textScale = Math.max(0.85, textScale - 0.1))}>A−</button
+          >
+          <button
+            class="text-action"
+            aria-label="Increase text size"
+            onclick={() => (textScale = Math.min(1.4, textScale + 0.1))}>A+</button
+          >
+        </div>
+        <span
+          class:busy={saveState === 'saving'}
+          class:error={saveState === 'failed'}
+          class="save-state"
+          >{saveState === 'saving'
+            ? 'Saving locally…'
+            : saveState === 'failed'
+              ? 'Autosave failed'
+              : protocol.isDirty
+                ? 'Working edits saved'
+                : 'Revision saved'}</span
         >
       </div>
+      {#if findOpen}<div class="editor-find">
+          <label
+            ><span class="sr-only">Find in protocol</span><input
+              bind:value={findQuery}
+              placeholder="Find in protocol"
+              onkeydown={(event) => event.key === 'Enter' && findNext()}
+            /></label
+          >
+          <button class="secondary-action" onclick={findNext}>Next</button>
+        </div>{/if}
       <label class="protocol-editor"
         ><span class="sr-only">Protocol Markdown</span><textarea
+          bind:this={editor}
           bind:value={markdown}
           oninput={scheduleSave}
+          style={`font-size: ${textScale}rem`}
           spellcheck="true"></textarea></label
       >
     </div>
@@ -89,16 +179,35 @@
         </div>
         <div class="inspector-section">
           <p class="eyebrow">Status</p>
-          <h3>{meeting.lifecycle === 'reviewed' ? 'Reviewed' : 'Draft'}</h3>
+          <h3>{statusLabel}</h3>
           <p>
-            {meeting.lifecycle === 'reviewed'
-              ? 'Editing this revision returns it to draft.'
-              : 'Generated content remains reviewable and editable.'}
+            {protocol.reviewState === 'changed_since_review'
+              ? 'The reviewed revision is preserved. These working edits have not been reviewed.'
+              : protocol.reviewState === 'reviewed'
+                ? 'This exact immutable revision was marked reviewed.'
+                : 'Generated content remains reviewable and editable.'}
           </p>
-          {#if meeting.lifecycle !== 'reviewed'}<button
-              class="secondary-action full-width"
-              onclick={onMarkReviewed}><Icon name="check" size={16} /> Mark reviewed</button
+          {#if protocol.isDirty}<button class="secondary-action full-width" onclick={createRevision}
+              ><Icon name="check" size={16} /> Create revision</button
             >{/if}
+          {#if protocol.reviewState !== 'reviewed'}<button
+              class="secondary-action full-width"
+              onclick={markReviewed}><Icon name="check" size={16} /> Mark reviewed</button
+            >{/if}
+        </div>
+        <div class="inspector-section">
+          <p class="eyebrow">Revision history</p>
+          <div class="revision-list">
+            {#each protocol.revisions as revision (revision.id)}
+              <div>
+                <span>Revision {revision.ordinal}<small>{revision.status}</small></span>
+                {#if revision.id !== protocol.revisionId}<button
+                    class="text-action"
+                    onclick={() => restoreRevision(revision.id)}>Restore</button
+                  >{/if}
+              </div>
+            {/each}
+          </div>
         </div>
         <div class="inspector-section">
           <p class="eyebrow">Source</p>

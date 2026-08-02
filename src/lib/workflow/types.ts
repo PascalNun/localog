@@ -45,17 +45,43 @@ export interface MeetingSummary {
 
 export interface TranscriptSegment {
   id: string;
-  startSeconds: number;
-  startLabel: string;
+  startMs: number;
+  endMs: number;
   speaker: string;
   text: string;
   needsReview: boolean;
 }
 
+export interface TranscriptDocument {
+  schemaVersion: number;
+  meetingId: string;
+  revisionId: string;
+  language: string;
+  segments: TranscriptSegment[];
+  baseRevisionId: string;
+  isDirty: boolean;
+  saveState: 'saved' | 'failed';
+  savedAtMs: number;
+}
+
+export interface ProtocolRevisionSummary {
+  id: string;
+  ordinal: number;
+  status: 'draft' | 'reviewed';
+  createdAtMs: number;
+}
+
 export interface ProtocolDraft {
+  meetingId: string;
+  revisionId: string;
+  transcriptRevisionId: string;
   markdown: string;
-  savedAt: string;
   styleId: string;
+  reviewState: 'draft' | 'reviewed' | 'changed_since_review';
+  isDirty: boolean;
+  saveState: 'saved' | 'failed';
+  savedAtMs: number;
+  revisions: ProtocolRevisionSummary[];
 }
 
 export interface ProtocolStyle {
@@ -91,13 +117,15 @@ export interface ActiveJob {
 export interface WorkflowSnapshot {
   projects: ProjectSummary[];
   meetings: MeetingSummary[];
-  transcripts: Record<string, TranscriptSegment[]>;
+  transcripts: Record<string, TranscriptDocument>;
   protocols: Record<string, ProtocolDraft>;
   styles: ProtocolStyle[];
   vocabulary: VocabularyEntry[];
   jobs: ActiveJob[];
   activeJob: ActiveJob | null;
   nextJobOutcome: FakeJobOutcome;
+  activeMeetingId: string | null;
+  activeRoute: 'meeting' | 'transcript' | 'protocol' | null;
 }
 
 export interface NewProjectInput {
@@ -141,6 +169,12 @@ export interface WorkflowBridge {
   updateTranscriptSegment(meetingId: string, segmentId: string, text: string): Promise<void>;
   updateSpeaker(meetingId: string, speaker: string, replacement: string): Promise<void>;
   updateProtocol(meetingId: string, markdown: string): Promise<void>;
+  createProtocolRevision(meetingId: string): Promise<void>;
   markReviewed(meetingId: string): Promise<void>;
+  restoreProtocolRevision(meetingId: string, revisionId: string): Promise<void>;
+  saveWorkspaceLocation(
+    meetingId: string,
+    route: 'meeting' | 'transcript' | 'protocol',
+  ): Promise<void>;
   setNextJobOutcome(outcome: FakeJobOutcome): Promise<void>;
 }
