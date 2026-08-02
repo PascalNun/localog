@@ -1573,6 +1573,37 @@ textarea::placeholder {
   font-size: 0.8rem;
   text-align: right;
 }
+.setting-field {
+  display: grid;
+  gap: 7px;
+  margin: 18px 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.setting-field input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  color: var(--ink);
+  background: var(--raised);
+  font: inherit;
+}
+.setting-field .quiet-action {
+  justify-self: start;
+  padding: 4px 0;
+  color: var(--muted);
+  background: transparent;
+  font-size: 0.76rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.setting-hint {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
 .notice-inline {
   margin-top: 24px;
   padding: 15px 17px;

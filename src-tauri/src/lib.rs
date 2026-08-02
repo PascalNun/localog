@@ -2,7 +2,9 @@
 
 mod domain;
 mod imports;
+mod media;
 mod processing;
+mod runtime;
 mod storage;
 
 use domain::{MeetingSummary, NewMeetingInput, NewProjectInput, ProjectSummary, WorkspaceSnapshot};
@@ -38,6 +40,77 @@ struct StorageState {
 #[derive(Clone, Default)]
 struct JobCoordinatorState {
     cancellations: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
+}
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TranscriptionRuntimeStatus {
+    executable_path: Option<String>,
+    model_path: Option<String>,
+    executable_found: bool,
+    model_found: bool,
+    runtime_version: Option<String>,
+    model_digest: Option<String>,
+    model_byte_count: Option<u64>,
+}
+
+fn runtime_status(repository: &WorkspaceRepository) -> TranscriptionRuntimeStatus {
+    let executable_path = repository
+        .read_setting("transcription.whisperExecutable")
+        .ok()
+        .flatten();
+    let model_path = repository
+        .read_setting("transcription.whisperModel")
+        .ok()
+        .flatten();
+    let executable = executable_path.as_deref().map(PathBuf::from);
+    let model = model_path.as_deref().map(PathBuf::from);
+    let executable_found = executable.as_deref().is_some_and(|path| path.is_file());
+    let model_found = model.as_deref().is_some_and(|path| path.is_file());
+    let runtime_version = executable.as_deref().and_then(runtime::executable_version);
+    let provenance = model
+        .as_deref()
+        .and_then(|path| runtime::model_provenance(path).ok());
+    TranscriptionRuntimeStatus {
+        executable_path,
+        model_path,
+        executable_found,
+        model_found,
+        runtime_version,
+        model_digest: provenance.as_ref().map(|value| value.digest.clone()),
+        model_byte_count: provenance.map(|value| value.byte_count),
+    }
+}
+
+#[tauri::command]
+async fn transcription_runtime_status(
+    storage: State<'_, StorageState>,
+) -> Result<TranscriptionRuntimeStatus, String> {
+    with_repository(storage.root.clone(), move |repository| {
+        Ok(runtime_status(repository))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn configure_transcription_runtime(
+    storage: State<'_, StorageState>,
+    executable_path: String,
+    model_path: String,
+) -> Result<TranscriptionRuntimeStatus, String> {
+    with_repository(storage.root.clone(), move |repository| {
+        let executable = PathBuf::from(&executable_path);
+        let model = PathBuf::from(&model_path);
+        runtime::validate_config(&executable, &model).map_err(|_| {
+            storage::StorageError::InvalidData(
+                "Choose an existing whisper.cpp executable and model.",
+            )
+        })?;
+        repository.write_setting("transcription.whisperExecutable", &executable_path)?;
+        repository.write_setting("transcription.whisperModel", &model_path)?;
+        Ok(runtime_status(repository))
+    })
+    .await
 }
 
 #[tauri::command]
@@ -460,6 +533,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             app_identity,
+            transcription_runtime_status,
+            configure_transcription_runtime,
             load_workspace,
             create_project,
             create_meeting,

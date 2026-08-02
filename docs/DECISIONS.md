@@ -34,6 +34,7 @@ Status values: **Accepted**, **Proposed**, **Approval required**, **Deferred**.
 | D-024 | Use UUIDv7 opaque identifiers and UTC Unix-millisecond storage timestamps for the first vertical slice               | Accepted | Provides collision-resistant sortable identities and ordinary time storage without a custom ID system or a general time abstraction            |
 | D-025 | Protocol review belongs to an exact revision; later edits become `changed since review`                              | Accepted | Keeps normal autosave simple while preserving the reviewed document and making later changes traceable                                         |
 | D-026 | Starting protocol generation commits dirty transcript working state as its exact input revision                      | Accepted | Keeps the user action clear while ensuring generation never consumes mutable autosave state or an ambiguous transcript                         |
+| D-027 | Normalized audio is a regenerable derived cache, not a user-visible immutable revision                               | Accepted | It protects the imported original, avoids duplicate professional artifacts, and permits safe regeneration when settings or runtimes change     |
 
 ## Architecture risks and tensions
 
@@ -72,6 +73,7 @@ Status values: **Accepted**, **Proposed**, **Approval required**, **Deferred**.
 - Transcript and protocol typing updates one replaceable working artifact. It never creates formal revisions continuously.
 - Starting generation is an explicit downstream boundary: if transcript working state differs from its base revision, LocaLog commits it first and records that exact transcript revision on the generation job.
 - Marking a protocol reviewed applies to one immutable revision. Autosaved edits based on it preserve the reviewed revision and present the working document as `changed since review`.
+- Normalized transcription audio is stored only as a checksummed derived cache linked to its source checksum and normalization settings. It may be regenerated or removed without changing the imported original or transcript revision history.
 
 ## Phase 0B/0C implementation record
 
@@ -314,6 +316,36 @@ Risks and required production changes:
 - Transcription quality was only checked structurally against synthetic speech, not scored on representative consented multilingual/noisy meetings.
 - Model hashing, loading, and inference must run off the UI thread; digest results should be persisted against stable file identity and recomputed only when needed.
 - Long-file chunking, memory pressure, thermal behavior, vocabulary effectiveness, and Metal cancellation remain for the `whisper.cpp` validation.
+
+## Phase 1B implementation record: media and local transcription boundary
+
+Implementation date: 2026-08-02.
+
+What was tested:
+
+- Added a production-shaped FFprobe JSON parser and FFmpeg normalisation boundary for mono 16 kHz PCM WAV.
+- Added a bounded child-process supervisor with cancellation polling, process-group termination on Unix, and capped stdout/stderr capture.
+- Added a user-configured whisper.cpp command boundary and JSON transcript parser. The parser accepts the common `transcription` and `segments` arrays, validates non-empty timestamped text, and assigns a conservative `Speaker 1` label because diarisation is not an MVP requirement.
+- Added schema v5 settings and `normalized_media` records. A normalised file is reused only when source checksum, settings-derived path, and file presence still match; otherwise it is regenerated. The imported source is never overwritten.
+- Added native Settings controls for existing whisper.cpp executable/model paths. No download manager or automatic runtime acquisition was introduced.
+
+Measurements and environment:
+
+- Rust suite: 23 tests pass, including probe parsing and whisper JSON mapping.
+- The current development machine has FFprobe and FFmpeg available, but no whisper.cpp executable or compatible model. Real inference latency, memory use, long-file behavior, and Metal cancellation therefore remain unmeasured.
+
+Keep/change decision:
+
+- **Keep** the media/cache and process-supervision boundaries, with the normalized file treated as a regenerable derived cache rather than a professional artifact revision.
+- **Keep** whisper.cpp as an opt-in user-provided adapter for the next technical validation; missing configuration becomes a durable, retryable job failure with an actionable Settings message.
+- **Change before public distribution:** validate one compatible whisper.cpp build and model on macOS M1/8 GB, then repeat the same contract on Windows and Linux before selecting packaging or a bundled runtime.
+- **Retain** the implementation as a boundary for the vertical slice, but do not generalize it into a provider/plugin SDK or workflow engine.
+
+Known risks:
+
+- whisper.cpp CLI flags and JSON details vary by build; the first real runtime fixture must lock the supported command contract.
+- Large model hashing is currently performed when Settings status is requested; cache that provenance by file identity before exposing it in a frequent UI path.
+- FFmpeg/FFprobe remain user-installed development dependencies until distribution licensing and packaging are explicitly decided.
 
 ## Local protocol-provider spike result
 

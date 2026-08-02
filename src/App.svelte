@@ -26,6 +26,7 @@
     NewMeetingInput,
     NewProjectInput,
     WorkflowSnapshot,
+    TranscriptionRuntimeStatus,
   } from './lib/workflow/types';
 
   // The shell already depends on the boundary that future Rust-backed adapters will implement.
@@ -40,6 +41,15 @@
   let announcement = '';
   let startupError = '';
   let locationRestored = false;
+  let runtimeStatus: TranscriptionRuntimeStatus = {
+    executablePath: null,
+    modelPath: null,
+    executableFound: false,
+    modelFound: false,
+    runtimeVersion: null,
+    modelDigest: null,
+    modelByteCount: null,
+  };
 
   // Route-derived context keeps project and meeting selection in one predictable place.
   $: meetingId = 'meetingId' in route ? route.meetingId : null;
@@ -71,6 +81,7 @@
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     theme = savedTheme === 'dark' || (!savedTheme && prefersDark) ? 'dark' : 'light';
     applyTheme();
+    bridge.getTranscriptionRuntimeStatus().then((status) => (runtimeStatus = status));
 
     return bridge.subscribe(
       (nextSnapshot) => {
@@ -327,9 +338,13 @@
       {:else if route.name === 'settings'}
         <SettingsView
           {theme}
+          {runtimeStatus}
           nextJobOutcome={snapshot.nextJobOutcome}
           onToggleTheme={toggleTheme}
           onSetNextJobOutcome={(outcome: FakeJobOutcome) => bridge.setNextJobOutcome(outcome)}
+          onConfigureRuntime={async (executablePath, modelPath) => {
+            runtimeStatus = await bridge.configureTranscriptionRuntime(executablePath, modelPath);
+          }}
         />
       {:else}
         <StartView onNavigate={navigate} />

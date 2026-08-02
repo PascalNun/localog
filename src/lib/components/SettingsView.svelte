@@ -1,11 +1,14 @@
 <script lang="ts">
-  import type { FakeJobOutcome } from '../workflow/types';
+  import { open } from '@tauri-apps/plugin-dialog';
+  import type { FakeJobOutcome, TranscriptionRuntimeStatus } from '../workflow/types';
   import Icon from './Icon.svelte';
 
   export let theme: 'light' | 'dark';
   export let nextJobOutcome: FakeJobOutcome;
   export let onToggleTheme: () => void;
   export let onSetNextJobOutcome: (outcome: FakeJobOutcome) => Promise<void>;
+  export let runtimeStatus: TranscriptionRuntimeStatus;
+  export let onConfigureRuntime: (executablePath: string, modelPath: string) => Promise<void>;
 
   let section = 'General';
   const sections = [
@@ -17,6 +20,30 @@
     'Appearance',
     'Advanced',
   ];
+  let executablePath = '';
+  let modelPath = '';
+  $: executablePath = runtimeStatus?.executablePath ?? executablePath;
+  $: modelPath = runtimeStatus?.modelPath ?? modelPath;
+
+  async function chooseExecutable() {
+    if (!('__TAURI_INTERNALS__' in window)) return;
+    const selected = await open({
+      multiple: false,
+      directory: false,
+      title: 'Choose whisper.cpp executable',
+    });
+    if (typeof selected === 'string') executablePath = selected;
+  }
+
+  async function chooseModel() {
+    if (!('__TAURI_INTERNALS__' in window)) return;
+    const selected = await open({
+      multiple: false,
+      directory: false,
+      title: 'Choose whisper.cpp model',
+    });
+    if (typeof selected === 'string') modelPath = selected;
+  }
 </script>
 
 <main class="workspace" id="main-content">
@@ -64,6 +91,38 @@
           Ollama is a development-spike baseline, not the accepted public distribution model.
         </div>
       {:else if section === 'Transcription'}
+        <div class="setting-row">
+          <div>
+            <h3>whisper.cpp runtime</h3>
+            <p>
+              Choose an already installed whisper.cpp executable and model. LocaLog never downloads
+              models.
+            </p>
+          </div>
+          <span class:setting-value={runtimeStatus?.executableFound} class="setting-value">
+            {runtimeStatus?.executableFound ? 'Ready' : 'Not configured'}
+          </span>
+        </div>
+        <label class="setting-field"
+          >Executable path<input
+            bind:value={executablePath}
+            placeholder="/path/to/whisper-cli"
+          /><button class="quiet-action" onclick={chooseExecutable}>Choose file</button></label
+        >
+        <label class="setting-field"
+          >Model path<input bind:value={modelPath} placeholder="/path/to/ggml-model.bin" /><button
+            class="quiet-action"
+            onclick={chooseModel}>Choose file</button
+          ></label
+        >
+        <button
+          class="secondary-action"
+          onclick={() => onConfigureRuntime(executablePath, modelPath)}
+          disabled={!executablePath || !modelPath}>Save local runtime</button
+        >
+        {#if runtimeStatus?.runtimeVersion}<p class="setting-hint">
+            Detected: {runtimeStatus.runtimeVersion}
+          </p>{/if}
         <div class="setting-row">
           <div>
             <h3>Default quality</h3>

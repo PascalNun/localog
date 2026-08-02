@@ -90,8 +90,8 @@ Implementation note, 2026-08-02: all four Phase 1A steps are complete. The produ
 
 ### Phase 1B — real local pipeline
 
-1. Import/normalise adapter.
-2. `whisper.cpp` adapter and transcript persistence/review.
+1. Import/probe/normalise adapter with a regenerable normalized-audio cache.
+2. User-configured `whisper.cpp` adapter and transcript persistence/review.
 3. Vocabulary resolution.
 4. Protocol style and selected provider integration.
 5. Protocol editor, revisions, Markdown/TXT export.

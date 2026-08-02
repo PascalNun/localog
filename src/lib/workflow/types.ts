@@ -149,6 +149,16 @@ export interface SourceSelection {
   path: string;
 }
 
+export interface TranscriptionRuntimeStatus {
+  executablePath: string | null;
+  modelPath: string | null;
+  executableFound: boolean;
+  modelFound: boolean;
+  runtimeVersion: string | null;
+  modelDigest: string | null;
+  modelByteCount: number | null;
+}
+
 // UI code depends on this contract; fake and real adapters must preserve the same semantics.
 export interface WorkflowBridge {
   getSnapshot(): Promise<WorkflowSnapshot>;
@@ -177,4 +187,9 @@ export interface WorkflowBridge {
     route: 'meeting' | 'transcript' | 'protocol',
   ): Promise<void>;
   setNextJobOutcome(outcome: FakeJobOutcome): Promise<void>;
+  getTranscriptionRuntimeStatus(): Promise<TranscriptionRuntimeStatus>;
+  configureTranscriptionRuntime(
+    executablePath: string,
+    modelPath: string,
+  ): Promise<TranscriptionRuntimeStatus>;
 }
