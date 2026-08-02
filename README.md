@@ -56,11 +56,13 @@ The repository currently contains:
 - a synthetic end-to-end demonstration with import, progress, cancellation, failure, retry, transcript review, protocol editing, and export states;
 - a production SQLite repository for projects, meetings, source metadata, and durable import jobs, connected to the native shell;
 - staged managed-media copying with SHA-256 checksums, truthful byte progress, cancellation, duplicate confirmation, and restart recovery;
+- deterministic fake transcription and protocol-generation adapters running through durable jobs, immutable revisions, cancellation, retry, and restart recovery;
+- persistent transcript correction and Markdown protocol editing with atomic autosave, revision history, and exact review status;
 - completed architecture studies for durable storage, process supervision, media normalisation and transcription, local protocol generation, and Markdown autosave.
 
-The native shell now preserves created projects, meetings, meeting-title changes, committed source copies, source metadata, and import-job history across restarts. It can recover an interrupted import without presenting a partial file as complete. Transcription, protocols, and exports still use synthetic in-memory behaviour; the real transcription-to-protocol pipeline has not been integrated, and there are no release builds yet.
+The native shell now preserves created projects, meetings, committed source copies, structured transcript revisions, transcript corrections, Markdown protocol revisions, working edits, review state, and job history across restarts. It recovers interrupted work without presenting partial output as complete. The processing adapters are deliberately synthetic: real media normalisation, transcription, and local language-model integration have not been connected, and there are no release builds yet.
 
-The next proposed milestone is to carry fake transcription and generation through the same durable job and immutable revision boundaries. That work begins only after review of the completed import milestone. Real local-processing adapters will enter one at a time after the persistent fake workflow is coherent.
+The next proposed milestone is to replace one fake stage at a time behind these tested boundaries, beginning with media probing/normalisation and local transcription after review. Ollama or another real protocol provider will not be integrated until the transcription path and its packaging implications are understood.
 
 ## How the application is being built
 

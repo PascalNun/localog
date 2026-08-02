@@ -114,8 +114,13 @@ Default to an OS-provided application-data directory, never the current director
 │   ├── recordings/<source-artifact-id>.<validated-extension>
 │   ├── working/imports/<source-artifact-id>.part
 │   ├── working/recovery/<source-artifact-id>.orphan
+│   ├── working/jobs/<job-id>.<json|md>.part
 │   ├── transcripts/
+│   │   ├── revisions/<transcript-revision-id>.json
+│   │   └── working.json
 │   ├── protocols/
+│   │   ├── revisions/<protocol-revision-id>.md
+│   │   └── working.md
 │   └── exports/
 ├── models/        # only app-managed/downloaded models, if later supported
 ├── logs/
@@ -133,6 +138,20 @@ The storage spike accepted this invariant for the vertical slice:
 - Imported original media is never modified silently.
 
 Updates that touch SQLite and files use an explicit staged protocol and reconciliation scan because the two cannot share one atomic transaction. Committed transcript revisions use versioned structured JSON artifacts; SQLite segment/search projections, if later justified, are derived and rebuildable. Do not maintain a database copy and a file copy as separately editable authorities.
+
+### Transcript and protocol revision protocol
+
+The durable fake workflow establishes the same boundaries later inference adapters must use:
+
+1. A transcription or generation intent is written to SQLite as `queued`, including its immutable input identity and resolved synthetic provenance.
+2. The stage-specific adapter reads only a committed source or transcript revision. It writes validated output to `working/jobs/` while reporting bounded progress and observing cancellation.
+3. The staged artifact is flushed and synced, hashed, and renamed to its generated immutable revision path. Only then does one SQLite transaction insert the revision metadata, advance stable lifecycle, and complete the job.
+4. Transcript JSON is validated for schema version, ordered stable segment identifiers, non-negative start/end timestamps, and bounded text fields before commit. Protocol output must be non-empty UTF-8 Markdown.
+5. A committed revision is copied atomically to the stage's replaceable working artifact. Autosave uses a sibling temporary file, flush, sync, and rename so interruption retains the previous complete working state.
+6. Starting protocol generation commits dirty transcript working state first. The generation job records that exact committed transcript revision and never reads mutable working content.
+7. Marking a protocol reviewed creates or selects the exact committed revision being reviewed and stores its identity. Later working edits do not alter it; the presentation state becomes `changed since review`.
+
+On startup, abandoned `running` or `cancelling` processing jobs become `interrupted`. Staged output is never shown as ready. A final artifact without matching visible revision metadata is quarantined unless the persisted job contains sufficient checksum/path evidence to finish the exact interrupted commit safely. Working artifacts are loaded only when their SQLite checksum metadata agrees; a failed autosave keeps the last verified working document visible and reports the failure.
 
 ### Durable source-import protocol
 
