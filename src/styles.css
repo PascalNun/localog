@@ -35,17 +35,17 @@
   background: var(--canvas);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --canvas: #f4f2ee;
-  --sidebar: #efede8;
-  --workspace: #f8f7f4;
+  --canvas: #f5f2ec;
+  --sidebar: #eeeae3;
+  --workspace: #fbf9f5;
   --raised: #fffefa;
-  --subtle: #ece9e4;
-  --hover: #e7e3dd;
+  --subtle: #eeeae4;
+  --hover: #e8e3dc;
   --ink: #282621;
   --muted: #6e6961;
   --faint: #8f887e;
-  --line: #ddd9d2;
-  --line-strong: #c9c3ba;
+  --line: #ddd7ce;
+  --line-strong: #c9c1b6;
   --action: #34322d;
   --action-ink: #faf8f3;
   --success: #4f825d;
@@ -649,7 +649,7 @@ body.sidebar-resizing * {
   width: 96px;
   height: 72px;
   margin-bottom: 30px;
-  color: var(--action);
+  color: var(--ink);
 }
 
 .sound-mark line {

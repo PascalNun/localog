@@ -161,7 +161,7 @@
 </script>
 
 <svelte:head
-  ><meta name="theme-color" content={theme === 'light' ? '#f4f2ee' : '#1a1917'} /></svelte:head
+  ><meta name="theme-color" content={theme === 'light' ? '#f5f2ec' : '#1a1917'} /></svelte:head
 >
 
 <a class="skip-link" href="#main-content">Skip to workspace</a>
