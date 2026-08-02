@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 5;
+const CURRENT_SCHEMA_VERSION: i64 = 6;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -58,6 +58,7 @@ pub(crate) struct ProcessingJobRecord {
     pub runtime_version: Option<String>,
     pub model_digest: Option<String>,
     pub settings_json: Option<String>,
+    pub runtime_config_json: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -1216,6 +1217,17 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             COMMIT;
             ",
         )?;
+        version = 5;
+    }
+    if version == 5 {
+        connection.execute_batch(
+            "
+            BEGIN IMMEDIATE;
+            ALTER TABLE jobs ADD COLUMN runtime_config_json TEXT;
+            PRAGMA user_version = 6;
+            COMMIT;
+            ",
+        )?;
     }
     Ok(())
 }
@@ -1409,6 +1421,14 @@ fn job_error_summary(code: &str, stored_message: Option<&str>) -> JobErrorSummar
         "model_missing" => (
             "Choose a local transcription model",
             "Select an already available whisper.cpp model in Settings → Transcription. No model was downloaded or changed.",
+        ),
+        "runtime_changed" => (
+            "The transcription runtime changed",
+            "The queued job was not run because its whisper.cpp executable no longer matches the recorded runtime. Retry to resolve the current runtime.",
+        ),
+        "model_changed" => (
+            "The transcription model changed",
+            "The queued job was not run because its model no longer matches the recorded checksum. Retry to resolve the current model.",
         ),
         "media_probe_failed" => (
             "The recording could not be inspected",
@@ -1787,6 +1807,15 @@ mod tests {
             schema_version(&repository.connection).unwrap(),
             CURRENT_SCHEMA_VERSION
         );
+        let runtime_config_columns: i64 = repository
+            .connection
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('jobs') WHERE name = 'runtime_config_json'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(runtime_config_columns, 1);
 
         let replacement = temporary.path().join("synthetic-v1-reselected.wav");
         fs::write(&replacement, b"synthetic replacement source").unwrap();
