@@ -1,7 +1,7 @@
 use crate::domain::{
     JobErrorSummary, JobState, JobSummary, MeetingLifecycle, MeetingSummary, NewMeetingInput,
-    NewProjectInput, ProjectSummary, ProtocolDocument, ProtocolRevisionSummary, TranscriptDocument,
-    TranscriptSegment, WorkspaceSnapshot,
+    NewProjectInput, ProjectSummary, ProtocolDocument, ProtocolRevisionSummary, ProtocolStyle,
+    TranscriptDocument, TranscriptSegment, VocabularyEntry, WorkspaceSnapshot,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 7;
+const CURRENT_SCHEMA_VERSION: i64 = 8;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -59,6 +59,8 @@ pub(crate) struct ProcessingJobRecord {
     pub model_digest: Option<String>,
     pub settings_json: Option<String>,
     pub runtime_config_json: Option<String>,
+    pub style_revision: Option<String>,
+    pub vocabulary_revision: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -141,6 +143,29 @@ pub struct WorkspaceRepository {
     pub(crate) root: PathBuf,
 }
 
+#[derive(Clone, Debug, serde::Serialize)]
+pub(crate) struct ResolvedProtocolStyle {
+    pub id: String,
+    pub revision: String,
+    pub instructions: Vec<String>,
+    pub required_sections: Vec<String>,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub(crate) struct ResolvedVocabularyEntry {
+    pub term: String,
+    pub preferred_spelling: String,
+    pub category: String,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ResolvedProtocolInputs {
+    pub meeting_language: String,
+    pub style: ResolvedProtocolStyle,
+    pub vocabulary: Vec<ResolvedVocabularyEntry>,
+    pub vocabulary_revision: String,
+}
+
 impl WorkspaceRepository {
     pub fn open(root: impl AsRef<Path>) -> Result<Self> {
         let root = root.as_ref();
@@ -152,12 +177,12 @@ impl WorkspaceRepository {
             return Err(StorageError::UnsupportedSchema(version));
         }
         connection.execute_batch(
-            "
+            r#"
             PRAGMA journal_mode = WAL;
             PRAGMA synchronous = FULL;
             PRAGMA foreign_keys = ON;
             PRAGMA busy_timeout = 5000;
-            ",
+            "#,
         )?;
         migrate(&connection, version)?;
         Ok(Self {
@@ -173,9 +198,70 @@ impl WorkspaceRepository {
             jobs: self.list_jobs()?,
             transcripts: self.load_transcript_documents()?,
             protocols: self.load_protocol_documents()?,
+            styles: self.list_protocol_styles()?,
+            vocabulary: self.list_vocabulary()?,
             active_meeting_id: self.workspace_state("active_meeting_id")?,
             active_route: self.workspace_state("active_route")?,
         })
+    }
+
+    /// Resolve the current professional preset and vocabulary for a meeting.
+    /// The processing layer snapshots the returned values before it starts work.
+    pub(crate) fn protocol_inputs(&self, meeting_id: &str) -> Result<ResolvedProtocolInputs> {
+        let (project_id, style_id, language): (String, String, String) = self
+            .connection
+            .query_row(
+                "SELECT project_id, style_id, language FROM meetings WHERE id = ?1",
+                [meeting_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()?
+            .ok_or(StorageError::MissingMeeting)?;
+        let style = self
+            .connection
+            .query_row(
+                "SELECT id, name, description, language_scope, instructions_json,
+                        required_sections_json, revision
+                 FROM protocol_styles WHERE id = ?1 AND enabled = 1",
+                [&style_id],
+                protocol_style_from_row,
+            )
+            .optional()?
+            .ok_or(StorageError::InvalidData(
+                "The selected protocol style is unavailable.",
+            ))?;
+        let vocabulary = self.list_vocabulary_for_project(&project_id)?;
+        let resolved_vocabulary: Vec<ResolvedVocabularyEntry> = vocabulary
+            .iter()
+            .map(|entry| ResolvedVocabularyEntry {
+                term: entry.term.clone(),
+                preferred_spelling: entry.term.clone(),
+                category: entry.category.clone(),
+            })
+            .collect();
+        let vocabulary_json = serde_json::to_vec(&resolved_vocabulary)
+            .map_err(|_| StorageError::InvalidData("The vocabulary could not be resolved."))?;
+        Ok(ResolvedProtocolInputs {
+            meeting_language: language,
+            style,
+            vocabulary: resolved_vocabulary,
+            vocabulary_revision: format!("sha256:{}", checksum_bytes(&vocabulary_json)),
+        })
+    }
+
+    pub(crate) fn protocol_working_markdown(&self, meeting_id: &str) -> Result<Vec<u8>> {
+        let (path, checksum): (String, String) = self
+            .connection
+            .query_row(
+                "SELECT artifact_path, checksum FROM protocol_working WHERE meeting_id = ?1",
+                [meeting_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?
+            .ok_or(StorageError::InvalidData(
+                "Generate a protocol before exporting it.",
+            ))?;
+        read_verified_artifact(&self.root, &path, &checksum)
     }
 
     pub(crate) fn read_setting(&self, key: &str) -> Result<Option<String>> {
@@ -714,6 +800,60 @@ impl WorkspaceRepository {
              ORDER BY p.created_at_ms, p.id",
         )?;
         let rows = statement.query_map([], project_from_row)?;
+        Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
+    fn list_protocol_styles(&self) -> Result<Vec<ProtocolStyle>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id, name, description, language_scope
+             FROM protocol_styles WHERE enabled = 1 ORDER BY id",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok(ProtocolStyle {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                language: "Meeting language".to_string(),
+            })
+        })?;
+        Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
+    fn list_vocabulary(&self) -> Result<Vec<VocabularyEntry>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id, term, category, scope, project_id
+             FROM vocabulary_entries
+             WHERE enabled = 1
+             ORDER BY scope, term COLLATE NOCASE, id",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok(VocabularyEntry {
+                id: row.get(0)?,
+                term: row.get(1)?,
+                category: row.get(2)?,
+                scope: row.get(3)?,
+                project_id: row.get(4)?,
+            })
+        })?;
+        Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
+    fn list_vocabulary_for_project(&self, project_id: &str) -> Result<Vec<VocabularyEntry>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id, term, category, scope, project_id
+             FROM vocabulary_entries
+             WHERE enabled = 1 AND (scope = 'Global' OR project_id = ?1)
+             ORDER BY scope, term COLLATE NOCASE, id",
+        )?;
+        let rows = statement.query_map([project_id], |row| {
+            Ok(VocabularyEntry {
+                id: row.get(0)?,
+                term: row.get(1)?,
+                category: row.get(2)?,
+                scope: row.get(3)?,
+                project_id: row.get(4)?,
+            })
+        })?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
@@ -1297,6 +1437,60 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             COMMIT;
             ",
         )?;
+        version = 7;
+    }
+    if version == 7 {
+        connection.execute_batch(
+            r#"
+            BEGIN IMMEDIATE;
+            CREATE TABLE protocol_styles (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                language_scope TEXT NOT NULL DEFAULT 'meeting',
+                instructions_json TEXT NOT NULL,
+                required_sections_json TEXT NOT NULL,
+                revision INTEGER NOT NULL DEFAULT 1 CHECK (revision >= 1),
+                enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+                updated_at_ms INTEGER NOT NULL
+            );
+            CREATE TABLE vocabulary_entries (
+                id TEXT PRIMARY KEY,
+                term TEXT NOT NULL,
+                preferred_spelling TEXT NOT NULL,
+                category TEXT NOT NULL,
+                aliases_json TEXT NOT NULL DEFAULT '[]',
+                note TEXT NOT NULL DEFAULT '',
+                scope TEXT NOT NULL CHECK (scope IN ('Global', 'Project')),
+                project_id TEXT REFERENCES projects(id),
+                enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+                revision INTEGER NOT NULL DEFAULT 1 CHECK (revision >= 1),
+                updated_at_ms INTEGER NOT NULL,
+                CHECK ((scope = 'Global' AND project_id IS NULL) OR
+                       (scope = 'Project' AND project_id IS NOT NULL))
+            );
+            CREATE INDEX vocabulary_entries_scope
+                ON vocabulary_entries(scope, project_id, enabled, term);
+            INSERT INTO protocol_styles
+                (id, name, description, language_scope, instructions_json,
+                 required_sections_json, revision, updated_at_ms)
+            VALUES
+                ('style-formal', 'Formal minutes',
+                 'Structured record of discussion, decisions, and actions.', 'meeting',
+                 '["Write a calm, factual professional protocol.","Separate confirmed decisions from open questions.","Do not invent owners, dates, or commitments."]',
+                 '["Summary","Decisions","Actions","Open questions"]', 1, 0),
+                ('style-working-note', 'Internal working note',
+                 'Concise working record for an internal project team.', 'meeting',
+                 '["Write a concise internal working note.","Preserve useful context and mark uncertainty explicitly.","Do not invent facts that are not in the transcript."]',
+                 '["Summary","Discussion","Next steps"]', 1, 0),
+                ('style-decision-log', 'Technical decision log',
+                 'Emphasises alternatives, constraints, and explicit decisions.', 'meeting',
+                 '["Write a precise technical decision record.","Make alternatives, constraints, and consequences visible.","Record only decisions supported by the transcript."]',
+                 '["Context","Options considered","Decision","Consequences","Open questions"]', 1, 0);
+            PRAGMA user_version = 8;
+            COMMIT;
+            "#,
+        )?;
     }
     Ok(())
 }
@@ -1310,6 +1504,25 @@ fn project_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ProjectSummary>
         default_language: row.get(3)?,
         default_style_id: row.get(4)?,
         meeting_count: meeting_count as u32,
+    })
+}
+
+fn protocol_style_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ResolvedProtocolStyle> {
+    let instructions_json: String = row.get(4)?;
+    let required_sections_json: String = row.get(5)?;
+    let instructions = serde_json::from_str(&instructions_json).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(4, rusqlite::types::Type::Text, Box::new(error))
+    })?;
+    let required_sections = serde_json::from_str(&required_sections_json).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(5, rusqlite::types::Type::Text, Box::new(error))
+    })?;
+    let id: String = row.get(0)?;
+    let revision: i64 = row.get(6)?;
+    Ok(ResolvedProtocolStyle {
+        id,
+        revision: format!("{}@{}", row.get::<_, String>(0)?, revision),
+        instructions,
+        required_sections,
     })
 }
 
@@ -1514,6 +1727,30 @@ fn job_error_summary(code: &str, stored_message: Option<&str>) -> JobErrorSummar
         "transcription_timeout" => (
             "Local transcription took too long",
             "The supervised transcription process was stopped before a transcript revision was committed. Check the recording and runtime, then retry.",
+        ),
+        "provider_model_missing" => (
+            "The selected local model is unavailable",
+            "The selected Ollama model is no longer installed. Choose an installed model in Settings → Protocol generation, then retry.",
+        ),
+        "provider_model_changed" => (
+            "The local model changed",
+            "The model digest changed after this job was queued. Retry to capture the current installed model.",
+        ),
+        "provider_runtime_changed" => (
+            "The local provider changed",
+            "The Ollama runtime version changed after this job was queued. Retry to capture the current runtime.",
+        ),
+        "provider_unavailable" => (
+            "Local protocol generation could not connect",
+            "Start your existing Ollama installation and retry. LocaLog does not start or download runtimes.",
+        ),
+        "provider_invalid_output" | "provider_incomplete_output" => (
+            "The local model output could not be validated",
+            "LocaLog did not commit the incomplete or malformed protocol. Your transcript remains safe and you can retry.",
+        ),
+        "provider_response_too_large" => (
+            "The local model response was too large",
+            "The response exceeded LocaLog’s safe limit and was not committed. Try again with a shorter transcript or a different local model.",
         ),
         "invalid_transcript_output" => (
             "The transcription output could not be validated",

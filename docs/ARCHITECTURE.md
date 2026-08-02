@@ -232,6 +232,12 @@ Use argument arrays, never shell-interpolated commands. Environment variables ar
 
 Phase 0 only discovers already installed or user-provided models. It does not download or manage models. Ollama may be required for development spikes and early technical-preview builds, but that does not settle the first public build's runtime or distribution model.
 
+The current native protocol path uses one concrete loopback Ollama adapter behind the narrow protocol-generation boundary. Provider readiness is an ordinary application state—server unavailable, no model selected, selected model missing/changed, or ready—and is surfaced in Settings without turning the application into a model manager. Queueing a generation job records the exact provider/runtime/model/style/vocabulary/settings inputs before background work begins. A user-managed Ollama server is never started, stopped, reconfigured, or pulled from by LocaLog.
+
+Protocol styles are stored professional presets with versioned structured instructions and required sections. They are not arbitrary per-meeting prompt fields. Vocabulary is stored as structured global/project entries and resolved deterministically into a job snapshot. The generated response must pass both schema and required-section validation before the durable revision commit.
+
+Native Markdown and plain-text export reads the verified protocol working artifact and writes only to an explicit user-selected destination. Export is not a lifecycle transition, does not create a revision, and does not silently overwrite an existing file.
+
 ## Portability boundaries
 
 Keep these behind traits/modules:

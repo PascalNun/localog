@@ -4,6 +4,7 @@ mod domain;
 mod imports;
 mod media;
 mod processing;
+mod provider;
 mod runtime;
 mod storage;
 
@@ -109,6 +110,54 @@ async fn configure_transcription_runtime(
         repository.write_setting("transcription.whisperExecutable", &executable_path)?;
         repository.write_setting("transcription.whisperModel", &model_path)?;
         Ok(runtime_status(repository))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn protocol_provider_status(
+    storage: State<'_, StorageState>,
+) -> Result<provider::OllamaStatus, String> {
+    with_repository(storage.root.clone(), move |repository| {
+        let selected_model = repository.read_setting("generation.ollamaModel")?;
+        Ok(provider::OllamaProvider::loopback().status(selected_model))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn configure_protocol_provider(
+    storage: State<'_, StorageState>,
+    model: Option<String>,
+) -> Result<provider::OllamaStatus, String> {
+    with_repository(storage.root.clone(), move |repository| {
+        let model = model
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+        if let Some(model_name) = model.as_deref() {
+            let status = provider::OllamaProvider::loopback().status(None);
+            if !status.server_reachable {
+                return Err(storage::StorageError::InvalidData(
+                    "Start your existing Ollama installation before selecting a model.",
+                ));
+            }
+            if !status
+                .models
+                .iter()
+                .any(|candidate| candidate.name == model_name)
+            {
+                return Err(storage::StorageError::InvalidData(
+                    "Choose a model that is already installed in Ollama.",
+                ));
+            }
+            repository.write_setting("generation.ollamaModel", model_name)?;
+        } else {
+            repository.write_setting("generation.ollamaModel", "")?;
+        }
+        let selected_model = repository
+            .read_setting("generation.ollamaModel")?
+            .filter(|value| !value.is_empty());
+        Ok(provider::OllamaProvider::loopback().status(selected_model))
     })
     .await
 }
@@ -312,6 +361,19 @@ async fn restore_protocol_revision(
 ) -> Result<WorkspaceSnapshot, String> {
     with_repository_root(state.root.clone(), move |root| {
         processing::restore_protocol_revision(root, &meeting_id, &revision_id)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn export_protocol(
+    storage: State<'_, StorageState>,
+    meeting_id: String,
+    format: String,
+    destination: String,
+) -> Result<(), String> {
+    with_repository_root(storage.root.clone(), move |root| {
+        processing::export_protocol(root, &meeting_id, &format, &destination)
     })
     .await
 }
@@ -535,6 +597,8 @@ pub fn run() {
             app_identity,
             transcription_runtime_status,
             configure_transcription_runtime,
+            protocol_provider_status,
+            configure_protocol_provider,
             load_workspace,
             create_project,
             create_meeting,
@@ -553,6 +617,7 @@ pub fn run() {
             create_protocol_revision,
             mark_protocol_reviewed,
             restore_protocol_revision,
+            export_protocol,
             save_workspace_location
         ])
         .run(tauri::generate_context!())

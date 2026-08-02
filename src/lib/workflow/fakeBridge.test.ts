@@ -9,6 +9,8 @@ const emptyWorkspace = {
   jobs: [],
   transcripts: {},
   protocols: {},
+  styles: [],
+  vocabulary: [],
   activeMeetingId: null,
   activeRoute: null,
 };
