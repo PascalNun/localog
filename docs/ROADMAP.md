@@ -1,6 +1,6 @@
 # Roadmap after v0.1
 
-The sequence is outcome-based, not a release promise.
+The sequence is outcome-based, not a release commitment.
 
 LocaLog is intended for macOS, Windows, and Linux. macOS receives the first complete build because it is the current development and validation environment. Cross-platform architecture is a present requirement; packaged Windows and Linux releases follow once the central workflow and their platform adapters have been validated.
 

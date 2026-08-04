@@ -266,7 +266,7 @@ System audio on macOS may require Screen Recording permission and different APIs
 
 Imported originals are immutable. Derived artifacts carry provenance and completion markers. Partial files stay in `working/` and are never mistaken for finished output. Migration startup creates a backup/recovery point. Destructive cleanup is explicit and refuses paths outside the managed root.
 
-Provenance supports repeatability of inputs, not a promise of byte-identical inference output. Where available, a completed job records provider/runtime version, immutable model digest or checksum, resolved transcription/generation settings, style revision, vocabulary revision, normalized input checksums, and application version.
+Provenance supports repeatability of inputs, not a guarantee of byte-identical inference output. Where available, a completed job records provider/runtime version, immutable model digest or checksum, resolved transcription/generation settings, style revision, vocabulary revision, normalized input checksums, and application version.
 
 ## Architecture validation spikes
 

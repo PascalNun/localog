@@ -14,8 +14,9 @@ You do not need to be a software developer to read them. Technical terms are use
 4. **[v0.1 scope](MVP.md)** turns the product idea into a bounded first release and an ordered implementation plan.
 5. **[Technical architecture](ARCHITECTURE.md)** explains how the interface, application core, files, database, background work, and local AI tools fit together.
 6. **[Decisions](DECISIONS.md)** records accepted choices, evidence, remaining risks, and questions that still require an answer.
-7. **[Transcription and speaker experience](TRANSCRIPTION_EXPERIENCE.md)** specifies the seamless model choice and automatic speaker separation (bundled runtime, on-demand models, diarisation).
-8. **[Roadmap](ROADMAP.md)** keeps later possibilities visible without pretending they are already promised.
+7. **[Working plan](PLAN.md)** tracks what is actually built today and what happens next. It is the living document; the others describe the goals being worked toward.
+8. **[Transcription and speaker experience](TRANSCRIPTION_EXPERIENCE.md)** specifies the seamless model choice and automatic speaker separation (bundled runtime, on-demand models, diarisation).
+9. **[Roadmap](ROADMAP.md)** keeps later possibilities visible without treating them as decided.
 
 ## A few recurring terms
 
@@ -25,7 +26,7 @@ You do not need to be a software developer to read them. Technical terms are use
 - **Adapter** — A small translation layer between LocaLog and a particular operating system or runtime. Adapters keep product rules independent from macOS, Windows, Linux, FFmpeg, Ollama, or one specific model.
 - **Artifact** — A file produced or preserved by the application, such as an imported recording, a committed transcript revision, or a protocol revision.
 - **Canonical** — The one authoritative version of content. LocaLog avoids keeping two independently editable “master” copies of the same transcript or protocol.
-- **Provenance** — The information needed to understand how a result was produced: application and runtime versions, model identity, settings, style and vocabulary revisions, and input checksums where available. Provenance supports repeatable inputs; it does not promise identical model output.
+- **Provenance** — The information needed to understand how a result was produced: application and runtime versions, model identity, settings, style and vocabulary revisions, and input checksums where available. Provenance supports repeatable inputs; it does not guarantee identical model output.
 - **Lifecycle and job state** — A meeting’s durable stage—such as transcript ready—is different from temporary background activity—such as a transcription job currently running or failing. Keeping them separate prevents an interrupted process from corrupting the meeting’s stable state.
 - **Spike** — A deliberately isolated technical study used to answer a risky question with evidence. Spike code does not become production architecture automatically.
 
