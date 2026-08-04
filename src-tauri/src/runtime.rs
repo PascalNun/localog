@@ -154,11 +154,28 @@ pub(crate) struct ProcessOutput {
     pub stderr: String,
 }
 
+fn no_progress(_line: &str) -> Option<u8> {
+    None
+}
+
 /// Run a bounded-output child process, checking cancellation without blocking the UI thread.
 pub(crate) fn run_process(
+    command: Command,
+    cancellation: &AtomicBool,
+    limits: ProcessLimits,
+) -> Result<ProcessOutput, ProcessFailure> {
+    run_process_with_progress(command, cancellation, limits, no_progress, |_| {})
+}
+
+/// As `run_process`, but parses each stderr line through `parse_progress` and
+/// reports matched 0..=100 percentages to `on_progress` while the process runs.
+/// `on_progress` runs on the calling thread, so it may touch non-`Send` state.
+pub(crate) fn run_process_with_progress(
     mut command: Command,
     cancellation: &AtomicBool,
     limits: ProcessLimits,
+    parse_progress: fn(&str) -> Option<u8>,
+    mut on_progress: impl FnMut(u8),
 ) -> Result<ProcessOutput, ProcessFailure> {
     #[cfg(unix)]
     {
@@ -193,10 +210,21 @@ pub(crate) fn run_process(
             return Err(ProcessFailure::OutputReadFailed);
         }
     };
+    let (progress_sender, progress_receiver) = std::sync::mpsc::channel::<u8>();
     let stdout_thread = thread::spawn(move || read_tail(stdout, limits.max_stdout_tail_bytes));
-    let stderr_thread = thread::spawn(move || read_tail(stderr, limits.max_stderr_tail_bytes));
+    let stderr_thread = thread::spawn(move || {
+        read_tail_with_progress(
+            stderr,
+            limits.max_stderr_tail_bytes,
+            parse_progress,
+            progress_sender,
+        )
+    });
     let started_at = Instant::now();
     loop {
+        while let Ok(value) = progress_receiver.try_recv() {
+            on_progress(value);
+        }
         if cancellation.load(Ordering::Acquire) {
             terminate(&mut child, limits.termination_grace);
             let _ = stdout_thread.join();
@@ -232,6 +260,10 @@ pub(crate) fn run_process(
         .join()
         .map_err(|_| ProcessFailure::OutputReadFailed)?
         .map_err(|_| ProcessFailure::OutputReadFailed)?;
+    // Drain any progress produced after the final poll but before the reader closed.
+    while let Ok(value) = progress_receiver.try_recv() {
+        on_progress(value);
+    }
     if !status.success() {
         return Err(ProcessFailure::Exited(status.code()));
     }
@@ -261,6 +293,48 @@ fn read_tail(mut reader: impl Read, max: usize) -> std::io::Result<TailOutput> {
                 tail.push_back(*byte);
             }
         }
+    }
+    Ok(TailOutput {
+        text: String::from_utf8_lossy(&tail.into_iter().collect::<Vec<_>>()).into_owned(),
+    })
+}
+
+/// Like `read_tail`, but also accumulates complete lines and forwards any parsed
+/// progress percentage over `progress`. Keeps the same bounded diagnostic tail.
+fn read_tail_with_progress(
+    mut reader: impl Read,
+    max: usize,
+    parse_progress: fn(&str) -> Option<u8>,
+    progress: std::sync::mpsc::Sender<u8>,
+) -> std::io::Result<TailOutput> {
+    let mut tail = VecDeque::with_capacity(max.min(8192));
+    let mut line = String::new();
+    let mut buffer = [0u8; 8192];
+    loop {
+        let read = reader.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        for byte in &buffer[..read] {
+            if tail.len() == max {
+                let _ = tail.pop_front();
+            }
+            if max > 0 {
+                tail.push_back(*byte);
+            }
+            if *byte == b'\n' || *byte == b'\r' {
+                if let Some(value) = parse_progress(&line) {
+                    let _ = progress.send(value);
+                }
+                line.clear();
+            } else if line.len() < 4096 {
+                // Bound the line buffer so a stream without newlines cannot grow unbounded.
+                line.push(*byte as char);
+            }
+        }
+    }
+    if let Some(value) = parse_progress(&line) {
+        let _ = progress.send(value);
     }
     Ok(TailOutput {
         text: String::from_utf8_lossy(&tail.into_iter().collect::<Vec<_>>()).into_owned(),
@@ -435,6 +509,34 @@ mod tests {
             Some("ffmpeg synthetic 1")
         );
         assert_eq!(executable_version(&script), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn streams_parsed_progress_from_stderr_while_running() {
+        fn parse(line: &str) -> Option<u8> {
+            line.strip_prefix("progress = ")?
+                .strip_suffix('%')?
+                .parse()
+                .ok()
+        }
+        let mut command = Command::new("sh");
+        command.args([
+            "-c",
+            "echo 'progress = 10%' 1>&2; echo 'progress = 60%' 1>&2; \
+             echo 'progress = 100%' 1>&2; echo done",
+        ]);
+        let mut seen = Vec::new();
+        let output = run_process_with_progress(
+            command,
+            &AtomicBool::new(false),
+            ProcessLimits::with_max_output(4096),
+            parse,
+            |value| seen.push(value),
+        )
+        .unwrap();
+        assert_eq!(seen, vec![10, 60, 100]);
+        assert!(output.stdout.contains("done"));
     }
 
     #[cfg(unix)]

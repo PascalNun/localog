@@ -3,12 +3,14 @@
 mod domain;
 mod imports;
 mod media;
+mod models;
 mod processing;
 mod provider;
 mod runtime;
 mod storage;
 
 use domain::{MeetingSummary, NewMeetingInput, NewProjectInput, ProjectSummary, WorkspaceSnapshot};
+use rusqlite::OptionalExtension;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -60,14 +62,14 @@ fn runtime_status(repository: &WorkspaceRepository) -> TranscriptionRuntimeStatu
         .read_setting("transcription.whisperExecutable")
         .ok()
         .flatten();
-    let model_path = repository
-        .read_setting("transcription.whisperModel")
-        .ok()
-        .flatten();
+    // The model follows the selected quality preset; it is never a user-entered path.
+    let model = models::model_path_for_preset(&repository.root, &selected_preset(repository));
+    let model_path = model
+        .as_deref()
+        .map(|path| path.to_string_lossy().into_owned());
     let executable = executable_path.as_deref().map(PathBuf::from);
-    let model = model_path.as_deref().map(PathBuf::from);
     let executable_found = executable.as_deref().is_some_and(|path| path.is_file());
-    let model_found = model.as_deref().is_some_and(|path| path.is_file());
+    let model_found = model.is_some();
     let runtime_version = executable.as_deref().and_then(runtime::executable_version);
     let provenance = model
         .as_deref()
@@ -93,23 +95,202 @@ async fn transcription_runtime_status(
     .await
 }
 
+/// Transitional: the whisper.cpp binary will be bundled as a sidecar, after which
+/// this disappears entirely. The model is never configured here — it follows the preset.
 #[tauri::command]
 async fn configure_transcription_runtime(
     storage: State<'_, StorageState>,
     executable_path: String,
-    model_path: String,
 ) -> Result<TranscriptionRuntimeStatus, String> {
     with_repository(storage.root.clone(), move |repository| {
         let executable = PathBuf::from(&executable_path);
-        let model = PathBuf::from(&model_path);
-        runtime::validate_config(&executable, &model).map_err(|_| {
-            storage::StorageError::InvalidData(
-                "Choose an existing whisper.cpp executable and model.",
-            )
-        })?;
+        if !executable.is_absolute() || !executable.is_file() {
+            return Err(storage::StorageError::InvalidData(
+                "Choose an existing whisper.cpp executable.",
+            ));
+        }
         repository.write_setting("transcription.whisperExecutable", &executable_path)?;
-        repository.write_setting("transcription.whisperModel", &model_path)?;
         Ok(runtime_status(repository))
+    })
+    .await
+}
+
+fn selected_preset(repository: &WorkspaceRepository) -> String {
+    repository
+        .read_setting("transcription.preset")
+        .ok()
+        .flatten()
+        .filter(|value| models::is_known_preset(value))
+        .unwrap_or_else(|| models::DEFAULT_PRESET.to_string())
+}
+
+#[tauri::command]
+async fn transcription_capability(
+    storage: State<'_, StorageState>,
+) -> Result<models::TranscriptionCapability, String> {
+    let root = storage.root.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let repository = WorkspaceRepository::open(&root).map_err(|error| error.user_message())?;
+        Ok(models::capability(&root, &selected_preset(&repository)))
+    })
+    .await
+    .map_err(|_| "The local storage task stopped unexpectedly.".to_string())?
+}
+
+#[tauri::command]
+async fn set_transcription_preset(
+    storage: State<'_, StorageState>,
+    preset: String,
+) -> Result<models::TranscriptionCapability, String> {
+    let root = storage.root.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        if !models::is_known_preset(&preset) {
+            return Err("Choose a known transcription quality.".to_string());
+        }
+        let repository = WorkspaceRepository::open(&root).map_err(|error| error.user_message())?;
+        repository
+            .write_setting("transcription.preset", &preset)
+            .map_err(|error| error.user_message())?;
+        Ok(models::capability(&root, &preset))
+    })
+    .await
+    .map_err(|_| "The local storage task stopped unexpectedly.".to_string())?
+}
+
+#[tauri::command]
+async fn remove_transcription_model(
+    storage: State<'_, StorageState>,
+    model_id: String,
+) -> Result<models::TranscriptionCapability, String> {
+    let root = storage.root.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        models::remove_model(&root, &model_id).map_err(|error| error.to_string())?;
+        let repository = WorkspaceRepository::open(&root).map_err(|error| error.user_message())?;
+        Ok(models::capability(&root, &selected_preset(&repository)))
+    })
+    .await
+    .map_err(|_| "The local storage task stopped unexpectedly.".to_string())?
+}
+
+/// Download a model in the background: progress and completion arrive as events so
+/// the UI never blocks. The download is cancellable and never installs unverified bytes.
+#[tauri::command]
+async fn download_transcription_model(
+    app: AppHandle,
+    storage: State<'_, StorageState>,
+    coordinator: State<'_, JobCoordinatorState>,
+    model_id: String,
+) -> Result<(), String> {
+    let root = storage.root.clone();
+    let key = format!("model:{model_id}");
+    let cancellation = Arc::new(AtomicBool::new(false));
+    {
+        let mut active = coordinator
+            .cancellations
+            .lock()
+            .map_err(|_| "The local processing coordinator is unavailable.".to_string())?;
+        if active.contains_key(&key) {
+            return Ok(());
+        }
+        active.insert(key.clone(), cancellation.clone());
+    }
+    let state = coordinator.inner().clone();
+    tauri::async_runtime::spawn(async move {
+        let progress_app = app.clone();
+        let progress_model = model_id.clone();
+        let run_root = root.clone();
+        let run_model = model_id.clone();
+        let result = tauri::async_runtime::spawn_blocking(move || {
+            models::download_model(&run_root, &run_model, &cancellation, |percent| {
+                let _ = progress_app.emit(
+                    "model://progress",
+                    serde_json::json!({ "modelId": progress_model, "percent": percent }),
+                );
+            })
+        })
+        .await;
+        if let Ok(mut active) = state.cancellations.lock() {
+            active.remove(&key);
+        }
+        match result {
+            Ok(Ok(())) => {
+                if let Ok(repository) = WorkspaceRepository::open(&root) {
+                    let _ = app.emit(
+                        "model://changed",
+                        models::capability(&root, &selected_preset(&repository)),
+                    );
+                }
+            }
+            Ok(Err(error)) => {
+                let _ = app.emit(
+                    "model://error",
+                    serde_json::json!({ "modelId": model_id, "message": error.to_string() }),
+                );
+            }
+            Err(_) => {
+                let _ = app.emit(
+                    "model://error",
+                    serde_json::json!({ "modelId": model_id, "message": "The download stopped unexpectedly." }),
+                );
+            }
+        }
+    });
+    Ok(())
+}
+
+#[tauri::command]
+async fn cancel_transcription_download(
+    coordinator: State<'_, JobCoordinatorState>,
+    model_id: String,
+) -> Result<(), String> {
+    let key = format!("model:{model_id}");
+    if let Ok(active) = coordinator.cancellations.lock()
+        && let Some(token) = active.get(&key)
+    {
+        token.store(true, Ordering::SeqCst);
+    }
+    Ok(())
+}
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MeetingAudio {
+    path: String,
+    duration_ms: Option<i64>,
+}
+
+/// Locate playable working audio for review. The normalized mono 16 kHz WAV is used
+/// because every webview can decode it and its timing matches the transcript exactly.
+/// Returns null until working audio exists.
+#[tauri::command]
+async fn meeting_audio(
+    storage: State<'_, StorageState>,
+    meeting_id: String,
+) -> Result<Option<MeetingAudio>, String> {
+    with_repository(storage.root.clone(), move |repository| {
+        let found: Option<(String, Option<i64>)> = repository
+            .connection
+            .query_row(
+                "SELECT nm.normalized_path, nm.duration_ms
+                 FROM normalized_media nm
+                 JOIN recordings r ON r.id = nm.recording_id
+                 WHERE r.meeting_id = ?1
+                 ORDER BY r.created_at_ms, r.id LIMIT 1",
+                [&meeting_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        let Some((relative, duration_ms)) = found else {
+            return Ok(None);
+        };
+        let absolute = repository.root.join(&relative);
+        if !absolute.is_file() {
+            return Ok(None);
+        }
+        Ok(Some(MeetingAudio {
+            path: absolute.to_string_lossy().into_owned(),
+            duration_ms,
+        }))
     })
     .await
 }
@@ -597,6 +778,12 @@ pub fn run() {
             app_identity,
             transcription_runtime_status,
             configure_transcription_runtime,
+            transcription_capability,
+            set_transcription_preset,
+            download_transcription_model,
+            cancel_transcription_download,
+            remove_transcription_model,
+            meeting_audio,
             protocol_provider_status,
             configure_protocol_provider,
             load_workspace,

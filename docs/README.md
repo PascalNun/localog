@@ -14,7 +14,8 @@ You do not need to be a software developer to read them. Technical terms are use
 4. **[v0.1 scope](MVP.md)** turns the product idea into a bounded first release and an ordered implementation plan.
 5. **[Technical architecture](ARCHITECTURE.md)** explains how the interface, application core, files, database, background work, and local AI tools fit together.
 6. **[Decisions](DECISIONS.md)** records accepted choices, evidence, remaining risks, and questions that still require an answer.
-7. **[Roadmap](ROADMAP.md)** keeps later possibilities visible without pretending they are already promised.
+7. **[Transcription and speaker experience](TRANSCRIPTION_EXPERIENCE.md)** specifies the seamless model choice and automatic speaker separation (bundled runtime, on-demand models, diarisation).
+8. **[Roadmap](ROADMAP.md)** keeps later possibilities visible without pretending they are already promised.
 
 ## A few recurring terms
 
