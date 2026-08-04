@@ -85,13 +85,13 @@ The project does not silently download models or runtimes. Ollama and an install
 
 The documentation is organised from purpose to implementation. [Start with the documentation guide](docs/README.md) if you are new to the project or do not work primarily in software.
 
-- [Product definition](docs/PRODUCT.md) — the problem, promise, audience, scope, and principles
+- [Product definition](docs/PRODUCT.md) — the problem, goal, audience, scope, and principles
 - [Experience and interaction](docs/UX.md) — how the application should behave and feel
 - [Visual direction](docs/VISUAL_DIRECTION.md) — typography, hierarchy, restraint, and interface character
 - [v0.1 scope](docs/MVP.md) — what the first useful version must prove
 - [Technical architecture](docs/ARCHITECTURE.md) — how data, background work, and local runtimes fit together
 - [Decisions](docs/DECISIONS.md) — what has been accepted, what remains open, and why
-- [Roadmap](docs/ROADMAP.md) — later possibilities that are not promises
+- [Roadmap](docs/ROADMAP.md) — later possibilities that are not commitments
 
 The folders under `spikes/` contain isolated technical evidence. They are test oracles and learning records, not production modules.
 

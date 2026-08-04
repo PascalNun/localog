@@ -8,7 +8,7 @@ In LocaLog, a **protocol** is the structured written record or minutes of a meet
 
 Professional meetings produce decisions, responsibilities, unresolved questions, and technical detail that must become a reliable written record. Their recordings can also contain confidential conversations, personal information, internal decisions, client details, or other material that should not leave the organisation’s controlled environment. Manual protocols are slow; generic cloud meeting assistants are often unsuitable for this sensitive project content and tend to optimise for summaries rather than controlled documentation.
 
-## Product promise
+## Product goal
 
 LocaLog is an open-source, local-first AI desktop application for creating structured, editable meeting protocols from audio and video on the user’s device. The protocol is the intended result. Local transcription and transcript review provide controlled source material for a local language model to create a draft, which the user can then refine and export.
 
@@ -65,7 +65,7 @@ Configuration resolves in this order:
 
 `global default < project default < meeting override`
 
-The resolved values should be snapshotted when a processing job starts so a later settings change cannot silently alter a running result or its provenance. Relevant settings include meeting/content language, transcription preset, vocabulary sets, participants, protocol style, writing provider/model, and export template. The goal is repeatability of inputs, not a promise of byte-identical model output.
+The resolved values should be snapshotted when a processing job starts so a later settings change cannot silently alter a running result or its provenance. Relevant settings include meeting/content language, transcription preset, vocabulary sets, participants, protocol style, writing provider/model, and export template. The goal is repeatability of inputs, not a guarantee of byte-identical model output.
 
 Interface language and meeting/content language are independent. The language selected for transcription and protocol generation never implicitly changes the application interface language.
 

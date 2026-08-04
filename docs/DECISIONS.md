@@ -42,7 +42,7 @@ Status values: **Accepted**, **Proposed**, **Approval required**, **Deferred**.
 
 1. **Local-first versus external runtimes.** Ollama is local but separately installed, versioned, and configured. A first adapter can accelerate validation, but a self-contained product may eventually need a supervised `llama.cpp` runtime.
 2. **Portable artifacts versus relational authority.** SQLite is authoritative for identity, relationships, lifecycle, revision metadata, jobs, and artifact path/checksum records. The immutable file is authoritative for the content of its committed revision. The storage spike validated the basic dual-write/reconciliation sequence; low-disk, migration, real-process crash, and repair UX remain production hardening risks.
-3. **Vocabulary expectations.** Prompt/context injection can improve recognition but does not guarantee transcription spelling. The UI must not promise training or perfect terminology.
+3. **Vocabulary expectations.** Prompt/context injection can improve recognition but does not guarantee transcription spelling. The UI must not claim training or perfect terminology.
 4. **Cancellation versus resumability.** Sidecars can usually be terminated, but arbitrary inference checkpoints are runtime-specific. v0.1 resumes from durable stages, not from an exact token/audio frame.
 5. **macOS-first versus portability.** Metal and macOS permissions should be adapters, not assumptions in domain/application layers.
 6. **Bundling versus download size/licensing.** `ffmpeg`, model files, and inference binaries have provenance, architecture, signing, size, and licence implications. Resolve before distribution.
@@ -428,7 +428,7 @@ Keep/change decision:
 Risks and required production changes:
 
 - The browser must still be profiled with large documents while real model work runs; DOM updates, spellcheck, text selection, IPC serialization, and durable file replacement are outside this synthetic measurement.
-- Navigating or closing with an in-flight/failed save requires explicit UX. A component destructor cannot silently promise that asynchronous persistence completed.
+- Navigating or closing with an in-flight/failed save requires explicit UX. A component destructor cannot silently guarantee that asynchronous persistence completed.
 - The writing workspace needs keyboard, focus, text scaling, screen-reader naming, undo/redo, find, selection, recovery, and long-document visual acceptance checks during the vertical slice.
 - Edited-after-review semantics are now accepted in D-025: autosave protects the changed working draft, the exact reviewed revision remains preserved, and the current presentation becomes `changed since review`. Implementation belongs to the later protocol stage.
 

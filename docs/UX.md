@@ -2,7 +2,7 @@
 
 This document describes LocaLog from the user’s point of view. It is detailed because quiet, dependable software depends on decisions about ordinary moments: where work belongs, what happens next, how saving is communicated, and what remains safe when a process fails.
 
-This document is the primary interaction contract for LocaLog. Product and architecture documents define promise, scope, and technical boundaries. If an implementation convenience conflicts with this contract, the contract wins unless the product decision is explicitly changed.
+This document is the primary interaction contract for LocaLog. Product and architecture documents define the goals, scope, and technical boundaries. If an implementation convenience conflicts with this contract, the contract wins unless the product decision is explicitly changed.
 
 ## Product experience contract
 
@@ -203,7 +203,7 @@ Managed from the project context or project settings. Suitable entries include t
 
 Project vocabulary applies by default to the project's meetings. Users should not repeatedly select it unless they want a meeting-specific override. Each entry may carry preferred spelling, category, aliases, note, scope, and enabled state.
 
-Vocabulary may assist transcription context and protocol generation where supported. The UI must not promise fine-tuning, training, or perfect spelling.
+Vocabulary may assist transcription context and protocol generation where supported. The UI must not claim fine-tuning, training, or perfect spelling.
 
 ## Protocol-style ownership and behaviour
 
@@ -296,7 +296,9 @@ Required v0.1 behaviour:
 - a clear **Generate protocol** action;
 - access to meeting context and resolved style/vocabulary.
 
-Speakers are separated automatically (via an ONNX diariser; see D-029) and arrive as `Speaker 1`, `Speaker 2`, … that the user can rename, reassign, merge, or split. Diarisation is imperfect, so speakers are always presented as an editable starting point: do not display confident participant avatars or treat inferred speakers as authoritative identities. If diarisation is unavailable or fails, the transcript still commits with a single speaker and an honest note.
+Speakers are **intended** to be separated automatically (via an ONNX diariser; see D-029). That capability is **not built yet** — today every segment is labelled `Speaker 1` and only global renaming exists. Until the diariser ships, the interface must not imply that speakers were detected.
+
+Once it exists, speakers arrive as `Speaker 1`, `Speaker 2`, … that the user can rename, reassign, merge, or split. Diarisation is imperfect, so speakers are always presented as an editable starting point: do not display confident participant avatars or treat inferred speakers as authoritative identities. If diarisation is unavailable or fails, the transcript still commits with a single speaker and an honest note.
 
 The screen may use a dismissible inspector for speakers and unclear terms. At narrower widths it becomes a drawer or inline section so transcript reading remains dominant.
 

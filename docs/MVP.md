@@ -1,6 +1,6 @@
 # v0.1 MVP
 
-This document defines the smallest complete version that can prove LocaLog’s central promise. “MVP” does not mean a disposable or visually unfinished application. It means a deliberately bounded workflow whose interface, privacy, and data handling are already trustworthy enough to evaluate honestly.
+This document defines the smallest complete version that can prove LocaLog’s central goal. “MVP” does not mean a disposable or visually unfinished application. It means a deliberately bounded workflow whose interface, privacy, and data handling are already trustworthy enough to evaluate honestly.
 
 ## Objective
 
