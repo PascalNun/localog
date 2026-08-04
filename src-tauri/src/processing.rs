@@ -2,6 +2,7 @@
 
 use crate::domain::{TranscriptSegment, WorkspaceSnapshot};
 use crate::media;
+use crate::models;
 use crate::provider;
 use crate::runtime;
 use crate::storage;
@@ -283,6 +284,34 @@ pub(crate) fn queue_transcription(
     Ok((job, repository.workspace_snapshot()?))
 }
 
+/// Name only what is actually missing, so the message points at one next action.
+fn missing_runtime_message(repository: &WorkspaceRepository) -> String {
+    let preset = repository
+        .read_setting("transcription.preset")
+        .ok()
+        .flatten()
+        .filter(|value| models::is_known_preset(value))
+        .unwrap_or_else(|| models::DEFAULT_PRESET.to_string());
+    let model_ready = models::model_path_for_preset(&repository.root, &preset).is_some();
+    let executable_ready = repository
+        .read_setting("transcription.whisperExecutable")
+        .ok()
+        .flatten()
+        .map(PathBuf::from)
+        .is_some_and(|path| path.is_file());
+    match (model_ready, executable_ready) {
+        (false, _) => format!(
+            "Download the {preset} transcription quality in Settings → Transcription, then try again."
+        ),
+        (true, false) => {
+            "Choose a whisper.cpp executable in Settings → Transcription → advanced details.".into()
+        }
+        (true, true) => {
+            "The transcription runtime could not be prepared. Try again from Settings → Transcription.".into()
+        }
+    }
+}
+
 fn transcription_metadata(
     repository: &WorkspaceRepository,
     language: &str,
@@ -303,9 +332,13 @@ fn transcription_metadata(
     let executable = repository
         .read_setting("transcription.whisperExecutable")?
         .map(PathBuf::from);
-    let model = repository
-        .read_setting("transcription.whisperModel")?
-        .map(PathBuf::from);
+    // The user chooses a quality preset; the model is resolved from what is
+    // installed for it, never from a user-entered path.
+    let preset = repository
+        .read_setting("transcription.preset")?
+        .filter(|value| models::is_known_preset(value))
+        .unwrap_or_else(|| models::DEFAULT_PRESET.to_string());
+    let model = models::model_path_for_preset(&repository.root, &preset);
     let resolved = executable.zip(model).and_then(|(executable, model)| {
         let runtime_config = runtime::validate_config(&executable, &model).ok()?;
         let runtime_version = runtime::executable_version(&runtime_config.executable)?;
@@ -783,8 +816,7 @@ fn execute_real_transcription(
         .as_deref()
         .ok_or_else(|| ProcessingError::Runtime {
             code: "runtime_missing",
-            message: "Choose a whisper.cpp executable and model in Settings → Transcription."
-                .into(),
+            message: missing_runtime_message(repository),
         })
         .and_then(|value| {
             serde_json::from_str(value).map_err(|_| ProcessingError::Runtime {
@@ -921,10 +953,16 @@ fn execute_real_transcription(
         .join(format!("{}-transcript", job.id));
     fs::create_dir_all(output_base.parent().ok_or(ProcessingError::InvalidOutput)?)?;
     report(70, "transcribing_audio")?;
-    let output = runtime::run_process(
+    let output = runtime::run_process_with_progress(
         media::whisper_command(&config, &normalized, &output_base, &resolved.language_code),
         cancellation,
         runtime::ProcessLimits::with_max_output(2 * 1024 * 1024),
+        media::parse_whisper_progress,
+        |percent| {
+            // Map whisper's 0..=100 onto this stage's 70..=87 band.
+            let scaled = 70 + u64::from(percent) * 17 / 100;
+            let _ = report(scaled, "transcribing_audio");
+        },
     )
     .map_err(|failure| match failure {
         runtime::ProcessFailure::Cancelled => ProcessingError::Cancelled,
@@ -2369,6 +2407,42 @@ mod tests {
         }
     }
 
+    /// Locks the whisper.cpp JSON contract against a real capture from whisper.cpp v1.9.2
+    /// (`--output-json` on the public-domain jfk.wav sample). If a future build changes the
+    /// transcript shape, this fails instead of silently producing an empty transcript.
+    #[test]
+    fn parses_real_whisper_cpp_v1_9_2_output_json() {
+        // Verbatim `--output-json` output; only the systeminfo string is shortened.
+        let json = r#"{
+            "systeminfo": "MTL : EMBED_LIBRARY = 1",
+            "model": { "type": "base", "multilingual": true },
+            "params": { "model": "models/ggml-base.bin", "language": "en", "translate": false },
+            "result": { "language": "en" },
+            "transcription": [
+                {
+                    "timestamps": { "from": "00:00:00,000", "to": "00:00:10,500" },
+                    "offsets": { "from": 0, "to": 10500 },
+                    "text": " And so my fellow Americans ask not what your country can do for you, ask what you can do for your country."
+                }
+            ]
+        }"#;
+        let checksum = "abcdef0123456789".repeat(4); // 64-char synthetic checksum
+        let artifact = parse_whisper_json(json, "meeting-1", "transcript-1", "English", &checksum)
+            .expect("real whisper.cpp v1.9.2 output must parse");
+        assert_eq!(artifact.language, "English");
+        assert_eq!(artifact.segments.len(), 1);
+        let segment = &artifact.segments[0];
+        assert_eq!(segment.start_ms, 0);
+        assert_eq!(segment.end_ms, 10_500);
+        assert_eq!(segment.speaker, "Speaker 1");
+        assert!(segment.text.starts_with("And so my fellow Americans"));
+        assert!(
+            !segment.text.starts_with(' '),
+            "leading whitespace must be trimmed"
+        );
+        assert_eq!(segment.id, "segment-abcdef01-0001");
+    }
+
     #[test]
     fn complete_fake_workflow_persists_revisions_autosave_and_review_semantics() {
         let fixture = Fixture::source_ready();
@@ -2795,14 +2869,22 @@ mod tests {
     #[test]
     fn real_transcription_metadata_snapshots_runtime_and_model_provenance() {
         let temporary = tempdir().unwrap();
-        let model = temporary.path().join("model.ggml");
-        fs::write(&model, b"synthetic model bytes").unwrap();
-        let repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let root = temporary.path();
+        // The model is resolved from the selected preset, not a user path. Place a
+        // size-matching model for "fast" (tiny) in managed storage. set_len makes it
+        // sparse, so the registry-sized file exists without writing 77 MB.
+        let model_dir = root.join("models");
+        fs::create_dir_all(&model_dir).unwrap();
+        let model = model_dir.join("ggml-tiny.bin");
+        let file = fs::File::create(&model).unwrap();
+        file.set_len(77_691_713).unwrap();
+        drop(file);
+        let repository = WorkspaceRepository::open(root).unwrap();
         repository
             .write_setting("transcription.whisperExecutable", "/bin/echo")
             .unwrap();
         repository
-            .write_setting("transcription.whisperModel", &model.to_string_lossy())
+            .write_setting("transcription.preset", "fast")
             .unwrap();
 
         let (_, runtime_version, model_digest, settings_json, runtime_config_json) =
@@ -2811,6 +2893,7 @@ mod tests {
             serde_json::from_str(&runtime_config_json.unwrap()).unwrap();
         let provenance = runtime::model_provenance(&model).unwrap();
 
+        assert_eq!(config.model_path, model);
         assert_eq!(runtime_version, config.runtime_version);
         assert_eq!(model_digest, provenance.digest);
         assert_eq!(config.model_byte_count, provenance.byte_count);

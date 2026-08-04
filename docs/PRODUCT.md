@@ -51,7 +51,8 @@ Microphone and system-audio recording remain specified for Phase 2, but the Reco
 
 - Create projects and meetings with inherited defaults.
 - Import audio or video, preserve the source, and normalise working audio locally.
-- Transcribe locally with human-friendly quality presets.
+- Transcribe locally with human-friendly quality presets, using a bundled runtime and models downloaded on demand (the user picks a quality, not a runtime).
+- Separate speakers automatically, presented as editable, provisional labels rather than confirmed identities.
 - Review transcript text, timestamps, speaker labels, and unclear terms.
 - Apply global and project vocabulary containing names, acronyms, organisations, places, and technical terms.
 - Generate an editable protocol with a user-selectable local model and reusable protocol style.
@@ -110,9 +111,8 @@ Styles are content, not model settings. Temperature, context size, quantisation,
 - Calendar integrations or meeting bots
 - Mobile clients
 - Live transcription
-- Automatic speaker diarisation
 - System-audio or microphone recording
-- Model marketplace or training/fine-tuning
+- Model marketplace or training/fine-tuning (managed on-demand download of known models is in scope; a marketplace and fine-tuning are not)
 - Final-authority or compliance claims
 - Rich project management, task tracking, or search across an organisation
 

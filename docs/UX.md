@@ -159,7 +159,7 @@ The setup is lightweight and uses project defaults. Required information is limi
 
 Inherited project values are visibly identified and directly overridable. Interface language and meeting/content language remain separate concepts.
 
-The normal transcription choices are **Fast**, **Balanced**, and **Accurate**, with a sensible default. Exact Whisper model names, runtime, model paths, quantisation, chunking, and similar details remain in Advanced settings.
+The normal transcription choices are **Fast**, **Balanced**, and **Accurate**, with a sensible default. The whisper.cpp runtime is bundled and never surfaced as a path; the model a preset needs is downloaded on demand with explicit consent. The exact model behind a preset, quantisation, chunking, and similar details remain in Advanced settings. See [TRANSCRIPTION_EXPERIENCE.md](TRANSCRIPTION_EXPERIENCE.md).
 
 The resolved writing provider/model may be shown quietly, but model selection must not dominate meeting creation. The user's goal is a protocol, not operation of an inference runtime.
 
@@ -288,15 +288,15 @@ Required v0.1 behaviour:
 - timestamps that seek the source audio;
 - a compact audio transport with play/pause and seeking;
 - editable transcript text;
-- generic or manually assigned speaker labels;
-- speaker renaming/mapping without implying automatic diarisation;
+- automatically separated speakers, presented as editable and provisional;
+- speaker renaming, reassignment, merge, and split in review;
 - review and correction of unclear terms;
 - vocabulary suggestions where useful and honest;
 - visible autosave state and recovery;
 - a clear **Generate protocol** action;
 - access to meeting context and resolved style/vocabulary.
 
-Automatic diarisation is not required. Until it exists, synthetic examples and UI language use `Speaker 1`, `Speaker 2`, or user-assigned participant names only after explicit mapping. Do not display confident participant avatars or inferred speaker identities.
+Speakers are separated automatically (via an ONNX diariser; see D-029) and arrive as `Speaker 1`, `Speaker 2`, … that the user can rename, reassign, merge, or split. Diarisation is imperfect, so speakers are always presented as an editable starting point: do not display confident participant avatars or treat inferred speakers as authoritative identities. If diarisation is unavailable or fails, the transcript still commits with a single speaker and an honest note.
 
 The screen may use a dismissible inspector for speakers and unclear terms. At narrower widths it becomes a drawer or inline section so transcript reading remains dominant.
 
@@ -346,7 +346,7 @@ Initial categories:
 - Appearance;
 - Advanced, only for diagnostics and justified technical controls.
 
-Product-language labels appear before runtime terminology. Models and Transcription show usable defaults first; exact paths, runtime details, context windows, and similar controls use progressive disclosure.
+Product-language labels appear before runtime terminology. Models and Transcription show usable quality choices first; the bundled transcription runtime is never shown as a path, models are managed (ready / download on demand / remove to reclaim space), and lower-level details such as the exact model, context windows, and generation-provider configuration use progressive disclosure.
 
 Storage explains the app-managed data location and provides reveal/open guidance where safe. Backup/restore UI remains subject to the v0.1 hardening decision. Privacy explains local processing and the separate privacy boundary of an externally installed loopback provider.
 
@@ -534,14 +534,13 @@ Every control defines default, hover, active, `focus-visible`, disabled, loading
 ## Explicit exclusions for v0.1
 
 - active microphone or system-audio recording;
-- automatic diarisation as a requirement;
 - Inbox or orphan source queue;
 - top-level recording/transcript/protocol libraries;
 - accounts, avatars, sharing, teams, collaboration, or cloud sync;
 - calendar integration, meeting bots, live transcription, or mobile apps;
 - permanent AI chat or general-purpose prompt field;
-- public provider/plugin SDK or model-manager navigation;
-- automatic model downloads;
+- public provider/plugin SDK, or model-manager navigation in the sidebar (model management lives inside Settings);
+- silent or non-consented model downloads (consent-gated on-demand download of known models is in scope — D-028);
 - DOCX/PDF export or export-template designer;
 - semantic organisation-wide search;
 - automatic finalisation or compliance claims;
@@ -554,7 +553,7 @@ Every control defines default, hover, active, `focus-visible`, disabled, loading
 - Start and New Meeting omit Record until recording works; recording remains Phase 2.
 - Export Templates is hidden until functional rather than shown as a disabled library destination.
 - Dropped/selected files require project placement before durable copying, preserving the no-orphan invariant.
-- Transcript speaker UI does not imply automatic diarisation or reliable identity inference.
+- Transcript speaker UI presents automatically separated speakers as editable and provisional, never as reliable identity inference.
 - Protocol refinement is contextual and temporary; there is no permanent chat field.
 - Sharing, avatars, account UI, rich toolbars, and generic dashboard elements are non-requirements.
 - Project meetings are ordered chronologically with newest first, resolving the previous ambiguous wording.

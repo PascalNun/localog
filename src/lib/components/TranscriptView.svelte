@@ -21,15 +21,44 @@
   export let onRetry: () => Promise<void>;
   export let onUpdateSegment: (segmentId: string, text: string) => Promise<void>;
   export let onUpdateSpeaker: (speaker: string, replacement: string) => Promise<void>;
+  export let onLoadAudio: (
+    meetingId: string,
+  ) => Promise<{ source: string; durationMs: number | null } | null>;
 
   let isPlaying = false;
   let currentSeconds = 0;
   let query = '';
   let inspectorOpen = true;
-  let playbackTimer: ReturnType<typeof setInterval> | null = null;
   let saveState: 'saved' | 'saving' | 'failed' = transcript?.saveState ?? 'saved';
+  let audioElement: HTMLAudioElement | null = null;
+  let audioSource: string | null = null;
+  let audioDuration = 0;
+  let followPlayback = true;
 
   $: segments = transcript?.segments ?? [];
+
+  // Working audio only exists once the source has been prepared for transcription.
+  $: void loadAudio(meeting.id);
+
+  async function loadAudio(meetingId: string) {
+    const audio = await onLoadAudio(meetingId);
+    audioSource = audio?.source ?? null;
+    if (audio?.durationMs) audioDuration = audio.durationMs / 1000;
+  }
+
+  // The segment under the playhead, used to highlight and to follow along.
+  $: activeSegmentId =
+    segments.find(
+      (segment) =>
+        currentSeconds * 1000 >= segment.startMs && currentSeconds * 1000 < segment.endMs,
+    )?.id ?? null;
+
+  $: if (activeSegmentId && isPlaying && followPlayback) scrollSegmentIntoView(activeSegmentId);
+
+  function scrollSegmentIntoView(segmentId: string) {
+    const element = window.document.querySelector(`[data-segment-row="${segmentId}"]`);
+    element?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
 
   $: relevantJob = job?.meetingId === meeting.id && job.kind === 'generation' ? job : null;
   $: generationUnavailable = Boolean(relevantJob && relevantJob.state !== 'completed');
@@ -42,23 +71,15 @@
   $: unclearCount = segments.filter((segment) => segment.needsReview).length;
 
   function togglePlayback() {
-    isPlaying = !isPlaying;
-    if (isPlaying && !playbackTimer) {
-      playbackTimer = setInterval(() => {
-        currentSeconds = Math.min(102, currentSeconds + 1);
-        if (currentSeconds >= 102) stopPlayback();
-      }, 1000);
-    } else if (!isPlaying) stopPlayback();
+    if (!audioElement) return;
+    if (audioElement.paused) void audioElement.play();
+    else audioElement.pause();
   }
 
-  function stopPlayback() {
-    isPlaying = false;
-    if (playbackTimer) clearInterval(playbackTimer);
-    playbackTimer = null;
-  }
-
+  /// Move the playhead; clicking a segment jumps the audio to that moment.
   function seek(seconds: number) {
     currentSeconds = seconds;
+    if (audioElement) audioElement.currentTime = seconds;
   }
 
   function segmentTimeLabel(milliseconds: number) {
@@ -99,7 +120,8 @@
     return `${minutes}:${remainder}`;
   }
 
-  onDestroy(stopPlayback);
+  // Stop audio when leaving review so it cannot keep playing on another screen.
+  onDestroy(() => audioElement?.pause());
 </script>
 
 <main class="workspace dense-workspace" id="main-content">
@@ -125,23 +147,49 @@
   <div class:without-inspector={!inspectorOpen} class="context-layout">
     <div class="transcript-main">
       <section class="audio-transport" aria-label="Meeting source context">
-        <button
-          class="play-button"
-          onclick={togglePlayback}
-          aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
-          ><Icon name={isPlaying ? 'pause' : 'play'} size={20} /></button
-        >
-        <span class="time-readout">{timeLabel(currentSeconds)}</span>
-        <input
-          aria-label="Seek audio"
-          class="seek-range"
-          type="range"
-          min="0"
-          max="102"
-          bind:value={currentSeconds}
-        />
-        <span class="time-readout">01:42</span>
-        <span class="speed-control">1×</span>
+        {#if audioSource}
+          <audio
+            bind:this={audioElement}
+            src={audioSource}
+            preload="metadata"
+            onloadedmetadata={() => {
+              if (audioElement && Number.isFinite(audioElement.duration))
+                audioDuration = audioElement.duration;
+            }}
+            ontimeupdate={() => (currentSeconds = audioElement?.currentTime ?? 0)}
+            onplay={() => (isPlaying = true)}
+            onpause={() => (isPlaying = false)}
+            onended={() => (isPlaying = false)}
+          ></audio>
+          <button
+            class="play-button"
+            onclick={togglePlayback}
+            aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
+            ><Icon name={isPlaying ? 'pause' : 'play'} size={20} /></button
+          >
+          <span class="time-readout">{timeLabel(currentSeconds)}</span>
+          <input
+            aria-label="Seek audio"
+            class="seek-range"
+            type="range"
+            min="0"
+            max={Math.max(audioDuration, 1)}
+            step="0.1"
+            value={currentSeconds}
+            oninput={(event) => seek(Number(event.currentTarget.value))}
+          />
+          <span class="time-readout">{timeLabel(audioDuration)}</span>
+          <button
+            class="quiet-action follow-toggle"
+            aria-pressed={followPlayback}
+            title="Scroll the transcript to the segment being played"
+            onclick={() => (followPlayback = !followPlayback)}>Follow</button
+          >
+        {:else}
+          <p class="transport-empty">
+            Working audio becomes available once this meeting has been transcribed.
+          </p>
+        {/if}
       </section>
 
       <div class="transcript-toolbar">
@@ -158,8 +206,16 @@
 
       <section class="transcript-list" aria-label="Editable transcript">
         {#each filteredSegments as segment (segment.id)}
-          <article class:needs-review={segment.needsReview} class="transcript-segment">
-            <button class="timestamp" onclick={() => seek(segment.startMs / 1000)}
+          <article
+            class:needs-review={segment.needsReview}
+            class:playing={segment.id === activeSegmentId}
+            class="transcript-segment"
+            data-segment-row={segment.id}
+          >
+            <button
+              class="timestamp"
+              onclick={() => seek(segment.startMs / 1000)}
+              title="Jump to {segmentTimeLabel(segment.startMs)}"
               >{segmentTimeLabel(segment.startMs)}</button
             >
             <span class="speaker-label">{segment.speaker}</span>

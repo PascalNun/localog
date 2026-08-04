@@ -20,8 +20,8 @@ macOS is the first release and performance baseline because it is the current de
 - Create, rename, archive, and list projects and meetings
 - Import one audio/video source into a meeting
 - Media probing and local audio normalisation
-- Local `whisper.cpp` transcription with Fast/Balanced/Accurate presets
-- Transcript segments with timestamps, editable text, and manual speaker labels
+- Local transcription with Fast/Balanced/Accurate presets, using a bundled `whisper.cpp` runtime and models downloaded on demand (no manual runtime/model paths)
+- Automatic speaker separation via an ONNX diariser, with segments carrying timestamps, editable text, and editable/provisional speaker labels
 - Global and project vocabulary; resolved into a meeting job snapshot
 - Reusable/editable protocol styles
 - One validated local protocol-provider adapter plus a fake adapter for tests
@@ -36,11 +36,10 @@ macOS is the first release and performance baseline because it is the current de
 ## Excluded
 
 - Built-in microphone or system-audio recording
-- Automatic diarisation
 - DOCX/PDF export and template designer
 - Traceability from protocol statements to transcript/audio
 - Cross-device sync, collaboration, calendar, bots, mobile
-- Automatic model downloads/manager unless explicitly approved after the spike
+- A model marketplace, or model training/fine-tuning (managed on-demand download of known models is in scope; see D-028)
 - In-app chat or general-purpose prompting
 
 ## Implementation sequence

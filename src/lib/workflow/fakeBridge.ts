@@ -563,13 +563,66 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     };
   }
 
-  async configureTranscriptionRuntime(
-    _executablePath: string,
-    _modelPath: string,
-  ): Promise<TranscriptionRuntimeStatus> {
-    void _executablePath;
-    void _modelPath;
+  async configureTranscriptionRuntime(executablePath: string): Promise<TranscriptionRuntimeStatus> {
+    if (this.workspaceStore?.configureTranscriptionRuntime) {
+      return this.workspaceStore.configureTranscriptionRuntime(executablePath);
+    }
     return this.getTranscriptionRuntimeStatus();
+  }
+
+  async getMeetingAudio(meetingId: string): Promise<import('./types').MeetingAudio | null> {
+    // The browser preview has no managed media, so no audio is offered.
+    return this.workspaceStore?.getMeetingAudio?.(meetingId) ?? null;
+  }
+
+  async getTranscriptionCapability(): Promise<import('./types').TranscriptionCapability> {
+    if (this.workspaceStore?.getTranscriptionCapability) {
+      return this.workspaceStore.getTranscriptionCapability();
+    }
+    // The browser preview has no managed storage, so nothing is installed.
+    return {
+      selectedPreset: 'balanced',
+      presets: [
+        { preset: 'fast', modelId: 'tiny', byteCount: 77_691_713, installed: false },
+        { preset: 'balanced', modelId: 'base', byteCount: 147_951_465, installed: false },
+        { preset: 'accurate', modelId: 'medium', byteCount: 1_533_763_059, installed: false },
+      ],
+    };
+  }
+
+  async setTranscriptionPreset(
+    preset: import('./types').TranscriptionPreset,
+  ): Promise<import('./types').TranscriptionCapability> {
+    if (this.workspaceStore?.setTranscriptionPreset) {
+      return this.workspaceStore.setTranscriptionPreset(preset);
+    }
+    const capability = await this.getTranscriptionCapability();
+    return { ...capability, selectedPreset: preset };
+  }
+
+  async downloadTranscriptionModel(modelId: string): Promise<void> {
+    await this.workspaceStore?.downloadTranscriptionModel?.(modelId);
+  }
+
+  async cancelTranscriptionDownload(modelId: string): Promise<void> {
+    await this.workspaceStore?.cancelTranscriptionDownload?.(modelId);
+  }
+
+  async removeTranscriptionModel(
+    modelId: string,
+  ): Promise<import('./types').TranscriptionCapability> {
+    if (this.workspaceStore?.removeTranscriptionModel) {
+      return this.workspaceStore.removeTranscriptionModel(modelId);
+    }
+    return this.getTranscriptionCapability();
+  }
+
+  subscribeModelEvents(handlers: {
+    onProgress: (progress: import('./types').ModelDownloadProgress) => void;
+    onChanged: (capability: import('./types').TranscriptionCapability) => void;
+    onError: (error: import('./types').ModelDownloadError) => void;
+  }): () => void {
+    return this.workspaceStore?.subscribeModelEvents?.(handlers) ?? (() => {});
   }
 
   async exportProtocol(

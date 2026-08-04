@@ -3,6 +3,8 @@
   import type {
     FakeJobOutcome,
     ProtocolProviderStatus,
+    TranscriptionCapability,
+    TranscriptionPreset,
     TranscriptionRuntimeStatus,
   } from '../workflow/types';
   import Icon from './Icon.svelte';
@@ -12,8 +14,16 @@
   export let onToggleTheme: () => void;
   export let onSetNextJobOutcome: (outcome: FakeJobOutcome) => Promise<void>;
   export let runtimeStatus: TranscriptionRuntimeStatus;
+  export let runtimeError: string | null = null;
   export let providerStatus: ProtocolProviderStatus;
-  export let onConfigureRuntime: (executablePath: string, modelPath: string) => Promise<void>;
+  export let capability: TranscriptionCapability;
+  export let downloading: Record<string, number> = {};
+  export let modelError: string | null = null;
+  export let onSelectPreset: (preset: TranscriptionPreset) => Promise<void>;
+  export let onDownloadModel: (modelId: string) => Promise<void>;
+  export let onCancelDownload: (modelId: string) => Promise<void>;
+  export let onRemoveModel: (modelId: string) => Promise<void>;
+  export let onConfigureRuntime: (executablePath: string) => Promise<void>;
   export let onRefreshProvider: () => Promise<void>;
   export let onConfigureProvider: (model: string | null) => Promise<void>;
 
@@ -28,10 +38,21 @@
     'Advanced',
   ];
   let executablePath = '';
-  let modelPath = '';
+  let showAdvanced = false;
   let selectedProviderModel = '';
+
+  // Product language first: the user picks an outcome, not a model.
+  const presetLabels: Record<TranscriptionPreset, { name: string; detail: string }> = {
+    fast: { name: 'Fast', detail: 'Quick drafts, lightest on memory' },
+    balanced: { name: 'Balanced', detail: 'Everyday meetings' },
+    accurate: { name: 'Accurate', detail: 'Best quality, slowest' },
+  };
+
+  function formatSize(bytes: number): string {
+    if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+    return `${Math.round(bytes / 1024 ** 2)} MB`;
+  }
   $: executablePath = runtimeStatus?.executablePath ?? executablePath;
-  $: modelPath = runtimeStatus?.modelPath ?? modelPath;
   $: selectedProviderModel = providerStatus?.selectedModel ?? selectedProviderModel;
 
   async function chooseExecutable() {
@@ -42,16 +63,6 @@
       title: 'Choose whisper.cpp executable',
     });
     if (typeof selected === 'string') executablePath = selected;
-  }
-
-  async function chooseModel() {
-    if (!('__TAURI_INTERNALS__' in window)) return;
-    const selected = await open({
-      multiple: false,
-      directory: false,
-      title: 'Choose whisper.cpp model',
-    });
-    if (typeof selected === 'string') modelPath = selected;
   }
 </script>
 
@@ -133,43 +144,86 @@
       {:else if section === 'Transcription'}
         <div class="setting-row">
           <div>
-            <h3>whisper.cpp runtime</h3>
+            <h3>Transcription quality</h3>
             <p>
-              Choose an already installed whisper.cpp executable and model. LocaLog never downloads
-              models.
+              Choose the quality you want. LocaLog downloads what it needs the first time and keeps
+              it on this device.
             </p>
           </div>
-          <span class:setting-value={runtimeStatus?.executableFound} class="setting-value">
-            {runtimeStatus?.executableFound ? 'Ready' : 'Not configured'}
-          </span>
         </div>
-        <label class="setting-field"
-          >Executable path<input
-            bind:value={executablePath}
-            placeholder="/path/to/whisper-cli"
-          /><button class="quiet-action" onclick={chooseExecutable}>Choose file</button></label
-        >
-        <label class="setting-field"
-          >Model path<input bind:value={modelPath} placeholder="/path/to/ggml-model.bin" /><button
-            class="quiet-action"
-            onclick={chooseModel}>Choose file</button
-          ></label
-        >
-        <button
-          class="secondary-action"
-          onclick={() => onConfigureRuntime(executablePath, modelPath)}
-          disabled={!executablePath || !modelPath}>Save local runtime</button
-        >
-        {#if runtimeStatus?.runtimeVersion}<p class="setting-hint">
-            Detected: {runtimeStatus.runtimeVersion}
-          </p>{/if}
-        <div class="setting-row">
-          <div>
-            <h3>Default quality</h3>
-            <p>Human-readable preset; exact model mapping remains advanced.</p>
+        <div class="preset-list" role="radiogroup" aria-label="Transcription quality">
+          {#each capability.presets as preset (preset.preset)}
+            {@const active = capability.selectedPreset === preset.preset}
+            {@const busy = downloading[preset.modelId] !== undefined}
+            <div class="preset-row" class:active>
+              <button
+                class="preset-choice"
+                role="radio"
+                aria-checked={active}
+                onclick={() => onSelectPreset(preset.preset)}
+              >
+                <span class="preset-name">{presetLabels[preset.preset].name}</span>
+                <span class="preset-detail">
+                  {presetLabels[preset.preset].detail}
+                  {#if showAdvanced}<span class="preset-model">· {preset.modelId}</span>{/if}
+                </span>
+              </button>
+              <div class="preset-state">
+                {#if busy}
+                  <span class="preset-progress-text">{downloading[preset.modelId]}%</span>
+                  <div
+                    class="preset-progress"
+                    role="progressbar"
+                    aria-valuenow={downloading[preset.modelId]}
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    aria-label="Downloading {presetLabels[preset.preset].name}"
+                  >
+                    <span style="width:{downloading[preset.modelId]}%"></span>
+                  </div>
+                  <button class="quiet-action" onclick={() => onCancelDownload(preset.modelId)}
+                    >Cancel</button
+                  >
+                {:else if preset.installed}
+                  <span class="safe-note"><Icon name="check" size={15} /> Ready</span>
+                  <button class="quiet-action" onclick={() => onRemoveModel(preset.modelId)}
+                    >Remove</button
+                  >
+                {:else}
+                  <button class="secondary-action" onclick={() => onDownloadModel(preset.modelId)}
+                    >Download ({formatSize(preset.byteCount)})</button
+                  >
+                {/if}
+              </div>
+            </div>
+          {/each}
+        </div>
+        {#if modelError}<p class="setting-error" role="alert">{modelError}</p>{/if}
+        <button class="quiet-action" onclick={() => (showAdvanced = !showAdvanced)}>
+          {showAdvanced ? 'Hide advanced details' : 'Show advanced details'}
+        </button>
+        {#if showAdvanced}
+          <div class="advanced-block">
+            <p class="setting-hint">
+              Models are stored in LocaLog’s application data folder and verified before use.
+            </p>
+            <label class="setting-field"
+              >whisper.cpp executable<input
+                bind:value={executablePath}
+                placeholder="/path/to/whisper-cli"
+              /><button class="quiet-action" onclick={chooseExecutable}>Choose file</button></label
+            >
+            <button
+              class="secondary-action"
+              onclick={() => onConfigureRuntime(executablePath)}
+              disabled={!executablePath}>Save runtime</button
+            >
+            {#if runtimeError}<p class="setting-error" role="alert">{runtimeError}</p>{/if}
+            {#if runtimeStatus?.runtimeVersion}<p class="setting-hint">
+                Detected: {runtimeStatus.runtimeVersion}
+              </p>{/if}
           </div>
-          <select><option>Balanced</option><option>Fast</option><option>Accurate</option></select>
-        </div>
+        {/if}
       {:else if section === 'Storage'}
         <div class="setting-row">
           <div>

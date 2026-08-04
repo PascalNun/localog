@@ -877,7 +877,13 @@ impl WorkspaceRepository {
                     WHERE r.meeting_id = m.id
                     ORDER BY r.created_at_ms, r.id LIMIT 1
                 ),
-                m.style_id
+                m.style_id,
+                (
+                    SELECT nm.duration_ms FROM normalized_media nm
+                    JOIN recordings r ON r.id = nm.recording_id
+                    WHERE r.meeting_id = m.id
+                    ORDER BY r.created_at_ms, r.id LIMIT 1
+                )
              FROM meetings m
              WHERE m.archived_at_ms IS NULL
              ORDER BY m.occurred_at DESC, m.created_at_ms DESC, m.id",
@@ -1526,6 +1532,19 @@ fn protocol_style_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Resolved
     })
 }
 
+fn duration_label_from_ms(duration_ms: i64) -> String {
+    let total_seconds = (duration_ms.max(0) / 1000) as u64;
+    let hours = total_seconds / 3600;
+    let minutes = (total_seconds % 3600) / 60;
+    if hours > 0 {
+        format!("{hours} h {minutes:02} min")
+    } else if minutes > 0 {
+        format!("{minutes} min")
+    } else {
+        format!("{total_seconds} s")
+    }
+}
+
 fn meeting_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MeetingSummary> {
     let lifecycle: String = row.get(5)?;
     let lifecycle = MeetingLifecycle::from_str(&lifecycle).ok_or_else(|| {
@@ -1536,12 +1555,15 @@ fn meeting_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MeetingSummary>
         )
     })?;
     let source_byte_count: Option<i64> = row.get(8)?;
+    // Probed duration becomes visible once working audio exists; a stored label wins.
+    let stored_label: Option<String> = row.get(4)?;
+    let duration_ms: Option<i64> = row.get(11).unwrap_or(None);
     Ok(MeetingSummary {
         id: row.get(0)?,
         project_id: row.get(1)?,
         title: row.get(2)?,
         occurred_at: row.get(3)?,
-        duration_label: row.get(4)?,
+        duration_label: stored_label.or_else(|| duration_ms.map(duration_label_from_ms)),
         lifecycle,
         language: row.get(6)?,
         source_name: row.get(7)?,

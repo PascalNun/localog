@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import type {
@@ -12,7 +12,12 @@ import type {
   ProtocolStyle,
   SourceSelection,
   TranscriptDocument,
+  MeetingAudio,
+  TranscriptionCapability,
+  TranscriptionPreset,
   TranscriptionRuntimeStatus,
+  ModelDownloadError,
+  ModelDownloadProgress,
   VocabularyEntry,
 } from './types';
 
@@ -66,10 +71,18 @@ export interface WorkspaceStore {
   ): Promise<void>;
   subscribe(listener: (workspace: WorkspaceData) => void): Promise<UnlistenFn>;
   getTranscriptionRuntimeStatus?: () => Promise<TranscriptionRuntimeStatus>;
-  configureTranscriptionRuntime?: (
-    executablePath: string,
-    modelPath: string,
-  ) => Promise<TranscriptionRuntimeStatus>;
+  configureTranscriptionRuntime?: (executablePath: string) => Promise<TranscriptionRuntimeStatus>;
+  getMeetingAudio?: (meetingId: string) => Promise<MeetingAudio | null>;
+  getTranscriptionCapability?: () => Promise<TranscriptionCapability>;
+  setTranscriptionPreset?: (preset: TranscriptionPreset) => Promise<TranscriptionCapability>;
+  downloadTranscriptionModel?: (modelId: string) => Promise<void>;
+  cancelTranscriptionDownload?: (modelId: string) => Promise<void>;
+  removeTranscriptionModel?: (modelId: string) => Promise<TranscriptionCapability>;
+  subscribeModelEvents?: (handlers: {
+    onProgress: (progress: ModelDownloadProgress) => void;
+    onChanged: (capability: TranscriptionCapability) => void;
+    onError: (error: ModelDownloadError) => void;
+  }) => () => void;
   exportProtocol?: (
     meetingId: string,
     format: 'markdown' | 'text',
@@ -208,14 +221,72 @@ class TauriWorkspaceStore implements WorkspaceStore {
     return invoke<TranscriptionRuntimeStatus>('transcription_runtime_status');
   }
 
-  configureTranscriptionRuntime(
-    executablePath: string,
-    modelPath: string,
-  ): Promise<TranscriptionRuntimeStatus> {
+  configureTranscriptionRuntime(executablePath: string): Promise<TranscriptionRuntimeStatus> {
     return invoke<TranscriptionRuntimeStatus>('configure_transcription_runtime', {
       executablePath,
-      modelPath,
     });
+  }
+
+  async getMeetingAudio(meetingId: string): Promise<MeetingAudio | null> {
+    const found = await invoke<{ path: string; durationMs: number | null } | null>(
+      'meeting_audio',
+      {
+        meetingId,
+      },
+    );
+    if (!found) return null;
+    // The asset protocol streams the file with range requests instead of
+    // holding a long recording in memory.
+    return { source: convertFileSrc(found.path), durationMs: found.durationMs };
+  }
+
+  getTranscriptionCapability(): Promise<TranscriptionCapability> {
+    return invoke<TranscriptionCapability>('transcription_capability');
+  }
+
+  setTranscriptionPreset(preset: TranscriptionPreset): Promise<TranscriptionCapability> {
+    return invoke<TranscriptionCapability>('set_transcription_preset', { preset });
+  }
+
+  downloadTranscriptionModel(modelId: string): Promise<void> {
+    return invoke('download_transcription_model', { modelId });
+  }
+
+  cancelTranscriptionDownload(modelId: string): Promise<void> {
+    return invoke('cancel_transcription_download', { modelId });
+  }
+
+  removeTranscriptionModel(modelId: string): Promise<TranscriptionCapability> {
+    return invoke<TranscriptionCapability>('remove_transcription_model', { modelId });
+  }
+
+  subscribeModelEvents(handlers: {
+    onProgress: (progress: ModelDownloadProgress) => void;
+    onChanged: (capability: TranscriptionCapability) => void;
+    onError: (error: ModelDownloadError) => void;
+  }): () => void {
+    const pending = [
+      listen<ModelDownloadProgress>('model://progress', (event) =>
+        handlers.onProgress(event.payload),
+      ),
+      listen<TranscriptionCapability>('model://changed', (event) =>
+        handlers.onChanged(event.payload),
+      ),
+      listen<ModelDownloadError>('model://error', (event) => handlers.onError(event.payload)),
+    ];
+    let stopped = false;
+    const unlisteners: UnlistenFn[] = [];
+    for (const promise of pending) {
+      void promise.then((unlisten) => {
+        // Listeners resolve asynchronously; honour an unsubscribe that arrived first.
+        if (stopped) unlisten();
+        else unlisteners.push(unlisten);
+      });
+    }
+    return () => {
+      stopped = true;
+      for (const unlisten of unlisteners) unlisten();
+    };
   }
 
   async exportProtocol(

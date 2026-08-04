@@ -27,6 +27,8 @@
     NewProjectInput,
     ProtocolProviderStatus,
     WorkflowSnapshot,
+    TranscriptionCapability,
+    TranscriptionPreset,
     TranscriptionRuntimeStatus,
   } from './lib/workflow/types';
 
@@ -51,6 +53,17 @@
     modelDigest: null,
     modelByteCount: null,
   };
+  let runtimeError: string | null = null;
+  let capability: TranscriptionCapability = { selectedPreset: 'balanced', presets: [] };
+  // modelId → percent, present only while a download is in flight.
+  let downloading: Record<string, number> = {};
+  let modelError: string | null = null;
+
+  function withoutModel(entries: Record<string, number>, modelId: string) {
+    const next = { ...entries };
+    delete next[modelId];
+    return next;
+  }
   let providerStatus: ProtocolProviderStatus = {
     endpoint: 'http://127.0.0.1:11434',
     serverReachable: false,
@@ -94,8 +107,26 @@
     applyTheme();
     bridge.getTranscriptionRuntimeStatus().then((status) => (runtimeStatus = status));
     bridge.getProtocolProviderStatus().then((status) => (providerStatus = status));
+    bridge.getTranscriptionCapability().then((next) => (capability = next));
 
-    return bridge.subscribe(
+    const stopModelEvents = bridge.subscribeModelEvents({
+      onProgress: ({ modelId, percent }) => {
+        downloading = { ...downloading, [modelId]: percent };
+      },
+      onChanged: (next) => {
+        capability = next;
+        downloading = {};
+        modelError = null;
+        // A newly installed model can make transcription possible.
+        bridge.getTranscriptionRuntimeStatus().then((status) => (runtimeStatus = status));
+      },
+      onError: ({ modelId, message }) => {
+        downloading = withoutModel(downloading, modelId);
+        modelError = message;
+      },
+    });
+
+    const stopWorkspace = bridge.subscribe(
       (nextSnapshot) => {
         snapshot = nextSnapshot;
         if (!locationRestored && nextSnapshot.activeMeetingId && nextSnapshot.activeRoute) {
@@ -113,6 +144,11 @@
         startupError = message;
       },
     );
+
+    return () => {
+      stopModelEvents();
+      stopWorkspace();
+    };
   });
 
   function handleCompletedJob(nextSnapshot: WorkflowSnapshot) {
@@ -319,6 +355,7 @@
         />
       {:else if route.name === 'transcript' && project && meeting}
         <TranscriptView
+          onLoadAudio={(meetingId: string) => bridge.getMeetingAudio(meetingId)}
           {project}
           {meeting}
           transcript={snapshot.transcripts[meeting.id] ?? null}
@@ -356,12 +393,54 @@
         <SettingsView
           {theme}
           {runtimeStatus}
+          {runtimeError}
           {providerStatus}
+          {capability}
+          {downloading}
+          {modelError}
           nextJobOutcome={snapshot.nextJobOutcome}
           onToggleTheme={toggleTheme}
           onSetNextJobOutcome={(outcome: FakeJobOutcome) => bridge.setNextJobOutcome(outcome)}
-          onConfigureRuntime={async (executablePath, modelPath) => {
-            runtimeStatus = await bridge.configureTranscriptionRuntime(executablePath, modelPath);
+          onSelectPreset={async (preset: TranscriptionPreset) => {
+            try {
+              capability = await bridge.setTranscriptionPreset(preset);
+              modelError = null;
+              runtimeStatus = await bridge.getTranscriptionRuntimeStatus();
+            } catch (error) {
+              modelError = error instanceof Error ? error.message : String(error);
+            }
+          }}
+          onDownloadModel={async (modelId: string) => {
+            modelError = null;
+            // Show the download as started before the first progress event arrives.
+            downloading = { ...downloading, [modelId]: 0 };
+            try {
+              await bridge.downloadTranscriptionModel(modelId);
+            } catch (error) {
+              downloading = withoutModel(downloading, modelId);
+              modelError = error instanceof Error ? error.message : String(error);
+            }
+          }}
+          onCancelDownload={async (modelId: string) => {
+            await bridge.cancelTranscriptionDownload(modelId);
+            downloading = withoutModel(downloading, modelId);
+          }}
+          onRemoveModel={async (modelId: string) => {
+            try {
+              capability = await bridge.removeTranscriptionModel(modelId);
+              modelError = null;
+              runtimeStatus = await bridge.getTranscriptionRuntimeStatus();
+            } catch (error) {
+              modelError = error instanceof Error ? error.message : String(error);
+            }
+          }}
+          onConfigureRuntime={async (executablePath) => {
+            try {
+              runtimeStatus = await bridge.configureTranscriptionRuntime(executablePath);
+              runtimeError = null;
+            } catch (error) {
+              runtimeError = error instanceof Error ? error.message : String(error);
+            }
           }}
           onRefreshProvider={async () => {
             providerStatus = await bridge.getProtocolProviderStatus();

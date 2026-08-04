@@ -159,6 +159,37 @@ export interface TranscriptionRuntimeStatus {
   modelByteCount: number | null;
 }
 
+// The user chooses a quality; the exact model stays an Advanced detail.
+export type TranscriptionPreset = 'fast' | 'balanced' | 'accurate';
+
+export interface TranscriptionPresetStatus {
+  preset: TranscriptionPreset;
+  modelId: string;
+  byteCount: number;
+  installed: boolean;
+}
+
+export interface TranscriptionCapability {
+  selectedPreset: TranscriptionPreset;
+  presets: TranscriptionPresetStatus[];
+}
+
+export interface ModelDownloadProgress {
+  modelId: string;
+  percent: number;
+}
+
+export interface ModelDownloadError {
+  modelId: string;
+  message: string;
+}
+
+export interface MeetingAudio {
+  /** A webview-playable URL for the meeting's working audio. */
+  source: string;
+  durationMs: number | null;
+}
+
 export interface ProtocolProviderModel {
   name: string;
   size: number;
@@ -205,10 +236,20 @@ export interface WorkflowBridge {
   ): Promise<void>;
   setNextJobOutcome(outcome: FakeJobOutcome): Promise<void>;
   getTranscriptionRuntimeStatus(): Promise<TranscriptionRuntimeStatus>;
-  configureTranscriptionRuntime(
-    executablePath: string,
-    modelPath: string,
-  ): Promise<TranscriptionRuntimeStatus>;
+  configureTranscriptionRuntime(executablePath: string): Promise<TranscriptionRuntimeStatus>;
+  /** Working audio for transcript review, or null until it exists. */
+  getMeetingAudio(meetingId: string): Promise<MeetingAudio | null>;
+  getTranscriptionCapability(): Promise<TranscriptionCapability>;
+  setTranscriptionPreset(preset: TranscriptionPreset): Promise<TranscriptionCapability>;
+  downloadTranscriptionModel(modelId: string): Promise<void>;
+  cancelTranscriptionDownload(modelId: string): Promise<void>;
+  removeTranscriptionModel(modelId: string): Promise<TranscriptionCapability>;
+  /** Live download progress, completion, and failure. Returns an unsubscribe function. */
+  subscribeModelEvents(handlers: {
+    onProgress: (progress: ModelDownloadProgress) => void;
+    onChanged: (capability: TranscriptionCapability) => void;
+    onError: (error: ModelDownloadError) => void;
+  }): () => void;
   exportProtocol(meetingId: string, format: 'markdown' | 'text', title: string): Promise<boolean>;
   getProtocolProviderStatus(): Promise<ProtocolProviderStatus>;
   configureProtocolProvider(model: string | null): Promise<ProtocolProviderStatus>;

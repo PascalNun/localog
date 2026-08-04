@@ -138,6 +138,16 @@ pub(crate) fn expected_json_path(base: &Path) -> PathBuf {
     base.with_extension("json")
 }
 
+/// Parse a whisper.cpp `--print-progress` stderr line into a 0..=100 percentage.
+/// The real format is `whisper_print_progress_callback: progress =  43%` with
+/// variable leading whitespace before the number.
+pub(crate) fn parse_whisper_progress(line: &str) -> Option<u8> {
+    let marker = "progress =";
+    let start = line.find(marker)? + marker.len();
+    let number = line[start..].trim().strip_suffix('%')?.trim();
+    number.parse::<u8>().ok().map(|value| value.min(100))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -152,5 +162,26 @@ mod tests {
     #[test]
     fn rejects_invalid_probe_json() {
         assert!(parse_probe("not json").is_err());
+    }
+
+    #[test]
+    fn parses_real_whisper_progress_lines() {
+        // Verbatim whisper.cpp v1.9.2 shapes, including variable leading whitespace.
+        assert_eq!(
+            parse_whisper_progress("whisper_print_progress_callback: progress =  43%"),
+            Some(43)
+        );
+        assert_eq!(
+            parse_whisper_progress("whisper_print_progress_callback: progress = 100%"),
+            Some(100)
+        );
+        assert_eq!(parse_whisper_progress("progress = 5%"), Some(5));
+    }
+
+    #[test]
+    fn ignores_non_progress_lines() {
+        assert_eq!(parse_whisper_progress("main: processing 'audio.wav'"), None);
+        assert_eq!(parse_whisper_progress("progress = notanumber%"), None);
+        assert_eq!(parse_whisper_progress("progress = 50"), None);
     }
 }
