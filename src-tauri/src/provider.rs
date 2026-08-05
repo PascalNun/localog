@@ -149,6 +149,12 @@ struct SectionPayload<'a> {
 }
 
 #[derive(Serialize)]
+struct MergePayload<'a> {
+    meeting_language: &'a str,
+    notes: &'a [String],
+}
+
+#[derive(Serialize)]
 struct SynthesisPayload<'a> {
     meeting_language: &'a str,
     style_id: &'a str,
@@ -410,6 +416,45 @@ impl OllamaProvider {
             notes.push(structured.notes_markdown);
         }
 
+        // The notes must fit the window too, or synthesis silently loses the meeting's
+        // start. Fold them until they do; each round halves the count, so this ends.
+        let budget = synthesis_budget(request);
+        let mut rounds = 0;
+        while notes.iter().map(String::len).sum::<usize>() > budget && notes.len() > 1 {
+            if cancelled.load(Ordering::Acquire) {
+                return Err(ProviderError::Cancelled);
+            }
+            rounds += 1;
+            progress(60, "condensing_transcript")?;
+            // Group by size, not in fixed pairs: two large notes plus room for the
+            // answer can exceed the window, which is the failure this fold exists to
+            // prevent. A note that is already too large on its own passes through.
+            let room = budget.saturating_sub(budget / 4).max(1);
+            let mut merged: Vec<String> = Vec::new();
+            let mut group: Vec<String> = Vec::new();
+            let mut group_len = 0;
+            for note in notes.iter() {
+                if !group.is_empty() && group_len + note.len() > room {
+                    merged.push(self.merge_notes(request, &group, cancelled, progress)?);
+                    group = Vec::new();
+                    group_len = 0;
+                }
+                group_len += note.len();
+                group.push(note.clone());
+            }
+            if !group.is_empty() {
+                merged.push(self.merge_notes(request, &group, cancelled, progress)?);
+            }
+            if merged.len() == notes.len() {
+                // Nothing could be combined; folding further would not help.
+                break;
+            }
+            notes = merged;
+            if rounds > 8 {
+                break;
+            }
+        }
+
         progress(62, "generating_protocol")?;
         let payload = SynthesisPayload {
             meeting_language: &request.meeting_language,
@@ -440,6 +485,38 @@ impl OllamaProvider {
         )?;
         progress(78, "validating_protocol")?;
         Ok(structured.protocol_markdown)
+    }
+
+    /// Combine a group of consecutive notes into one, preserving their content.
+    /// A single note is returned unchanged rather than sent through the model again.
+    fn merge_notes(
+        &self,
+        request: &GenerationRequest,
+        group: &[String],
+        cancelled: &AtomicBool,
+        progress: &mut dyn FnMut(u64, &'static str) -> Result<()>,
+    ) -> Result<String> {
+        if group.len() == 1 {
+            return Ok(group[0].clone());
+        }
+        let payload = MergePayload {
+            meeting_language: &request.meeting_language,
+            notes: group,
+        };
+        let generated = self.complete(
+            request,
+            Completion {
+                system: MERGE_SYSTEM,
+                prompt: &encode_prompt(&payload)?,
+                format: notes_schema(),
+                num_predict: request.maximum_output_tokens,
+            },
+            cancelled,
+            &mut |_| progress(60, "condensing_transcript"),
+        )?;
+        let structured: StructuredNotes = serde_json::from_str(&generated)
+            .map_err(|error| ProviderError::InvalidResponse(truncate(&error.to_string(), 280)))?;
+        Ok(structured.notes_markdown)
     }
 
     /// One bounded, cancellable, streamed completion.
@@ -522,9 +599,11 @@ struct Completion<'a> {
 
 const PROTOCOL_SYSTEM: &str = "Create a reviewable professional meeting protocol using only the supplied transcript. Never invent decisions, actions, owners, or dates. State uncertainty explicitly. Follow the controlled style and return only schema-valid JSON.";
 
-const SECTION_SYSTEM: &str = "Condense one section of a meeting transcript into dense factual notes in the meeting's language. Preserve every decision, agreed action and its owner, open question, number, measurement, date and proper name exactly as stated. Do not summarise away specifics, do not add anything that was not said, and do not write a protocol yet. Return only schema-valid JSON.";
+const SECTION_SYSTEM: &str = "Record one section of a meeting transcript as detailed factual notes in the meeting's language. Completeness matters more than brevity: keep every topic discussed, every decision, every agreed action and its owner, every open question, and every number, measurement, area, date and proper name exactly as stated. Write one bullet per distinct point rather than merging several into a summary sentence. Do not add anything that was not said, and do not write a protocol yet. Return only schema-valid JSON.";
 
 const SYNTHESIS_SYSTEM: &str = "Write a reviewable professional meeting protocol from ordered notes taken across the whole meeting. The notes are the only source. Never invent decisions, actions, owners, or dates, and state uncertainty explicitly. Group related material by topic rather than by the order it was discussed. Follow the controlled style and return only schema-valid JSON.";
+
+const MERGE_SYSTEM: &str = "Combine consecutive sets of meeting notes into one set, in the meeting's language. Keep every decision, action, owner, open question, number, measurement, date and proper name. Remove only exact repetition between the sets. Do not shorten anything that is stated once. Return only schema-valid JSON.";
 
 fn encode_prompt<T: Serialize>(payload: &T) -> Result<String> {
     let bytes = serde_json::to_vec(payload)
@@ -590,6 +669,27 @@ fn plan_sections(request: &GenerationRequest) -> Vec<std::ops::Range<usize>> {
         sections.push(start..total);
     }
     sections
+}
+
+/// Characters of source material that fit alongside the style, the vocabulary and
+/// room for the answer. Used both to divide the transcript and to decide whether the
+/// collected notes still need folding.
+fn synthesis_budget(request: &GenerationRequest) -> usize {
+    const CHARS_PER_TOKEN: usize = 3;
+    let window = request
+        .context_tokens
+        .saturating_sub(request.maximum_output_tokens) as usize;
+    let budget_chars = window * CHARS_PER_TOKEN * 7 / 10;
+    let overhead: usize = request
+        .style
+        .instructions
+        .iter()
+        .chain(request.style.required_sections.iter())
+        .chain(request.vocabulary.iter())
+        .map(|value| value.len() + 8)
+        .sum::<usize>()
+        + 512;
+    budget_chars.saturating_sub(overhead)
 }
 
 fn segment_chars(segment: &GenerationSegment) -> usize {
@@ -706,8 +806,14 @@ mod tests {
             transcript,
             seed: 7,
             temperature_milli: 200,
-            context_tokens: 8192,
-            maximum_output_tokens: 4096,
+            context_tokens: std::env::var("LOCALOG_EVAL_CONTEXT")
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(8192),
+            maximum_output_tokens: std::env::var("LOCALOG_EVAL_OUTPUT")
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(4096),
         };
         let sections = plan_sections(&request);
         println!(
@@ -753,6 +859,10 @@ mod tests {
                 "Mark uncertainty in the words the meeting used, such as an intention, an estimate, or a matter still to be confirmed.".into(),
                 "End with a table of agreed next steps with two columns, the task and the responsible party, followed by a short section for dates and appointments.".into(),
                 "Never invent a decision, an action, an owner, or a date. If the source does not say who is responsible, leave it unattributed.".into(),
+                "Cover every topic that was discussed. A protocol that silently omits a topic is incomplete, even if what remains reads well.".into(),
+                "The table of next steps must list every action that was agreed, not a selection of the clearest ones.".into(),
+                "Write at whatever length the material requires. Do not compress the meeting into a summary: this is a record, and a reader who was absent must be able to follow what was discussed and what follows from it.".into(),
+                "Never leave a placeholder such as [Datum] or [Details]. If something is not in the source, omit the line instead.".into(),
             ],
             required_sections: vec!["Teilnehmende".into()],
         }
