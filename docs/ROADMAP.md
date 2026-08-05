@@ -40,11 +40,13 @@ Approaches, roughly cheapest first:
   propose: a wrong name silently attached to a decision is precisely the kind of invented authority
   the product refuses. Suggestions stay provisional and require confirmation.
 - **Remember a voice within a project.** Diarisation already produces speaker embeddings, so the same
-  person could be recognised across that project's meetings and named once instead of every time.
-  This is the strongest convenience and the most sensitive: a stored voice profile is biometric data.
-  It would require an explicit product and privacy decision, must be local, per project, visible, and
-  deletable, and must be opt-in rather than a silent side effect of transcription. It is recorded as a
-  possibility, not an intention.
+  person can be recognised across that project's meetings and named once instead of every time. This
+  is the strongest convenience available and the intended direction: solving the problem with
+  technology rather than asking the user to repeat themselves. It is also the most sensitive, because
+  a stored voice profile is personal data belonging to the people in the meeting. It is therefore
+  bound by the handling rules in `PRODUCT.md` — local, project-scoped, visible, individually
+  deletable, excluded from exports, and never a silent side effect. The remaining design work is how
+  a profile is created, shown, and deleted, not whether the capability is wanted.
 
 ## Phase 3 — portability and libraries
 
