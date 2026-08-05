@@ -27,20 +27,20 @@ Rules:
 
 The durable vertical slice is real: a meeting can go from imported audio to an exported Markdown protocol, surviving restarts and crashes. Local transcription with whisper.cpp is proven on real audio.
 
-| Area                                | Status         | Note                                                              |
-| ----------------------------------- | -------------- | ----------------------------------------------------------------- |
-| Storage, jobs, crash recovery       | **Done**       | 49 Rust tests; staged writes, reconciliation, immutable revisions |
-| Import → probe → normalise          | **Done**       | Checksummed, cancellable, restart-safe                            |
-| Local transcription (whisper.cpp)   | **Done**       | Contract validated against real v1.9.2 + Metal; live progress     |
-| Model management (download presets) | **Done**       | Verified HTTPS download, checksum, atomic install                 |
-| Transcript review + audio player    | **Partial**    | Real audio/duration, seek, follow-along; playback unconfirmed     |
-| Protocol generation (Ollama)        | **Unverified** | Adapter built and unit-tested; **never run for real**             |
-| Protocol editing, revisions, export | **Done**       | Autosave, review state, Markdown/TXT export                       |
-| Styles + vocabulary library         | **Partial**    | Read-only view only; not editable                                 |
-| Speaker diarisation                 | **Planned**    | D-029 accepted; **no code**; every segment is `Speaker 1`         |
-| Runtime bundling (whisper, FFmpeg)  | **Planned**    | User must still supply a whisper.cpp executable                   |
-| Packaging / distribution            | **Planned**    | `bundle.active: false`; no build exists                           |
-| Accessibility + performance audit   | **Planned**    | Designed for, never measured on the M1/8 GB baseline              |
+| Area                                | Status         | Note                                                               |
+| ----------------------------------- | -------------- | ------------------------------------------------------------------ |
+| Storage, jobs, crash recovery       | **Done**       | 49 Rust tests; staged writes, reconciliation, immutable revisions  |
+| Import → probe → normalise          | **Done**       | Checksummed, cancellable, restart-safe                             |
+| Local transcription (whisper.cpp)   | **Done**       | Contract validated against real v1.9.2 + Metal; live progress      |
+| Model management (download presets) | **Done**       | Verified HTTPS download, checksum, atomic install                  |
+| Transcript review + audio player    | **Partial**    | Real audio/duration, seek, follow-along; playback unconfirmed      |
+| Protocol generation (Ollama)        | **Unverified** | Adapter built and unit-tested; **never run for real**              |
+| Protocol editing, revisions, export | **Done**       | Autosave, review state, Markdown/TXT export                        |
+| Styles + vocabulary library         | **Partial**    | Read-only view only; not editable                                  |
+| Speaker diarisation                 | **Planned**    | Runtime validated by spike; **no product code**; still `Speaker 1` |
+| Runtime bundling (whisper, FFmpeg)  | **Planned**    | User must still supply a whisper.cpp executable                    |
+| Packaging / distribution            | **Planned**    | `bundle.active: false`; no build exists                            |
+| Accessibility + performance audit   | **Planned**    | Designed for, never measured on the M1/8 GB baseline               |
 
 ## Known gaps between the documents and the code
 
@@ -92,8 +92,15 @@ The protocol is the product's purpose, and it is the least validated part.
 ### Phase E — Reach the remaining capability goals
 
 1. `Planned` Editable vocabulary and protocol-style library (a core differentiator that is currently a shell).
-2. `Planned` Speaker diarisation spike (sherpa-onnx: contract, quality, alignment, M1/8 GB memory), then implementation and real speaker tools.
-3. `Planned` Backup and restore.
+2. `Done` Speaker diarisation spike: sherpa-onnx separates three German speakers at 88.2 % frame
+   accuracy, finds the speaker count unaided, needs 46 MB of models and 259 MB peak memory, and runs
+   about 3.2x faster than real time. Recorded in `spikes/speaker-diarisation/` and `DECISIONS.md`.
+3. `Planned` Compare a German-suited embedding model, and test overlapping speech and a long
+   recording on the M1/8 GB baseline.
+4. `Planned` Solve alignment between diariser turns and whisper segments — the substantive remaining
+   design problem — then build the adapter behind the supervised-process boundary.
+5. `Planned` Real speaker tools in review: reassign a segment, merge two labels, split one.
+6. `Planned` Backup and restore.
 
 ### Phase F — Harden for use
 
