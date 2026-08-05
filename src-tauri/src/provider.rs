@@ -397,13 +397,19 @@ impl OllamaProvider {
                 section_count: count,
                 transcript: &request.transcript[range.clone()],
             };
+            let prompt = encode_prompt(&payload)?;
+            let num_predict = answer_budget(
+                request.context_tokens,
+                prompt.len(),
+                request.maximum_output_tokens,
+            );
             let generated = self.complete(
                 request,
                 Completion {
                     system: SECTION_SYSTEM,
-                    prompt: &encode_prompt(&payload)?,
+                    prompt: &prompt,
                     format: notes_schema(),
-                    num_predict: request.maximum_output_tokens,
+                    num_predict,
                 },
                 cancelled,
                 &mut |_| progress(start, "condensing_transcript"),
@@ -470,13 +476,19 @@ impl OllamaProvider {
             vocabulary: &request.vocabulary,
             section_notes: &notes,
         };
+        let prompt = encode_prompt(&payload)?;
+        let num_predict = answer_budget(
+            request.context_tokens,
+            prompt.len(),
+            request.maximum_output_tokens,
+        );
         let generated = self.complete(
             request,
             Completion {
                 system: SYNTHESIS_SYSTEM,
-                prompt: &encode_prompt(&payload)?,
+                prompt: &prompt,
                 format: protocol_schema(),
-                num_predict: request.maximum_output_tokens,
+                num_predict,
             },
             cancelled,
             &mut |_| progress(70, "generating_protocol"),
@@ -507,13 +519,19 @@ impl OllamaProvider {
             meeting_language: &request.meeting_language,
             notes: group,
         };
+        let prompt = encode_prompt(&payload)?;
+        let num_predict = answer_budget(
+            request.context_tokens,
+            prompt.len(),
+            request.maximum_output_tokens,
+        );
         let generated = self.complete(
             request,
             Completion {
                 system: MERGE_SYSTEM,
-                prompt: &encode_prompt(&payload)?,
+                prompt: &prompt,
                 format: notes_schema(),
-                num_predict: request.maximum_output_tokens,
+                num_predict,
             },
             cancelled,
             &mut |_| progress(60, "condensing_transcript"),
@@ -697,6 +715,18 @@ fn synthesis_budget(request: &GenerationRequest) -> usize {
         .sum::<usize>()
         + 512;
     budget_chars.saturating_sub(overhead)
+}
+
+/// How many tokens the model may write back, given what the prompt already occupies.
+/// Asking for more than the window allows is what cuts an answer off mid-JSON.
+fn answer_budget(context_tokens: u32, prompt_chars: usize, requested: u32) -> u32 {
+    const CHARS_PER_TOKEN: usize = 3;
+    const RESERVED_FOR_SYSTEM: u32 = 256;
+    let prompt_tokens = (prompt_chars / CHARS_PER_TOKEN) as u32;
+    let room = context_tokens
+        .saturating_sub(prompt_tokens)
+        .saturating_sub(RESERVED_FOR_SYSTEM);
+    requested.min(room).max(256)
 }
 
 fn segment_chars(segment: &GenerationSegment) -> usize {
