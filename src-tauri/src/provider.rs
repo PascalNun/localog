@@ -227,7 +227,9 @@ impl OllamaProvider {
         let generation_config = ureq::Agent::config_builder()
             .timeout_global(None)
             .timeout_connect(Some(Duration::from_secs(10)))
-            .timeout_recv_response(Some(Duration::from_secs(120)))
+            // Processing a large prompt can take minutes before the first byte arrives.
+            // A dead server is caught by the connect deadline, not by this one.
+            .timeout_recv_response(Some(Duration::from_secs(900)))
             .max_redirects(0)
             .build();
         Self {
