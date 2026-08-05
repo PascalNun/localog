@@ -12,7 +12,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 const DEFAULT_PORT: u16 = 11_434;
-const MAX_RESPONSE_BYTES: usize = 128 * 1024;
+/// Bounded so a runaway model cannot exhaust memory, but generous enough for a
+/// full protocol plus any reasoning a thinking model emits along the way.
+const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_PROMPT_BYTES: usize = 4 * 1024 * 1024;
 
 pub type Result<T> = std::result::Result<T, ProviderError>;
