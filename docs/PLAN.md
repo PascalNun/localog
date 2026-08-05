@@ -52,12 +52,8 @@ Tracked openly so they get fixed rather than forgotten.
 - **Archive is unreachable.** The schema supports `archived_at_ms`, but no command exposes it, so `MVP.md`'s "archive" capability does not exist in the UI.
 - **Network acceptance criterion is stale.** `MVP.md` says tests must fail if the core workflow makes non-loopback network access. Consented model downloads now do. Meeting content still never leaves the device — the criterion needs rewording to say exactly that.
 - **German is unvalidated.** The first proving audience is German-speaking project teams, but no German audio has been transcribed or turned into a protocol.
-- **A real meeting does not fit the generation context window.** The adapter requests 8192 tokens
-  (`processing.rs`), while an 81-minute German meeting transcript is roughly 14,000-21,000 tokens.
-  The failure mode is not an error: the prompt is truncated and the model produces a confident
-  protocol covering only the end of the meeting. Enlarging the window is not the answer on an 8 GB
-  machine; generation needs to work in passes. Discovered 2026-08-05 from the first real reference
-  material.
+- **A real meeting does not fit the generation context window.** Addressed on 2026-08-05 by
+  sectioned generation, but **not yet proven against a real model** — no generation has run.
 
 ## Plan
 
@@ -77,10 +73,10 @@ third variable. Judging a model against a one-sentence style would measure the w
 1. `Planned` Run generation end to end with the installed model and commit a real protocol revision.
    This proves the pipeline, not the quality. **Ends when:** a protocol revision exists on disk, and
    it is confirmed that the whole transcript reached the model rather than a truncated tail.
-   1b. `Planned` Design multi-pass generation for transcripts larger than the context window. A real
-   meeting is two to three times the current 8192-token window, and silent truncation would produce a
-   plausible protocol of the last third. The reference protocol is organised by topic rather than
-   chronologically, which suits a summarise-then-synthesise approach.
+   1b. `Unverified` Sectioned generation is implemented: a transcript that fits the window is written in
+   one pass as before, and a longer one is condensed section by section and then synthesised from
+   those notes. Section planning is covered by tests, including the invariant that every segment
+   belongs to exactly one section. It has never run against a real model.
 2. `Planned` Write the "Formal minutes" style properly — sections, tone, rules about not inventing
    decisions, German and English variants. The current styles are single sentences.
 3. `Planned` Pull a general instruct model suited to German (Gemma and Qwen are both candidates; the

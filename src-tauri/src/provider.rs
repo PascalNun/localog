@@ -138,6 +138,33 @@ struct PromptPayload<'a> {
     transcript: &'a [GenerationSegment],
 }
 
+/// A meeting is longer than any context window, so long transcripts are condensed
+/// section by section before the protocol is written from those notes.
+#[derive(Serialize)]
+struct SectionPayload<'a> {
+    meeting_language: &'a str,
+    section_index: usize,
+    section_count: usize,
+    transcript: &'a [GenerationSegment],
+}
+
+#[derive(Serialize)]
+struct SynthesisPayload<'a> {
+    meeting_language: &'a str,
+    style_id: &'a str,
+    style_revision: &'a str,
+    instructions: &'a [String],
+    required_sections: &'a [String],
+    vocabulary_revision: &'a str,
+    vocabulary: &'a [String],
+    section_notes: &'a [String],
+}
+
+#[derive(Debug, Deserialize)]
+struct StructuredNotes {
+    notes_markdown: String,
+}
+
 #[derive(Serialize)]
 struct OllamaRequest<'a> {
     model: &'a str,
@@ -276,7 +303,23 @@ impl OllamaProvider {
         if model.digest != request.model_digest {
             return Err(ProviderError::ModelChanged);
         }
-        let prompt_payload = PromptPayload {
+        progress(18, "resolving_protocol_inputs")?;
+
+        let sections = plan_sections(request);
+        if sections.len() <= 1 {
+            return self.generate_in_one_pass(request, cancelled, progress);
+        }
+        self.generate_from_sections(request, &sections, cancelled, progress)
+    }
+
+    /// Short meetings fit the window, so the protocol is written directly.
+    fn generate_in_one_pass(
+        &self,
+        request: &GenerationRequest,
+        cancelled: &AtomicBool,
+        progress: &mut dyn FnMut(u64, &'static str) -> Result<()>,
+    ) -> Result<String> {
+        let payload = PromptPayload {
             meeting_language: &request.meeting_language,
             style_id: &request.style.id,
             style_revision: &request.style.revision,
@@ -286,28 +329,129 @@ impl OllamaProvider {
             vocabulary: &request.vocabulary,
             transcript: &request.transcript,
         };
-        let prompt_bytes = serde_json::to_vec(&prompt_payload)
-            .map_err(|error| ProviderError::InvalidResponse(error.to_string()))?;
-        if prompt_bytes.len() > MAX_PROMPT_BYTES {
-            return Err(ProviderError::ResponseTooLarge);
+        let generated = self.complete(
+            request,
+            Completion {
+                system: PROTOCOL_SYSTEM,
+                prompt: &encode_prompt(&payload)?,
+                format: protocol_schema(),
+                num_predict: request.maximum_output_tokens,
+            },
+            cancelled,
+            &mut |_| progress(60, "generating_protocol"),
+        )?;
+        let structured: StructuredProtocol = serde_json::from_str(&generated)
+            .map_err(|error| ProviderError::InvalidResponse(truncate(&error.to_string(), 280)))?;
+        validate_markdown(
+            &structured.protocol_markdown,
+            &request.style.required_sections,
+        )?;
+        progress(78, "validating_protocol")?;
+        Ok(structured.protocol_markdown)
+    }
+
+    /// A real meeting exceeds the window. Each section is condensed first, then the
+    /// protocol is written from the collected notes. Nothing is silently dropped:
+    /// every segment belongs to exactly one section.
+    fn generate_from_sections(
+        &self,
+        request: &GenerationRequest,
+        sections: &[std::ops::Range<usize>],
+        cancelled: &AtomicBool,
+        progress: &mut dyn FnMut(u64, &'static str) -> Result<()>,
+    ) -> Result<String> {
+        let count = sections.len();
+        let mut notes = Vec::with_capacity(count);
+        for (index, range) in sections.iter().enumerate() {
+            if cancelled.load(Ordering::Acquire) {
+                return Err(ProviderError::Cancelled);
+            }
+            // Condensing runs from 20% to 60%; synthesis owns the rest.
+            let start = 20 + (index as u64 * 40) / count as u64;
+            progress(start, "condensing_transcript")?;
+            let payload = SectionPayload {
+                meeting_language: &request.meeting_language,
+                section_index: index + 1,
+                section_count: count,
+                transcript: &request.transcript[range.clone()],
+            };
+            let generated = self.complete(
+                request,
+                Completion {
+                    system: SECTION_SYSTEM,
+                    prompt: &encode_prompt(&payload)?,
+                    format: notes_schema(),
+                    num_predict: request.maximum_output_tokens,
+                },
+                cancelled,
+                &mut |_| progress(start, "condensing_transcript"),
+            )?;
+            let structured: StructuredNotes =
+                serde_json::from_str(&generated).map_err(|error| {
+                    ProviderError::InvalidResponse(truncate(&error.to_string(), 280))
+                })?;
+            if structured.notes_markdown.trim().is_empty() {
+                return Err(ProviderError::InvalidResponse(
+                    "The model returned empty notes for a section of the meeting.".into(),
+                ));
+            }
+            notes.push(structured.notes_markdown);
         }
-        let prompt = String::from_utf8(prompt_bytes)
-            .map_err(|error| ProviderError::InvalidResponse(error.to_string()))?;
+
+        progress(62, "generating_protocol")?;
+        let payload = SynthesisPayload {
+            meeting_language: &request.meeting_language,
+            style_id: &request.style.id,
+            style_revision: &request.style.revision,
+            instructions: &request.style.instructions,
+            required_sections: &request.style.required_sections,
+            vocabulary_revision: &request.vocabulary_revision,
+            vocabulary: &request.vocabulary,
+            section_notes: &notes,
+        };
+        let generated = self.complete(
+            request,
+            Completion {
+                system: SYNTHESIS_SYSTEM,
+                prompt: &encode_prompt(&payload)?,
+                format: protocol_schema(),
+                num_predict: request.maximum_output_tokens,
+            },
+            cancelled,
+            &mut |_| progress(70, "generating_protocol"),
+        )?;
+        let structured: StructuredProtocol = serde_json::from_str(&generated)
+            .map_err(|error| ProviderError::InvalidResponse(truncate(&error.to_string(), 280)))?;
+        validate_markdown(
+            &structured.protocol_markdown,
+            &request.style.required_sections,
+        )?;
+        progress(78, "validating_protocol")?;
+        Ok(structured.protocol_markdown)
+    }
+
+    /// One bounded, cancellable, streamed completion.
+    fn complete(
+        &self,
+        request: &GenerationRequest,
+        call: Completion<'_>,
+        cancelled: &AtomicBool,
+        tick: &mut dyn FnMut(()) -> Result<()>,
+    ) -> Result<String> {
         let body = OllamaRequest {
             model: &request.model,
-            system: "Create a reviewable professional meeting protocol using only the supplied transcript. Never invent decisions, actions, owners, or dates. State uncertainty explicitly. Follow the controlled style and return only schema-valid JSON.",
-            prompt: &prompt,
+            system: call.system,
+            prompt: call.prompt,
             stream: true,
-            format: protocol_schema(),
+            format: call.format,
             options: OllamaOptions {
                 seed: request.seed,
                 temperature: f64::from(request.temperature_milli) / 1000.0,
                 num_ctx: request.context_tokens,
-                num_predict: request.maximum_output_tokens,
+                num_predict: call.num_predict,
             },
             keep_alive: "2m",
         };
-        progress(18, "resolving_protocol_inputs")?;
         let response = self
             .agent
             .post(format!("{}/api/generate", self.base_url))
@@ -341,7 +485,7 @@ impl OllamaProvider {
                 return Err(ProviderError::ResponseTooLarge);
             }
             if last_progress.elapsed() >= Duration::from_millis(100) {
-                progress(60, "generating_protocol")?;
+                tick(())?;
                 last_progress = Instant::now();
             }
             if chunk.done {
@@ -352,15 +496,102 @@ impl OllamaProvider {
         if !done {
             return Err(ProviderError::IncompleteResponse);
         }
-        let structured: StructuredProtocol = serde_json::from_str(&generated)
-            .map_err(|error| ProviderError::InvalidResponse(truncate(&error.to_string(), 280)))?;
-        validate_markdown(
-            &structured.protocol_markdown,
-            &request.style.required_sections,
-        )?;
-        progress(78, "validating_protocol")?;
-        Ok(structured.protocol_markdown)
+        Ok(generated)
     }
+}
+
+/// One model call: what to ask, how to constrain it, and how much answer to allow.
+struct Completion<'a> {
+    system: &'static str,
+    prompt: &'a str,
+    format: serde_json::Value,
+    num_predict: u32,
+}
+
+const PROTOCOL_SYSTEM: &str = "Create a reviewable professional meeting protocol using only the supplied transcript. Never invent decisions, actions, owners, or dates. State uncertainty explicitly. Follow the controlled style and return only schema-valid JSON.";
+
+const SECTION_SYSTEM: &str = "Condense one section of a meeting transcript into dense factual notes in the meeting's language. Preserve every decision, agreed action and its owner, open question, number, measurement, date and proper name exactly as stated. Do not summarise away specifics, do not add anything that was not said, and do not write a protocol yet. Return only schema-valid JSON.";
+
+const SYNTHESIS_SYSTEM: &str = "Write a reviewable professional meeting protocol from ordered notes taken across the whole meeting. The notes are the only source. Never invent decisions, actions, owners, or dates, and state uncertainty explicitly. Group related material by topic rather than by the order it was discussed. Follow the controlled style and return only schema-valid JSON.";
+
+fn encode_prompt<T: Serialize>(payload: &T) -> Result<String> {
+    let bytes = serde_json::to_vec(payload)
+        .map_err(|error| ProviderError::InvalidResponse(error.to_string()))?;
+    if bytes.len() > MAX_PROMPT_BYTES {
+        return Err(ProviderError::ResponseTooLarge);
+    }
+    String::from_utf8(bytes).map_err(|error| ProviderError::InvalidResponse(error.to_string()))
+}
+
+/// Divide the transcript into contiguous section ranges that each fit the model's
+/// window alongside the style, vocabulary and room for the answer. Returns a single
+/// range when the whole transcript already fits.
+fn plan_sections(request: &GenerationRequest) -> Vec<std::ops::Range<usize>> {
+    // German tokenises to roughly three characters per token; the margin keeps a
+    // long word or an unusual name from pushing a section over the edge.
+    const CHARS_PER_TOKEN: usize = 3;
+    const SAFETY_NUMERATOR: usize = 7;
+    const SAFETY_DENOMINATOR: usize = 10;
+
+    let total = request.transcript.len();
+    if total == 0 {
+        return Vec::new();
+    }
+    let window = request
+        .context_tokens
+        .saturating_sub(request.maximum_output_tokens) as usize;
+    let budget_chars = window * CHARS_PER_TOKEN * SAFETY_NUMERATOR / SAFETY_DENOMINATOR;
+    // Everything in the prompt that is not transcript still has to fit.
+    let overhead: usize = request
+        .style
+        .instructions
+        .iter()
+        .chain(request.style.required_sections.iter())
+        .chain(request.vocabulary.iter())
+        .map(|value| value.len() + 8)
+        .sum::<usize>()
+        + 512;
+    let available = budget_chars.saturating_sub(overhead);
+    if available == 0 {
+        // Degenerate configuration: one segment per section is the safest fallback.
+        return (0..total).map(|index| index..index + 1).collect();
+    }
+
+    let transcript_chars: usize = request.transcript.iter().map(segment_chars).sum();
+    if transcript_chars <= available {
+        return std::iter::once(0..total).collect();
+    }
+
+    let mut sections = Vec::new();
+    let mut start = 0;
+    let mut used = 0;
+    for (index, segment) in request.transcript.iter().enumerate() {
+        let size = segment_chars(segment);
+        if used > 0 && used + size > available {
+            sections.push(start..index);
+            start = index;
+            used = 0;
+        }
+        used += size;
+    }
+    if start < total {
+        sections.push(start..total);
+    }
+    sections
+}
+
+fn segment_chars(segment: &GenerationSegment) -> usize {
+    // Speaker and timestamp are serialised alongside the text.
+    segment.text.len() + segment.speaker.len() + 40
+}
+
+fn notes_schema() -> serde_json::Value {
+    serde_json::json!({
+        "type": "object",
+        "required": ["notes_markdown"],
+        "properties": { "notes_markdown": { "type": "string" } },
+        "additionalProperties": false
+    })
 }
 
 fn protocol_schema() -> serde_json::Value {
@@ -403,6 +634,92 @@ mod tests {
     use std::io::{Read, Write};
     use std::net::TcpListener;
     use std::thread;
+
+    #[test]
+    fn sections_cover_every_segment_exactly_once() {
+        let request = synthetic_request(400, 220);
+        let sections = plan_sections(&request);
+        assert!(
+            sections.len() > 1,
+            "a long transcript must be divided, got {} section(s)",
+            sections.len()
+        );
+        // The invariant that matters: contiguous, ordered, nothing dropped or repeated.
+        let mut expected = 0;
+        for range in &sections {
+            assert_eq!(range.start, expected, "sections must be contiguous");
+            assert!(range.end > range.start, "sections must not be empty");
+            expected = range.end;
+        }
+        assert_eq!(
+            expected,
+            request.transcript.len(),
+            "every segment is covered"
+        );
+    }
+
+    #[test]
+    fn a_short_transcript_stays_in_one_section() {
+        let request = synthetic_request(5, 60);
+        assert_eq!(plan_sections(&request), vec![0..5]);
+    }
+
+    #[test]
+    fn an_empty_transcript_plans_no_sections() {
+        let request = synthetic_request(0, 0);
+        assert!(plan_sections(&request).is_empty());
+    }
+
+    #[test]
+    fn each_section_stays_within_the_character_budget() {
+        let request = synthetic_request(300, 200);
+        let window = request
+            .context_tokens
+            .saturating_sub(request.maximum_output_tokens) as usize;
+        let budget = window * 3 * 7 / 10;
+        for range in plan_sections(&request) {
+            let size: usize = request.transcript[range.clone()]
+                .iter()
+                .map(segment_chars)
+                .sum();
+            // A single oversized segment cannot be split, so only multi-segment
+            // sections are required to stay inside the budget.
+            if range.end - range.start > 1 {
+                assert!(
+                    size <= budget,
+                    "section {range:?} of {size} chars exceeds {budget}"
+                );
+            }
+        }
+    }
+
+    fn synthetic_request(segments: usize, words_each: usize) -> GenerationRequest {
+        GenerationRequest {
+            model: "test".into(),
+            model_digest: "digest".into(),
+            runtime_version: "0".into(),
+            meeting_language: "German".into(),
+            style: GenerationStyle {
+                id: "style-formal".into(),
+                revision: "1".into(),
+                instructions: vec!["Write a calm, factual professional protocol.".into()],
+                required_sections: vec!["Zusammenfassung".into()],
+            },
+            vocabulary_revision: "1".into(),
+            vocabulary: Vec::new(),
+            transcript: (0..segments)
+                .map(|index| GenerationSegment {
+                    start_ms: index as u64 * 1000,
+                    speaker: "Speaker 1".into(),
+                    text: "Wort ".repeat(words_each),
+                })
+                .collect(),
+            seed: 1,
+            temperature_milli: 100,
+            context_tokens: 8192,
+            maximum_output_tokens: 2048,
+        }
+    }
 
     #[test]
     fn validates_required_sections_without_prompt_leakage() {
