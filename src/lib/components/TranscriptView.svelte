@@ -5,6 +5,7 @@
     AppRoute,
     MeetingSummary,
     ProjectSummary,
+    ProtocolStyle,
     TranscriptDocument,
   } from '../workflow/types';
   import Icon from './Icon.svelte';
@@ -14,6 +15,8 @@
   export let project: ProjectSummary;
   export let meeting: MeetingSummary;
   export let transcript: TranscriptDocument | null;
+  /** The style actually resolved for this meeting, or null when unknown. */
+  export let protocolStyle: ProtocolStyle | null = null;
   export let job: ActiveJob | null;
   export let onNavigate: (route: AppRoute) => void;
   export let onGenerate: () => Promise<void>;
@@ -34,6 +37,9 @@
   let audioSource: string | null = null;
   let audioDuration = 0;
   let followPlayback = true;
+  let audioError: string | null = null;
+  let isScrubbing = false;
+  let loadedAudioFor: string | null = null;
 
   $: segments = transcript?.segments ?? [];
 
@@ -41,9 +47,16 @@
   $: void loadAudio(meeting.id);
 
   async function loadAudio(meetingId: string) {
+    // Snapshot events fire often; only reload when the meeting actually changes.
+    if (loadedAudioFor === meetingId) return;
+    loadedAudioFor = meetingId;
     const audio = await onLoadAudio(meetingId);
     audioSource = audio?.source ?? null;
-    if (audio?.durationMs) audioDuration = audio.durationMs / 1000;
+    // A different source means the previous transport state no longer applies.
+    currentSeconds = 0;
+    isPlaying = false;
+    audioError = null;
+    audioDuration = audio?.durationMs ? audio.durationMs / 1000 : 0;
   }
 
   // The segment under the playhead, used to highlight and to follow along.
@@ -53,7 +66,13 @@
         currentSeconds * 1000 >= segment.startMs && currentSeconds * 1000 < segment.endMs,
     )?.id ?? null;
 
-  $: if (activeSegmentId && isPlaying && followPlayback) scrollSegmentIntoView(activeSegmentId);
+  $: if (activeSegmentId && isPlaying && followPlayback && !isEditingSegment())
+    scrollSegmentIntoView(activeSegmentId);
+
+  function isEditingSegment() {
+    const active = window.document.activeElement;
+    return Boolean(active && active.hasAttribute('data-segment-id'));
+  }
 
   function scrollSegmentIntoView(segmentId: string) {
     const element = window.document.querySelector(`[data-segment-row="${segmentId}"]`);
@@ -72,8 +91,13 @@
 
   function togglePlayback() {
     if (!audioElement) return;
-    if (audioElement.paused) void audioElement.play();
-    else audioElement.pause();
+    if (audioElement.paused) {
+      audioElement.play().catch(() => {
+        audioError = 'This meeting’s working audio could not be played.';
+      });
+    } else {
+      audioElement.pause();
+    }
   }
 
   /// Move the playhead; clicking a segment jumps the audio to that moment.
@@ -129,7 +153,7 @@
     <div>
       <p class="breadcrumb">{project.name} <span>›</span> {meeting.title}</p>
       <h1 tabindex="-1">Transcript review</h1>
-      <p>{meeting.occurredAt} · {meeting.durationLabel} · Generic speaker labels</p>
+      <p>{meeting.occurredAt} · {meeting.durationLabel ?? 'Duration pending'}</p>
     </div>
     <button
       class="secondary-action inspector-toggle"
@@ -156,7 +180,10 @@
               if (audioElement && Number.isFinite(audioElement.duration))
                 audioDuration = audioElement.duration;
             }}
-            ontimeupdate={() => (currentSeconds = audioElement?.currentTime ?? 0)}
+            ontimeupdate={() => {
+              if (!isScrubbing) currentSeconds = audioElement?.currentTime ?? 0;
+            }}
+            onerror={() => (audioError = 'This meeting’s working audio could not be loaded.')}
             onplay={() => (isPlaying = true)}
             onpause={() => (isPlaying = false)}
             onended={() => (isPlaying = false)}
@@ -176,6 +203,10 @@
             max={Math.max(audioDuration, 1)}
             step="0.1"
             value={currentSeconds}
+            onpointerdown={() => (isScrubbing = true)}
+            onpointerup={() => (isScrubbing = false)}
+            onkeydown={() => (isScrubbing = true)}
+            onkeyup={() => (isScrubbing = false)}
             oninput={(event) => seek(Number(event.currentTarget.value))}
           />
           <span class="time-readout">{timeLabel(audioDuration)}</span>
@@ -191,6 +222,7 @@
           </p>
         {/if}
       </section>
+      {#if audioError}<p class="setting-error" role="alert">{audioError}</p>{/if}
 
       <div class="transcript-toolbar">
         <label class="search-field"
@@ -200,7 +232,7 @@
           /></label
         >
         <span class="review-summary"
-          >{unclearCount ? `${unclearCount} segment needs review` : 'Review complete'}</span
+          >{unclearCount ? `${unclearCount} segment flagged` : 'No segments flagged'}</span
         >
       </div>
 
@@ -290,11 +322,13 @@
             the transcription spike.
           </p>
         </div>
-        <div class="inspector-section">
-          <p class="eyebrow">Protocol style</p>
-          <h3>Formal minutes</h3>
-          <p>Project default · professional preset</p>
-        </div>
+        {#if protocolStyle}
+          <div class="inspector-section">
+            <p class="eyebrow">Protocol style</p>
+            <h3>{protocolStyle.name}</h3>
+            <p>{protocolStyle.description}</p>
+          </div>
+        {/if}
       </aside>
     {/if}
   </div>

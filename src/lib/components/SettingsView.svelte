@@ -39,6 +39,8 @@
   ];
   let executablePath = '';
   let showAdvanced = false;
+  // The synthetic-failure control only affects the browser preview's fake adapter.
+  const isNative = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
   let selectedProviderModel = '';
 
   // Product language first: the user picks an outcome, not a model.
@@ -90,14 +92,14 @@
             <h3>Interface language</h3>
             <p>Independent from each meeting’s transcription and protocol language.</p>
           </div>
-          <select><option>English</option></select>
+          <span class="setting-value">English</span>
         </div>
         <div class="setting-row">
           <div>
             <h3>Default export</h3>
-            <p>The format offered first in the protocol editor.</p>
+            <p>Both formats are offered in the protocol editor.</p>
           </div>
-          <select><option>Markdown</option><option>Plain text</option></select>
+          <span class="setting-value">Markdown and plain text</span>
         </div>
       {:else if section === 'Models'}
         <div class="setting-row">
@@ -232,7 +234,11 @@
           </div>
           <span class="setting-value">Application data</span>
         </div>
-        <div class="notice-inline">No real files are stored by this Phase 0 fake workflow.</div>
+        <div class="notice-inline">
+          LocaLog keeps managed copies of imported recordings, prepared audio, transcripts,
+          protocols and downloaded models in its application-data folder. Exports are written only
+          to the location you choose.
+        </div>
       {:else if section === 'Privacy'}
         <div class="setting-row">
           <div>
@@ -267,7 +273,7 @@
           </div>
           <span class="setting-value">Barlow</span>
         </div>
-      {:else}
+      {:else if !isNative}
         <div class="setting-row">
           <div>
             <h3>Next fake job</h3>

@@ -59,6 +59,16 @@
   let downloading: Record<string, number> = {};
   let modelError: string | null = null;
 
+  const presetNames: Record<TranscriptionPreset, string> = {
+    fast: 'Fast',
+    balanced: 'Balanced',
+    accurate: 'Accurate',
+  };
+
+  function presetDisplayName(preset: TranscriptionPreset) {
+    return presetNames[preset] ?? 'Not selected';
+  }
+
   function withoutModel(entries: Record<string, number>, modelId: string) {
     const next = { ...entries };
     delete next[modelId];
@@ -85,12 +95,12 @@
     ? (snapshot?.projects.find((candidate) => candidate.id === currentProjectId) ?? null)
     : null;
   $: protocol = meeting && snapshot ? (snapshot.protocols[meeting.id] ?? null) : null;
-  $: protocolStyle =
-    snapshot && protocol
-      ? (snapshot.styles.find((candidate) => candidate.id === protocol.styleId) ??
-        snapshot.styles[0] ??
-        null)
-      : null;
+  // Resolve from the meeting's own style so transcript review can show it before generation.
+  $: protocolStyle = snapshot
+    ? (snapshot.styles.find(
+        (candidate) => candidate.id === (protocol?.styleId ?? meeting?.styleId),
+      ) ?? null)
+    : null;
 
   onMount(() => {
     // Native overlay spacing belongs only to Tauri on macOS, never to browser previews or other OSes.
@@ -107,7 +117,10 @@
     applyTheme();
     bridge.getTranscriptionRuntimeStatus().then((status) => (runtimeStatus = status));
     bridge.getProtocolProviderStatus().then((status) => (providerStatus = status));
-    bridge.getTranscriptionCapability().then((next) => (capability = next));
+    bridge
+      .getTranscriptionCapability()
+      .then((next) => (capability = next))
+      .catch((error) => (modelError = error instanceof Error ? error.message : String(error)));
 
     const stopModelEvents = bridge.subscribeModelEvents({
       onProgress: ({ modelId, percent }) => {
@@ -115,8 +128,12 @@
       },
       onChanged: (next) => {
         capability = next;
-        downloading = {};
-        modelError = null;
+        // Only clear rows that are now installed; another download may still be running.
+        downloading = Object.fromEntries(
+          Object.entries(downloading).filter(
+            ([id]) => !next.presets.some((preset) => preset.modelId === id && preset.installed),
+          ),
+        );
         // A newly installed model can make transcription possible.
         bridge.getTranscriptionRuntimeStatus().then((status) => (runtimeStatus = status));
       },
@@ -344,6 +361,7 @@
         <MeetingView
           {project}
           {meeting}
+          presetLabel={presetDisplayName(capability.selectedPreset)}
           job={snapshot.jobs.find((job) => job.meetingId === meeting.id) ?? snapshot.activeJob}
           onNavigate={navigate}
           onTranscribe={() => bridge.startTranscription(meeting.id)}
@@ -355,6 +373,7 @@
         />
       {:else if route.name === 'transcript' && project && meeting}
         <TranscriptView
+          {protocolStyle}
           onLoadAudio={(meetingId: string) => bridge.getMeetingAudio(meetingId)}
           {project}
           {meeting}
