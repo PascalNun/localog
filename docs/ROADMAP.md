@@ -14,6 +14,38 @@ LocaLog is intended for macOS, Windows, and Linux. macOS receives the first comp
 - Protocol-to-transcript/audio traceability
 - DOCX export and basic templates
 
+## Making speakers easy to name
+
+Diarisation separates voices; it cannot know who they are. Naming is therefore a user task, and the
+goal is to make it cost almost nothing. Recorded here as directions to weigh, not as a chosen design.
+
+A useful reframe first: attribution matters unevenly. Nobody needs every sentence of a discussion
+attributed, but a decision or an action is close to useless without a name. Naming can therefore be
+lazy and on demand — name the two or three people who own something, ignore the rest — rather than a
+step that must be completed before the protocol can be written.
+
+Approaches, roughly cheapest first:
+
+- **Pick from the meeting's participants.** Participants already exist in the product model and are
+  not built yet. With a participant list, naming a speaker is choosing from a short list rather than
+  typing. `UX.md` already asks whether speaker mapping may create participants from the transcript
+  workspace; that question becomes worth answering here.
+- **Inherit recurring participants from the project.** Regular project meetings involve mostly the
+  same people, so the list should arrive pre-filled rather than being retyped per meeting.
+- **Fast assignment in review.** Keyboard-first assignment, assigning from a segment the user is
+  already reading, and renaming everywhere at once. The existing side-panel rename is the start of
+  this.
+- **Suggest names from what was said.** Meetings contain their own evidence: self-introduction, and
+  direct address such as “Danke, Anna”. A local model could propose a mapping. This must only ever
+  propose: a wrong name silently attached to a decision is precisely the kind of invented authority
+  the product refuses. Suggestions stay provisional and require confirmation.
+- **Remember a voice within a project.** Diarisation already produces speaker embeddings, so the same
+  person could be recognised across that project's meetings and named once instead of every time.
+  This is the strongest convenience and the most sensitive: a stored voice profile is biometric data.
+  It would require an explicit product and privacy decision, must be local, per project, visible, and
+  deletable, and must be opt-in rather than a silent side effect of transcription. It is recorded as a
+  possibility, not an intention.
+
 ## Phase 3 — portability and libraries
 
 - Windows and Linux packaged builds
