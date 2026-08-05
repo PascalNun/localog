@@ -55,63 +55,105 @@ Tracked openly so they get fixed rather than forgotten.
 
 ## Plan
 
-### Phase A — Consolidate
+Ordered by what each block teaches or unlocks, not by what is easiest. Sizes are relative effort, not
+calendar promises. Each block states the condition that ends it, so "done" is not a judgement call.
 
-1. `Done` The work is committed (`8baccfa`, `cdfeedf`, `f64f34e`).
-2. `Unverified` Confirm working audio actually plays through the asset protocol. Failures are now
-   surfaced rather than swallowed, so a failure will state itself.
-3. `Planned` Rework the playback **Follow** control; its current treatment is not accepted.
+### Block 1 — Make the protocol good _(next, and the largest single unknown)_
 
-### Phase B — Stop showing values that are not real
+The product exists to produce a protocol, and no real one has ever been generated. Everything after
+this is built on an assumption until it is done. It is also cheap to start: Ollama is installed and a
+model is already present.
 
-1. `Done` The meeting screen shows the real selected preset; the invented vocabulary row is gone.
-   The New Meeting preset and vocabulary selects, which were bound to nothing, are replaced by a
-   statement of what actually applies.
-2. `Done` The Settings General controls are honest read-only values; the Storage notice no longer
-   claims that no real files are stored; the synthetic-failure control is hidden in the native app.
-3. `Done` Transcript review shows the resolved protocol style instead of a fixed "Formal minutes",
-   and no longer reports "Review complete" from a flag the real transcriber never sets.
-4. `Planned` Expose archive, or remove the claim from `MVP.md`.
-5. `Planned` Replace the per-segment `Speaker 1` column, which is a constant until diarisation exists.
+Three things are entangled here and must be worked together rather than in sequence. The style is the
+instruction the model receives, the vocabulary is the terminology it needs, and the model is only the
+third variable. Judging a model against a one-sentence style would measure the wrong thing.
 
-### Phase C — Validate the product's core _(highest information value)_
+1. `Planned` Run generation end to end with the installed model and commit a real protocol revision.
+   This proves the pipeline, not the quality. **Ends when:** a protocol revision exists on disk.
+2. `Planned` Write the "Formal minutes" style properly — sections, tone, rules about not inventing
+   decisions, German and English variants. The current styles are single sentences.
+3. `Planned` Pull a general instruct model suited to German (Gemma and Qwen are both candidates; the
+   8 GB baseline caps this at roughly 5 GB) and compare output on the same transcript and style.
+4. `Planned` Generate from real German meeting audio, not only English. This is the first proving
+   audience and has never been tested.
+5. `Planned` Test whether project vocabulary measurably improves the result. If it does, the library
+   editor in Block 3 is justified by evidence rather than by intent.
+6. `Planned` Record the finding in `DECISIONS.md`, including whichever model is chosen and why.
 
-The protocol is the product's purpose, and it is the least validated part.
+**Ends when:** a German meeting produces a protocol a professional would accept after light editing,
+or it is established that it does not and the plan changes accordingly.
 
-1. `Planned` Run real Ollama generation end to end and commit an actual protocol revision.
-2. `Planned` Produce protocols from representative **German and English** synthetic audio.
-3. `Planned` Judge professional usefulness against the style presets; record the finding in `DECISIONS.md`.
-4. `Planned` Decide from evidence whether the local generation approach and the style/vocabulary design hold.
+**Named risk:** good German professional prose may need a model larger than the M1/8 GB baseline
+comfortably runs. Transcription fits there; generation may not. If that turns out to be true it puts
+pressure on D-015 rather than on the design, and it should be discovered here rather than during
+packaging.
 
-### Phase D — Make it runnable by someone else
+### Block 2 — Speaker attribution end to end
 
-1. `Planned` Build whisper.cpp statically and ship it as a signed sidecar; remove the executable setting entirely.
-2. `Planned` Select a redistributable, licensed, checksummed FFmpeg build.
-3. `Planned` Enable bundling, signing, and notarisation; produce the first installable build.
+Now de-risked by the spike, and it feeds Block 1's output directly: a decision or action without a
+name is close to useless in a protocol.
 
-### Phase E — Reach the remaining capability goals
-
-1. `Planned` Editable vocabulary and protocol-style library (a core differentiator that is currently a shell).
-2. `Done` Speaker diarisation spike: sherpa-onnx separates three German speakers at 88.2 % frame
-   accuracy, finds the speaker count unaided, needs 46 MB of models and 259 MB peak memory, and runs
-   about 3.2x faster than real time. Recorded in `spikes/speaker-diarisation/` and `DECISIONS.md`.
-3. `Planned` Compare a German-suited embedding model, and test overlapping speech and a long
-   recording on the M1/8 GB baseline.
-4. `Planned` Solve alignment between diariser turns and whisper segments — the substantive remaining
-   design problem — then build the adapter behind the supervised-process boundary.
+1. `Planned` Compare a German-suited speaker-embedding model against the Chinese-trained one used in
+   the spike; test overlapping speech and a long recording on the M1/8 GB baseline.
+2. `Planned` Solve alignment between diariser turns and whisper segments. This is the substantive
+   design problem and is self-contained enough to test on its own.
+3. `Planned` Build the adapter behind the accepted supervised-process boundary, with cancellation,
+   bounded output and provenance, as the whisper.cpp adapter does. Degrade honestly to a single
+   speaker when the diariser is unavailable.
+4. `Planned` Participants on a meeting, inherited from the project. This is the cheapest naming win
+   and needs no new inference: naming becomes choosing from a short list.
 5. `Planned` Real speaker tools in review: reassign a segment, merge two labels, split one.
-6. `Planned` Backup and restore.
 
-### Phase F — Harden for use
+**Ends when:** a three-person German recording produces named speakers in the protocol, with the
+naming done in a few clicks.
+
+### Block 3 — Reach the remaining capability goals
+
+1. `Planned` Editable vocabulary and protocol-style library. Both are named differentiators and are
+   currently a read-only shell. Block 1 decides how much this matters.
+2. `Planned` Expose archive, or remove the claim from `MVP.md`.
+3. `Planned` Backup and restore.
+
+### Block 4 — Make it runnable by someone else
+
+Deliberately after the product is worth running. Its value is other people's feedback, and feedback
+on an unvalidated protocol teaches less.
+
+1. `Planned` Build whisper.cpp statically and ship it as a signed sidecar; remove the executable
+   setting entirely. The diariser ships the same way, and the spike already showed that unsigned
+   binaries are killed silently on Apple Silicon.
+2. `Planned` Select a redistributable, licensed, checksummed FFmpeg build.
+3. `Planned` Enable bundling, signing and notarisation; produce the first installable build.
+
+### Block 5 — Harden for use
 
 1. `Planned` Accessibility and keyboard pass with visible focus and text scaling.
 2. `Planned` Measure responsiveness and long-recording behaviour on the M1/8 GB baseline.
-3. `Planned` Privacy and log audit; release checklist.
+3. `Planned` Privacy and log audit, including the derived-data rules in `PRODUCT.md`.
+4. `Planned` Release checklist.
+
+### Carried alongside
+
+Small items that do not deserve a block and should be picked up when adjacent work touches them:
+confirm audio playback; rework the playback **Follow** control; replace the per-segment `Speaker 1`
+column (resolved by Block 2); bind or remove the New Meeting language select; narrow the asset
+protocol scope from `$APPDATA/**` to the working-audio directory.
 
 ## Sequencing rationale
 
-Phases A and B are short and remove active harm: unreviewable work and an interface that states things that are not true.
+Block 1 is first because it is the only block that can change the shape of the product. Every other
+block improves something whose value depends on the protocol being good. If local generation cannot
+produce a usable German protocol, that is worth discovering before building a library editor around
+it or packaging it for other people.
 
-Phase C comes before packaging deliberately. Polishing installation for a product whose central output has never been produced would be optimising the wrong end. One real German protocol on screen says more about whether LocaLog is worth building than another week of distribution work.
+Block 2 follows because attribution is part of a good protocol rather than a separate feature, and
+because the spike removed most of its risk. Its cheapest step — participants — needs no inference at
+all.
 
-Phases D and E are both large. D is what lets other people use it at all; E is what reaches the remaining stated goals. Their order should be decided after Phase C, because C may change what E needs to contain.
+Block 4 is deliberately late. Packaging is what lets other people use LocaLog, and their feedback is
+valuable, but feedback on an unvalidated protocol teaches less than feedback on a good one. The order
+should be revisited if the goal changes from "make it good" to "get it in front of people", which is
+a legitimate choice rather than a mistake.
+
+Blocks 3 and 5 are sized by what Block 1 finds. If vocabulary turns out to matter a great deal to
+protocol quality, the library editor moves up.
