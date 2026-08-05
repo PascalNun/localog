@@ -76,6 +76,18 @@ third variable. Judging a model against a one-sentence style would measure the w
    1b. `Done` Sectioned generation works against a real model. A transcript that fits the window is
    written in one pass; a longer one is condensed section by section and synthesised from those notes.
 
+1c-i. `Planned` **Decide what a missing required section should do.** A full 32k run completed every
+pass and was then discarded because the output lacked the "Teilnehmende" heading. Validation is
+working as designed, but throwing away ten minutes of local computation over one heading sits badly
+with a product whose protocols are explicitly drafts for human review. The likely answer is to commit
+the draft and tell the user what is missing, rather than to fail the job.
+
+1c-ii. `Planned` **Model choice must account for the context window, not only prose quality.**
+gemma2:9b has a hard 8192-token window. A protocol the length of the human reference is about 6000
+tokens, which leaves under 2000 for the notes it must be written from. Gemma 2 is therefore
+structurally unable to produce a full-length protocol for a meeting of this size, regardless of how
+well it writes German. A model with a large window, such as Gemma 3 or Qwen 2.5, is required.
+
 1c. `Planned` The output is a plausible skeleton, not yet a usable protocol. Against the human
 reference it is roughly a quarter of the length and loses most specifics, mangles proper names,
 attributes some people to the wrong organisation, invents a couple of figures, leaks an English
