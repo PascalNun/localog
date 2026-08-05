@@ -119,6 +119,10 @@ struct StreamChunk {
     response: String,
     #[serde(default)]
     done: bool,
+    /// Ollama reports "length" when the answer was cut off at the token cap, which
+    /// leaves schema-constrained JSON unparseable.
+    #[serde(default)]
+    done_reason: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -578,6 +582,9 @@ impl OllamaProvider {
                 last_progress = Instant::now();
             }
             if chunk.done {
+                if chunk.done_reason == "length" {
+                    return Err(ProviderError::IncompleteResponse);
+                }
                 done = true;
                 break;
             }
