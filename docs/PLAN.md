@@ -33,7 +33,7 @@ The durable vertical slice is real: a meeting can go from imported audio to an e
 | Import → probe → normalise          | **Done**       | Checksummed, cancellable, restart-safe                            |
 | Local transcription (whisper.cpp)   | **Done**       | Contract validated against real v1.9.2 + Metal; live progress     |
 | Model management (download presets) | **Done**       | Verified HTTPS download, checksum, atomic install                 |
-| Transcript review + audio player    | **Partial**    | Real audio, real duration, click-to-seek, follow-along            |
+| Transcript review + audio player    | **Partial**    | Real audio/duration, seek, follow-along; playback unconfirmed     |
 | Protocol generation (Ollama)        | **Unverified** | Adapter built and unit-tested; **never run for real**             |
 | Protocol editing, revisions, export | **Done**       | Autosave, review state, Markdown/TXT export                       |
 | Styles + vocabulary library         | **Partial**    | Read-only view only; not editable                                 |
@@ -46,24 +46,33 @@ The durable vertical slice is real: a meeting can go from imported audio to an e
 
 Tracked openly so they get fixed rather than forgotten.
 
-- **Placeholder values presented as real.** The meeting screen shows a hardcoded `Balanced / Global default` preset and `Global + project` vocabulary; the New Meeting language, preset, and vocabulary selects and the Settings General selects are bound to nothing. These contradict "never present incomplete work as finished".
+- **Placeholder values presented as real.** Largely resolved on 2026-08-05 (see Phase B). Still open:
+  every transcript segment shows the constant speaker `Speaker 1` in a per-segment column, and the
+  New Meeting language select is still unbound.
 - **Archive is unreachable.** The schema supports `archived_at_ms`, but no command exposes it, so `MVP.md`'s "archive" capability does not exist in the UI.
 - **Network acceptance criterion is stale.** `MVP.md` says tests must fail if the core workflow makes non-loopback network access. Consented model downloads now do. Meeting content still never leaves the device — the criterion needs rewording to say exactly that.
 - **German is unvalidated.** The first proving audience is German-speaking project teams, but no German audio has been transcribed or turned into a protocol.
 
 ## Plan
 
-### Phase A — Consolidate _(in progress)_
+### Phase A — Consolidate
 
-1. `Planned` Split the current uncommitted work into focused commits (progress streaming, model management, TLS, Settings UI, audio player, documentation).
-2. `Unverified` Confirm working audio actually plays through the asset protocol.
+1. `Done` The work is committed (`8baccfa`, `cdfeedf`, `f64f34e`).
+2. `Unverified` Confirm working audio actually plays through the asset protocol. Failures are now
+   surfaced rather than swallowed, so a failure will state itself.
 3. `Planned` Rework the playback **Follow** control; its current treatment is not accepted.
 
 ### Phase B — Stop showing values that are not real
 
-1. `Planned` Resolve the transcription preset, meeting language, and vocabulary from real state, or hide them until they are real.
-2. `Planned` Bind or remove the Settings General controls.
-3. `Planned` Expose archive, or remove the claim from `MVP.md`.
+1. `Done` The meeting screen shows the real selected preset; the invented vocabulary row is gone.
+   The New Meeting preset and vocabulary selects, which were bound to nothing, are replaced by a
+   statement of what actually applies.
+2. `Done` The Settings General controls are honest read-only values; the Storage notice no longer
+   claims that no real files are stored; the synthetic-failure control is hidden in the native app.
+3. `Done` Transcript review shows the resolved protocol style instead of a fixed "Formal minutes",
+   and no longer reports "Review complete" from a flag the real transcriber never sets.
+4. `Planned` Expose archive, or remove the claim from `MVP.md`.
+5. `Planned` Replace the per-segment `Speaker 1` column, which is a constant until diarisation exists.
 
 ### Phase C — Validate the product's core _(highest information value)_
 

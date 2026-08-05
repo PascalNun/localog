@@ -6,6 +6,8 @@
 
   export let project: ProjectSummary;
   export let meeting: MeetingSummary;
+  /** Resolved from the real transcription setting; never a fixed label. */
+  export let presetLabel: string = 'Not selected';
   export let job: ActiveJob | null;
   export let onNavigate: (route: AppRoute) => void;
   export let onTranscribe: () => Promise<void>;
@@ -121,11 +123,7 @@
           </div>
           <div>
             <dt>Preset</dt>
-            <dd>Balanced<small>Global default</small></dd>
-          </div>
-          <div>
-            <dt>Vocabulary</dt>
-            <dd>Global + project<small>Project default</small></dd>
+            <dd>{presetLabel}<small>Global default</small></dd>
           </div>
         </dl>
         <button

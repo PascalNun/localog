@@ -221,6 +221,15 @@ async fn download_transcription_model(
                     );
                 }
             }
+            Ok(Err(models::ModelError::Cancelled)) => {
+                // Cancelling is deliberate; report the resulting state, not a failure.
+                if let Ok(repository) = WorkspaceRepository::open(&root) {
+                    let _ = app.emit(
+                        "model://changed",
+                        models::capability(&root, &selected_preset(&repository)),
+                    );
+                }
+            }
             Ok(Err(error)) => {
                 let _ = app.emit(
                     "model://error",
@@ -347,6 +356,7 @@ async fn configure_protocol_provider(
 async fn load_workspace(state: State<'_, StorageState>) -> Result<WorkspaceSnapshot, String> {
     let root = state.root.clone();
     tauri::async_runtime::spawn_blocking(move || {
+        models::discard_staged_downloads(&root);
         imports::reconcile_imports(&root)?;
         processing::reconcile(&root)
     })

@@ -552,6 +552,9 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async getTranscriptionRuntimeStatus(): Promise<TranscriptionRuntimeStatus> {
+    if (this.workspaceStore?.getTranscriptionRuntimeStatus) {
+      return this.workspaceStore.getTranscriptionRuntimeStatus();
+    }
     return {
       executablePath: null,
       modelPath: null,

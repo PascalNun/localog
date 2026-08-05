@@ -10,6 +10,7 @@ use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 /// One downloadable whisper.cpp ggml model. Checksums and sizes were verified
 /// locally against the published files before being recorded here.
@@ -165,14 +166,31 @@ pub(crate) fn capability(root: &Path, selected_preset: &str) -> TranscriptionCap
     }
 }
 
-/// Remove an installed model to reclaim space. Missing is a no-op success.
+/// Remove an installed model to reclaim space, including any staged remnant.
+/// Missing is a no-op success.
 pub(crate) fn remove_model(root: &Path, model_id: &str) -> Result<(), ModelError> {
     let model = spec(model_id).ok_or(ModelError::UnknownModel)?;
-    let path = models_dir(root).join(model.file_name);
-    match fs::remove_file(&path) {
+    let directory = models_dir(root);
+    let _ = fs::remove_file(directory.join(format!("{}.part", model.file_name)));
+    match fs::remove_file(directory.join(model.file_name)) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(error) => Err(ModelError::Io(error.to_string())),
+    }
+}
+
+/// Drop staged downloads abandoned by a crash or force quit. A `.part` file is never
+/// resumable, so keeping it would only consume space invisibly.
+pub(crate) fn discard_staged_downloads(root: &Path) {
+    let directory = models_dir(root);
+    let Ok(entries) = fs::read_dir(&directory) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().is_some_and(|value| value == "part") {
+            let _ = fs::remove_file(path);
+        }
     }
 }
 
@@ -234,9 +252,11 @@ fn stream_to_staged(
     progress: &mut impl FnMut(u8),
 ) -> Result<(), ModelError> {
     let agent: ureq::Agent = ureq::Agent::config_builder()
-        // No global deadline: large models legitimately take minutes. Responsiveness
-        // comes from polling cancellation between chunks, not from a hard timeout.
+        // No global deadline: a 1.5 GB model legitimately takes minutes. Per-operation
+        // deadlines still ensure a stalled transfer fails instead of hanging forever.
         .timeout_global(None)
+        .timeout_connect(Some(Duration::from_secs(30)))
+        .timeout_recv_response(Some(Duration::from_secs(60)))
         .build()
         .into();
     let response = agent
@@ -302,7 +322,8 @@ fn human_bytes(bytes: u64) -> String {
     if unit == 0 {
         format!("{bytes} B")
     } else {
-        format!("{value:.0} {}", UNITS[unit])
+        // One decimal, so a near-miss never reads as "needs 1 GB, 1 GB free".
+        format!("{value:.1} {}", UNITS[unit])
     }
 }
 
@@ -377,6 +398,36 @@ mod tests {
             remove_model(temporary.path(), "unknown"),
             Err(ModelError::UnknownModel)
         );
+    }
+
+    #[test]
+    fn staged_downloads_are_discarded_and_removal_takes_the_remnant() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        let directory = models_dir(root);
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join("ggml-base.bin.part"), b"abandoned").unwrap();
+        fs::write(directory.join("ggml-tiny.bin.part"), b"abandoned").unwrap();
+        discard_staged_downloads(root);
+        assert!(!directory.join("ggml-base.bin.part").exists());
+        assert!(!directory.join("ggml-tiny.bin.part").exists());
+
+        // remove_model also clears a remnant left beside a real file.
+        fs::write(directory.join("ggml-base.bin.part"), b"abandoned").unwrap();
+        remove_model(root, "base").unwrap();
+        assert!(!directory.join("ggml-base.bin.part").exists());
+    }
+
+    #[test]
+    fn space_message_distinguishes_near_miss_sizes() {
+        let error = ModelError::NotEnoughSpace {
+            needed: 1_533_763_059,
+            available: 1_400_000_000,
+        };
+        let message = error.to_string();
+        // Whole-unit rounding used to render this as "needs 1 GB, 1 GB free".
+        assert!(message.contains("1.4 GB"), "{message}");
+        assert!(message.contains("1.3 GB"), "{message}");
     }
 
     #[test]
