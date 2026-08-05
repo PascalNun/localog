@@ -104,6 +104,30 @@ Styles are content, not model settings. Temperature, context size, quantisation,
 - Network-capable local runtimes must be documented and explicitly configured; LocaLog binds or connects to loopback only where it controls the endpoint.
 - Logs must exclude transcript/protocol bodies and redact user paths by default.
 
+## Working with sensitive data
+
+Local-first is not a reason to avoid sensitive data; it is what makes handling it responsibly
+possible. A cloud assistant cannot reasonably hold voice characteristics of everyone who has sat in a
+client meeting, because that creates a breach surface and a processor relationship. LocaLog can,
+because the data stays on the machine that already holds the recording. Declining to use it would
+waste the architecture rather than honour it.
+
+The product is therefore willing to derive and store useful signals from meeting material — speaker
+characteristics being the first real example — provided the handling is explicit:
+
+- it stays on the device, and is never uploaded or included in ordinary logs;
+- it lives in app-managed storage tied to the project it came from;
+- it is visible: the user can see what has been derived and for whom;
+- it is deletable, individually and completely, without disturbing the meeting record;
+- it is never a silent side effect — deriving it is a choice the user makes and can reverse;
+- it is excluded from exports and shared bundles unless deliberately included.
+
+This carries a real obligation. Voice characteristics used to recognise a specific person are
+personal data of the meeting's participants, not of the user, and professional users in Europe will
+have their own duties towards the people they record. LocaLog's job is to make those duties easy to
+meet: keeping processing local removes the third-party processor entirely, and the ability to delete
+one person's derived data on request is a product requirement rather than a nicety.
+
 ## Non-goals for v0.1
 
 - Generic chatbot or permanent prompt field
