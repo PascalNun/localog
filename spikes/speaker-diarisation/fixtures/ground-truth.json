@@ -1,10 +1,6 @@
 {
   "description": "Synthetic German meeting, 3 speakers, invented content only.",
-  "speakers": [
-    "S1",
-    "S2",
-    "S3"
-  ],
+  "speakers": ["S1", "S2", "S3"],
   "total_s": 23.498,
   "turns": [
     {
