@@ -1,0 +1,41 @@
+{
+  "description": "Synthetic German meeting, 3 speakers, invented content only.",
+  "speakers": [
+    "S1",
+    "S2",
+    "S3"
+  ],
+  "total_s": 23.498,
+  "turns": [
+    {
+      "speaker": "S1",
+      "start_s": 0.0,
+      "end_s": 3.149
+    },
+    {
+      "speaker": "S2",
+      "start_s": 3.149,
+      "end_s": 7.242
+    },
+    {
+      "speaker": "S1",
+      "start_s": 7.242,
+      "end_s": 10.236
+    },
+    {
+      "speaker": "S3",
+      "start_s": 10.236,
+      "end_s": 15.035
+    },
+    {
+      "speaker": "S2",
+      "start_s": 15.035,
+      "end_s": 19.593
+    },
+    {
+      "speaker": "S1",
+      "start_s": 19.593,
+      "end_s": 23.498
+    }
+  ]
+}

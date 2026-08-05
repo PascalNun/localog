@@ -1,0 +1,4 @@
+# Regenerate with build-fixture.sh; audio is never committed.
+fixtures/parts/
+fixtures/*.wav
+fixtures/concat.txt
