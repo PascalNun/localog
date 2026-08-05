@@ -647,7 +647,6 @@ mod tests {
     use std::net::TcpListener;
     use std::thread;
 
-    #[test]
     /// Ignored by default: needs a running Ollama and a real transcript, and writes
     /// its result outside the repository. Run with
     /// `LOCALOG_EVAL_TRANSCRIPT=... LOCALOG_EVAL_MODEL=... LOCALOG_EVAL_OUT=... \
