@@ -70,24 +70,25 @@ Three things are entangled here and must be worked together rather than in seque
 instruction the model receives, the vocabulary is the terminology it needs, and the model is only the
 third variable. Judging a model against a one-sentence style would measure the wrong thing.
 
-1. `Planned` Run generation end to end with the installed model and commit a real protocol revision.
-   This proves the pipeline, not the quality. **Ends when:** a protocol revision exists on disk, and
-   it is confirmed that the whole transcript reached the model rather than a truncated tail.
-   1b. `Unverified` Sectioned generation is implemented: a transcript that fits the window is written in
-   one pass as before, and a longer one is condensed section by section and then synthesised from
-   those notes. Section planning is covered by tests, including the invariant that every segment
-   belongs to exactly one section. It has never run against a real model.
-2. `Planned` Write the "Formal minutes" style properly — sections, tone, rules about not inventing
-   decisions, German and English variants. The current styles are single sentences.
-3. `Planned` Pull a general instruct model suited to German (Gemma and Qwen are both candidates; the
-   8 GB baseline caps this at roughly 5 GB) and compare output on the same transcript and style.
-4. `Planned` Generate from real meeting audio in more than one language. German and English are the
-   first cases because that is where the reference material is; the goal is that nothing in the
-   pipeline is specific to either. Reference pairs of real audio and a human-written protocol live in
-   the local-only `eval/` directory.
-5. `Planned` Test whether project vocabulary measurably improves the result. If it does, the library
-   editor in Block 3 is justified by evidence rather than by intent.
-6. `Planned` Record the finding in `DECISIONS.md`, including whichever model is chosen and why.
+1. `Done` Generation ran end to end on the real 81-minute German meeting. 788 segments, 73,643
+   characters, about 24,500 tokens against an 8192-token window, divided into 17 sections. Produced a
+   structurally correct German protocol in 9m53s on the M1 Pro. The whole transcript was used.
+   1b. `Done` Sectioned generation works against a real model. A transcript that fits the window is
+   written in one pass; a longer one is condensed section by section and synthesised from those notes.
+
+1c. `Planned` The output is a plausible skeleton, not yet a usable protocol. Against the human
+reference it is roughly a quarter of the length and loses most specifics, mangles proper names,
+attributes some people to the wrong organisation, invents a couple of figures, leaks an English
+word into German, and leaves literal `[Datum]` placeholders. Diagnosis before more model shopping:
+the condense-then-synthesise path compresses twice, so detail is lost before the protocol is
+written; a coding model was used because it was what was installed; and every segment is
+`Speaker 1`, so the model cannot attribute anything and writes "Der Sprecher". 2. `Planned` Write the "Formal minutes" style properly — sections, tone, rules about not inventing
+decisions, German and English variants. The current styles are single sentences. 3. `Planned` Pull a general instruct model suited to German (Gemma and Qwen are both candidates; the
+8 GB baseline caps this at roughly 5 GB) and compare output on the same transcript and style. 4. `Planned` Generate from real meeting audio in more than one language. German and English are the
+first cases because that is where the reference material is; the goal is that nothing in the
+pipeline is specific to either. Reference pairs of real audio and a human-written protocol live in
+the local-only `eval/` directory. 5. `Planned` Test whether project vocabulary measurably improves the result. If it does, the library
+editor in Block 3 is justified by evidence rather than by intent. 6. `Planned` Record the finding in `DECISIONS.md`, including whichever model is chosen and why.
 
 **Ends when:** a German meeting produces a protocol a professional would accept after light editing,
 or it is established that it does not and the plan changes accordingly.
