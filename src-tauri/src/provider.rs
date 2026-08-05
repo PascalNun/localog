@@ -186,7 +186,12 @@ struct OllamaOptions {
 
 pub struct OllamaProvider {
     base_url: String,
+    /// Discovery must answer quickly or be treated as unavailable.
     agent: ureq::Agent,
+    /// Generation legitimately takes minutes: a cold model load alone costs seconds,
+    /// and a long meeting is written in several passes. Bound the parts that indicate
+    /// a dead server, and let cancellation between streamed chunks provide the rest.
+    generation_agent: ureq::Agent,
 }
 
 impl OllamaProvider {
@@ -209,8 +214,15 @@ impl OllamaProvider {
             .timeout_global(Some(Duration::from_secs(30)))
             .max_redirects(0)
             .build();
+        let generation_config = ureq::Agent::config_builder()
+            .timeout_global(None)
+            .timeout_connect(Some(Duration::from_secs(10)))
+            .timeout_recv_response(Some(Duration::from_secs(120)))
+            .max_redirects(0)
+            .build();
         Self {
             base_url,
+            generation_agent: generation_config.into(),
             agent: config.into(),
         }
     }
@@ -453,7 +465,7 @@ impl OllamaProvider {
             keep_alive: "2m",
         };
         let response = self
-            .agent
+            .generation_agent
             .post(format!("{}/api/generate", self.base_url))
             .send_json(&body)
             .map_err(http_error)?;
@@ -634,6 +646,118 @@ mod tests {
     use std::io::{Read, Write};
     use std::net::TcpListener;
     use std::thread;
+
+    #[test]
+    /// Ignored by default: needs a running Ollama and a real transcript, and writes
+    /// its result outside the repository. Run with
+    /// `LOCALOG_EVAL_TRANSCRIPT=... LOCALOG_EVAL_MODEL=... LOCALOG_EVAL_OUT=... \
+    ///  cargo test --lib -- --ignored --nocapture generates_a_protocol`
+    #[test]
+    #[ignore]
+    fn generates_a_protocol_from_a_real_transcript() {
+        let transcript_path = std::env::var("LOCALOG_EVAL_TRANSCRIPT").unwrap();
+        let model_name = std::env::var("LOCALOG_EVAL_MODEL").unwrap();
+        let out_path = std::env::var("LOCALOG_EVAL_OUT").unwrap();
+        let language =
+            std::env::var("LOCALOG_EVAL_LANGUAGE").unwrap_or_else(|_| "German".to_string());
+
+        let raw = std::fs::read_to_string(&transcript_path).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let rows = value
+            .get("transcription")
+            .and_then(serde_json::Value::as_array)
+            .expect("whisper transcription array");
+        let transcript: Vec<GenerationSegment> = rows
+            .iter()
+            .filter_map(|row| {
+                let text = row.get("text")?.as_str()?.trim().to_string();
+                if text.is_empty() {
+                    return None;
+                }
+                Some(GenerationSegment {
+                    start_ms: row
+                        .get("offsets")
+                        .and_then(|o| o.get("from"))
+                        .and_then(serde_json::Value::as_u64)
+                        .unwrap_or(0),
+                    speaker: "Speaker 1".to_string(),
+                    text,
+                })
+            })
+            .collect();
+        assert!(!transcript.is_empty(), "transcript had no usable segments");
+
+        let provider = OllamaProvider::loopback();
+        let runtime_version = provider.version().expect("ollama must be running");
+        let model = provider
+            .installed_models()
+            .unwrap()
+            .into_iter()
+            .find(|candidate| candidate.name == model_name)
+            .expect("requested model is not installed");
+
+        let request = GenerationRequest {
+            model: model.name.clone(),
+            model_digest: model.digest.clone(),
+            runtime_version,
+            meeting_language: language,
+            style: formal_minutes_style(),
+            vocabulary_revision: "eval".into(),
+            vocabulary: Vec::new(),
+            transcript,
+            seed: 7,
+            temperature_milli: 200,
+            context_tokens: 8192,
+            maximum_output_tokens: 4096,
+        };
+        let sections = plan_sections(&request);
+        println!(
+            "segments={} sections={}",
+            request.transcript.len(),
+            sections.len()
+        );
+
+        let started = Instant::now();
+        let cancelled = AtomicBool::new(false);
+        let mut last_stage = "";
+        let markdown = provider
+            .generate(&request, &cancelled, &mut |percent, stage| {
+                if stage != last_stage {
+                    println!("  {percent}% {stage} ({:?})", started.elapsed());
+                    last_stage = stage;
+                }
+                Ok(())
+            })
+            .expect("generation must succeed");
+        println!(
+            "generated {} chars in {:?}",
+            markdown.len(),
+            started.elapsed()
+        );
+        std::fs::write(&out_path, &markdown).unwrap();
+    }
+
+    /// Derived from a real professional protocol: topic-structured, explicit about
+    /// what was not decided, and ending in an owner-attributed action table.
+    fn formal_minutes_style() -> GenerationStyle {
+        GenerationStyle {
+            id: "style-formal".into(),
+            revision: "formal-minutes@2".into(),
+            instructions: vec![
+                "Write the entire protocol in the meeting's language.".into(),
+                "Organise the protocol by topic, not in the order things were discussed. Gather everything said about one subject into a single numbered section, even if it came up several times.".into(),
+                "Begin with the participants, grouped by the organisation they belong to, and give a role only where it was stated.".into(),
+                "Use numbered sections with descriptive headings, and sub-numbered subsections where a topic has distinct parts.".into(),
+                "Write discussion as calm, factual prose. Use lists only for options, criteria, and open questions.".into(),
+                "Reproduce every number, measurement, area, date, and proper name exactly as stated. Never round or approximate them.".into(),
+                "Separate what was decided from what remains open. Where no decision was reached, say so plainly rather than implying one.".into(),
+                "Mark uncertainty in the words the meeting used, such as an intention, an estimate, or a matter still to be confirmed.".into(),
+                "End with a table of agreed next steps with two columns, the task and the responsible party, followed by a short section for dates and appointments.".into(),
+                "Never invent a decision, an action, an owner, or a date. If the source does not say who is responsible, leave it unattributed.".into(),
+            ],
+            required_sections: vec!["Teilnehmende".into()],
+        }
+    }
 
     #[test]
     fn sections_cover_every_segment_exactly_once() {
