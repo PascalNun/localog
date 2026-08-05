@@ -98,6 +98,27 @@ comfortably runs. Transcription fits there; generation may not. If that turns ou
 pressure on D-015 rather than on the design, and it should be discovered here rather than during
 packaging.
 
+### Block 1d — Configure itself instead of asking
+
+The user should choose a quality, not a context length. Everything below is detectable, so nothing
+here needs to become a question.
+
+1. `Planned` Read the selected model's real limit from the provider rather than assuming one. Ollama
+   reports it: `/api/show` returns `gemma2.context_length = 8192`, alongside parameter size and
+   quantisation. The generation window is currently hardcoded to 8192, which is wrong in both
+   directions — it wastes a model that supports far more, and it overflows one that supports less.
+   The fold bug fixed on 2026-08-05 would not have been reachable had the limit been read.
+2. `Planned` Detect installed memory and derive a recommended model tier from it. This needs no new
+   dependency: `sysctl hw.memsize` on macOS, `/proc/meminfo` on Linux, `GlobalMemoryStatusEx` on
+   Windows, all reachable through the `libc` crate already in use.
+3. `Planned` Recommend rather than dictate. Suggest the transcription preset and the generation model
+   that suit the machine, mark them as recommended, and let the user pick something smaller or
+   larger. The preset list already works this way; generation should match.
+4. `Planned` Evaluate mixture-of-experts models, which give larger-model quality at a small active
+   parameter cost and are supported by the existing provider. This is the transferable idea from
+   TurboFieldfare, which is otherwise Swift, Metal and Apple-Silicon-only and so cannot be adopted
+   directly by a cross-platform application.
+
 ### Block 2 — Speaker attribution end to end
 
 Now de-risked by the spike, and it feeds Block 1's output directly: a decision or action without a
