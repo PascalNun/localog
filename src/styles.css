@@ -1173,6 +1173,10 @@ textarea::placeholder {
 }
 
 .audio-transport {
+  /* Follow-along scrolls the list; the controls must stay reachable. */
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: grid;
   grid-template-columns: 44px 58px minmax(160px, 1fr) 58px auto;
   align-items: center;

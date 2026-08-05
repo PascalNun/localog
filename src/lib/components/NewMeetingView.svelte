@@ -187,17 +187,10 @@
                 : 'Meeting override'}</small
             ></label
           >
-          <label
-            ><span>Transcription preset</span><select
-              ><option>Balanced</option><option>Fast</option><option>Accurate</option></select
-            ><small>Exact local model remains an advanced setting.</small></label
-          >
-          <label
-            ><span>Vocabulary</span><select
-              ><option>Global + project vocabulary</option><option>Global vocabulary only</option
-              ></select
-            ><small>Project terms apply automatically.</small></label
-          >
+          <p class="field-note">
+            Transcription quality is chosen once in Settings and applies to every meeting.
+            Per-meeting overrides and vocabulary selection are not available yet.
+          </p>
         </div>
         <details class="advanced-disclosure">
           <summary>Advanced processing options</summary>

@@ -931,7 +931,13 @@ impl WorkspaceRepository {
                         WHERE r.meeting_id = m.id
                         ORDER BY r.created_at_ms, r.id LIMIT 1
                     ),
-                    m.style_id
+                    m.style_id,
+                    (
+                        SELECT nm.duration_ms FROM normalized_media nm
+                        JOIN recordings r ON r.id = nm.recording_id
+                        WHERE r.meeting_id = m.id
+                        ORDER BY r.created_at_ms, r.id LIMIT 1
+                    )
                  FROM meetings m
                  WHERE m.id = ?1 AND m.archived_at_ms IS NULL",
                 [id],
@@ -1557,7 +1563,7 @@ fn meeting_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MeetingSummary>
     let source_byte_count: Option<i64> = row.get(8)?;
     // Probed duration becomes visible once working audio exists; a stored label wins.
     let stored_label: Option<String> = row.get(4)?;
-    let duration_ms: Option<i64> = row.get(11).unwrap_or(None);
+    let duration_ms: Option<i64> = row.get(11)?;
     Ok(MeetingSummary {
         id: row.get(0)?,
         project_id: row.get(1)?,
@@ -1676,7 +1682,12 @@ fn job_stage_label(kind: &str, stage: &str, state: JobState) -> String {
         ("generating_protocol", _) => "Creating the protocol draft locally".to_string(),
         ("validating_protocol", _) => "Validating the protocol revision".to_string(),
         ("output_staged", _) => "Committing the new revision safely".to_string(),
-        _ => "Preparing local import".to_string(),
+        // Real transcription stages; without these every step read "Preparing local import".
+        ("probing_media", _) => "Inspecting the recording".to_string(),
+        ("normalizing_audio", _) => "Preparing working audio".to_string(),
+        ("loading_transcription_model", _) => "Loading the local model".to_string(),
+        ("transcribing_audio", _) => "Transcribing locally".to_string(),
+        _ => "Working locally".to_string(),
     }
 }
 
@@ -1968,6 +1979,14 @@ mod tests {
         let source = root.join("synthetic-design-review.wav");
         fs::write(&source, b"synthetic audio fixture").unwrap();
         source
+    }
+
+    #[test]
+    fn duration_labels_are_derived_from_probed_milliseconds() {
+        assert_eq!(duration_label_from_ms(45_000), "45 s");
+        assert_eq!(duration_label_from_ms(2_760_000), "46 min");
+        assert_eq!(duration_label_from_ms(3_960_000), "1 h 06 min");
+        assert_eq!(duration_label_from_ms(-5), "0 s");
     }
 
     #[test]

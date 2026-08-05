@@ -987,7 +987,6 @@ fn execute_real_transcription(
         language,
         source_checksum,
     )?;
-    report(88, "validating_transcript")?;
     let _ = fs::remove_file(json_path);
     let _ = output.stderr;
     Ok(artifact)
