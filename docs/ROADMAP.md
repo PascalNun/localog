@@ -9,7 +9,7 @@ LocaLog is intended for macOS, Windows, and Linux. macOS receives the first comp
 - Microphone recording with interruption/recovery handling
 - macOS system-audio capture, then platform equivalents
 - Multiple synchronized recording sources per meeting
-- Automatic speaker diarisation and better manual speaker tools
+- Richer speaker tools beyond the v0.1 diarisation accepted in D-029
 - Audio waveform and faster timestamp navigation
 - Protocol-to-transcript/audio traceability
 - DOCX export and basic templates
@@ -24,6 +24,55 @@ LocaLog is intended for macOS, Windows, and Linux. macOS receives the first comp
 - Richer vocabulary import, suggestions, and conflict resolution
 - Structured task/decision views derived from protocols, always reviewable
 
+## Later — the same workflow on a phone
+
+A long-term goal, deliberately not being investigated yet.
+
+Recording usually happens on a phone, so the current split — capture on the phone, process on a
+laptop — adds a transfer step to every meeting. Doing the whole workflow on one device would remove
+it. The smaller transcription models are the reason this is plausible rather than fanciful: the
+quality presets already include models small enough that on-device transcription is a reasonable
+question to ask, even if protocol generation stays on a desktop at first.
+
+Nothing about this is committed, and it must not become an incidental dependency of v0.1. It is
+recorded here so that architecture choices which would make it impossible are noticed early: the
+product core stays independent of desktop-only assumptions, and platform behaviour stays behind the
+adapters described in the technical architecture.
+
+## Later — a dedicated capture device
+
+A separate long-term idea, recorded so it is not forgotten. Also not being investigated yet.
+
+A small purpose-built recorder — closer to a dictation device than a computer — would capture meeting
+audio without a laptop open on the table, which is often the socially easier thing in a client or
+site meeting. It would only capture: transcription and protocol generation stay on the computer, so
+the device needs no model, no accelerator, and no network.
+
+This is a hardware product with its own economics, firmware, certification, and support burden, which
+makes it a much larger commitment than a phone application. It is listed as a possibility, not a
+plan. What it does imply for the software is modest and already true: imported audio remains the
+first-class input path, and a meeting can own more than one source.
+
+## Later — fitting into an organisation's own systems
+
+A long-term goal for larger teams, recorded now and deliberately not designed yet.
+
+Firms already have somewhere that project documents belong: a self-hosted file service such as
+Nextcloud, a company drive, or a collaboration suite. A protocol that has to be exported and filed by
+hand is a protocol that gets filed inconsistently. The goal is that a LocaLog project can be linked to
+where the organisation already keeps that project's material, so a reviewed protocol lands in the
+right place without manual copying.
+
+This does not contradict local-first, and the distinction matters: the target is infrastructure the
+organisation controls, which is exactly where this material is supposed to live. It is not a LocaLog
+cloud, not a third-party inference service, and not a hosted account system. Sending meeting content
+to a service the organisation does not control remains outside the product.
+
+Requirements before any of this is designed: it stays optional and off by default, every destination
+is configured explicitly by the user or their administrator, nothing is uploaded without an explicit
+action, and the local workflow remains complete on its own. Whether LocaLog offers an outbound
+integration, an API surface for others to call, or both is undecided.
+
 ## Phase 4 — advanced local workflows
 
 - Optional live transcription where hardware permits
@@ -34,4 +83,4 @@ LocaLog is intended for macOS, Windows, and Linux. macOS receives the first comp
 
 ## Explicitly uncommitted
 
-Cloud sync, accounts, collaboration, shared workspaces, calendar integration, meeting bots, mobile apps, and hosted inference are not implied by this roadmap. Each would require a separate product/privacy decision and must not become an incidental dependency.
+Cloud sync, accounts, collaboration, shared workspaces, calendar integration, meeting bots, and hosted inference are not implied by this roadmap. A phone application is a stated long-term goal above, but no part of v0.1 depends on it. Each would require a separate product/privacy decision and must not become an incidental dependency.
