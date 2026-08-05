@@ -349,7 +349,7 @@ fn transcription_metadata(
             runtime_version,
             model_digest: provenance.digest,
             model_byte_count: provenance.byte_count,
-            language_code: language_code.to_string(),
+            language_code: language_code.clone(),
             sample_rate: 16_000,
             channels: 1,
             codec: "pcm_s16le".to_string(),
@@ -419,15 +419,50 @@ pub(crate) fn cached_model_provenance(
     Ok(provenance)
 }
 
-fn transcription_language_code(language: &str) -> &str {
-    match language.trim().to_ascii_lowercase().as_str() {
-        "en" | "english" => "en",
-        "de" | "deutsch" | "german" => "de",
-        "fr" | "french" => "fr",
-        "es" | "spanish" => "es",
-        "it" | "italian" => "it",
-        _ => "auto",
+/// Resolve a meeting language to a code the transcription runtime understands.
+///
+/// No language is special-cased. A two-letter ISO 639-1 code passes straight
+/// through, common names are recognised as a convenience, and anything else
+/// falls back to automatic detection rather than being rejected or assumed.
+fn transcription_language_code(language: &str) -> String {
+    let value = language.trim().to_ascii_lowercase();
+    if value.is_empty() || value == "auto" {
+        return "auto".to_string();
     }
+    // Any ISO 639-1 code is already valid for the runtime.
+    if value.len() == 2 && value.chars().all(|c| c.is_ascii_alphabetic()) {
+        return value;
+    }
+    let named = [
+        ("english", "en"),
+        ("german", "de"),
+        ("deutsch", "de"),
+        ("french", "fr"),
+        ("français", "fr"),
+        ("spanish", "es"),
+        ("español", "es"),
+        ("italian", "it"),
+        ("italiano", "it"),
+        ("dutch", "nl"),
+        ("nederlands", "nl"),
+        ("portuguese", "pt"),
+        ("português", "pt"),
+        ("polish", "pl"),
+        ("polski", "pl"),
+        ("czech", "cs"),
+        ("danish", "da"),
+        ("swedish", "sv"),
+        ("norwegian", "no"),
+        ("finnish", "fi"),
+        ("turkish", "tr"),
+        ("japanese", "ja"),
+        ("chinese", "zh"),
+    ];
+    named
+        .iter()
+        .find(|(name, _)| *name == value)
+        .map(|(_, code)| (*code).to_string())
+        .unwrap_or_else(|| "auto".to_string())
 }
 
 pub(crate) fn queue_generation(
@@ -2857,14 +2892,27 @@ mod tests {
     }
 
     #[test]
-    fn transcription_language_mapping_is_conservative() {
+    fn transcription_language_mapping_handles_names_and_codes() {
         assert_eq!(transcription_language_code("English"), "en");
         assert_eq!(transcription_language_code("de"), "de");
-        assert_eq!(transcription_language_code(" Français "), "auto");
+        // Previously fell back to detection; named languages are no longer a narrow set.
+        assert_eq!(transcription_language_code(" Français "), "fr");
         assert_eq!(transcription_language_code("unknown language"), "auto");
     }
 
-    #[cfg(unix)]
+    #[test]
+    fn language_resolution_special_cases_nothing() {
+        // Named languages are a convenience, not the supported set.
+        assert_eq!(transcription_language_code("German"), "de");
+        assert_eq!(transcription_language_code("Nederlands"), "nl");
+        // Any ISO 639-1 code passes through, including ones with no alias.
+        assert_eq!(transcription_language_code("sv"), "sv");
+        assert_eq!(transcription_language_code("KO"), "ko");
+        // Unknown input detects rather than guessing or failing.
+        assert_eq!(transcription_language_code("Schwyzerdütsch"), "auto");
+        assert_eq!(transcription_language_code(""), "auto");
+    }
+
     #[test]
     fn real_transcription_metadata_snapshots_runtime_and_model_provenance() {
         let temporary = tempdir().unwrap();

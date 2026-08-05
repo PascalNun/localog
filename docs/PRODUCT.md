@@ -69,6 +69,8 @@ The resolved values should be snapshotted when a processing job starts so a late
 
 Interface language and meeting/content language are independent. The language selected for transcription and protocol generation never implicitly changes the application interface language.
 
+No content language is privileged. The workflow is designed to work in whatever language a meeting was held in, and the first validation happens in German and English only because that is where the first users and the first reference material are — not because the product is built around them. Language is a parameter of a meeting, not a branch in the application: a protocol style describes structure and tone and produces output in the meeting's language, rather than existing as a separate per-language variant. Where a language cannot be identified, the transcription runtime detects it rather than the application assuming one.
+
 ## Vocabulary
 
 Vocabulary is a library object, not a free-form prompt box. Entries should support term, preferred spelling, category, aliases, optional note, scope, and enabled state. v0.1 uses vocabulary as transcription context where supported and as protocol-generation context; it does not claim to fine-tune models.

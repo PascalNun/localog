@@ -74,8 +74,10 @@ third variable. Judging a model against a one-sentence style would measure the w
    decisions, German and English variants. The current styles are single sentences.
 3. `Planned` Pull a general instruct model suited to German (Gemma and Qwen are both candidates; the
    8 GB baseline caps this at roughly 5 GB) and compare output on the same transcript and style.
-4. `Planned` Generate from real German meeting audio, not only English. This is the first proving
-   audience and has never been tested.
+4. `Planned` Generate from real meeting audio in more than one language. German and English are the
+   first cases because that is where the reference material is; the goal is that nothing in the
+   pipeline is specific to either. Reference pairs of real audio and a human-written protocol live in
+   the local-only `eval/` directory.
 5. `Planned` Test whether project vocabulary measurably improves the result. If it does, the library
    editor in Block 3 is justified by evidence rather than by intent.
 6. `Planned` Record the finding in `DECISIONS.md`, including whichever model is chosen and why.
@@ -136,8 +138,8 @@ on an unvalidated protocol teaches less.
 
 Small items that do not deserve a block and should be picked up when adjacent work touches them:
 confirm audio playback; rework the playback **Follow** control; replace the per-segment `Speaker 1`
-column (resolved by Block 2); bind or remove the New Meeting language select; narrow the asset
-protocol scope from `$APPDATA/**` to the working-audio directory.
+column (resolved by Block 2); narrow the asset protocol scope from `$APPDATA/**` to the working-audio
+directory.
 
 ## Sequencing rationale
 
