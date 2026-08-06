@@ -838,6 +838,25 @@ impl WorkspaceRepository {
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
+    /// A meeting's vocabulary for transcription, most specific first.
+    ///
+    /// Project entries precede global ones because a project's own names are what
+    /// a transcriber cannot guess, and the runtime accepts only a short prompt.
+    pub(crate) fn transcription_vocabulary(&self, meeting_id: &str) -> Result<Vec<String>> {
+        let mut statement = self.connection.prepare(
+            "SELECT v.term
+             FROM vocabulary_entries v
+             JOIN meetings m ON m.id = ?1
+             WHERE v.enabled = 1
+               AND (v.project_id = m.project_id OR v.scope = 'Global')
+             ORDER BY
+               CASE WHEN v.project_id = m.project_id THEN 0 ELSE 1 END,
+               v.term COLLATE NOCASE",
+        )?;
+        let rows = statement.query_map([meeting_id], |row| row.get::<_, String>(0))?;
+        Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
     fn list_vocabulary_for_project(&self, project_id: &str) -> Result<Vec<VocabularyEntry>> {
         let mut statement = self.connection.prepare(
             "SELECT id, term, category, scope, project_id
@@ -1982,6 +2001,49 @@ mod tests {
         let source = root.join("synthetic-design-review.wav");
         fs::write(&source, b"synthetic audio fixture").unwrap();
         source
+    }
+
+    #[test]
+    fn transcription_vocabulary_puts_project_terms_before_global_ones() {
+        let temporary = tempdir().unwrap();
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let project = repository
+            .create_project(NewProjectInput {
+                name: "Quartier".to_string(),
+                description: String::new(),
+                default_language: "German".to_string(),
+            })
+            .unwrap();
+        let source = temporary.path().join("synthetic.wav");
+        fs::write(&source, b"synthetic").unwrap();
+        let meeting = repository
+            .create_meeting(NewMeetingInput {
+                project_id: project.id.clone(),
+                title: "Jour fixe".to_string(),
+                occurred_at: "2026-08-06".to_string(),
+                language: "German".to_string(),
+                source_name: "synthetic.wav".to_string(),
+                source_path: Some(source.to_string_lossy().into_owned()),
+                style_id: "style-formal".to_string(),
+            })
+            .unwrap();
+        repository
+            .connection
+            .execute(
+                "INSERT INTO vocabulary_entries
+                    (id, term, preferred_spelling, category, scope, project_id, enabled,
+                     updated_at_ms)
+                 VALUES ('v1','Zzz Global','Zzz Global','Term','Global',NULL,1,0),
+                        ('v2','NORVEK','NORVEK','Organisation','Project',?1,1,0),
+                        ('v3','Disabled','Disabled','Term','Project',?1,0,0)",
+                [&project.id],
+            )
+            .unwrap();
+
+        let terms = repository.transcription_vocabulary(&meeting.id).unwrap();
+        // The project's own name comes first despite sorting later alphabetically,
+        // and a disabled entry never reaches the runtime.
+        assert_eq!(terms, vec!["NORVEK".to_string(), "Zzz Global".to_string()]);
     }
 
     #[test]
