@@ -74,6 +74,29 @@ watching a progress bar for forty minutes.
 - **Prefer a smaller model that finishes to a larger one that might not.** The default should be what
   works on the machine in front of the user, with larger options available and clearly labelled.
 
+## 1c. One place always says what the machine is doing
+
+The sidebar already carries a persistent status line, and it is the right idea in the right place:
+always visible, never in the way, and not tied to whichever screen happens to be open. It should be
+the single answer to "what is happening right now", and today it is not, because it only knows about
+meeting jobs.
+
+- **Everything heavy appears there**, not only transcription and generation. A model download holds
+  the same admission slot and takes minutes, yet is currently invisible in the status line.
+- **A refusal explains itself.** Now that one heavy task runs at a time, an action can be declined
+  because something else is running. The reason belongs where the user is already looking, not only
+  in the dialog they just dismissed.
+- **State is described, not implied.** Queued, running, needing a decision, failed and interrupted
+  each read differently. Silence should mean nothing is happening, and never mean the interface has
+  stopped noticing.
+- **It says what, and roughly how far.** For long work a stage and a sense of progress prevents the
+  reasonable assumption that something has hung.
+- **It survives navigation.** Work continues while the user reads a transcript or edits a protocol,
+  and the status line is what makes that visible without pulling them back.
+
+The underlying rule: a user should never have to guess whether the application is working, waiting,
+or stuck. Anything that takes longer than a moment is announced in one predictable place.
+
 ## 2. Names and language
 
 The interface should use the words a project team uses, not the words the implementation uses.
