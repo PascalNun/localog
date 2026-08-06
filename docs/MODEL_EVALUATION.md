@@ -122,6 +122,36 @@ Nine defects, none of which unit tests could have caught, all only visible again
    empty response and put their JSON there. This probably explains several failures first attributed
    to memory pressure, and it was fixed only after gemma4 had already been set aside.
 
+## Diarisation
+
+The spike used synthetic speech and was far too easy. On the real meeting it fails.
+
+| Case                                  | Speakers found | Speed          |
+| ------------------------------------- | -------------- | -------------- |
+| Spike, 23 s, three synthetic voices   | 3 of 3         | 3.2x real time |
+| Real meeting, 81 min, about 11 people | **86**         | **0.51x**      |
+| Real meeting, 10 min excerpt          | 12             | 0.51x          |
+
+Two separate problems.
+
+**Over-clustering grows with length.** Ten minutes of the same recording yields twelve speakers;
+the full eighty-one minutes yields eighty-six. The embedding of one person drifts across a long
+videoconference — different microphones, connection quality, and compression — so the clustering
+splits a single voice into many. One cluster holds 58% of the speech while eighty-five share a long
+tail, most with a single short turn.
+
+Directions worth trying, cheapest first:
+
+- Supply the expected speaker count when it is known. Participants are already a planned meeting
+  field, so this is free information the product will have anyway.
+- Raise the clustering threshold so voices merge more readily, at the risk of merging two people.
+- Diarise in windows and match clusters across window boundaries, which addresses drift directly but
+  is the most work.
+
+**Speed is worse than real time.** Both neural networks default to `num_threads = 1` on a machine
+with six performance cores, and a CoreML provider is available and unused. Neither was enabled in any
+run above, so the 0.51x figure is a floor rather than a limit.
+
 ## Candidates not yet tested
 
 Recorded so they are not lost between sessions. Sizes and context from ollama.com; nothing here has
@@ -145,11 +175,12 @@ would complicate.
 
 ## Open questions
 
-- **gemma4:12b is not viable on this hardware.** Retried after the reasoning, budget and timeout
-  defects were all fixed, so those confounds are gone. It still failed, with a single condensing pass
-  exceeding thirty minutes before returning anything, against six minutes for a complete protocol from
-  qwen3.5:4b. The earlier memory observation stands: a 12B model at long context does not have room
-  to work on 16 GB. This says nothing about how well it writes, only that it cannot finish here.
+- **gemma4:12b is unproven, not disproven.** It was retried after the reasoning, budget and timeout
+  defects were fixed, and still failed with one pass exceeding thirty minutes. But a large model
+  download was running concurrently during those attempts, and contention is known to matter
+  enormously here: qwen3.5:4b took over fifty-six minutes with a download competing and eleven
+  minutes without. gemma4:12b has never run on a quiet machine, so the verdict recorded earlier was
+  premature and is withdrawn pending a clean test.
 - **The mixture-of-experts question is still untested.** gemma4:26b holds 25.2 B parameters but
   activates only 3.8 B per token, and Ollama memory-maps weights, so the resident working set may be
   far smaller than the 18 GB file. That would make it behave quite unlike a dense model of the same
