@@ -88,12 +88,20 @@ Term accuracy in the generated protocol, with and without vocabulary:
 - **Small models with very large windows changed the picture.** qwen3.5:4b is 3.4 GB with a 256K
   context: it fits an 8 GB machine _and_ holds an entire meeting in one pass, which removes the
   compression that shortened earlier output.
-- **Proper nouns are the whole win.** Standard German professional terminology transcribed correctly
+- **Proper nouns are the whole win _in this domain_.** Standard German professional terminology transcribed correctly
   with no help at all: Fassade (43 occurrences), Grundriss (28), Treppenhaus (12), Erschließung (10),
   plus Laubengang, Wohnungsmix, Tragwerk, Bauphysik, Barrierefreiheit and Stahlbeton. Every term
   vocabulary actually corrected was a company name or a surname. Since the prompt is capped at about
   224 tokens, a vocabulary of general field terminology would spend that budget on words the model
   already knows.
+
+  This is one meeting in one field, and the rule should not be treated as general. German
+  construction terminology is common enough in training data to be transcribed correctly unaided;
+  other professions may not be. Medicine has drug names and abbreviations that are both unusual and
+  easily confused, and law gives ordinary words specific meanings. The ordering rule needs testing in
+  a second field before it is relied on, and the product should let a field's vocabulary set decide
+  rather than hard-coding an assumption drawn from architecture.
+
 - **Vocabulary shortens as well as corrects.** The vocabulary run produced 15,610 characters against
   22,211 without, closer to the reference. A cleaner transcript appears to reduce the model's
   need to hedge and restate.
