@@ -1,5 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(test)]
+mod eval_harness;
+
 mod diarisation;
 mod domain;
 mod imports;
