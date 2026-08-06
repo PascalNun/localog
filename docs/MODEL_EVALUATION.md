@@ -122,6 +122,27 @@ Nine defects, none of which unit tests could have caught, all only visible again
    empty response and put their JSON there. This probably explains several failures first attributed
    to memory pressure, and it was fixed only after gemma4 had already been set aside.
 
+## Candidates not yet tested
+
+Recorded so they are not lost between sessions. Sizes and context from ollama.com; nothing here has
+been run.
+
+| Candidate         | Size   | Context | Why it is on the list                                                   |
+| ----------------- | ------ | ------- | ----------------------------------------------------------------------- |
+| **mistral-nemo**  | ~7 GB  | 128K    | European lab, Apache 2.0, historically strong in German and French      |
+| mistral-small3.2  | ~14 GB | 128K    | Larger Mistral; likely too big for 16 GB on current evidence            |
+| **gemma4:e2b**    | 7.2 GB | 128K    | 2.3 B _effective_ parameters, so far cheaper to compute than gemma4:12b |
+| gemma4:e4b        | 9.6 GB | 128K    | 4.5 B effective                                                         |
+| **granite4.1:3b** | 2.1 GB | 128K    | IBM, Apache 2.0, German among explicitly listed languages               |
+| granite4.1:8b     | 5.3 GB | 128K    | Same family, more capacity                                              |
+
+**Mistral matters for a reason beyond quality.** LocaLog's users are European professional firms, and
+a European model developed under EU rules is easier to justify to a client asking where the technology
+came from — even though nothing leaves the device, so no transfer question arises technically. This is
+a procurement and trust argument rather than a privacy one, and it is worth testing on those grounds
+alone. Its Apache 2.0 licence also matters if a model is ever fine-tuned, which Gemma's own terms
+would complicate.
+
 ## Open questions
 
 - **gemma4:12b is not viable on this hardware.** Retried after the reasoning, budget and timeout
