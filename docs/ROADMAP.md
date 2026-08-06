@@ -48,6 +48,33 @@ Approaches, roughly cheapest first:
   deletable, excluded from exports, and never a silent side effect. The remaining design work is how
   a profile is created, shown, and deleted, not whether the capability is wanted.
 
+## Filling vocabulary without making the user type it
+
+Vocabulary measurably improves transcription (see [MODEL_EVALUATION.md](MODEL_EVALUATION.md)), but a
+user who must maintain a word list by hand will not maintain one. Directions to weigh:
+
+- **Participants become vocabulary automatically.** A name typed into a meeting is exactly the kind
+  of term transcription gets wrong, and the user has already typed it. Nothing should have to be
+  entered twice.
+- **Seed a project from a document it already has.** An existing protocol contains every firm,
+  person and recurring term the project uses. Offering to extract candidate vocabulary from one, for
+  the user to confirm, turns list-building into a single review step.
+- **Vocabulary sets per professional field.** Architecture, medical, legal and similar fields each
+  have their own recurring terminology, and a user could choose the set that matches their work
+  rather than starting empty.
+
+One measured constraint shapes all of these: whisper's initial prompt is capped at roughly 224
+tokens, so vocabulary must be **prioritised rather than accumulated**. Evidence from the first real
+meeting shows what deserves that budget. Standard German professional terminology was already
+transcribed correctly without any help — Fassade, Grundriss, Treppenhaus, Erschließung, Laubengang,
+Tragwerk, Barrierefreiheit and Stahlbeton all appeared correctly. Every term vocabulary actually
+fixed was a **proper noun**: a company name, a participant's surname.
+
+So the ordering should follow specificity rather than volume: this meeting's participants first, then
+the project's own names and places, then genuinely ambiguous abbreviations of the field, and only
+then general terminology. A field-specific set is still worth having, but it earns its place through
+acronyms and unusual usage, not through vocabulary the model already knows.
+
 ## Phase 3 — portability and libraries
 
 - Windows and Linux packaged builds
