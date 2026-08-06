@@ -119,6 +119,9 @@ struct TagsResponse {
 struct StreamChunk {
     #[serde(default)]
     response: String,
+    /// Some builds answer here even when reasoning is disabled.
+    #[serde(default)]
+    thinking: String,
     #[serde(default)]
     done: bool,
     /// Ollama reports "length" when the answer was cut off at the token cap, which
@@ -183,6 +186,10 @@ struct OllamaRequest<'a> {
     system: &'static str,
     prompt: &'a str,
     stream: bool,
+    /// Reasoning models otherwise return their answer in a separate `thinking`
+    /// field and leave `response` empty. Protocol writing is an extraction task
+    /// against a supplied transcript, so the reasoning channel is not wanted.
+    think: bool,
     format: serde_json::Value,
     options: OllamaOptions,
     keep_alive: &'static str,
@@ -552,6 +559,7 @@ impl OllamaProvider {
             system: call.system,
             prompt: call.prompt,
             stream: true,
+            think: false,
             format: call.format,
             options: OllamaOptions {
                 seed: request.seed,
@@ -589,7 +597,11 @@ impl OllamaProvider {
             let chunk: StreamChunk = serde_json::from_str(line.trim()).map_err(|error| {
                 ProviderError::InvalidResponse(truncate(&error.to_string(), 280))
             })?;
-            generated.push_str(&chunk.response);
+            generated.push_str(if chunk.response.is_empty() {
+                &chunk.thinking
+            } else {
+                &chunk.response
+            });
             if generated.len() > MAX_RESPONSE_BYTES {
                 return Err(ProviderError::ResponseTooLarge);
             }
