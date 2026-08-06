@@ -59,7 +59,8 @@ prioritised rather than dumped in.
 | qwen2.5-coder:7b | 4.7 GB | 16K          | 4,210 chars — still short     | 6m23s  |
 | qwen2.5-coder:7b | 4.7 GB | 32K          | rejected: missing section     | —      |
 | gemma2:9b        | 5.4 GB | 8K           | failed — window too small     | —      |
-| gemma4:12b       | 7.6 GB | 16K–49K      | failed in five attempts       | —      |
+| gemma4:12b       | 7.6 GB | 16K–49K      | failed, seven attempts        | —      |
+| gemma4:12b       | 7.6 GB | 16K + vocab  | failed: >30 min for one pass  | 34m+   |
 | **qwen3.5:4b**   | 3.4 GB | 40K          | **22,211 chars, full length** | 10m51s |
 | **qwen3.5:4b**   | 3.4 GB | 40K + vocab  | **15,610 chars**              | 6m03s  |
 
@@ -115,8 +116,11 @@ Nine defects, none of which unit tests could have caught, all only visible again
 
 ## Open questions
 
-- Does gemma4:12b work now that reasoning is disabled? It was abandoned before that fix, and a retry
-  is in progress.
+- **gemma4:12b is not viable on this hardware.** Retried after the reasoning, budget and timeout
+  defects were all fixed, so those confounds are gone. It still failed, with a single condensing pass
+  exceeding thirty minutes before returning anything, against six minutes for a complete protocol from
+  qwen3.5:4b. The earlier memory observation stands: a 12B model at long context does not have room
+  to work on 16 GB. This says nothing about how well it writes, only that it cannot finish here.
 - **The mixture-of-experts question is still untested.** gemma4:26b holds 25.2 B parameters but
   activates only 3.8 B per token, and Ollama memory-maps weights, so the resident working set may be
   far smaller than the 18 GB file. That would make it behave quite unlike a dense model of the same
