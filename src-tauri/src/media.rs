@@ -134,6 +134,26 @@ pub(crate) fn whisper_command(
     command
 }
 
+/// Build the diarisation invocation. The runtime is separate from transcription
+/// and its models are separate too, so the caller supplies all three paths.
+pub(crate) fn diarisation_command(
+    executable: &Path,
+    segmentation_model: &Path,
+    embedding_model: &Path,
+    normalized: &Path,
+) -> Command {
+    let mut command = Command::new(executable);
+    command
+        .arg("--clustering.cluster-threshold=0.6")
+        .arg(format!(
+            "--segmentation.pyannote-model={}",
+            segmentation_model.display()
+        ))
+        .arg(format!("--embedding.model={}", embedding_model.display()))
+        .arg(normalized);
+    command
+}
+
 pub(crate) fn expected_json_path(base: &Path) -> PathBuf {
     base.with_extension("json")
 }
