@@ -360,6 +360,160 @@ async fn meeting_audio(
     .await
 }
 
+/// Whether speaker separation can run, and what it would cost to make it possible.
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SpeakerSeparationStatus {
+    models_installed: bool,
+    runtime_configured: bool,
+    /// Bytes still to download; zero once the models are present.
+    download_bytes: u64,
+    expected_speakers: Option<u32>,
+}
+
+#[tauri::command]
+async fn speaker_separation_status(
+    storage: State<'_, StorageState>,
+) -> Result<SpeakerSeparationStatus, String> {
+    with_repository(storage.root.clone(), move |repository| {
+        Ok(speaker_status(repository))
+    })
+    .await
+}
+
+fn speaker_status(repository: &WorkspaceRepository) -> SpeakerSeparationStatus {
+    SpeakerSeparationStatus {
+        models_installed: models::diarisation_model_paths(&repository.root).is_some(),
+        runtime_configured: repository
+            .read_setting("diarisation.executable")
+            .ok()
+            .flatten()
+            .map(PathBuf::from)
+            .is_some_and(|path| path.is_file()),
+        download_bytes: models::diarisation_download_bytes(&repository.root),
+        expected_speakers: repository
+            .read_setting("diarisation.expectedSpeakers")
+            .ok()
+            .flatten()
+            .and_then(|value| value.parse().ok()),
+    }
+}
+
+/// Transitional, like the transcription runtime: this disappears once the diariser
+/// ships as a bundled sidecar.
+#[tauri::command]
+async fn configure_speaker_runtime(
+    storage: State<'_, StorageState>,
+    executable_path: String,
+) -> Result<SpeakerSeparationStatus, String> {
+    with_repository(storage.root.clone(), move |repository| {
+        let executable = PathBuf::from(&executable_path);
+        if !executable.is_absolute() || !executable.is_file() {
+            return Err(storage::StorageError::InvalidData(
+                "Choose an existing speaker separation program.",
+            ));
+        }
+        repository.write_setting("diarisation.executable", &executable_path)?;
+        Ok(speaker_status(repository))
+    })
+    .await
+}
+
+/// How many people were in the meeting. Clustering a long recording by voice
+/// similarity alone splits one person into many, so a known count matters.
+#[tauri::command]
+async fn set_expected_speakers(
+    storage: State<'_, StorageState>,
+    count: Option<u32>,
+) -> Result<SpeakerSeparationStatus, String> {
+    with_repository(storage.root.clone(), move |repository| {
+        let value = match count {
+            Some(count) if (2..=64).contains(&count) => count.to_string(),
+            Some(_) => {
+                return Err(storage::StorageError::InvalidData(
+                    "Enter how many people spoke, between 2 and 64.",
+                ));
+            }
+            None => String::new(),
+        };
+        repository.write_setting("diarisation.expectedSpeakers", &value)?;
+        Ok(speaker_status(repository))
+    })
+    .await
+}
+
+/// Fetch whichever diariser models are missing, one after another, through the
+/// same verified download path the transcription models use.
+#[tauri::command]
+async fn download_speaker_models(
+    app: AppHandle,
+    storage: State<'_, StorageState>,
+    coordinator: State<'_, JobCoordinatorState>,
+) -> Result<(), String> {
+    let root = storage.root.clone();
+    let key = "model:speaker-separation".to_string();
+    coordinator.claim_heavy(&key, "A meeting is being processed")?;
+    let cancellation = Arc::new(AtomicBool::new(false));
+    {
+        let mut active = coordinator
+            .cancellations
+            .lock()
+            .map_err(|_| "The local processing coordinator is unavailable.".to_string())?;
+        if active.contains_key(&key) {
+            return Ok(());
+        }
+        active.insert(key.clone(), cancellation.clone());
+    }
+    let state = coordinator.inner().clone();
+    tauri::async_runtime::spawn(async move {
+        let progress_app = app.clone();
+        let run_root = root.clone();
+        let result = tauri::async_runtime::spawn_blocking(move || {
+            for model_id in models::DIARISATION_MODELS {
+                let emit_app = progress_app.clone();
+                models::download_model(&run_root, model_id, &cancellation, |percent| {
+                    let _ = emit_app.emit(
+                        "model://progress",
+                        serde_json::json!({ "modelId": "speaker-separation", "percent": percent }),
+                    );
+                })?;
+            }
+            Ok::<(), models::ModelError>(())
+        })
+        .await;
+        if let Ok(mut active) = state.cancellations.lock() {
+            active.remove(&key);
+        }
+        state.release_heavy(&key);
+        match result {
+            Ok(Ok(())) | Ok(Err(models::ModelError::Cancelled)) => {
+                if let Ok(repository) = WorkspaceRepository::open(&root) {
+                    let _ = app.emit("speakers://changed", speaker_status(&repository));
+                }
+            }
+            Ok(Err(error)) => {
+                let _ = app.emit(
+                    "model://error",
+                    serde_json::json!({
+                        "modelId": "speaker-separation",
+                        "message": error.to_string()
+                    }),
+                );
+            }
+            Err(_) => {
+                let _ = app.emit(
+                    "model://error",
+                    serde_json::json!({
+                        "modelId": "speaker-separation",
+                        "message": "The download stopped unexpectedly."
+                    }),
+                );
+            }
+        }
+    });
+    Ok(())
+}
+
 #[tauri::command]
 async fn protocol_provider_status(
     storage: State<'_, StorageState>,
@@ -852,6 +1006,10 @@ pub fn run() {
             download_transcription_model,
             cancel_transcription_download,
             remove_transcription_model,
+            speaker_separation_status,
+            configure_speaker_runtime,
+            set_expected_speakers,
+            download_speaker_models,
             meeting_audio,
             protocol_provider_status,
             configure_protocol_provider,

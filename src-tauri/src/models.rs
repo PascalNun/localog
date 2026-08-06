@@ -31,7 +31,26 @@ pub(crate) const PRESETS: &[(&str, &str)] = &[
 
 pub(crate) const DEFAULT_PRESET: &str = "balanced";
 
+/// Models the diariser needs. Both are small next to a transcription model, and
+/// both are required together: segmentation finds where voices change, embedding
+/// describes each voice so they can be grouped.
+pub(crate) const DIARISATION_MODELS: &[&str] = &["speaker-segmentation", "speaker-embedding"];
+
 const MODELS: &[ModelSpec] = &[
+    ModelSpec {
+        id: "speaker-segmentation",
+        file_name: "speaker-segmentation.onnx",
+        url: "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/main/model.onnx",
+        sha256: "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079",
+        byte_count: 5_992_913,
+    },
+    ModelSpec {
+        id: "speaker-embedding",
+        file_name: "speaker-embedding.onnx",
+        url: "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx",
+        sha256: "1a331345f04805badbb495c775a6ddffcdd1a732567d5ec8b3d5749e3c7a5e4b",
+        byte_count: 39_593_761,
+    },
     ModelSpec {
         id: "tiny",
         file_name: "ggml-tiny.bin",
@@ -146,6 +165,26 @@ pub(crate) fn installed_model_path(root: &Path, model_id: &str) -> Option<PathBu
 /// The model file backing a chosen preset, if it is installed.
 pub(crate) fn model_path_for_preset(root: &Path, preset: &str) -> Option<PathBuf> {
     installed_model_path(root, preset_model_id(preset)?)
+}
+
+/// Where the diariser's models are, once both have been downloaded. Returns
+/// `None` unless every one of them is present, because the diariser needs them
+/// together and a partial set would fail at the point of use.
+pub(crate) fn diarisation_model_paths(root: &Path) -> Option<(PathBuf, PathBuf)> {
+    let segmentation = installed_model_path(root, "speaker-segmentation")?;
+    let embedding = installed_model_path(root, "speaker-embedding")?;
+    Some((segmentation, embedding))
+}
+
+/// Total download size of whatever the diariser is still missing, so the user can
+/// be told the cost before agreeing to it.
+pub(crate) fn diarisation_download_bytes(root: &Path) -> u64 {
+    DIARISATION_MODELS
+        .iter()
+        .filter(|id| installed_model_path(root, id).is_none())
+        .filter_map(|id| spec(id))
+        .map(|model| model.byte_count)
+        .sum()
 }
 
 pub(crate) fn capability(root: &Path, selected_preset: &str) -> TranscriptionCapability {
@@ -350,6 +389,39 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
+    fn diarisation_needs_every_model_before_it_can_run() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        fs::create_dir_all(models_dir(root)).unwrap();
+        assert!(diarisation_model_paths(root).is_none());
+        assert_eq!(diarisation_download_bytes(root), 5_992_913 + 39_593_761);
+
+        // One of two present is still not usable, and the remaining cost reflects it.
+        let seg = models_dir(root).join("speaker-segmentation.onnx");
+        fs::File::create(&seg).unwrap().set_len(5_992_913).unwrap();
+        assert!(diarisation_model_paths(root).is_none());
+        assert_eq!(diarisation_download_bytes(root), 39_593_761);
+
+        let emb = models_dir(root).join("speaker-embedding.onnx");
+        fs::File::create(&emb).unwrap().set_len(39_593_761).unwrap();
+        assert_eq!(diarisation_model_paths(root), Some((seg, emb)));
+        assert_eq!(diarisation_download_bytes(root), 0);
+    }
+
+    #[test]
+    fn diarisation_models_are_not_offered_as_transcription_qualities() {
+        let temporary = tempdir().unwrap();
+        let capability = capability(temporary.path(), "balanced");
+        for preset in &capability.presets {
+            assert!(
+                !DIARISATION_MODELS.contains(&preset.model_id.as_str()),
+                "{} is not a transcription quality",
+                preset.model_id
+            );
+        }
+    }
+
+    #[test]
     fn presets_map_to_known_models() {
         assert_eq!(preset_model_id("fast"), Some("tiny"));
         assert_eq!(preset_model_id("balanced"), Some("base"));
@@ -465,6 +537,24 @@ mod network_tests {
 
     /// Ignored by default: performs a real HTTPS request. Run explicitly with
     /// `cargo test -- --ignored downloads_tiny` to verify the TLS + verify path.
+    /// Ignored by default: performs real HTTPS requests. Run with
+    /// `cargo test --lib -- --ignored downloads_the_speaker_models`
+    #[test]
+    #[ignore]
+    fn downloads_the_speaker_models() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        for model_id in DIARISATION_MODELS {
+            download_model(root, model_id, &AtomicBool::new(false), |_| {})
+                .unwrap_or_else(|error| panic!("{model_id} must download: {error}"));
+        }
+        let (segmentation, embedding) =
+            diarisation_model_paths(root).expect("both models must be installed");
+        assert_eq!(fs::metadata(&segmentation).unwrap().len(), 5_992_913);
+        assert_eq!(fs::metadata(&embedding).unwrap().len(), 39_593_761);
+        assert_eq!(diarisation_download_bytes(root), 0);
+    }
+
     #[test]
     #[ignore]
     fn downloads_and_verifies_the_tiny_model() {
