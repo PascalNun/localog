@@ -1078,9 +1078,20 @@ fn diarise(
     else {
         return Ok(None);
     };
+    // Participants are the natural source of this once they exist; until then it is
+    // an explicit setting rather than a guess.
+    let expected_speakers = repository
+        .read_setting("diarisation.expectedSpeakers")?
+        .and_then(|value| value.parse::<u32>().ok());
     report(90, "separating_speakers")?;
     let output = runtime::run_process(
-        media::diarisation_command(&executable, &segmentation, &embedding, normalized),
+        media::diarisation_command(&media::DiarisationRequest {
+            executable: &executable,
+            segmentation_model: &segmentation,
+            embedding_model: &embedding,
+            normalized,
+            expected_speakers,
+        }),
         cancellation,
         runtime::ProcessLimits::with_max_output(2 * 1024 * 1024),
     );
