@@ -66,8 +66,11 @@ watching a progress bar for forty minutes.
 - **Check disk before downloading**, which the model manager already does, and check memory before
   loading.
 - **Never run two heavy local jobs at once.** Measured: a transcription that took eleven minutes on a
-  quiet machine took over fifty-six while a large download competed for bandwidth and memory. The job
-  manager already admits one model-heavy job; downloads must respect the same rule.
+  quiet machine took over fifty-six while a large download competed for bandwidth and memory. This is
+  currently documented but **not enforced**: the job manager admits one model-heavy job, and model
+  downloads bypass that admission entirely. Transcription, diarisation, generation and downloads all
+  belong under one admission rule, because two of them at once on a machine near its memory limit is
+  how a user loses an afternoon.
 - **Prefer a smaller model that finishes to a larger one that might not.** The default should be what
   works on the machine in front of the user, with larger options available and clearly labelled.
 
