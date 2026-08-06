@@ -57,179 +57,86 @@ Tracked openly so they get fixed rather than forgotten.
 
 ## Plan
 
-Ordered by what each block teaches or unlocks, not by what is easiest. Sizes are relative effort, not
-calendar promises. Each block states the condition that ends it, so "done" is not a judgement call.
+Ordered by what each block teaches or unlocks. Each block states the condition that ends it.
 
-### Block 1 — Make the protocol good _(next, and the largest single unknown)_
+### Block 1 — Make the protocol good _(in progress)_
 
-The product exists to produce a protocol, and no real one has ever been generated. Everything after
-this is built on an assumption until it is done. It is also cheap to start: Ollama is installed and a
-model is already present.
+The working configuration today is **qwen3.5:4b with project vocabulary**: 15,610 characters in six
+minutes against an 18,212-character human reference, with company and participant names correct. See
+[MODEL_EVALUATION.md](MODEL_EVALUATION.md) for every run.
 
-Three things are entangled here and must be worked together rather than in sequence. The style is the
-instruction the model receives, the vocabulary is the terminology it needs, and the model is only the
-third variable. Judging a model against a one-sentence style would measure the wrong thing.
+- `Done` Generation runs end to end on the real 81-minute German meeting.
+- `Done` Sectioned generation, for transcripts larger than a model's window.
+- `Done` Vocabulary demonstrably improves transcription and the protocol that follows.
+- `Done` Speaker alignment: joining diariser turns to transcript segments by overlap.
+- `Partial` Speaker labelling is wired into the transcription job but has never run against the real
+  diariser inside the application.
+- `Planned` Judge the current protocol against the human reference on prose, not only on size.
+- `Planned` Decide what a missing required section should do. A completed draft was once discarded
+  over one absent heading, which sits badly with a product whose protocols are drafts for review.
+- `Planned` Generate from an English meeting. No English reference pair exists yet.
 
-1. `Done` Generation ran end to end on the real 81-minute German meeting. 788 segments, 73,643
-   characters, about 24,500 tokens against an 8192-token window, divided into 17 sections. Produced a
-   structurally correct German protocol in 9m53s on the M1 Pro. The whole transcript was used.
-   1b. `Done` Sectioned generation works against a real model. A transcript that fits the window is
-   written in one pass; a longer one is condensed section by section and synthesised from those notes.
+**Ends when:** a German meeting produces a protocol a professional would accept after light editing.
 
-1c-i. `Planned` **Decide what a missing required section should do.** A full 32k run completed every
-pass and was then discarded because the output lacked the "Teilnehmende" heading. Validation is
-working as designed, but throwing away ten minutes of local computation over one heading sits badly
-with a product whose protocols are explicitly drafts for human review. The likely answer is to commit
-the draft and tell the user what is missing, rather than to fail the job.
+### Block 1a — Finish speaker differentiation _(next)_
 
-1c-ii. `Planned` **Model choice must account for the context window, not only prose quality.**
-gemma2:9b has a hard 8192-token window. A protocol the length of the human reference is about 6000
-tokens, which leaves under 2000 for the notes it must be written from. Gemma 2 is therefore
-structurally unable to produce a full-length protocol for a meeting of this size, regardless of how
-well it writes German. A model with a large window, such as Gemma 3 or Qwen 2.5, is required.
+The alignment is built and tested; what remains is everything around it.
 
-1c. `Planned` The output is a plausible skeleton, not yet a usable protocol. Against the human
-reference it is roughly a quarter of the length and loses most specifics, mangles proper names,
-attributes some people to the wrong organisation, invents a couple of figures, leaks an English
-word into German, and leaves literal `[Datum]` placeholders. Diagnosis before more model shopping:
-the condense-then-synthesise path compresses twice, so detail is lost before the protocol is
-written; a coding model was used because it was what was installed; and every segment is
-`Speaker 1`, so the model cannot attribute anything and writes "Der Sprecher". 2. `Planned` Write the "Formal minutes" style properly — sections, tone, rules about not inventing
-decisions, German and English variants. The current styles are single sentences. 3. `Planned` Pull a general instruct model suited to German (Gemma and Qwen are both candidates; the
-8 GB baseline caps this at roughly 5 GB) and compare output on the same transcript and style. 4. `Planned` Generate from real meeting audio in more than one language. German and English are the
-first cases because that is where the reference material is; the goal is that nothing in the
-pipeline is specific to either. Reference pairs of real audio and a human-written protocol live in
-the local-only `eval/` directory. 5. `Planned` Test whether project vocabulary measurably improves the result. If it does, the library
-editor in Block 3 is justified by evidence rather than by intent. 6. `Planned` Record the finding in `DECISIONS.md`, including whichever model is chosen and why.
+1. `Planned` Add the diariser's two models to the managed download system, with checksums, exactly as
+   the transcription models work. They are small: 7.2 MB and 39 MB together.
+2. `Planned` Resolve the diariser runtime the same way as whisper.cpp, so no path is typed by hand.
+3. `Planned` Run it against the real 81-minute meeting inside the application and confirm the
+   speakers that appear are the people who spoke.
+4. `Planned` Regenerate the protocol with speakers present, and check whether attribution to the
+   correct organisation improves. This is the failure that motivated the work.
+5. `Planned` Speaker tools in review: rename everywhere, reassign a segment, merge two labels.
 
-**Ends when:** a German meeting produces a protocol a professional would accept after light editing,
-or it is established that it does not and the plan changes accordingly.
+**Ends when:** the protocol attributes actions to the right people without hand-editing.
 
-**Named risk:** good German professional prose may need a model larger than the M1/8 GB baseline
-comfortably runs. Transcription fits there; generation may not. If that turns out to be true it puts
-pressure on D-015 rather than on the design, and it should be discovered here rather than during
-packaging.
+### Block 1b — Put vocabulary in the application _(next)_
 
-### Block 1d — Configure itself instead of asking
+Vocabulary is proven and lives only in a test harness. The application does not use it.
 
-The user should choose a quality, not a context length. Everything below is detectable, so nothing
-here needs to become a question.
+1. `Planned` Resolve a meeting's vocabulary from the entries already stored for its project.
+2. `Planned` Order it by specificity and cut it to fit whisper's ~224-token prompt: this meeting's
+   participants first, then the project's own names, then ambiguous abbreviations. General field
+   terminology comes last, because the model already knows it.
+3. `Planned` Pass it as the initial prompt with `--carry-initial-prompt`, and record it in the job's
+   provenance so a transcript can be traced to the vocabulary that shaped it.
+4. `Planned` Make the vocabulary library editable, which Block 3 already required.
 
-1. `Planned` Read the selected model's real limit from the provider rather than assuming one. Ollama
-   reports it: `/api/show` returns `gemma2.context_length = 8192`, alongside parameter size and
-   quantisation. The generation window is currently hardcoded to 8192, which is wrong in both
-   directions — it wastes a model that supports far more, and it overflows one that supports less.
-   The fold bug fixed on 2026-08-05 would not have been reachable had the limit been read.
-2. `Planned` Detect installed memory and derive a recommended model tier from it. This needs no new
-   dependency: `sysctl hw.memsize` on macOS, `/proc/meminfo` on Linux, `GlobalMemoryStatusEx` on
-   Windows, all reachable through the `libc` crate already in use.
-3. `Planned` Recommend rather than dictate. Suggest the transcription preset and the generation model
-   that suit the machine, mark them as recommended, and let the user pick something smaller or
-   larger. The preset list already works this way; generation should match.
-4. `Planned` Evaluate mixture-of-experts models, which give larger-model quality at a small active
-   parameter cost and are supported by the existing provider. This is the transferable idea from
-   TurboFieldfare, which is otherwise Swift, Metal and Apple-Silicon-only and so cannot be adopted
-   directly by a cross-platform application.
+**Ends when:** importing a meeting into a project with vocabulary produces correct names unaided.
 
-### Block 1f — First usable draft, and what it proves
+### Block 1c — Configure itself instead of asking
 
-On 2026-08-06, `qwen3.5:4b` (3.4 GB, 256K context) produced a **22,211-character** German protocol
-from the 81-minute meeting in **10.9 minutes**, against a human reference of 18,212 characters. The
-length collapse seen with earlier models is gone, and the model fits comfortably on an 8 GB machine.
+1. `Planned` Read the model's real context limit from the provider rather than assuming 8192.
+2. `Planned` Detect installed memory and recommend a model tier from it.
+3. `Planned` Recommend rather than dictate, as the transcription presets already do.
+4. `Planned` Evaluate a mixture-of-experts model. Weights are memory-mapped and only a fraction is
+   active per token, so the resident working set may be far smaller than the file.
 
-What is right: topical organisation matching how the human protocol is structured (per building, then
-cross-cutting themes, then next steps); genuine depth, including a detail the human protocol itself
-dropped; and, where ownership was not stated, the literal word `Unattribuiert` rather than an invented
-owner, which is the instruction working exactly as intended.
+### Block 2 — Make it runnable by someone else
 
-What is wrong, and where it comes from:
-
-- **Terms and names are corrupted by transcription, not by the model.** "Jour fixe" became
-  "Show-Fix", NORVEK became "Norwegen-Hera", and participant names are misspelt throughout. This is what
-  project vocabulary exists to fix, and it is now evidence rather than intent.
-- **Organisation groupings are scrambled.** People are filed under the wrong firms. With every
-  segment labelled `Speaker 1`, the model has nothing to attribute from and is guessing. This is the
-  strongest argument yet for diarisation.
-- **German is uneven**, with occasional invented compounds and broken clauses.
-- The action table has four rows against the reference's seventeen.
-
-Assessment: a usable draft that still needs real editing, not yet a protocol a professional would
-send. The next lever is the transcript, not the model.
-
-### Block 1e — Model fit is a hardware question, measured not assumed
-
-Measured on 2026-08-05/06 on the M1 Pro / 16 GB development machine.
-
-`gemma4:12b` (7.6 GB, 256K context) could not complete a protocol for the 81-minute meeting in five
-attempts, at context settings from 16K to 49K. The machine was observed with **6 GB of swap in use**,
-which explains both the twenty-minute run times and the first-byte timeouts: the model plus its KV
-cache does not fit alongside the operating system, so prompt processing thrashes.
-
-This is a fit problem, not a quality problem, and it has a clear consequence:
-
-- A 12B-class model at long context is **already marginal on 16 GB**. The 8 GB baseline in D-015 is
-  therefore not viable for generation of this class at all.
-- Gemma 4's smallest variant is E2B at 7.2 GB, so the family offers no genuinely small option. For
-  LocaLog's stated hardware targets the constraint may rule out the family regardless of how well it
-  writes.
-- The models worth measuring next are ones that leave real headroom while still holding a whole
-  meeting: `qwen3.5:4b` (3.4 GB, 256K context) and `granite4.1:3b` (2.1 GB, 128K, German explicitly
-  listed). A mixture-of-experts model such as Gemma 4's 26B (3.8 B active) addresses speed but not
-  the memory ceiling, since the full weights must still be resident.
-
-**What this does not tell us:** nothing about protocol quality. No Gemma 4 output was ever produced,
-so the family is untested on the actual task.
-
-### Block 2 — Speaker attribution end to end
-
-Now de-risked by the spike, and it feeds Block 1's output directly: a decision or action without a
-name is close to useless in a protocol.
-
-1. `Planned` Compare a German-suited speaker-embedding model against the Chinese-trained one used in
-   the spike; test overlapping speech and a long recording on the M1/8 GB baseline.
-2. `Planned` Solve alignment between diariser turns and whisper segments. This is the substantive
-   design problem and is self-contained enough to test on its own.
-3. `Planned` Build the adapter behind the accepted supervised-process boundary, with cancellation,
-   bounded output and provenance, as the whisper.cpp adapter does. Degrade honestly to a single
-   speaker when the diariser is unavailable.
-4. `Planned` Participants on a meeting, inherited from the project. This is the cheapest naming win
-   and needs no new inference: naming becomes choosing from a short list.
-5. `Planned` Real speaker tools in review: reassign a segment, merge two labels, split one.
-
-**Ends when:** a three-person German recording produces named speakers in the protocol, with the
-naming done in a few clicks.
+1. `Planned` Bundle whisper.cpp and the diariser as signed sidecars; remove every executable setting.
+2. `Planned` A redistributable, licensed, checksummed FFmpeg build.
+3. `Planned` Enable bundling, signing and notarisation; produce the first installable build.
 
 ### Block 3 — Reach the remaining capability goals
 
-1. `Planned` Editable vocabulary and protocol-style library. Both are named differentiators and are
-   currently a read-only shell. Block 1 decides how much this matters.
+1. `Planned` Editable vocabulary and protocol-style library.
 2. `Planned` Expose archive, or remove the claim from `MVP.md`.
 3. `Planned` Backup and restore.
 
-### Block 4 — Make it runnable by someone else
+### Block 4 — Harden for use
 
-Deliberately after the product is worth running. Its value is other people's feedback, and feedback
-on an unvalidated protocol teaches less.
-
-1. `Planned` Build whisper.cpp statically and ship it as a signed sidecar; remove the executable
-   setting entirely. The diariser ships the same way, and the spike already showed that unsigned
-   binaries are killed silently on Apple Silicon.
-2. `Planned` Select a redistributable, licensed, checksummed FFmpeg build.
-3. `Planned` Enable bundling, signing and notarisation; produce the first installable build.
-
-### Block 5 — Harden for use
-
-1. `Planned` Accessibility and keyboard pass with visible focus and text scaling.
-2. `Planned` Measure responsiveness and long-recording behaviour on the M1/8 GB baseline.
+1. `Planned` Accessibility and keyboard pass.
+2. `Planned` Measure on the M1/8 GB baseline. Nothing has been measured there.
 3. `Planned` Privacy and log audit, including the derived-data rules in `PRODUCT.md`.
-4. `Planned` Release checklist.
 
 ### Carried alongside
 
-Small items that do not deserve a block and should be picked up when adjacent work touches them:
-confirm audio playback; rework the playback **Follow** control; replace the per-segment `Speaker 1`
-column (resolved by Block 2); narrow the asset protocol scope from `$APPDATA/**` to the working-audio
-directory.
+Confirm audio playback; rework the playback **Follow** control; narrow the asset protocol scope from
+`$APPDATA/**` to the working-audio directory.
 
 ## Sequencing rationale
 
