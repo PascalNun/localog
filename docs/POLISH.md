@@ -21,6 +21,30 @@ needs three more paths. Nothing about that belongs in a professional tool.
 
 **Test of success:** a new user reaches a finished protocol without opening Advanced once.
 
+## 1a. Guard rails: the application must not let a user start something that cannot finish
+
+Everything below was learned the hard way during evaluation. A user should never discover these by
+watching a progress bar for forty minutes.
+
+- **Do not offer a model the machine cannot run.** Installed memory is readable on every target
+  platform. A model whose weights plus working memory exceed what is available should be marked as
+  such, not silently offered. Measured: a 12 B model at long context drove a 16 GB machine into
+  swap, and an 18 GB mixture-of-experts model produced 0.6 tokens per second — a protocol would have
+  taken over two hours.
+- **Never request a context larger than the model supports.** The model reports its own limit;
+  assuming a fixed one both wastes a capable model and silently truncates a smaller one.
+- **Estimate before starting, honestly.** Transcription and generation each take minutes on a real
+  meeting. A rough expectation set beforehand is worth more than a precise number invented afterwards.
+- **Detect pathological slowness and say so.** A job producing tokens far below the expected rate is
+  not progressing normally, and the user should be told that rather than left watching.
+- **Check disk before downloading**, which the model manager already does, and check memory before
+  loading.
+- **Never run two heavy local jobs at once.** Measured: a transcription that took eleven minutes on a
+  quiet machine took over fifty-six while a large download competed for bandwidth and memory. The job
+  manager already admits one model-heavy job; downloads must respect the same rule.
+- **Prefer a smaller model that finishes to a larger one that might not.** The default should be what
+  works on the machine in front of the user, with larger options available and clearly labelled.
+
 ## 2. Names and language
 
 The interface should use the words a project team uses, not the words the implementation uses.
