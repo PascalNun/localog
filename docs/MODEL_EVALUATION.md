@@ -148,9 +148,23 @@ Directions worth trying, cheapest first:
 - Diarise in windows and match clusters across window boundaries, which addresses drift directly but
   is the most work.
 
-**Speed is worse than real time.** Both neural networks default to `num_threads = 1` on a machine
-with six performance cores, and a CoreML provider is available and unused. Neither was enabled in any
-run above, so the 0.51x figure is a floor rather than a limit.
+**Speed responds to configuration.** Both networks default to `num_threads = 1`, and a CoreML
+provider is available. Enabling six threads and CoreML took the ten-minute excerpt from 308.9 s to
+188.6 s, a 1.64x improvement for no cost, which would bring the full meeting from about 45 minutes to
+about 26. Diarisation nonetheless remains the slowest stage of the pipeline by a wide margin, against
+roughly six minutes for transcription.
+
+**Requesting a known speaker count works.** With eleven clusters requested the excerpt produced seven
+speakers rather than the eighty-six seen with a threshold alone. Participants are already a planned
+meeting field, so the product will have that number without asking for it twice.
+
+**The two passes are partly redundant.** Transcription and diarisation each segment the audio
+independently, yet whisper already reports where speech is and where segments begin and end.
+Extracting embeddings only for whisper's existing segments would skip the second segmentation pass,
+skip silence, and remove the alignment problem entirely, since the boundaries would match by
+construction. This build ships no standalone embedding tool, so it would require the sherpa-onnx C
+API through a binding — trading the supervised-process boundary for a linked library. Recorded as an
+option rather than a plan.
 
 ## Candidates not yet tested
 
