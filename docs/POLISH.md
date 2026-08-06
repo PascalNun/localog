@@ -138,6 +138,63 @@ Not a late pass. These are a professional tool's table stakes.
 - Long reading sessions: line length, contrast, and the transcript's typography deserve attention
   since people will spend real time in them.
 
+## What appears to be missing
+
+Analysis rather than agreed decisions. The first is closer to a design error than a gap.
+
+### Review is required, but the tool that makes review possible is deferred
+
+The product rests on one rule: generated text stays provisional until a person has reviewed it. Yet
+`MVP.md` excludes traceability from protocol statements back to the transcript, and the roadmap places
+it in Phase 2.
+
+Consider what review actually involves. The reference meeting produced 788 transcript segments and a
+protocol of about thirty sections. Reading a claim in the protocol and wanting to know whether it is
+true, the reviewer has no way to reach the passage it came from. They can search text that may have
+been paraphrased, or scrub audio, or trust it. In practice they will trust it — which is precisely
+the outcome the whole design exists to prevent.
+
+Traceability is not a later refinement of review. It is what makes review cheaper than redoing the
+work, and without it the review step is honest in intention and hollow in practice. It deserves
+reconsideration for v0.1 even in a reduced form: a protocol section knowing which transcript segments
+it was built from is enough to jump to them, and the sectioned generation path already handles
+material in identifiable groups.
+
+### The product is designed for the first meeting; its value is in the twelfth
+
+Everything specified so far treats a meeting as standalone. But this kind of meeting recurs — the
+reference protocol ends by scheduling the next one, with the same firms, the same people, the same
+vocabulary, and the same open questions.
+
+Two consequences are missing entirely:
+
+- **A recurring meeting should start nearly configured.** Participants, vocabulary, style and
+  language are all known from the previous one. Re-entering them is work the product could avoid.
+- **Open actions should carry forward.** Professional minutes almost always open by reviewing what
+  was agreed last time. The reference protocol's action table is exactly that kind of list. Nothing
+  in the data model connects one meeting's actions to the next meeting's agenda, so every protocol is
+  an island.
+
+The second is arguably the sharpest differentiator against a generic transcription tool, which can
+only ever produce isolated documents. It is also the reason a firm would keep using this rather than
+try it once.
+
+### Failure of the model is not designed for, only failure of the software
+
+Crashes, disk exhaustion, missing runtimes and cancelled jobs all have designed states. "Section four
+is wrong" does not. Today the options are to regenerate everything, which costs several minutes and
+discards good sections, or to rewrite by hand.
+
+What a person actually wants is narrower: regenerate this section, keep the rest; or correct the
+transcript and update only what depended on it.
+
+### Nothing tells the reviewer where to look
+
+Review takes attention, and attention is finite. The application knows things that could direct it —
+which sections rest on few transcript segments, where speaker attribution was uncertain, where the
+audio was poor. None of it is surfaced, so every part of the document appears equally trustworthy,
+including the parts that are not.
+
 ## Known rough edges, specifically
 
 Concrete items already observed, small enough to fix once their area is touched:
