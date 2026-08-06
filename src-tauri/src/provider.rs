@@ -409,9 +409,12 @@ impl OllamaProvider {
                 transcript: &request.transcript[range.clone()],
             };
             let prompt = encode_prompt(&payload)?;
-            // Notes must be allowed to be as long as the section needs. Bounding them by
-            // the protocol's output preference contradicts asking for completeness.
-            let num_predict = answer_budget(request.context_tokens, prompt.len(), u32::MAX);
+            // Notes condense a section, so they should not exceed it by much. An
+            // unbounded budget invites a model to write until the cap instead of
+            // until the material runs out; the protocol's own preference is the
+            // wrong bound because it describes the finished document, not the notes.
+            let notes_ceiling = ((prompt.len() / 2) as u32).max(1024);
+            let num_predict = answer_budget(request.context_tokens, prompt.len(), notes_ceiling);
             let generated = self.complete(
                 request,
                 Completion {
@@ -529,7 +532,8 @@ impl OllamaProvider {
             notes: group,
         };
         let prompt = encode_prompt(&payload)?;
-        let num_predict = answer_budget(request.context_tokens, prompt.len(), u32::MAX);
+        let notes_ceiling = ((prompt.len() / 2) as u32).max(1024);
+        let num_predict = answer_budget(request.context_tokens, prompt.len(), notes_ceiling);
         let generated = self.complete(
             request,
             Completion {
