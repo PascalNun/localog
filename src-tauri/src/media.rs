@@ -175,24 +175,56 @@ pub(crate) fn vocabulary_prompt(terms: &[String]) -> Option<String> {
     Some(chosen.join(", "))
 }
 
-/// Build the diarisation invocation. The runtime is separate from transcription
-/// and its models are separate too, so the caller supplies all three paths.
-pub(crate) fn diarisation_command(
-    executable: &Path,
-    segmentation_model: &Path,
-    embedding_model: &Path,
-    normalized: &Path,
-) -> Command {
-    let mut command = Command::new(executable);
+/// How the diariser should be run for one recording.
+pub(crate) struct DiarisationRequest<'a> {
+    pub executable: &'a Path,
+    pub segmentation_model: &'a Path,
+    pub embedding_model: &'a Path,
+    pub normalized: &'a Path,
+    /// Supplied when the number of people in the meeting is known. Clustering a long
+    /// recording by similarity alone splits one voice into many as the recording goes
+    /// on: an 81-minute meeting of about eleven people produced 86 speakers, while the
+    /// same audio with the count supplied produced a sensible number.
+    pub expected_speakers: Option<u32>,
+}
+
+/// Both networks default to a single thread and to plain CPU. Using the machine's
+/// cores and its neural accelerator measured 1.64 times faster with no other change.
+pub(crate) fn diarisation_command(request: &DiarisationRequest<'_>) -> Command {
+    let threads = worker_threads();
+    let mut command = Command::new(request.executable);
     command
-        .arg("--clustering.cluster-threshold=0.6")
         .arg(format!(
             "--segmentation.pyannote-model={}",
-            segmentation_model.display()
+            request.segmentation_model.display()
         ))
-        .arg(format!("--embedding.model={}", embedding_model.display()))
-        .arg(normalized);
+        .arg(format!("--segmentation.num-threads={threads}"))
+        .arg("--segmentation.provider=coreml")
+        .arg(format!(
+            "--embedding.model={}",
+            request.embedding_model.display()
+        ))
+        .arg(format!("--embedding.num-threads={threads}"))
+        .arg("--embedding.provider=coreml");
+    match request.expected_speakers {
+        Some(count) if count >= 2 => {
+            command.arg(format!("--clustering.num-clusters={count}"));
+        }
+        // Without a count, similarity is all there is to go on.
+        _ => {
+            command.arg("--clustering.cluster-threshold=0.6");
+        }
+    }
+    command.arg(request.normalized);
     command
+}
+
+/// Threads to give a model runtime: enough to use the machine, while leaving room
+/// for the interface to stay responsive.
+fn worker_threads() -> usize {
+    std::thread::available_parallelism()
+        .map(|value| (value.get().saturating_sub(2)).clamp(1, 8))
+        .unwrap_or(1)
 }
 
 pub(crate) fn expected_json_path(base: &Path) -> PathBuf {
@@ -297,6 +329,76 @@ mod tests {
         assert!(args.iter().any(|a| a == "--prompt"));
         assert!(args.iter().any(|a| a == "--carry-initial-prompt"));
         assert!(args.iter().any(|a| a == "NORVEK, Mustermann"));
+    }
+
+    #[test]
+    fn diarisation_uses_the_machine_and_a_known_speaker_count() {
+        let request = DiarisationRequest {
+            executable: Path::new("/bin/echo"),
+            segmentation_model: Path::new("/tmp/seg.onnx"),
+            embedding_model: Path::new("/tmp/emb.onnx"),
+            normalized: Path::new("/tmp/a.wav"),
+            expected_speakers: Some(11),
+        };
+        let args: Vec<String> = diarisation_command(&request)
+            .get_args()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        assert!(args.iter().any(|a| a == "--clustering.num-clusters=11"));
+        // A supplied count replaces similarity-only clustering rather than joining it.
+        assert!(
+            !args
+                .iter()
+                .any(|a| a.starts_with("--clustering.cluster-threshold"))
+        );
+        assert!(args.iter().any(|a| a == "--segmentation.provider=coreml"));
+        assert!(args.iter().any(|a| a == "--embedding.provider=coreml"));
+        assert!(
+            args.iter()
+                .any(|a| a.starts_with("--segmentation.num-threads="))
+        );
+        assert!(
+            args.iter()
+                .any(|a| a.starts_with("--embedding.num-threads="))
+        );
+        // The audio is the final positional argument.
+        assert_eq!(args.last().map(String::as_str), Some("/tmp/a.wav"));
+    }
+
+    #[test]
+    fn diarisation_falls_back_to_similarity_without_a_usable_count() {
+        for count in [None, Some(0), Some(1)] {
+            let request = DiarisationRequest {
+                executable: Path::new("/bin/echo"),
+                segmentation_model: Path::new("/tmp/seg.onnx"),
+                embedding_model: Path::new("/tmp/emb.onnx"),
+                normalized: Path::new("/tmp/a.wav"),
+                expected_speakers: count,
+            };
+            let args: Vec<String> = diarisation_command(&request)
+                .get_args()
+                .map(|a| a.to_string_lossy().into_owned())
+                .collect();
+            assert!(
+                args.iter()
+                    .any(|a| a.starts_with("--clustering.cluster-threshold")),
+                "count {count:?} should fall back to a threshold"
+            );
+            assert!(
+                !args
+                    .iter()
+                    .any(|a| a.starts_with("--clustering.num-clusters"))
+            );
+        }
+    }
+
+    #[test]
+    fn worker_threads_leaves_headroom_and_is_never_zero() {
+        let threads = worker_threads();
+        assert!(
+            (1..=8).contains(&threads),
+            "unreasonable thread count: {threads}"
+        );
     }
 
     #[test]

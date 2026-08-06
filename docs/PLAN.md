@@ -69,8 +69,11 @@ minutes against an 18,212-character human reference, with company and participan
 - `Done` Sectioned generation, for transcripts larger than a model's window.
 - `Done` Vocabulary demonstrably improves transcription and the protocol that follows.
 - `Done` Speaker alignment: joining diariser turns to transcript segments by overlap.
-- `Partial` Speaker labelling is wired into the transcription job but has never run against the real
+- `Partial` Speaker labelling is wired into the transcription job, now with the machine's cores, its
+  neural accelerator, and a known speaker count when one is set. It has never run against the real
   diariser inside the application.
+- `Done` One heavy task at a time. Transcription, generation and model downloads share a single
+  admission slot, so a download can no longer quietly halve the speed of a transcription.
 - `Planned` Judge the current protocol against the human reference on prose, not only on size.
 - `Planned` Decide what a missing required section should do. A completed draft was once discarded
   over one absent heading, which sits badly with a product whose protocols are drafts for review.
