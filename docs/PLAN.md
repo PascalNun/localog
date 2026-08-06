@@ -85,8 +85,9 @@ minutes against an 18,212-character human reference, with company and participan
 
 The alignment is built and tested; what remains is everything around it.
 
-1. `Planned` Add the diariser's two models to the managed download system, with checksums, exactly as
-   the transcription models work. They are small: 7.2 MB and 39 MB together.
+1. `Done` The diariser's two models go through the managed download system with verified checksums,
+   like the transcription models. 45 MB together, downloaded and verified in twelve seconds. Both are
+   required, so a partial set reports as unavailable rather than failing at the point of use.
 2. `Planned` Resolve the diariser runtime the same way as whisper.cpp, so no path is typed by hand.
 3. `Planned` Run it against the real 81-minute meeting inside the application and confirm the
    speakers that appear are the people who spoke.

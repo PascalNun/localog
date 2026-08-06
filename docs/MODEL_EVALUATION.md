@@ -166,6 +166,17 @@ construction. This build ships no standalone embedding tool, so it would require
 API through a binding — trading the supervised-process boundary for a linked library. Recorded as an
 option rather than a plan.
 
+### Diariser models
+
+Both are fetched as bare files, so no archive handling is needed and no compression dependency was
+added. Checksums were verified against copies obtained independently through the project's own
+release archive.
+
+| Model                           | Size    | Purpose                                     |
+| ------------------------------- | ------- | ------------------------------------------- |
+| `pyannote-segmentation-3.0`     | 5.99 MB | Finds where speech and voices change        |
+| `3D-Speaker eres2net` embedding | 39.6 MB | Describes each voice so they can be grouped |
+
 ## Candidates not yet tested
 
 Recorded so they are not lost between sessions. Sizes and context from ollama.com; nothing here has
