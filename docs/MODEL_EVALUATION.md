@@ -63,6 +63,16 @@ prioritised rather than dumped in.
 | **qwen3.5:4b**   | 3.4 GB | 40K          | **22,211 chars, full length** | 10m51s |
 | **qwen3.5:4b**   | 3.4 GB | 40K + vocab  | **15,610 chars**              | 6m03s  |
 
+Term accuracy in the generated protocol, with and without vocabulary:
+
+| Term in output  | Without vocabulary | With vocabulary |
+| --------------- | ------------------ | --------------- |
+| NORVEK          | 0                  | **11**          |
+| "Norwegen" (wrong) | 15                 | **0**           |
+| "Musterman"     | 3                  | 0               |
+| "Beispiel-Huber"   | 2                  | 0               |
+| "Musterweber"     | 2                  | 0               |
+
 ### What each result taught
 
 - **A coding model writes short.** qwen2.5-coder produced a correct skeleton at a quarter of the
@@ -77,6 +87,12 @@ prioritised rather than dumped in.
 - **Small models with very large windows changed the picture.** qwen3.5:4b is 3.4 GB with a 256K
   context: it fits an 8 GB machine _and_ holds an entire meeting in one pass, which removes the
   compression that shortened earlier output.
+- **Proper nouns are the whole win.** Standard German professional terminology transcribed correctly
+  with no help at all: Fassade (43 occurrences), Grundriss (28), Treppenhaus (12), Erschließung (10),
+  plus Laubengang, Wohnungsmix, Tragwerk, Bauphysik, Barrierefreiheit and Stahlbeton. Every term
+  vocabulary actually corrected was a company name or a surname. Since the prompt is capped at about
+  224 tokens, a vocabulary of general field terminology would spend that budget on words the model
+  already knows.
 - **Vocabulary shortens as well as corrects.** The vocabulary run produced 15,610 characters against
   22,211 without, closer to the reference. A cleaner transcript appears to reduce the model's
   need to hedge and restate.
@@ -99,8 +115,13 @@ Nine defects, none of which unit tests could have caught, all only visible again
 
 ## Open questions
 
-- Does gemma4:12b work now that reasoning is disabled? It was abandoned before that fix.
-- Is a mixture-of-experts model such as gemma4:26b (3.8 B active of 25.2 B) usable on 16 GB? Weights
-  are memory-mapped, so the resident working set may be far smaller than the file.
+- Does gemma4:12b work now that reasoning is disabled? It was abandoned before that fix, and a retry
+  is in progress.
+- **The mixture-of-experts question is still untested.** gemma4:26b holds 25.2 B parameters but
+  activates only 3.8 B per token, and Ollama memory-maps weights, so the resident working set may be
+  far smaller than the 18 GB file. That would make it behave quite unlike a dense model of the same
+  size. The download was started and then stopped because it was competing with a running test for
+  bandwidth; most of the data is on disk and Ollama resumes, so this is a matter of finishing rather
+  than starting over.
 - What does a model do on an English meeting? No English reference pair exists yet.
 - Nothing here has been measured on the M1/8 GB baseline.
