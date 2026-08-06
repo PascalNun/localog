@@ -131,6 +131,30 @@ here needs to become a question.
    TurboFieldfare, which is otherwise Swift, Metal and Apple-Silicon-only and so cannot be adopted
    directly by a cross-platform application.
 
+### Block 1e — Model fit is a hardware question, measured not assumed
+
+Measured on 2026-08-05/06 on the M1 Pro / 16 GB development machine.
+
+`gemma4:12b` (7.6 GB, 256K context) could not complete a protocol for the 81-minute meeting in five
+attempts, at context settings from 16K to 49K. The machine was observed with **6 GB of swap in use**,
+which explains both the twenty-minute run times and the first-byte timeouts: the model plus its KV
+cache does not fit alongside the operating system, so prompt processing thrashes.
+
+This is a fit problem, not a quality problem, and it has a clear consequence:
+
+- A 12B-class model at long context is **already marginal on 16 GB**. The 8 GB baseline in D-015 is
+  therefore not viable for generation of this class at all.
+- Gemma 4's smallest variant is E2B at 7.2 GB, so the family offers no genuinely small option. For
+  LocaLog's stated hardware targets the constraint may rule out the family regardless of how well it
+  writes.
+- The models worth measuring next are ones that leave real headroom while still holding a whole
+  meeting: `qwen3.5:4b` (3.4 GB, 256K context) and `granite4.1:3b` (2.1 GB, 128K, German explicitly
+  listed). A mixture-of-experts model such as Gemma 4's 26B (3.8 B active) addresses speed but not
+  the memory ceiling, since the full weights must still be resident.
+
+**What this does not tell us:** nothing about protocol quality. No Gemma 4 output was ever produced,
+so the family is untested on the actual task.
+
 ### Block 2 — Speaker attribution end to end
 
 Now de-risked by the spike, and it feeds Block 1's output directly: a decision or action without a
