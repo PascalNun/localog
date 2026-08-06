@@ -1689,6 +1689,7 @@ fn job_stage_label(kind: &str, stage: &str, state: JobState) -> String {
         ("transcribing_audio", _) => "Transcribing locally".to_string(),
         // A meeting longer than the model's window is condensed section by section first.
         ("condensing_transcript", _) => "Reading the meeting in sections".to_string(),
+        ("separating_speakers", _) => "Separating speakers".to_string(),
         _ => "Working locally".to_string(),
     }
 }

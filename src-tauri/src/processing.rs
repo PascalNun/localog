@@ -1,5 +1,6 @@
 //! Durable fake transcription and protocol generation through production-shaped boundaries.
 
+use crate::diarisation;
 use crate::domain::{TranscriptSegment, WorkspaceSnapshot};
 use crate::media;
 use crate::models;
@@ -1015,7 +1016,7 @@ fn execute_real_transcription(
         code: "invalid_transcript_output",
         message: "whisper.cpp did not produce its JSON transcript.".into(),
     })?;
-    let artifact = parse_whisper_json(
+    let mut artifact = parse_whisper_json(
         &json,
         &job.meeting_id,
         &job.result_revision_id,
@@ -1023,8 +1024,65 @@ fn execute_real_transcription(
         source_checksum,
     )?;
     let _ = fs::remove_file(json_path);
+
+    // Speakers are a separate capability. When it is unavailable the transcript is
+    // still committed with the neutral label rather than the job failing.
+    if let Some(turns) = diarise(repository, &normalized, cancellation, report)? {
+        let names = diarisation::assign_speakers(&artifact.segments, &turns);
+        for (segment, name) in artifact.segments.iter_mut().zip(names) {
+            segment.speaker = name;
+        }
+    }
     let _ = output.stderr;
     Ok(artifact)
+}
+
+/// Run the configured diariser over the same working audio the transcript came
+/// from. Returns `None` when no diariser is configured, and reports a failure as
+/// absence rather than an error: a transcript without speaker labels is useful,
+/// a lost transcript is not.
+fn diarise(
+    repository: &WorkspaceRepository,
+    normalized: &Path,
+    cancellation: &AtomicBool,
+    report: &mut dyn FnMut(u64, &'static str) -> Result<(), ProcessingError>,
+) -> Result<Option<Vec<diarisation::SpeakerTurn>>, ProcessingError> {
+    let Some(executable) = repository
+        .read_setting("diarisation.executable")?
+        .map(PathBuf::from)
+        .filter(|path| path.is_file())
+    else {
+        return Ok(None);
+    };
+    let Some(segmentation) = repository
+        .read_setting("diarisation.segmentationModel")?
+        .map(PathBuf::from)
+        .filter(|path| path.is_file())
+    else {
+        return Ok(None);
+    };
+    let Some(embedding) = repository
+        .read_setting("diarisation.embeddingModel")?
+        .map(PathBuf::from)
+        .filter(|path| path.is_file())
+    else {
+        return Ok(None);
+    };
+    report(90, "separating_speakers")?;
+    let output = runtime::run_process(
+        media::diarisation_command(&executable, &segmentation, &embedding, normalized),
+        cancellation,
+        runtime::ProcessLimits::with_max_output(2 * 1024 * 1024),
+    );
+    match output {
+        Ok(output) => {
+            let turns = diarisation::parse_turns(&output.stdout);
+            Ok((!turns.is_empty()).then_some(turns))
+        }
+        Err(runtime::ProcessFailure::Cancelled) => Err(ProcessingError::Cancelled),
+        // Any other diariser problem leaves the transcript intact and unlabelled.
+        Err(_) => Ok(None),
+    }
 }
 
 fn parse_whisper_json(
