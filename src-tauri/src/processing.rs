@@ -1064,18 +1064,10 @@ fn diarise(
     else {
         return Ok(None);
     };
-    let Some(segmentation) = repository
-        .read_setting("diarisation.segmentationModel")?
-        .map(PathBuf::from)
-        .filter(|path| path.is_file())
-    else {
-        return Ok(None);
-    };
-    let Some(embedding) = repository
-        .read_setting("diarisation.embeddingModel")?
-        .map(PathBuf::from)
-        .filter(|path| path.is_file())
-    else {
+    // Both models come from managed storage, like the transcription models. If
+    // either is missing the diariser cannot run, and the transcript proceeds
+    // without speaker labels rather than failing.
+    let Some((segmentation, embedding)) = models::diarisation_model_paths(&repository.root) else {
         return Ok(None);
     };
     // Participants are the natural source of this once they exist; until then it is
