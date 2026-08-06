@@ -27,20 +27,20 @@ Rules:
 
 The durable vertical slice is real: a meeting can go from imported audio to an exported Markdown protocol, surviving restarts and crashes. Local transcription with whisper.cpp is proven on real audio.
 
-| Area                                | Status         | Note                                                               |
-| ----------------------------------- | -------------- | ------------------------------------------------------------------ |
-| Storage, jobs, crash recovery       | **Done**       | 49 Rust tests; staged writes, reconciliation, immutable revisions  |
-| Import → probe → normalise          | **Done**       | Checksummed, cancellable, restart-safe                             |
-| Local transcription (whisper.cpp)   | **Done**       | Contract validated against real v1.9.2 + Metal; live progress      |
-| Model management (download presets) | **Done**       | Verified HTTPS download, checksum, atomic install                  |
-| Transcript review + audio player    | **Partial**    | Real audio/duration, seek, follow-along; playback unconfirmed      |
-| Protocol generation (Ollama)        | **Unverified** | Adapter built and unit-tested; **never run for real**              |
-| Protocol editing, revisions, export | **Done**       | Autosave, review state, Markdown/TXT export                        |
-| Styles + vocabulary library         | **Partial**    | Read-only view only; not editable                                  |
-| Speaker diarisation                 | **Planned**    | Runtime validated by spike; **no product code**; still `Speaker 1` |
-| Runtime bundling (whisper, FFmpeg)  | **Planned**    | User must still supply a whisper.cpp executable                    |
-| Packaging / distribution            | **Planned**    | `bundle.active: false`; no build exists                            |
-| Accessibility + performance audit   | **Planned**    | Designed for, never measured on the M1/8 GB baseline               |
+| Area                                | Status      | Note                                                               |
+| ----------------------------------- | ----------- | ------------------------------------------------------------------ |
+| Storage, jobs, crash recovery       | **Done**    | 49 Rust tests; staged writes, reconciliation, immutable revisions  |
+| Import → probe → normalise          | **Done**    | Checksummed, cancellable, restart-safe                             |
+| Local transcription (whisper.cpp)   | **Done**    | Contract validated against real v1.9.2 + Metal; live progress      |
+| Model management (download presets) | **Done**    | Verified HTTPS download, checksum, atomic install                  |
+| Transcript review + audio player    | **Partial** | Real audio/duration, seek, follow-along; playback unconfirmed      |
+| Protocol generation (Ollama)        | **Partial** | Produces a full-length German draft; names and attribution wrong   |
+| Protocol editing, revisions, export | **Done**    | Autosave, review state, Markdown/TXT export                        |
+| Styles + vocabulary library         | **Partial** | Read-only view only; not editable                                  |
+| Speaker diarisation                 | **Planned** | Runtime validated by spike; **no product code**; still `Speaker 1` |
+| Runtime bundling (whisper, FFmpeg)  | **Planned** | User must still supply a whisper.cpp executable                    |
+| Packaging / distribution            | **Planned** | `bundle.active: false`; no build exists                            |
+| Accessibility + performance audit   | **Planned** | Designed for, never measured on the M1/8 GB baseline               |
 
 ## Known gaps between the documents and the code
 
@@ -130,6 +130,31 @@ here needs to become a question.
    parameter cost and are supported by the existing provider. This is the transferable idea from
    TurboFieldfare, which is otherwise Swift, Metal and Apple-Silicon-only and so cannot be adopted
    directly by a cross-platform application.
+
+### Block 1f — First usable draft, and what it proves
+
+On 2026-08-06, `qwen3.5:4b` (3.4 GB, 256K context) produced a **22,211-character** German protocol
+from the 81-minute meeting in **10.9 minutes**, against a human reference of 18,212 characters. The
+length collapse seen with earlier models is gone, and the model fits comfortably on an 8 GB machine.
+
+What is right: topical organisation matching how the human protocol is structured (per building, then
+cross-cutting themes, then next steps); genuine depth, including a detail the human protocol itself
+dropped; and, where ownership was not stated, the literal word `Unattribuiert` rather than an invented
+owner, which is the instruction working exactly as intended.
+
+What is wrong, and where it comes from:
+
+- **Terms and names are corrupted by transcription, not by the model.** "Jour fixe" became
+  "Show-Fix", NORVEK became "Norwegen-Hera", and participant names are misspelt throughout. This is what
+  project vocabulary exists to fix, and it is now evidence rather than intent.
+- **Organisation groupings are scrambled.** People are filed under the wrong firms. With every
+  segment labelled `Speaker 1`, the model has nothing to attribute from and is guessing. This is the
+  strongest argument yet for diarisation.
+- **German is uneven**, with occasional invented compounds and broken clauses.
+- The action table has four rows against the reference's seventeen.
+
+Assessment: a usable draft that still needs real editing, not yet a protocol a professional would
+send. The next lever is the transcript, not the model.
 
 ### Block 1e — Model fit is a hardware question, measured not assumed
 
