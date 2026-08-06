@@ -231,7 +231,7 @@ impl OllamaProvider {
             .timeout_connect(Some(Duration::from_secs(10)))
             // Processing a large prompt can take minutes before the first byte arrives.
             // A dead server is caught by the connect deadline, not by this one.
-            .timeout_recv_response(Some(Duration::from_secs(900)))
+            .timeout_recv_response(Some(Duration::from_secs(1800)))
             .max_redirects(0)
             .build();
         Self {
