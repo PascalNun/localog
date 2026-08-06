@@ -21,6 +21,32 @@ needs three more paths. Nothing about that belongs in a professional tool.
 
 **Test of success:** a new user reaches a finished protocol without opening Advanced once.
 
+## 1b. First run: decide for the user, then ask them to confirm
+
+The first time LocaLog opens it should already know what this machine can do, and should lead the
+user to the models that suit it. Nobody should face a list of options they have no way to choose
+between, and nobody should be able to pick one that cannot work.
+
+What that means concretely:
+
+- **Measure first, then offer.** Read installed memory before showing anything. The transcription and
+  generation qualities that fit are offered normally; those that do not are shown as unavailable on
+  this machine, with the reason, rather than hidden or silently offered.
+- **Recommend one, clearly.** There is a single suggested quality for this machine, marked as such.
+  The alternatives remain visible so the choice is real, but the default is the one that works.
+- **Downloading is the obvious next step, not a discovered setting.** The recommended models are
+  presented as the thing to do now, with their size, so the wait is expected rather than a surprise
+  later when a meeting is already waiting.
+- **Say what each choice costs.** Size on disk, roughly how long a meeting takes, and what improves.
+  A user choosing "Accurate" should know it is slower before choosing it, not after.
+- **Nothing is downloaded without the user agreeing to it**, and the application works as soon as the
+  recommended set is present — no further configuration.
+- **Re-check when the machine changes.** A recommendation made on one machine should not silently
+  persist onto another after a restore or a hardware upgrade.
+
+**Test of success:** someone opening LocaLog for the first time on an unfamiliar machine ends up with
+a working setup by accepting what is offered, and never wonders whether they picked the right thing.
+
 ## 1a. Guard rails: the application must not let a user start something that cannot finish
 
 Everything below was learned the hard way during evaluation. A user should never discover these by
