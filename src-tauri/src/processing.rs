@@ -988,9 +988,19 @@ fn execute_real_transcription(
         .join("working/jobs")
         .join(format!("{}-transcript", job.id));
     fs::create_dir_all(output_base.parent().ok_or(ProcessingError::InvalidOutput)?)?;
+    // A project's own names are what transcription cannot guess; supplying them
+    // measurably corrects company and participant names throughout.
+    let vocabulary_terms = repository.transcription_vocabulary(&job.meeting_id)?;
+    let vocabulary_prompt = media::vocabulary_prompt(&vocabulary_terms);
     report(70, "transcribing_audio")?;
     let output = runtime::run_process_with_progress(
-        media::whisper_command(&config, &normalized, &output_base, &resolved.language_code),
+        media::whisper_command(
+            &config,
+            &normalized,
+            &output_base,
+            &resolved.language_code,
+            vocabulary_prompt.as_deref(),
+        ),
         cancellation,
         runtime::ProcessLimits::with_max_output(2 * 1024 * 1024),
         media::parse_whisper_progress,

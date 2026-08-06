@@ -121,6 +121,7 @@ pub(crate) fn whisper_command(
     normalized: &Path,
     output_base: &Path,
     language: &str,
+    vocabulary_prompt: Option<&str>,
 ) -> Command {
     let mut command = Command::new(&config.executable);
     command
@@ -131,7 +132,47 @@ pub(crate) fn whisper_command(
         .args(["--output-json", "--output-file"])
         .arg(output_base)
         .args(["--language", language, "--print-progress"]);
+    if let Some(prompt) = vocabulary_prompt.filter(|value| !value.trim().is_empty()) {
+        // Without --carry-initial-prompt the terms only bias the first window,
+        // which is 30 seconds of a meeting that may run for hours.
+        command
+            .args(["--prompt", prompt])
+            .arg("--carry-initial-prompt");
+    }
     command
+}
+
+/// Characters of vocabulary the transcription runtime will accept. whisper caps
+/// the initial prompt at half its text context, about 224 tokens, so the list has
+/// to be prioritised rather than accumulated.
+const VOCABULARY_PROMPT_LIMIT: usize = 620;
+
+/// Build the initial prompt from a project's terms, most specific first, stopping
+/// before the runtime's limit.
+///
+/// Ordering matters more than volume. Measured against a real meeting, standard
+/// professional terminology was already transcribed correctly with no help, while
+/// every term the vocabulary actually corrected was a proper noun. Spending this
+/// budget on words the model already knows wastes it.
+pub(crate) fn vocabulary_prompt(terms: &[String]) -> Option<String> {
+    let mut chosen: Vec<&str> = Vec::new();
+    let mut length = 0;
+    for term in terms {
+        let term = term.trim();
+        if term.is_empty() || chosen.contains(&term) {
+            continue;
+        }
+        let addition = term.len() + 2;
+        if length + addition > VOCABULARY_PROMPT_LIMIT {
+            continue;
+        }
+        length += addition;
+        chosen.push(term);
+    }
+    if chosen.is_empty() {
+        return None;
+    }
+    Some(chosen.join(", "))
 }
 
 /// Build the diarisation invocation. The runtime is separate from transcription
@@ -196,6 +237,66 @@ mod tests {
             Some(100)
         );
         assert_eq!(parse_whisper_progress("progress = 5%"), Some(5));
+    }
+
+    #[test]
+    fn vocabulary_prompt_keeps_the_most_specific_terms_within_the_limit() {
+        let terms: Vec<String> = ["NORVEK", "Mustermann", "Beispielhuber"]
+            .iter()
+            .map(|value| value.to_string())
+            .chain((0..200).map(|index| format!("Fuellbegriff{index:03}")))
+            .collect();
+        let prompt = vocabulary_prompt(&terms).unwrap();
+        assert!(prompt.len() <= VOCABULARY_PROMPT_LIMIT);
+        // The terms supplied first are the ones that survive.
+        assert!(prompt.starts_with("NORVEK, Mustermann, Beispielhuber"));
+        assert!(!prompt.contains("Fuellbegriff199"));
+    }
+
+    #[test]
+    fn vocabulary_prompt_skips_blanks_and_repeats() {
+        let terms = ["NORVEK", "  ", "NORVEK", "MUSTER BAU"].map(str::to_string);
+        assert_eq!(
+            vocabulary_prompt(&terms).as_deref(),
+            Some("NORVEK, MUSTER BAU")
+        );
+        assert_eq!(vocabulary_prompt(&[]), None);
+        assert_eq!(vocabulary_prompt(&["".to_string()]), None);
+    }
+
+    #[test]
+    fn whisper_command_only_carries_a_prompt_when_there_is_one() {
+        let config = RuntimeConfig {
+            executable: PathBuf::from("/bin/echo"),
+            model: PathBuf::from("/tmp/model.bin"),
+        };
+        let without = whisper_command(
+            &config,
+            Path::new("/tmp/a.wav"),
+            Path::new("/tmp/out"),
+            "de",
+            None,
+        );
+        let args: Vec<_> = without
+            .get_args()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        assert!(!args.iter().any(|a| a == "--prompt"));
+
+        let with = whisper_command(
+            &config,
+            Path::new("/tmp/a.wav"),
+            Path::new("/tmp/out"),
+            "de",
+            Some("NORVEK, Mustermann"),
+        );
+        let args: Vec<_> = with
+            .get_args()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        assert!(args.iter().any(|a| a == "--prompt"));
+        assert!(args.iter().any(|a| a == "--carry-initial-prompt"));
+        assert!(args.iter().any(|a| a == "NORVEK, Mustermann"));
     }
 
     #[test]
