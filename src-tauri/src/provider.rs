@@ -402,11 +402,9 @@ impl OllamaProvider {
                 transcript: &request.transcript[range.clone()],
             };
             let prompt = encode_prompt(&payload)?;
-            let num_predict = answer_budget(
-                request.context_tokens,
-                prompt.len(),
-                request.maximum_output_tokens,
-            );
+            // Notes must be allowed to be as long as the section needs. Bounding them by
+            // the protocol's output preference contradicts asking for completeness.
+            let num_predict = answer_budget(request.context_tokens, prompt.len(), u32::MAX);
             let generated = self.complete(
                 request,
                 Completion {
@@ -524,11 +522,7 @@ impl OllamaProvider {
             notes: group,
         };
         let prompt = encode_prompt(&payload)?;
-        let num_predict = answer_budget(
-            request.context_tokens,
-            prompt.len(),
-            request.maximum_output_tokens,
-        );
+        let num_predict = answer_budget(request.context_tokens, prompt.len(), u32::MAX);
         let generated = self.complete(
             request,
             Completion {
