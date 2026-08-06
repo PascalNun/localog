@@ -15,9 +15,10 @@ You do not need to be a software developer to read them. Technical terms are use
 5. **[Technical architecture](ARCHITECTURE.md)** explains how the interface, application core, files, database, background work, and local AI tools fit together.
 6. **[Decisions](DECISIONS.md)** records accepted choices, evidence, remaining risks, and questions that still require an answer.
 7. **[Working plan](PLAN.md)** tracks what is actually built today and what happens next. It is the living document; the others describe the goals being worked toward.
-8. **[Model evaluation](MODEL_EVALUATION.md)** records which models have actually been run against real meeting audio, what came out, and what failed.
-9. **[Transcription and speaker experience](TRANSCRIPTION_EXPERIENCE.md)** specifies the seamless model choice and automatic speaker separation (bundled runtime, on-demand models, diarisation).
-10. **[Roadmap](ROADMAP.md)** keeps later possibilities visible without treating them as decided.
+8. **[Polishing plan](POLISH.md)** describes what stands between a working pipeline and something a professional would use every week.
+9. **[Model evaluation](MODEL_EVALUATION.md)** records which models have actually been run against real meeting audio, what came out, and what failed.
+10. **[Transcription and speaker experience](TRANSCRIPTION_EXPERIENCE.md)** specifies the seamless model choice and automatic speaker separation (bundled runtime, on-demand models, diarisation).
+11. **[Roadmap](ROADMAP.md)** keeps later possibilities visible without treating them as decided.
 
 ## A few recurring terms
 
