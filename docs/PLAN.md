@@ -111,6 +111,9 @@ Vocabulary is proven and lives only in a test harness. The application does not 
 
 1. `Planned` Read the model's real context limit from the provider rather than assuming 8192.
 2. `Planned` Detect installed memory and recommend a model tier from it.
+   2b. `Planned` Turn that into a first-run flow: measure the machine, offer only what can run, mark one
+   quality as recommended, and make downloading it the obvious next step rather than a setting to
+   discover. See `POLISH.md` section 1b.
 3. `Planned` Recommend rather than dictate, as the transcription presets already do.
 4. `Planned` Evaluate a mixture-of-experts model. Weights are memory-mapped and only a fraction is
    active per token, so the resident working set may be far smaller than the file.
