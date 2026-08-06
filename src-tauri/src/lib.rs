@@ -44,9 +44,58 @@ struct StorageState {
     root: PathBuf,
 }
 
+/// Admission control for work that is heavy on this machine.
+///
+/// Transcription, protocol generation and model downloads all compete for memory
+/// and disk bandwidth, and running two at once is measurably worse than running
+/// them in sequence: a transcription that takes eleven minutes alone took over
+/// fifty-six alongside a large download. One heavy task runs at a time.
 #[derive(Clone, Default)]
 struct JobCoordinatorState {
     cancellations: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
+    /// What currently occupies the single heavy slot, if anything.
+    heavy: Arc<Mutex<Option<HeavyTask>>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct HeavyTask {
+    key: String,
+    /// Named as the user would recognise it, for the message they are shown.
+    description: &'static str,
+}
+
+impl JobCoordinatorState {
+    /// Take the heavy slot, or explain who holds it. Re-claiming with the same key
+    /// succeeds so that a retry of the same work is not treated as a collision.
+    fn claim_heavy(&self, key: &str, description: &'static str) -> Result<(), String> {
+        let mut held = self
+            .heavy
+            .lock()
+            .map_err(|_| "The local job coordinator is unavailable.".to_string())?;
+        match held.as_ref() {
+            Some(current) if current.key == key => Ok(()),
+            Some(current) => Err(format!(
+                "{} is running. Wait for it to finish before starting anything else, so the two do not slow each other down.",
+                current.description
+            )),
+            None => {
+                *held = Some(HeavyTask {
+                    key: key.to_string(),
+                    description,
+                });
+                Ok(())
+            }
+        }
+    }
+
+    /// Release the slot, but only if it is still ours.
+    fn release_heavy(&self, key: &str) {
+        if let Ok(mut held) = self.heavy.lock()
+            && held.as_ref().is_some_and(|current| current.key == key)
+        {
+            *held = None;
+        }
+    }
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -187,6 +236,8 @@ async fn download_transcription_model(
 ) -> Result<(), String> {
     let root = storage.root.clone();
     let key = format!("model:{model_id}");
+    // Downloading competes with transcription and generation for the same machine.
+    coordinator.claim_heavy(&key, "A meeting is being processed")?;
     let cancellation = Arc::new(AtomicBool::new(false));
     {
         let mut active = coordinator
@@ -216,6 +267,7 @@ async fn download_transcription_model(
         if let Ok(mut active) = state.cancellations.lock() {
             active.remove(&key);
         }
+        state.release_heavy(&key);
         match result {
             Ok(Ok(())) => {
                 if let Ok(repository) = WorkspaceRepository::open(&root) {
@@ -460,6 +512,8 @@ fn launch_processing(
     job: storage::ProcessingJobRecord,
 ) -> Result<(), String> {
     let meeting_id = job.meeting_id.clone();
+    let heavy_key = format!("job:{meeting_id}");
+    state.claim_heavy(&heavy_key, "Another meeting is being processed")?;
     let cancellation = Arc::new(AtomicBool::new(false));
     {
         let mut active = state
@@ -484,6 +538,7 @@ fn launch_processing(
         if let Ok(mut active) = state.cancellations.lock() {
             active.remove(&meeting_id);
         }
+        state.release_heavy(&heavy_key);
     });
     Ok(())
 }
@@ -828,6 +883,36 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn one_heavy_task_runs_at_a_time() {
+        let state = JobCoordinatorState::default();
+        state
+            .claim_heavy("job:meeting-1", "Another meeting is being processed")
+            .unwrap();
+
+        // A download cannot start while a meeting is being processed.
+        let refused = state.claim_heavy("model:medium", "A meeting is being processed");
+        let message = refused.expect_err("a second heavy task must be refused");
+        assert!(
+            message.contains("is running"),
+            "unhelpful message: {message}"
+        );
+
+        // Re-claiming the same work is not a collision, so a retry still works.
+        state
+            .claim_heavy("job:meeting-1", "Another meeting is being processed")
+            .unwrap();
+
+        // Releasing something we do not hold must not free the slot.
+        state.release_heavy("model:medium");
+        assert!(state.claim_heavy("model:medium", "x").is_err());
+
+        state.release_heavy("job:meeting-1");
+        state
+            .claim_heavy("model:medium", "A model is downloading")
+            .unwrap();
+    }
 
     #[test]
     fn identity_keeps_the_local_first_contract_visible() {
