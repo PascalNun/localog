@@ -116,7 +116,9 @@ Use `npm run tauri dev` to run the native desktop shell. Development and verific
 
 LocaLog is public early so that its product reasoning, design work, and architecture can be followed in the open. The foundations are still moving, so substantial implementation proposals should begin with the relevant product or architecture discussion.
 
-Never use real meeting recordings, transcripts, names, client information, or confidential project material in issues, fixtures, screenshots, or pull requests.
+Never use real meeting recordings, transcripts, names, client information, or confidential project material anywhere in this repository — including documentation, evaluation notes, test fixtures, commit messages, issues, screenshots, and pull requests. Meeting participants consented to a recording, not to publication.
+
+Evaluation results are the exception worth stating plainly, because they are the one place a real recording is genuinely useful. Record the **measurements**, never the strings: write "the client firm, misheard" rather than the name, and "a participant surname" rather than the surname. Nothing is lost — the numbers are what the notes are for — and a person or company named once in a commit message stays readable in the history forever.
 
 ## Licence
 
