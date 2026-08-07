@@ -142,6 +142,63 @@ integration, an API surface for others to call, or both is undecided.
 - More precise source citations and confidence/review tooling
 - Optional organisation policies for managed deployments
 
+## Later — adapting a model, rather than training one
+
+Whether LocaLog should have its own model comes up naturally, and the honest answer today is no —
+but for reasons that could change, so they are worth writing down rather than settling by instinct.
+
+**The errors measured so far are not the errors training fixes.** Names came out wrong, and
+vocabulary fixed that. Output came out too short, and the model choice and the style specification
+fixed that. Attribution goes to the wrong organisation, and speaker separation is what addresses
+that. None of those is a gap in what the model knows; each is a gap in what it was told. A
+fine-tuned model would have inherited every one of them.
+
+**What training would genuinely buy is house style.** A firm's protocols have conventions — how a
+decision is phrased, what counts as an action, how much of the discussion survives — that are
+tedious to express as instructions and obvious from examples. That is exactly what fine-tuning is
+good at, and it is the one argument for it worth taking seriously.
+
+**But the training data is the most confidential data in the product.** Adaptation needs pairs of
+transcript and the protocol a person actually wrote. Those pairs are precisely the material that
+must never leave a device. Any plan that involves collecting them centrally to train a shared
+LocaLog model contradicts the reason the product exists, and should be rejected on that basis alone
+rather than on cost.
+
+That leaves one shape that is consistent with the product: **adaptation that happens on the firm's
+own machine, from the firm's own past protocols, and never leaves it.** A cloud competitor cannot
+credibly offer that, because the documents would have to be uploaded. It is a real differentiator
+rather than a technical vanity.
+
+Order of attempts, cheapest first — each one may make the next unnecessary:
+
+1. **Examples in the prompt, not weights.** Give the model two or three of the firm's own past
+   protocols as in-context examples. This needs no training at all, works today, and directly tests
+   whether style adaptation helps enough to be worth pursuing. The cost is context window, which
+   `MODEL_EVALUATION.md` shows is the scarcest resource on the baseline machine.
+2. **Retrieval over the firm's archive**, so the examples chosen resemble the meeting at hand.
+3. **A local LoRA**, trained on the firm's machine, kept beside their workspace, never uploaded.
+   Only worth building if 1 and 2 leave a visible gap.
+
+Pre-training is not a candidate at any point. Full fine-tuning is not a candidate while a LoRA is
+untried.
+
+**What has to be true before step 3 is even assessed:**
+
+- Steps 1 and 2 have been tried and measurably fall short.
+- The remaining errors are style errors, not factual ones. Training makes a model sound more like
+  the reference; it does not make it more accurate, and reaching for it to fix wrong facts would be
+  a mistake.
+- Enough pairs exist in one firm to train on — realistically dozens, not the single reference pair
+  the evaluation currently rests on.
+- The base model's licence permits it. This is a present-day constraint on model choice, not a
+  future one: Apache 2.0 (Mistral, Qwen, Granite) keeps this door open, and more restrictive terms
+  close it. It is one of the reasons the candidate list is weighted the way it is.
+
+**Domain-specialised models** — legal, notarial, medical — are a different question and are worth
+testing on their merits rather than assumed to help. LocaLog's task is not domain reasoning; it is
+structuring spoken language into a document. A model tuned on legal prose may be worse at
+conversational German, which is what a meeting actually contains. Test before believing.
+
 ## Explicitly uncommitted
 
 Cloud sync, accounts, collaboration, shared workspaces, calendar integration, meeting bots, and hosted inference are not implied by this roadmap. A phone application is a stated long-term goal above, but no part of v0.1 depends on it. Each would require a separate product/privacy decision and must not become an incidental dependency.
