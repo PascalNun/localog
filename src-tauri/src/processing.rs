@@ -2547,6 +2547,49 @@ mod tests {
 
     /// Token shapes taken from real whisper `--output-json-full` output on the
     /// German meeting, where the client's company name came out as "Norwegen".
+    /// Runs the real parser over a real whisper `--output-json-full` file and
+    /// reports what it would ask the reader about. Ignored by default because it
+    /// needs meeting audio, which never lives in this repository.
+    ///
+    /// `LOCALOG_EVAL_WHISPER_JSON=/path/to/out.json cargo test --lib \
+    ///     uncertain_words_against_real_output -- --ignored --nocapture`
+    #[test]
+    #[ignore = "requires a local whisper JSON transcript"]
+    fn uncertain_words_against_real_output() {
+        let path = std::env::var("LOCALOG_EVAL_WHISPER_JSON")
+            .expect("set LOCALOG_EVAL_WHISPER_JSON to a whisper --output-json-full file");
+        let json = std::fs::read_to_string(&path).expect("the transcript could be read");
+        let artifact =
+            parse_whisper_json(&json, "meeting", "revision", "German", "checksum").unwrap();
+        let flagged: Vec<&TranscriptSegment> = artifact
+            .segments
+            .iter()
+            .filter(|segment| segment.needs_review)
+            .collect();
+        println!(
+            "{} of {} segments flagged",
+            flagged.len(),
+            artifact.segments.len()
+        );
+        for segment in &flagged {
+            println!(
+                "  {:>7.1}s  {:?}",
+                segment.start_ms as f64 / 1000.0,
+                segment.uncertain_words
+            );
+        }
+        assert!(
+            !artifact.segments.is_empty(),
+            "the transcript should hold segments"
+        );
+        for segment in &flagged {
+            assert!(
+                !segment.uncertain_words.is_empty(),
+                "a flagged segment must name what to check"
+            );
+        }
+    }
+
     #[test]
     fn a_misheard_name_is_offered_for_correction() {
         let row = serde_json::json!({
