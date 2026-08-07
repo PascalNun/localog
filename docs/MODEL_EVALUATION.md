@@ -8,9 +8,12 @@ The material itself lives in the local-only `eval/` directory and is never commi
 
 ## Test case
 
-An 81-minute German construction project meeting (`Projektbesprechung`), with a protocol and a set of
-notes written afterwards by a person. Those documents are the reference the generated output is
-compared against.
+An 81-minute German construction project meeting, with a protocol and a set of notes written
+afterwards by a person. Those documents are the reference the generated output is compared against.
+
+Nothing here identifies the meeting, its participants or the client. Terms are referred to by their
+role — "client firm", "participant surname" — because the measurements are what this file is for and
+the actual strings are exactly what must not leave the machine.
 
 | Property                 | Value                                      |
 | ------------------------ | ------------------------------------------ |
@@ -39,13 +42,13 @@ whisper.cpp accepts an initial prompt (`--prompt`), and `--carry-initial-prompt`
 window rather than only the first 30 seconds. Supplying the project's own terminology — firms, people,
 recurring subjects — corrected terms that were otherwise wrong throughout:
 
-| Term            | Without vocabulary   | With vocabulary |
-| --------------- | -------------------- | --------------- |
-| NORVEK          | 0 (heard as "Norwegen") | **33**          |
-| "Norwegen" (wrong) | 20                   | **0**           |
-| Mustermann      | 0 ("Musterman")      | **2**           |
-| Beispielhuber   | 0 ("Beispiel-Huber")    | **1**           |
-| Muster-Bauleitung     | 0 ("Musterweber")      | **2**           |
+| Term                             | Without vocabulary              | With vocabulary |
+| -------------------------------- | ------------------------------- | --------------- |
+| Client firm (an unusual acronym) | 0 — heard as a well-known brand | **33**          |
+| That wrong brand name            | 20                              | **0**           |
+| Participant surname, Slavic      | 0 — heard as a different name   | **2**           |
+| Participant surname, Greek       | 0 — split into two words        | **1**           |
+| Participant surname, hyphenated  | 0 — hyphen dropped              | **2**           |
 
 This is the evidence behind treating vocabulary as a real feature rather than an intention. Note the
 cap: the initial prompt is limited to roughly 224 tokens, so a project's vocabulary has to be
@@ -66,13 +69,13 @@ prioritised rather than dumped in.
 
 Term accuracy in the generated protocol, with and without vocabulary:
 
-| Term in output  | Without vocabulary | With vocabulary |
-| --------------- | ------------------ | --------------- |
-| NORVEK          | 0                  | **11**          |
-| "Norwegen" (wrong) | 15                 | **0**           |
-| "Musterman"     | 3                  | 0               |
-| "Beispiel-Huber"   | 2                  | 0               |
-| "Musterweber"     | 2                  | 0               |
+| Term in output            | Without vocabulary | With vocabulary |
+| ------------------------- | ------------------ | --------------- |
+| Client firm, correct      | 0                  | **11**          |
+| Wrong brand name          | 15                 | **0**           |
+| Wrong surname, Slavic     | 3                  | 0               |
+| Wrong surname, Greek      | 2                  | 0               |
+| Wrong surname, hyphenated | 2                  | 0               |
 
 ### What each result taught
 
@@ -88,10 +91,10 @@ Term accuracy in the generated protocol, with and without vocabulary:
 - **Small models with very large windows changed the picture.** qwen3.5:4b is 3.4 GB with a 256K
   context: it fits an 8 GB machine _and_ holds an entire meeting in one pass, which removes the
   compression that shortened earlier output.
-- **Proper nouns are the whole win _in this domain_.** Standard German professional terminology transcribed correctly
-  with no help at all: Fassade (43 occurrences), Grundriss (28), Treppenhaus (12), Erschließung (10),
-  plus Laubengang, Wohnungsmix, Tragwerk, Bauphysik, Barrierefreiheit and Stahlbeton. Every term
-  vocabulary actually corrected was a company name or a surname. Since the prompt is capped at about
+- **Proper nouns are the whole win _in this domain_.** Standard German building terminology — the
+  vocabulary of any textbook on the subject — transcribed correctly with no help at all: the most
+  common such term appeared 43 times and was never wrong, and nine others behaved the same way. Every
+  term vocabulary actually corrected was a company name or a surname. Since the prompt is capped at about
   224 tokens, a vocabulary of general field terminology would spend that budget on words the model
   already knows.
 
@@ -136,17 +139,17 @@ alternatives. A review pass that asks about those teaches people to ignore it.
 a technical compound — has to be assembled from several. Requiring at least two non-punctuation
 pieces, and ignoring punctuation scores entirely, changes what surfaces:
 
-| Rule                            | Words flagged in 35 segments | What they were                  |
-| ------------------------------- | ---------------------------- | ------------------------------- |
-| `p < 0.40`, any token           | 7                            | Mostly function words           |
-| **`p < 0.40`, ≥ 2 word pieces** | **2**                        | **`Norwegen`, `Geschoss`**         |
-| `p < 0.50`, ≥ 2 word pieces     | 5                            | Adds correctly-heard compounds  |
-| `p < 0.60`, ≥ 2 word pieces     | 15                           | Mostly correct German compounds |
+| Rule                            | Words flagged in 35 segments | What they were                        |
+| ------------------------------- | ---------------------------- | ------------------------------------- |
+| `p < 0.40`, any token           | 7                            | Mostly function words                 |
+| **`p < 0.40`, ≥ 2 word pieces** | **2**                        | **the client firm, and one compound** |
+| `p < 0.50`, ≥ 2 word pieces     | 5                            | Adds correctly-heard compounds        |
+| `p < 0.60`, ≥ 2 word pieces     | 15                           | Mostly correct German compounds       |
 
-The lowest-scoring word in the whole excerpt was `Norwegen` at **0.138** — the client's company name,
-NORVEK, misheard. That is exactly the word worth asking a reader about, and it is the same class of
-error the vocabulary feature exists to prevent. Raising the threshold to 0.50 begins flagging
-`Haupterschließung`, `Musterbereich` and `Fernwärme`, all of which were transcribed correctly.
+The lowest-scoring word in the whole excerpt, at **0.138**, was the client's company name misheard.
+That is exactly the word worth asking a reader about, and it is the same class of error the
+vocabulary feature exists to prevent. Raising the threshold to 0.50 begins flagging ordinary German
+compounds — the kind any building text contains — all of which were transcribed correctly.
 
 Also worth noting: punctuation carries its own probability, and a doubtful comma was inflating the
 piece count of ordinary words such as `da.` and `wäre.`. Excluding punctuation from both the score
@@ -156,8 +159,8 @@ The shipped parser was then run over that same real whisper output and produced 
 
 ```
 2 of 35 segments flagged
-    102.0s  ["Norwegen"]
-    204.5s  ["Geschoss"]
+    102.0s  [<client firm, misheard>]
+    204.5s  [<one ordinary German compound>]
 ```
 
 That check is kept as an ignored test, since it needs meeting audio that never lives in this
@@ -225,6 +228,47 @@ release archive.
 | ------------------------------- | ------- | ------------------------------------------- |
 | `pyannote-segmentation-3.0`     | 5.99 MB | Finds where speech and voices change        |
 | `3D-Speaker eres2net` embedding | 39.6 MB | Describes each voice so they can be grouped |
+
+## What a model actually costs in memory
+
+Measured on the development machine with Ollama 0.30.10, by loading a model and reading the
+`llama-server` runner's resident set. This matters because LocaLog's baseline is an 8 GB Mac, and
+because the number that decides viability is not the file size.
+
+**Context is not free.** The same 3.4 GB model spans 3.6 GB to 7.3 GB resident depending only on how
+much context it is given:
+
+| `num_ctx` | qwen3.5:4b resident | Note                                   |
+| --------- | ------------------- | -------------------------------------- |
+| 4,096     | 3.61 GB             | Close to the file size                 |
+| 16,384    | 3.89 GB             |                                        |
+| 40,960    | **4.70 GB**         | The context LocaLog currently asks for |
+| 131,072   | 7.33 GB             | Would not fit an 8 GB machine at all   |
+
+That works out at roughly **30 KB of KV cache per token**. An 81-minute meeting is about 24,500
+tokens of transcript, so the transcript alone accounts for around 0.7 GB before the model has
+written anything. On an 8 GB machine, weights plus context plus the operating system plus LocaLog
+itself is the real budget, and the context window is the part that is easiest to get wrong.
+
+The practical consequence: **the model tier and the context length have to be chosen together.**
+Recommending a model on file size alone would understate what it needs by more than a gigabyte.
+
+### gemma4:12b, measured on a quiet machine
+
+The earlier verdict was withdrawn as premature because a large download had been competing for
+bandwidth and memory. Retested with nothing else running:
+
+| `num_ctx` | Resident | Processor | First response to a short prompt |
+| --------- | -------- | --------- | -------------------------------- |
+| 16,384    | 7.96 GB  | 100% GPU  | 7 s                              |
+| 40,960    | 8.26 GB  | 100% GPU  | 5 s                              |
+
+So the model loads fully onto the GPU and answers a short prompt promptly. This does **not** yet
+disprove the thirty-minute failure, which happened on a 24,500-token prompt where the cost is in
+processing the input rather than loading the weights — that run is a separate measurement.
+
+What it does establish firmly: at 8.26 GB resident, **gemma4:12b cannot run on the 8 GB baseline at
+all**, whatever its quality. It can only ever be an option for larger machines.
 
 ## Candidates not yet tested
 

@@ -975,8 +975,8 @@ impl WorkspaceRepository {
     ///    what a transcriber cannot guess.
     /// 2. Within that, proper nouns before terminology. Measured against a real
     ///    German meeting, every term the vocabulary corrected was a company name or
-    ///    a surname, while ordinary professional vocabulary — Fassade, Grundriss,
-    ///    Treppenhaus — was already transcribed correctly with no help at all.
+    ///    a surname, while ordinary professional vocabulary was already transcribed
+    ///    correctly with no help at all.
     ///
     /// Categories this build does not know about sort between the two groups: they
     /// may well be names, and demoting them below general terminology would be a
@@ -2192,7 +2192,7 @@ mod tests {
     fn project_with_meeting(repository: &mut WorkspaceRepository, root: &Path) -> (String, String) {
         let project = repository
             .create_project(NewProjectInput {
-                name: "Quartier".to_string(),
+                name: "Beispielquartier".to_string(),
                 description: String::new(),
                 default_language: "German".to_string(),
             })
@@ -2371,10 +2371,10 @@ mod tests {
         let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
         let (project_id, meeting_id) = project_with_meeting(&mut repository, temporary.path());
         for (term, category) in [
-            ("Fassade", "Technical term"),
+            ("Bauteil", "Technical term"),
             ("Sonstiges", "Other"),
             ("Mustermann", "Person"),
-            ("Altbestand", "Building part"),
+            ("Musterteil", "Building part"),
             ("GU", "Abbreviation"),
             ("NORVEK", "Organisation"),
         ] {
@@ -2394,8 +2394,8 @@ mod tests {
                 "NORVEK".to_string(),
                 "GU".to_string(),
                 // A category this build does not know sits above general terms.
-                "Altbestand".to_string(),
-                "Fassade".to_string(),
+                "Musterteil".to_string(),
+                "Bauteil".to_string(),
                 "Sonstiges".to_string(),
                 // Shared entries last, however specific they are.
                 "Aaa Global".to_string(),
@@ -2409,7 +2409,7 @@ mod tests {
         let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
         let project = repository
             .create_project(NewProjectInput {
-                name: "Quartier".to_string(),
+                name: "Beispielquartier".to_string(),
                 description: String::new(),
                 default_language: "German".to_string(),
             })
