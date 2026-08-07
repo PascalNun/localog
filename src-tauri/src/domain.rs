@@ -135,6 +135,11 @@ pub struct TranscriptSegment {
     pub text: String,
     #[serde(default)]
     pub needs_review: bool,
+    /// Words the transcription model itself was unsure of, so the reader can be
+    /// asked about the passage rather than discovering the error in a protocol.
+    /// Absent from transcripts produced before this was recorded.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub uncertain_words: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -193,6 +198,27 @@ pub struct VocabularyEntry {
     pub category: String,
     pub scope: String,
     pub project_id: Option<String>,
+    /// A switched-off term stays in the library but reaches neither the
+    /// transcriber nor the protocol.
+    #[serde(default = "enabled_by_default")]
+    pub enabled: bool,
+}
+
+fn enabled_by_default() -> bool {
+    true
+}
+
+/// A term as the library editor supplies it. Without an `id` this is a new term.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VocabularyDraft {
+    pub id: Option<String>,
+    pub term: String,
+    pub category: String,
+    pub scope: String,
+    pub project_id: Option<String>,
+    #[serde(default = "enabled_by_default")]
+    pub enabled: bool,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]

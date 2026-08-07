@@ -32,6 +32,8 @@ function mockStore(overrides: Partial<WorkspaceStore> = {}): WorkspaceStore {
     retryProcessing: vi.fn<WorkspaceStore['retryProcessing']>(),
     updateTranscriptSegment: vi.fn<WorkspaceStore['updateTranscriptSegment']>(),
     renameTranscriptSpeaker: vi.fn<WorkspaceStore['renameTranscriptSpeaker']>(),
+    saveVocabularyEntry: vi.fn<WorkspaceStore['saveVocabularyEntry']>(),
+    deleteVocabularyEntry: vi.fn<WorkspaceStore['deleteVocabularyEntry']>(),
     autosaveProtocol: vi.fn<WorkspaceStore['autosaveProtocol']>(),
     createProtocolRevision: vi.fn<WorkspaceStore['createProtocolRevision']>(),
     markProtocolReviewed: vi.fn<WorkspaceStore['markProtocolReviewed']>(),

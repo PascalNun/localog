@@ -50,6 +50,8 @@ export interface TranscriptSegment {
   speaker: string;
   text: string;
   needsReview: boolean;
+  /** Words the transcription model itself was unsure of. Absent on older transcripts. */
+  uncertainWords?: string[];
 }
 
 export interface TranscriptDocument {
@@ -91,12 +93,22 @@ export interface ProtocolStyle {
   language: string;
 }
 
+export interface VocabularyDraft {
+  id: string | null;
+  term: string;
+  category: string;
+  scope: 'Global' | 'Project';
+  projectId: string | null;
+  enabled: boolean;
+}
+
 export interface VocabularyEntry {
   id: string;
   term: string;
   category: string;
   scope: 'Global' | 'Project';
   projectId: string | null;
+  enabled: boolean;
 }
 
 export interface ActiveJob {
@@ -226,6 +238,8 @@ export interface WorkflowBridge {
   updateMeetingTitle(meetingId: string, title: string): Promise<void>;
   updateTranscriptSegment(meetingId: string, segmentId: string, text: string): Promise<void>;
   updateSpeaker(meetingId: string, speaker: string, replacement: string): Promise<void>;
+  saveVocabularyEntry(entry: VocabularyDraft): Promise<void>;
+  deleteVocabularyEntry(entryId: string): Promise<void>;
   updateProtocol(meetingId: string, markdown: string): Promise<void>;
   createProtocolRevision(meetingId: string): Promise<void>;
   markReviewed(meetingId: string): Promise<void>;

@@ -407,6 +407,8 @@
           styles={snapshot.styles}
           vocabulary={snapshot.vocabulary}
           projects={snapshot.projects}
+          onSaveTerm={(entry) => bridge.saveVocabularyEntry(entry)}
+          onDeleteTerm={(entryId) => bridge.deleteVocabularyEntry(entryId)}
         />
       {:else if route.name === 'settings'}
         <SettingsView

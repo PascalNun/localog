@@ -1292,8 +1292,24 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   gap: 5px;
+  /* Naming several doubtful words must not push the flag across the text it
+     belongs to; the full list stays available as the element's title. */
+  max-width: min(46%, 340px);
+  overflow: hidden;
   color: var(--warning);
   font-size: 0.67rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.review-flag :global(svg) {
+  flex: none;
+}
+button.review-summary {
+  min-height: 0;
+  padding: 4px 0;
+}
+button.review-summary[aria-pressed='true'] {
+  color: var(--ink);
 }
 
 .workspace-action-bar {
@@ -1492,6 +1508,75 @@ textarea::placeholder {
 }
 .library-list article:not(:has(.library-icon)) {
   grid-template-columns: minmax(0, 1fr) auto;
+}
+.library-list article:has(.vocabulary-row-actions) {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+/* A term that has been switched off still reads as a term, only a quiet one. */
+.library-list article.is-disabled h2,
+.library-list article.is-disabled p {
+  color: var(--muted);
+}
+.vocabulary-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.vocabulary-row-actions .meta {
+  margin-right: 6px;
+}
+.vocabulary-editor {
+  margin-bottom: 26px;
+  padding: 20px;
+  background: var(--subtle);
+  border-radius: 4px;
+}
+.vocabulary-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 16px;
+}
+.vocabulary-fields label {
+  display: grid;
+  gap: 7px;
+}
+.vocabulary-fields span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+.vocabulary-fields input,
+.vocabulary-fields select {
+  min-height: 40px;
+  padding: 9px 11px;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+.vocabulary-hint {
+  max-width: 640px;
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.vocabulary-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+.vocabulary-error {
+  margin-bottom: 20px;
+  color: var(--danger);
+  font-size: 0.82rem;
+}
+@media (max-width: 900px) {
+  .vocabulary-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .library-list article:has(.vocabulary-row-actions) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .library-list h2 {
   margin-bottom: 4px;

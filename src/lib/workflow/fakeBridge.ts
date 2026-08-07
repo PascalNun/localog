@@ -13,6 +13,7 @@ import type {
   WorkflowBridge,
   WorkflowSnapshot,
   TranscriptionRuntimeStatus,
+  VocabularyDraft,
 } from './types';
 import type { WorkspaceStore } from './workspaceStore';
 
@@ -220,6 +221,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         category: 'Technical term',
         scope: 'Global',
         projectId: null,
+        enabled: true,
       },
       {
         id: 'vocab-2',
@@ -227,6 +229,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         category: 'Building part',
         scope: 'Project',
         projectId: 'project-harbor-canopy',
+        enabled: true,
       },
       {
         id: 'vocab-3',
@@ -234,6 +237,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         category: 'Document',
         scope: 'Project',
         projectId: 'project-harbor-canopy',
+        enabled: true,
       },
     ],
     jobs: [],
@@ -457,6 +461,50 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       if (segment.speaker === speaker) segment.speaker = nextSpeaker;
     }
     if (document) document.isDirty = true;
+    this.emit();
+  }
+
+  async saveVocabularyEntry(draft: VocabularyDraft): Promise<void> {
+    if (this.workspaceStore) {
+      this.applyDurableWorkspace(await this.workspaceStore.saveVocabularyEntry(draft));
+      this.emit();
+      return;
+    }
+    const term = draft.term.trim();
+    if (!term) return;
+    const projectId = draft.scope === 'Project' ? draft.projectId : null;
+    const existing = this.snapshot.vocabulary.find((entry) => entry.id === draft.id);
+    if (existing) {
+      Object.assign(existing, {
+        term,
+        category: draft.category,
+        scope: draft.scope,
+        projectId,
+        enabled: draft.enabled,
+      });
+    } else {
+      this.snapshot.vocabulary = [
+        ...this.snapshot.vocabulary,
+        {
+          id: `vocab-${this.snapshot.vocabulary.length + 1}`,
+          term,
+          category: draft.category,
+          scope: draft.scope,
+          projectId,
+          enabled: draft.enabled,
+        },
+      ];
+    }
+    this.emit();
+  }
+
+  async deleteVocabularyEntry(entryId: string): Promise<void> {
+    if (this.workspaceStore) {
+      this.applyDurableWorkspace(await this.workspaceStore.deleteVocabularyEntry(entryId));
+      this.emit();
+      return;
+    }
+    this.snapshot.vocabulary = this.snapshot.vocabulary.filter((entry) => entry.id !== entryId);
     this.emit();
   }
 
