@@ -68,6 +68,9 @@ minutes against an 18,212-character human reference, with company and participan
 - `Done` Generation runs end to end on the real 81-minute German meeting.
 - `Done` Sectioned generation, for transcripts larger than a model's window.
 - `Done` Vocabulary demonstrably improves transcription and the protocol that follows.
+- `Done` The "Formal minutes" style is a real specification in the product, not three sentences. It
+  was derived from a real professional protocol, and existing databases receive it through a
+  migration that leaves an edited style alone.
 - `Done` Speaker alignment: joining diariser turns to transcript segments by overlap.
 - `Partial` Speaker labelling is wired into the transcription job, now with the machine's cores, its
   neural accelerator, and a known speaker count when one is set. It has never run against the real

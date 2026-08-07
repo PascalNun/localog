@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 8;
+const CURRENT_SCHEMA_VERSION: i64 = 9;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -262,6 +262,19 @@ impl WorkspaceRepository {
                 "Generate a protocol before exporting it.",
             ))?;
         read_verified_artifact(&self.root, &path, &checksum)
+    }
+
+    #[cfg(test)]
+    fn protocol_inputs_style(&self, style_id: &str) -> ResolvedProtocolStyle {
+        self.connection
+            .query_row(
+                "SELECT id, name, description, language_scope, instructions_json,
+                        required_sections_json, revision
+                 FROM protocol_styles WHERE id = ?1",
+                [style_id],
+                protocol_style_from_row,
+            )
+            .expect("seeded style must exist")
     }
 
     pub(crate) fn read_setting(&self, key: &str) -> Result<Option<String>> {
@@ -1508,7 +1521,7 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             VALUES
                 ('style-formal', 'Formal minutes',
                  'Structured record of discussion, decisions, and actions.', 'meeting',
-                 '["Write a calm, factual professional protocol.","Separate confirmed decisions from open questions.","Do not invent owners, dates, or commitments."]',
+                 '["Write the entire protocol in the meeting''s language.", "Organise the protocol by topic, not in the order things were discussed. Gather everything said about one subject into a single numbered section, even if it came up several times.", "Begin with the participants, grouped by the organisation they belong to, and give a role only where it was stated.", "Use numbered sections with descriptive headings, and sub-numbered subsections where a topic has distinct parts.", "Write discussion as calm, factual prose. Use lists only for options, criteria, and open questions.", "Reproduce every number, measurement, area, date, and proper name exactly as stated. Never round or approximate them.", "Separate what was decided from what remains open. Where no decision was reached, say so plainly rather than implying one.", "Mark uncertainty in the words the meeting used, such as an intention, an estimate, or a matter still to be confirmed.", "End with a table of agreed next steps with two columns, the task and the responsible party, followed by a short section for dates and appointments.", "Never invent a decision, an action, an owner, or a date. If the source does not say who is responsible, leave it unattributed.", "Cover every topic that was discussed. A protocol that silently omits a topic is incomplete, even if what remains reads well.", "The table of next steps must list every action that was agreed, not a selection of the clearest ones.", "Write at whatever length the material requires. Do not compress the meeting into a summary: this is a record, and a reader who was absent must be able to follow what was discussed and what follows from it.", "Never leave a placeholder such as [Datum] or [Details]. If something is not in the source, omit the line instead."]',
                  '["Summary","Decisions","Actions","Open questions"]', 1, 0),
                 ('style-working-note', 'Internal working note',
                  'Concise working record for an internal project team.', 'meeting',
@@ -1519,6 +1532,24 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
                  '["Write a precise technical decision record.","Make alternatives, constraints, and consequences visible.","Record only decisions supported by the transcript."]',
                  '["Context","Options considered","Decision","Consequences","Open questions"]', 1, 0);
             PRAGMA user_version = 8;
+            COMMIT;
+            "#,
+        )?;
+        version = 8;
+    }
+    if version == 8 {
+        // The formal-minutes style began as three sentences, which produced a
+        // protocol a quarter the length of a human one. These instructions were
+        // derived from a real professional protocol and measurably changed the
+        // result. A style the user has edited is left alone.
+        connection.execute_batch(
+            r#"
+            BEGIN IMMEDIATE;
+            UPDATE protocol_styles
+               SET instructions_json = '["Write the entire protocol in the meeting''s language.", "Organise the protocol by topic, not in the order things were discussed. Gather everything said about one subject into a single numbered section, even if it came up several times.", "Begin with the participants, grouped by the organisation they belong to, and give a role only where it was stated.", "Use numbered sections with descriptive headings, and sub-numbered subsections where a topic has distinct parts.", "Write discussion as calm, factual prose. Use lists only for options, criteria, and open questions.", "Reproduce every number, measurement, area, date, and proper name exactly as stated. Never round or approximate them.", "Separate what was decided from what remains open. Where no decision was reached, say so plainly rather than implying one.", "Mark uncertainty in the words the meeting used, such as an intention, an estimate, or a matter still to be confirmed.", "End with a table of agreed next steps with two columns, the task and the responsible party, followed by a short section for dates and appointments.", "Never invent a decision, an action, an owner, or a date. If the source does not say who is responsible, leave it unattributed.", "Cover every topic that was discussed. A protocol that silently omits a topic is incomplete, even if what remains reads well.", "The table of next steps must list every action that was agreed, not a selection of the clearest ones.", "Write at whatever length the material requires. Do not compress the meeting into a summary: this is a record, and a reader who was absent must be able to follow what was discussed and what follows from it.", "Never leave a placeholder such as [Datum] or [Details]. If something is not in the source, omit the line instead."]',
+                   revision = revision + 1
+             WHERE id = 'style-formal' AND revision = 1;
+            PRAGMA user_version = 9;
             COMMIT;
             "#,
         )?;
@@ -2001,6 +2032,24 @@ mod tests {
         let source = root.join("synthetic-design-review.wav");
         fs::write(&source, b"synthetic audio fixture").unwrap();
         source
+    }
+
+    #[test]
+    fn the_formal_style_carries_real_instructions() {
+        let temporary = tempdir().unwrap();
+        let repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let style = repository.protocol_inputs_style("style-formal");
+        assert!(
+            style.instructions.len() >= 10,
+            "the shipped style should be a real specification, not a sentence: {} instructions",
+            style.instructions.len()
+        );
+        let joined = style.instructions.join(" ");
+        // The properties a protocol of this kind depends on.
+        assert!(joined.contains("by topic"), "must organise by topic");
+        assert!(joined.contains("next steps"), "must end in an action table");
+        assert!(joined.contains("Never invent"), "must forbid invention");
+        assert!(joined.contains("placeholder"), "must forbid placeholders");
     }
 
     #[test]
