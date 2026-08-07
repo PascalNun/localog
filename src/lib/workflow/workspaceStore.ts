@@ -18,6 +18,7 @@ import type {
   TranscriptionRuntimeStatus,
   ModelDownloadError,
   ModelDownloadProgress,
+  VocabularyDraft,
   VocabularyEntry,
 } from './types';
 
@@ -61,6 +62,8 @@ export interface WorkspaceStore {
     speaker: string,
     replacement: string,
   ): Promise<WorkspaceData>;
+  saveVocabularyEntry(entry: VocabularyDraft): Promise<WorkspaceData>;
+  deleteVocabularyEntry(entryId: string): Promise<WorkspaceData>;
   autosaveProtocol(meetingId: string, markdown: string): Promise<WorkspaceData>;
   createProtocolRevision(meetingId: string): Promise<WorkspaceData>;
   markProtocolReviewed(meetingId: string): Promise<WorkspaceData>;
@@ -188,6 +191,14 @@ class TauriWorkspaceStore implements WorkspaceStore {
     replacement: string,
   ): Promise<WorkspaceData> {
     return invoke('rename_transcript_speaker', { meetingId, speaker, replacement });
+  }
+
+  saveVocabularyEntry(entry: VocabularyDraft): Promise<WorkspaceData> {
+    return invoke('save_vocabulary_entry', { entry });
+  }
+
+  deleteVocabularyEntry(entryId: string): Promise<WorkspaceData> {
+    return invoke('delete_vocabulary_entry', { entryId });
   }
 
   autosaveProtocol(meetingId: string, markdown: string): Promise<WorkspaceData> {

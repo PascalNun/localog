@@ -723,6 +723,32 @@ async fn rename_transcript_speaker(
     .await
 }
 
+/// Add a term or change one. The library is the only place vocabulary is edited,
+/// so both cases arrive here and are told apart by whether an id was supplied.
+#[tauri::command]
+async fn save_vocabulary_entry(
+    state: State<'_, StorageState>,
+    entry: domain::VocabularyDraft,
+) -> Result<WorkspaceSnapshot, String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.save_vocabulary_entry(entry)?;
+        repository.workspace_snapshot()
+    })
+    .await
+}
+
+#[tauri::command]
+async fn delete_vocabulary_entry(
+    state: State<'_, StorageState>,
+    entry_id: String,
+) -> Result<WorkspaceSnapshot, String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.delete_vocabulary_entry(&entry_id)?;
+        repository.workspace_snapshot()
+    })
+    .await
+}
+
 #[tauri::command]
 async fn autosave_protocol(
     state: State<'_, StorageState>,
@@ -1027,6 +1053,8 @@ pub fn run() {
             retry_processing,
             update_transcript_segment,
             rename_transcript_speaker,
+            save_vocabulary_entry,
+            delete_vocabulary_entry,
             autosave_protocol,
             create_protocol_revision,
             mark_protocol_reviewed,

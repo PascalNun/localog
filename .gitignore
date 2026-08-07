@@ -58,3 +58,6 @@ tmp/
 temp/
 *.tmp
 *.part
+
+# Local agent tooling (launch configs, session scratch)
+.claude/

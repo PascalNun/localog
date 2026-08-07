@@ -7,6 +7,7 @@
     ProjectSummary,
     ProtocolStyle,
     TranscriptDocument,
+    TranscriptSegment,
   } from '../workflow/types';
   import Icon from './Icon.svelte';
   import ProgressPanel from './ProgressPanel.svelte';
@@ -31,6 +32,8 @@
   let isPlaying = false;
   let currentSeconds = 0;
   let query = '';
+  /** Narrows the list to the passages whisper reported as unclear. */
+  let onlyFlagged = false;
   let inspectorOpen = true;
   let saveState: 'saved' | 'saving' | 'failed' = transcript?.saveState ?? 'saved';
   let audioElement: HTMLAudioElement | null = null;
@@ -81,13 +84,24 @@
 
   $: relevantJob = job?.meetingId === meeting.id && job.kind === 'generation' ? job : null;
   $: generationUnavailable = Boolean(relevantJob && relevantJob.state !== 'completed');
-  $: filteredSegments = query.trim()
-    ? segments.filter((segment) =>
+  $: filteredSegments = segments
+    .filter((segment) => !onlyFlagged || segment.needsReview)
+    .filter(
+      (segment) =>
+        !query.trim() ||
         `${segment.speaker} ${segment.text}`.toLowerCase().includes(query.toLowerCase()),
-      )
-    : segments;
+    );
   $: speakers = [...new Set(segments.map((segment) => segment.speaker))];
   $: unclearCount = segments.filter((segment) => segment.needsReview).length;
+
+  // Whisper reports how sure it was of each word. Where it was not sure, the word
+  // is named rather than merely marked, so the question put to the reader is one
+  // they can answer from memory of the meeting.
+  function uncertainLabel(segment: TranscriptSegment): string {
+    const words = segment.uncertainWords ?? [];
+    if (words.length === 0) return 'Check wording';
+    return `Check ${words.map((word) => `“${word}”`).join(', ')}`;
+  }
 
   function togglePlayback() {
     if (!audioElement) return;
@@ -231,9 +245,17 @@
             placeholder="Search transcript"
           /></label
         >
-        <span class="review-summary"
-          >{unclearCount ? `${unclearCount} segment flagged` : 'No segments flagged'}</span
-        >
+        {#if unclearCount}
+          <button
+            class="text-action review-summary"
+            aria-pressed={onlyFlagged}
+            onclick={() => (onlyFlagged = !onlyFlagged)}
+            >{onlyFlagged ? 'Showing' : 'Show'}
+            {unclearCount === 1 ? '1 unclear passage' : `${unclearCount} unclear passages`}</button
+          >
+        {:else}
+          <span class="review-summary">Nothing flagged as unclear</span>
+        {/if}
       </div>
 
       <section class="transcript-list" aria-label="Editable transcript">
@@ -261,8 +283,8 @@
                 onblur={(event) => saveSegment(segment.id, event.currentTarget.value)}
               ></textarea></label
             >
-            {#if segment.needsReview}<span class="review-flag"
-                ><Icon name="warning" size={14} /> Check term</span
+            {#if segment.needsReview}<span class="review-flag" title={uncertainLabel(segment)}
+                ><Icon name="warning" size={14} /> {uncertainLabel(segment)}</span
               >{/if}
           </article>
         {/each}
@@ -278,7 +300,7 @@
                 : transcript?.isDirty
                   ? 'Working edits saved locally'
                   : 'Transcript revision saved'}</strong
-          ><small>Speaker identity is never inferred in this milestone.</small>
+          ><small>Speaker labels are a starting point—rename them to the people who spoke.</small>
         </div>
         <button class="primary-action" onclick={onGenerate} disabled={generationUnavailable}
           >Generate protocol <Icon name="arrow" /></button

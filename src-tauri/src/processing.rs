@@ -992,6 +992,7 @@ fn execute_real_transcription(
     // measurably corrects company and participant names throughout.
     let vocabulary_terms = repository.transcription_vocabulary(&job.meeting_id)?;
     let vocabulary_prompt = media::vocabulary_prompt(&vocabulary_terms);
+    repository.record_transcription_vocabulary(&job.id, vocabulary_prompt.as_deref())?;
     report(70, "transcribing_audio")?;
     let output = runtime::run_process_with_progress(
         media::whisper_command(
@@ -1129,6 +1130,7 @@ fn parse_whisper_json(
         if text.is_empty() {
             continue;
         }
+        let uncertain = uncertain_words(row);
         let start = row
             .get("offsets")
             .and_then(|v| v.get("from"))
@@ -1151,7 +1153,8 @@ fn parse_whisper_json(
             end_ms: end.max(start + 1),
             speaker: "Speaker 1".into(),
             text,
-            needs_review: false,
+            needs_review: !uncertain.is_empty(),
+            uncertain_words: uncertain,
         });
     }
     Ok(TranscriptArtifact {
@@ -1161,6 +1164,95 @@ fn parse_whisper_json(
         language: language.into(),
         segments,
     })
+}
+
+/// How unsure the model must be before the reader is asked about a word.
+///
+/// Measured against four minutes of the real German meeting: at this value the
+/// pass flagged two words in thirty-five segments, one of which was the client's
+/// company name transcribed as "Norwegen". Raising it to 0.5 began flagging German
+/// compounds — Haupterschließung, Musterbereich — that were entirely correct.
+const UNCERTAIN_BELOW: f64 = 0.40;
+
+/// Word pieces a word must be built from before its doubt is worth reporting.
+///
+/// A common word is one token, and low confidence there means the model was
+/// choosing between two ordinary words: "oder", "hier", "acht" all scored badly
+/// and none of them would change a protocol. A rare word — a company, a surname,
+/// a technical term — has to be assembled from pieces, and that is where a wrong
+/// guess does real damage. Punctuation is not counted, since a doubtful comma is
+/// not a question worth putting to anyone.
+const UNCERTAIN_MINIMUM_PIECES: usize = 2;
+
+/// One word as whisper spelled it, with the confidence of its least certain piece.
+struct TokenizedWord {
+    text: String,
+    lowest_probability: f64,
+    pieces: usize,
+}
+
+/// The words in a segment the model was unsure of, in the order they were said.
+///
+/// whisper reports a probability per token, but a token is a piece of a word: a
+/// surname the model guessed at arrives in several fragments. Naming the whole
+/// word is what lets the reader be asked a question they can answer, so the
+/// fragments are rejoined first — a token that does not begin with a space
+/// continues the word before it.
+///
+/// Special markers such as `[_BEG_]` carry probabilities of their own and are not
+/// words, so they are skipped.
+fn uncertain_words(row: &serde_json::Value) -> Vec<String> {
+    let Some(tokens) = row.get("tokens").and_then(serde_json::Value::as_array) else {
+        return Vec::new();
+    };
+    let mut words: Vec<TokenizedWord> = Vec::new();
+    for token in tokens {
+        let raw = token
+            .get("text")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("");
+        let trimmed = raw.trim();
+        if trimmed.is_empty() || trimmed.starts_with("[_") {
+            continue;
+        }
+        let is_punctuation = !trimmed.chars().any(char::is_alphanumeric);
+        let probability = token
+            .get("p")
+            .and_then(serde_json::Value::as_f64)
+            .unwrap_or(1.0);
+        match words.last_mut() {
+            Some(word) if !raw.starts_with(char::is_whitespace) => {
+                word.text.push_str(raw);
+                if !is_punctuation {
+                    word.lowest_probability = word.lowest_probability.min(probability);
+                    word.pieces += 1;
+                }
+            }
+            _ => words.push(TokenizedWord {
+                text: trimmed.to_string(),
+                lowest_probability: if is_punctuation { 1.0 } else { probability },
+                pieces: usize::from(!is_punctuation),
+            }),
+        }
+    }
+    words
+        .into_iter()
+        .filter(|word| {
+            word.pieces >= UNCERTAIN_MINIMUM_PIECES && word.lowest_probability < UNCERTAIN_BELOW
+        })
+        .map(|word| trim_word_punctuation(&word.text))
+        .filter(|word| !word.is_empty())
+        .collect()
+}
+
+/// Strip the punctuation a word was written with, keeping what belongs to it.
+/// Hyphens and apostrophes are part of names and compounds rather than around them.
+fn trim_word_punctuation(word: &str) -> String {
+    word.trim()
+        .trim_matches(|character: char| {
+            !character.is_alphanumeric() && character != '-' && character != '\''
+        })
+        .to_string()
 }
 
 fn find_tool(name: &str) -> Option<PathBuf> {
@@ -1274,6 +1366,7 @@ fn deterministic_transcript(
                     speaker: speaker.to_string(),
                     text: text.to_string(),
                     needs_review,
+                    uncertain_words: Vec::new(),
                 },
             )
             .collect(),
@@ -1509,7 +1602,9 @@ pub(crate) fn autosave_transcript_segment(
         return Err(StorageError::InvalidData("Enter valid transcript text."));
     }
     segment.text = trimmed.to_string();
+    // The reader has now said what the words are, so the model's doubt is settled.
     segment.needs_review = false;
+    segment.uncertain_words.clear();
     persist_transcript_working(&repository, meeting_id, &path, &artifact)?;
     repository.workspace_snapshot()
 }
@@ -2449,6 +2544,76 @@ fn processing_to_storage(error: ProcessingError) -> StorageError {
 
 #[cfg(test)]
 mod tests {
+
+    /// Token shapes taken from real whisper `--output-json-full` output on the
+    /// German meeting, where the client's company name came out as "Norwegen".
+    #[test]
+    fn a_misheard_name_is_offered_for_correction() {
+        let row = serde_json::json!({
+            "text": " Das hat Norwegen bestätigt.",
+            "tokens": [
+                { "text": "[_BEG_]", "p": 0.31 },
+                { "text": " Das", "p": 0.98 },
+                { "text": " hat", "p": 0.95 },
+                { "text": " Ok", "p": 0.138 },
+                { "text": "era", "p": 0.91 },
+                { "text": " bestätigt", "p": 0.96 },
+                { "text": ".", "p": 0.99 }
+            ]
+        });
+        // The whole name, not the "Ok" fragment that scored badly, and the
+        // begin marker is ignored despite sitting below the threshold.
+        assert_eq!(uncertain_words(&row), vec!["Norwegen".to_string()]);
+    }
+
+    /// Every one of these scored below the threshold in the real recording. None
+    /// of them is a question worth putting to a reader, and a review pass that
+    /// asks about them teaches people to ignore it.
+    #[test]
+    fn doubt_about_ordinary_words_is_not_reported() {
+        let row = serde_json::json!({
+            "text": " oder Hier acht wäre. Nee, da.",
+            "tokens": [
+                { "text": " oder", "p": 0.197 },
+                { "text": " Hier", "p": 0.217 },
+                { "text": " acht", "p": 0.376 },
+                { "text": " wäre", "p": 0.399 },
+                { "text": ".", "p": 0.62 },
+                { "text": " Nee", "p": 0.224 },
+                { "text": ",", "p": 0.55 },
+                { "text": " da", "p": 0.357 },
+                { "text": ".", "p": 0.30 }
+            ]
+        });
+        // A word plus its punctuation is one piece, so trailing marks cannot
+        // promote a common word into a reported one.
+        assert!(uncertain_words(&row).is_empty());
+    }
+
+    /// German compounds are assembled from many pieces and scored between 0.46
+    /// and 0.54 while being transcribed perfectly.
+    #[test]
+    fn correctly_heard_compounds_are_left_alone() {
+        let row = serde_json::json!({
+            "text": " Die Haupterschließung liegt im Süden.",
+            "tokens": [
+                { "text": " Die", "p": 0.99 },
+                { "text": " Haupt", "p": 0.473 },
+                { "text": "erschlie", "p": 0.88 },
+                { "text": "ßung", "p": 0.94 },
+                { "text": " liegt", "p": 0.97 },
+                { "text": " im", "p": 0.98 },
+                { "text": " Süden", "p": 0.90 }
+            ]
+        });
+        assert!(uncertain_words(&row).is_empty());
+    }
+
+    #[test]
+    fn a_transcript_without_tokens_is_not_doubtful() {
+        let row = serde_json::json!({ "text": " Something said." });
+        assert!(uncertain_words(&row).is_empty());
+    }
     use super::*;
     use crate::domain::{JobState, MeetingLifecycle, NewMeetingInput, NewProjectInput};
     use crate::imports;
