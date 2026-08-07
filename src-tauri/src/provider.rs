@@ -705,9 +705,9 @@ fn focus_vocabulary(request: &GenerationRequest) -> GenerationRequest {
 /// Whether a transcript used a term.
 ///
 /// Matching is done on the lowered forms without word boundaries, because German
-/// builds compounds out of its terms: a project that lists "Fassade" needs its
-/// spelling respected inside "Fassadenplanung", and a listed surname needs it
-/// inside the genitive. A term of one or two characters is too short to match
+/// builds compounds out of its terms: a project that lists "Bauteil" needs its
+/// spelling respected inside a longer compound built from it, and a listed
+/// surname needs it inside the genitive. A term of one or two characters is too short to match
 /// anything meaningfully and is treated as always relevant.
 fn mentions(spoken: &str, term: &str) -> bool {
     let needle = term.trim().to_lowercase();
@@ -960,18 +960,18 @@ mod tests {
     #[test]
     fn an_oversized_vocabulary_keeps_only_what_the_meeting_said() {
         let mut request = synthetic_request(3, 4);
-        request.transcript[1].text = "Die Fassadenplanung von NORVEK ist unverändert.".into();
+        request.transcript[1].text = "Die Bauteilplanung von NORVEK ist unverändert.".into();
         // A firm's accumulated library, of which this meeting used two entries.
         let mut vocabulary: Vec<String> =
             (0..400).map(|index| format!("Fremdwort{index}")).collect();
         vocabulary.insert(0, "NORVEK".into());
-        vocabulary.insert(1, "Fassade".into());
+        vocabulary.insert(1, "Bauteil".into());
         request.vocabulary = vocabulary;
 
         let focused = focus_vocabulary(&request).vocabulary;
-        // "Fassade" survives inside the compound "Fassadenplanung", which is how
+        // "Bauteil" survives inside the compound "Bauteilplanung", which is how
         // German uses its own terminology.
-        assert_eq!(focused, vec!["NORVEK".to_string(), "Fassade".to_string()]);
+        assert_eq!(focused, vec!["NORVEK".to_string(), "Bauteil".to_string()]);
     }
 
     #[test]

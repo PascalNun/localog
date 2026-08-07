@@ -1170,8 +1170,8 @@ fn parse_whisper_json(
 ///
 /// Measured against four minutes of the real German meeting: at this value the
 /// pass flagged two words in thirty-five segments, one of which was the client's
-/// company name transcribed as "Norwegen". Raising it to 0.5 began flagging German
-/// compounds — Haupterschließung, Musterbereich — that were entirely correct.
+/// company name misheard. Raising it to 0.5 began flagging ordinary German
+/// compounds — the vocabulary of any building text — that were entirely correct.
 const UNCERTAIN_BELOW: f64 = 0.40;
 
 /// Word pieces a word must be built from before its doubt is worth reporting.
@@ -2545,8 +2545,9 @@ fn processing_to_storage(error: ProcessingError) -> StorageError {
 #[cfg(test)]
 mod tests {
 
-    /// Token shapes taken from real whisper `--output-json-full` output on the
-    /// German meeting, where the client's company name came out as "Norwegen".
+    /// Token shapes taken from real whisper `--output-json-full` output, with the
+    /// strings replaced: a rare all-capitals firm name arrives in pieces, and the
+    /// model scores the first piece badly. Probabilities are the measured ones.
     /// Runs the real parser over a real whisper `--output-json-full` file and
     /// reports what it would ask the reader about. Ignored by default because it
     /// needs meeting audio, which never lives in this repository.
@@ -2598,13 +2599,13 @@ mod tests {
                 { "text": "[_BEG_]", "p": 0.31 },
                 { "text": " Das", "p": 0.98 },
                 { "text": " hat", "p": 0.95 },
-                { "text": " Ok", "p": 0.138 },
-                { "text": "era", "p": 0.91 },
+                { "text": " Nor", "p": 0.138 },
+                { "text": "wegen", "p": 0.91 },
                 { "text": " bestätigt", "p": 0.96 },
                 { "text": ".", "p": 0.99 }
             ]
         });
-        // The whole name, not the "Ok" fragment that scored badly, and the
+        // The whole word, not the "Nor" fragment that scored badly, and the
         // begin marker is ignored despite sitting below the threshold.
         assert_eq!(uncertain_words(&row), vec!["Norwegen".to_string()]);
     }
@@ -2638,12 +2639,12 @@ mod tests {
     #[test]
     fn correctly_heard_compounds_are_left_alone() {
         let row = serde_json::json!({
-            "text": " Die Haupterschließung liegt im Süden.",
+            "text": " Die Zufahrtsstraße liegt im Süden.",
             "tokens": [
                 { "text": " Die", "p": 0.99 },
-                { "text": " Haupt", "p": 0.473 },
-                { "text": "erschlie", "p": 0.88 },
-                { "text": "ßung", "p": 0.94 },
+                { "text": " Zufahrts", "p": 0.473 },
+                { "text": "stra", "p": 0.88 },
+                { "text": "ße", "p": 0.94 },
                 { "text": " liegt", "p": 0.97 },
                 { "text": " im", "p": 0.98 },
                 { "text": " Süden", "p": 0.90 }
