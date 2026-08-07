@@ -64,6 +64,7 @@ prioritised rather than dumped in.
 | gemma2:9b        | 5.4 GB | 8K           | failed — window too small     | —      |
 | gemma4:12b       | 7.6 GB | 16K–49K      | failed, seven attempts        | —      |
 | gemma4:12b       | 7.6 GB | 16K + vocab  | failed: >30 min for one pass  | 34m+   |
+| gemma4:12b       | 7.6 GB | 40K + vocab  | 12,492 chars — quiet machine  | 15m56s |
 | **qwen3.5:4b**   | 3.4 GB | 40K          | **22,211 chars, full length** | 10m51s |
 | **qwen3.5:4b**   | 3.4 GB | 40K + vocab  | **15,610 chars**              | 6m03s  |
 
@@ -293,12 +294,13 @@ would complicate.
 
 ## Open questions
 
-- **gemma4:12b is unproven, not disproven.** It was retried after the reasoning, budget and timeout
-  defects were fixed, and still failed with one pass exceeding thirty minutes. But a large model
-  download was running concurrently during those attempts, and contention is known to matter
-  enormously here: qwen3.5:4b took over fifty-six minutes with a download competing and eleven
-  minutes without. gemma4:12b has never run on a quiet machine, so the verdict recorded earlier was
-  premature and is withdrawn pending a clean test.
+- ~~**gemma4:12b is unproven, not disproven.**~~ **Settled.** Run on a genuinely quiet machine at
+  40K context it completed in **15m56s and produced 12,492 characters** — so the earlier failures
+  really were contention, and withdrawing that verdict was right. But the clean result does not
+  favour it: against qwen3.5:4b's 15,610 characters in 6m03s it is **two and a half times slower and
+  a fifth shorter**, and at 8.26 GB resident it cannot run on the 8 GB baseline at all. It is not a
+  candidate. This is a better outcome than the original guess, because it is now known rather than
+  assumed.
 - **The mixture-of-experts question is still untested.** gemma4:26b holds 25.2 B parameters but
   activates only 3.8 B per token, and Ollama memory-maps weights, so the resident working set may be
   far smaller than the 18 GB file. That would make it behave quite unlike a dense model of the same
