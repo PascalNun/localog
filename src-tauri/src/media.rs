@@ -129,7 +129,9 @@ pub(crate) fn whisper_command(
         .arg(&config.model)
         .args(["-f"])
         .arg(normalized)
-        .args(["--output-json", "--output-file"])
+        // The full form carries per-token probabilities, which is how a passage the
+        // model was unsure of can be shown to the reader instead of read as fact.
+        .args(["--output-json-full", "--output-file"])
         .arg(output_base)
         .args(["--language", language, "--print-progress"]);
     if let Some(prompt) = vocabulary_prompt.filter(|value| !value.trim().is_empty()) {

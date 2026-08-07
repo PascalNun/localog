@@ -1,7 +1,7 @@
 use crate::domain::{
     JobErrorSummary, JobState, JobSummary, MeetingLifecycle, MeetingSummary, NewMeetingInput,
     NewProjectInput, ProjectSummary, ProtocolDocument, ProtocolRevisionSummary, ProtocolStyle,
-    TranscriptDocument, TranscriptSegment, VocabularyEntry, WorkspaceSnapshot,
+    TranscriptDocument, TranscriptSegment, VocabularyDraft, VocabularyEntry, WorkspaceSnapshot,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
@@ -832,11 +832,15 @@ impl WorkspaceRepository {
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
+    /// Every entry, including the switched-off ones.
+    ///
+    /// The places that *use* vocabulary filter to the enabled entries. The library
+    /// deliberately does not: a term that has been switched off still has to be
+    /// visible, or there is no way to switch it back on.
     fn list_vocabulary(&self) -> Result<Vec<VocabularyEntry>> {
         let mut statement = self.connection.prepare(
-            "SELECT id, term, category, scope, project_id
+            "SELECT id, term, category, scope, project_id, enabled
              FROM vocabulary_entries
-             WHERE enabled = 1
              ORDER BY scope, term COLLATE NOCASE, id",
         )?;
         let rows = statement.query_map([], |row| {
@@ -846,15 +850,137 @@ impl WorkspaceRepository {
                 category: row.get(2)?,
                 scope: row.get(3)?,
                 project_id: row.get(4)?,
+                enabled: row.get(5)?,
             })
         })?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
+    /// Record which vocabulary actually shaped a transcript.
+    ///
+    /// The terms are resolved when the job runs rather than when it is queued, so
+    /// the library may have changed in between. Storing what was really sent is
+    /// what lets a transcript be explained later — including the case where nothing
+    /// was sent at all, which is recorded as such rather than left blank.
+    pub(crate) fn record_transcription_vocabulary(
+        &self,
+        job_id: &str,
+        prompt: Option<&str>,
+    ) -> Result<()> {
+        let revision = match prompt {
+            Some(prompt) => format!("sha256:{}", checksum_bytes(prompt.as_bytes())),
+            None => "none".to_string(),
+        };
+        self.connection.execute(
+            "UPDATE jobs SET vocabulary_revision = ?2 WHERE id = ?1",
+            params![job_id, revision],
+        )?;
+        Ok(())
+    }
+
+    /// Add a term, or change one that already exists.
+    ///
+    /// A project-scoped term needs a project; a global one must not carry one. The
+    /// same term is not stored twice in the same scope, since a duplicate would
+    /// only spend part of the runtime's short prompt saying the same thing twice.
+    pub fn save_vocabulary_entry(&mut self, input: VocabularyDraft) -> Result<()> {
+        let term = required_text(&input.term, 200, "Enter a term.")?;
+        let category = required_text(&input.category, 64, "Choose a category.")?;
+        let project_id = match input.scope.as_str() {
+            "Global" => None,
+            "Project" => Some(input.project_id.clone().ok_or(StorageError::InvalidData(
+                "Choose the project this term belongs to.",
+            ))?),
+            _ => return Err(StorageError::InvalidData("Choose a valid scope.")),
+        };
+        let clash: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT id FROM vocabulary_entries
+                 WHERE term = ?1 COLLATE NOCASE
+                   AND scope = ?2
+                   AND project_id IS ?3
+                   AND id IS NOT ?4",
+                params![term, input.scope, project_id, input.id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if clash.is_some() {
+            return Err(StorageError::InvalidData(
+                "That term is already in this vocabulary.",
+            ));
+        }
+        let now = unix_time_millis();
+        match &input.id {
+            Some(id) => {
+                let changed = self.connection.execute(
+                    "UPDATE vocabulary_entries
+                     SET term = ?2, preferred_spelling = ?2, category = ?3, scope = ?4,
+                         project_id = ?5, enabled = ?6, revision = revision + 1,
+                         updated_at_ms = ?7
+                     WHERE id = ?1",
+                    params![
+                        id,
+                        term,
+                        category,
+                        input.scope,
+                        project_id,
+                        input.enabled,
+                        now
+                    ],
+                )?;
+                if changed == 0 {
+                    return Err(StorageError::InvalidData("That term no longer exists."));
+                }
+            }
+            None => {
+                self.connection.execute(
+                    "INSERT INTO vocabulary_entries
+                        (id, term, preferred_spelling, category, scope, project_id,
+                         enabled, revision, updated_at_ms)
+                     VALUES (?1, ?2, ?2, ?3, ?4, ?5, ?6, 1, ?7)",
+                    params![
+                        new_id("vocabulary"),
+                        term,
+                        category,
+                        input.scope,
+                        project_id,
+                        input.enabled,
+                        now
+                    ],
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Remove a term outright. Switching it off is the reversible alternative and
+    /// is what the library offers first.
+    pub fn delete_vocabulary_entry(&mut self, id: &str) -> Result<()> {
+        let removed = self
+            .connection
+            .execute("DELETE FROM vocabulary_entries WHERE id = ?1", [id])?;
+        if removed == 0 {
+            return Err(StorageError::InvalidData("That term no longer exists."));
+        }
+        Ok(())
+    }
+
     /// A meeting's vocabulary for transcription, most specific first.
     ///
-    /// Project entries precede global ones because a project's own names are what
-    /// a transcriber cannot guess, and the runtime accepts only a short prompt.
+    /// The runtime accepts roughly 224 tokens, so this order decides what actually
+    /// reaches it. Two rules, in this priority:
+    ///
+    /// 1. A project's own entries before shared ones, because a project's names are
+    ///    what a transcriber cannot guess.
+    /// 2. Within that, proper nouns before terminology. Measured against a real
+    ///    German meeting, every term the vocabulary corrected was a company name or
+    ///    a surname, while ordinary professional vocabulary — Fassade, Grundriss,
+    ///    Treppenhaus — was already transcribed correctly with no help at all.
+    ///
+    /// Categories this build does not know about sort between the two groups: they
+    /// may well be names, and demoting them below general terminology would be a
+    /// guess in the more damaging direction.
     pub(crate) fn transcription_vocabulary(&self, meeting_id: &str) -> Result<Vec<String>> {
         let mut statement = self.connection.prepare(
             "SELECT v.term
@@ -864,6 +990,15 @@ impl WorkspaceRepository {
                AND (v.project_id = m.project_id OR v.scope = 'Global')
              ORDER BY
                CASE WHEN v.project_id = m.project_id THEN 0 ELSE 1 END,
+               CASE v.category
+                 WHEN 'Person' THEN 0
+                 WHEN 'Organisation' THEN 1
+                 WHEN 'Project' THEN 2
+                 WHEN 'Abbreviation' THEN 3
+                 WHEN 'Technical term' THEN 5
+                 WHEN 'Other' THEN 6
+                 ELSE 4
+               END,
                v.term COLLATE NOCASE",
         )?;
         let rows = statement.query_map([meeting_id], |row| row.get::<_, String>(0))?;
@@ -884,6 +1019,7 @@ impl WorkspaceRepository {
                 category: row.get(2)?,
                 scope: row.get(3)?,
                 project_id: row.get(4)?,
+                enabled: true,
             })
         })?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
@@ -2050,6 +2186,221 @@ mod tests {
         assert!(joined.contains("next steps"), "must end in an action table");
         assert!(joined.contains("Never invent"), "must forbid invention");
         assert!(joined.contains("placeholder"), "must forbid placeholders");
+    }
+
+    /// A project and a meeting, since vocabulary is always resolved through one.
+    fn project_with_meeting(repository: &mut WorkspaceRepository, root: &Path) -> (String, String) {
+        let project = repository
+            .create_project(NewProjectInput {
+                name: "Quartier".to_string(),
+                description: String::new(),
+                default_language: "German".to_string(),
+            })
+            .unwrap();
+        let source = root.join("vocabulary-fixture.wav");
+        fs::write(&source, b"synthetic").unwrap();
+        let meeting = repository
+            .create_meeting(NewMeetingInput {
+                project_id: project.id.clone(),
+                title: "Jour fixe".to_string(),
+                occurred_at: "2026-08-06".to_string(),
+                language: "German".to_string(),
+                source_name: "vocabulary-fixture.wav".to_string(),
+                source_path: Some(source.to_string_lossy().into_owned()),
+                style_id: "style-formal".to_string(),
+            })
+            .unwrap();
+        (project.id, meeting.id)
+    }
+
+    fn draft(term: &str, category: &str, project_id: Option<&str>) -> VocabularyDraft {
+        VocabularyDraft {
+            id: None,
+            term: term.to_string(),
+            category: category.to_string(),
+            scope: if project_id.is_some() {
+                "Project"
+            } else {
+                "Global"
+            }
+            .to_string(),
+            project_id: project_id.map(str::to_string),
+            enabled: true,
+        }
+    }
+
+    #[test]
+    fn a_transcript_records_the_vocabulary_that_shaped_it() {
+        let temporary = tempdir().unwrap();
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let (_, meeting_id) = project_with_meeting(&mut repository, temporary.path());
+        let job_id: String = repository
+            .connection
+            .query_row(
+                "SELECT id FROM jobs WHERE meeting_id = ?1 LIMIT 1",
+                [&meeting_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        let recorded = |repository: &WorkspaceRepository| -> Option<String> {
+            repository
+                .connection
+                .query_row(
+                    "SELECT vocabulary_revision FROM jobs WHERE id = ?1",
+                    [&job_id],
+                    |row| row.get(0),
+                )
+                .unwrap()
+        };
+
+        repository
+            .record_transcription_vocabulary(&job_id, Some("NORVEK, Mustermann"))
+            .unwrap();
+        let first = recorded(&repository).expect("a revision is recorded");
+        assert!(first.starts_with("sha256:"));
+
+        // A different vocabulary must be distinguishable from the first.
+        repository
+            .record_transcription_vocabulary(&job_id, Some("NORVEK"))
+            .unwrap();
+        assert_ne!(recorded(&repository).unwrap(), first);
+
+        // Having sent nothing is itself worth knowing, and is not the same as
+        // never having asked.
+        repository
+            .record_transcription_vocabulary(&job_id, None)
+            .unwrap();
+        assert_eq!(recorded(&repository).as_deref(), Some("none"));
+    }
+
+    #[test]
+    fn a_term_can_be_added_edited_switched_off_and_removed() {
+        let temporary = tempdir().unwrap();
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let (project_id, meeting_id) = project_with_meeting(&mut repository, temporary.path());
+
+        repository
+            .save_vocabulary_entry(draft("Norvek", "Organisation", Some(&project_id)))
+            .unwrap();
+        let entry = repository.workspace_snapshot().unwrap().vocabulary[0].clone();
+        assert_eq!(entry.term, "Norvek");
+
+        // Correcting the spelling is the point of the library, so it must survive.
+        repository
+            .save_vocabulary_entry(VocabularyDraft {
+                id: Some(entry.id.clone()),
+                term: "NORVEK".to_string(),
+                ..draft("NORVEK", "Organisation", Some(&project_id))
+            })
+            .unwrap();
+        assert_eq!(
+            repository.transcription_vocabulary(&meeting_id).unwrap(),
+            vec!["NORVEK".to_string()]
+        );
+
+        // Switched off, it stays in the library but reaches no runtime.
+        repository
+            .save_vocabulary_entry(VocabularyDraft {
+                id: Some(entry.id.clone()),
+                enabled: false,
+                ..draft("NORVEK", "Organisation", Some(&project_id))
+            })
+            .unwrap();
+        assert!(
+            repository
+                .transcription_vocabulary(&meeting_id)
+                .unwrap()
+                .is_empty()
+        );
+        let listed = repository.workspace_snapshot().unwrap().vocabulary;
+        assert_eq!(listed.len(), 1, "a switched-off term stays visible");
+        assert!(!listed[0].enabled);
+
+        repository.delete_vocabulary_entry(&entry.id).unwrap();
+        assert!(
+            repository
+                .workspace_snapshot()
+                .unwrap()
+                .vocabulary
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn the_same_term_is_not_stored_twice_in_one_scope() {
+        let temporary = tempdir().unwrap();
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let (project_id, _) = project_with_meeting(&mut repository, temporary.path());
+
+        repository
+            .save_vocabulary_entry(draft("NORVEK", "Organisation", Some(&project_id)))
+            .unwrap();
+        assert!(
+            repository
+                .save_vocabulary_entry(draft("norvek", "Organisation", Some(&project_id)))
+                .is_err(),
+            "a repeat spends part of a short prompt saying the same thing twice"
+        );
+        // The same word may still be held globally as well as by one project.
+        repository
+            .save_vocabulary_entry(draft("NORVEK", "Organisation", None))
+            .unwrap();
+    }
+
+    #[test]
+    fn a_project_term_must_name_its_project() {
+        let temporary = tempdir().unwrap();
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let orphan = VocabularyDraft {
+            project_id: None,
+            ..draft("NORVEK", "Organisation", Some("ignored"))
+        };
+        assert!(repository.save_vocabulary_entry(orphan).is_err());
+        assert!(
+            repository
+                .save_vocabulary_entry(draft("", "Organisation", None))
+                .is_err()
+        );
+    }
+
+    /// The runtime takes about 224 tokens, so what comes first is what survives.
+    #[test]
+    fn proper_nouns_reach_the_transcriber_before_field_terminology() {
+        let temporary = tempdir().unwrap();
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let (project_id, meeting_id) = project_with_meeting(&mut repository, temporary.path());
+        for (term, category) in [
+            ("Fassade", "Technical term"),
+            ("Sonstiges", "Other"),
+            ("Mustermann", "Person"),
+            ("Altbestand", "Building part"),
+            ("GU", "Abbreviation"),
+            ("NORVEK", "Organisation"),
+        ] {
+            repository
+                .save_vocabulary_entry(draft(term, category, Some(&project_id)))
+                .unwrap();
+        }
+        repository
+            .save_vocabulary_entry(draft("Aaa Global", "Person", None))
+            .unwrap();
+
+        assert_eq!(
+            repository.transcription_vocabulary(&meeting_id).unwrap(),
+            vec![
+                // The project's own entries first, names before terminology.
+                "Mustermann".to_string(),
+                "NORVEK".to_string(),
+                "GU".to_string(),
+                // A category this build does not know sits above general terms.
+                "Altbestand".to_string(),
+                "Fassade".to_string(),
+                "Sonstiges".to_string(),
+                // Shared entries last, however specific they are.
+                "Aaa Global".to_string(),
+            ]
+        );
     }
 
     #[test]

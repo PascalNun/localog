@@ -27,28 +27,28 @@ Rules:
 
 The durable vertical slice is real: a meeting can go from imported audio to an exported Markdown protocol, surviving restarts and crashes. Local transcription with whisper.cpp is proven on real audio.
 
-| Area                                | Status      | Note                                                               |
-| ----------------------------------- | ----------- | ------------------------------------------------------------------ |
-| Storage, jobs, crash recovery       | **Done**    | 49 Rust tests; staged writes, reconciliation, immutable revisions  |
-| Import → probe → normalise          | **Done**    | Checksummed, cancellable, restart-safe                             |
-| Local transcription (whisper.cpp)   | **Done**    | Contract validated against real v1.9.2 + Metal; live progress      |
-| Model management (download presets) | **Done**    | Verified HTTPS download, checksum, atomic install                  |
-| Transcript review + audio player    | **Partial** | Real audio/duration, seek, follow-along; playback unconfirmed      |
-| Protocol generation (Ollama)        | **Partial** | Produces a full-length German draft; names and attribution wrong   |
-| Protocol editing, revisions, export | **Done**    | Autosave, review state, Markdown/TXT export                        |
-| Styles + vocabulary library         | **Partial** | Read-only view only; not editable                                  |
-| Speaker diarisation                 | **Planned** | Runtime validated by spike; **no product code**; still `Speaker 1` |
-| Runtime bundling (whisper, FFmpeg)  | **Planned** | User must still supply a whisper.cpp executable                    |
-| Packaging / distribution            | **Planned** | `bundle.active: false`; no build exists                            |
-| Accessibility + performance audit   | **Planned** | Designed for, never measured on the M1/8 GB baseline               |
+| Area                                | Status      | Note                                                                 |
+| ----------------------------------- | ----------- | -------------------------------------------------------------------- |
+| Storage, jobs, crash recovery       | **Done**    | 49 Rust tests; staged writes, reconciliation, immutable revisions    |
+| Import → probe → normalise          | **Done**    | Checksummed, cancellable, restart-safe                               |
+| Local transcription (whisper.cpp)   | **Done**    | Contract validated against real v1.9.2 + Metal; live progress        |
+| Model management (download presets) | **Done**    | Verified HTTPS download, checksum, atomic install                    |
+| Transcript review + audio player    | **Partial** | Audio, seek, follow-along, unclear-word review; playback unconfirmed |
+| Protocol generation (Ollama)        | **Partial** | Produces a full-length German draft; names and attribution wrong     |
+| Protocol editing, revisions, export | **Done**    | Autosave, review state, Markdown/TXT export                          |
+| Styles + vocabulary library         | **Partial** | Vocabulary is fully editable; styles are still read-only             |
+| Speaker diarisation                 | **Planned** | Runtime validated by spike; **no product code**; still `Speaker 1`   |
+| Runtime bundling (whisper, FFmpeg)  | **Planned** | User must still supply a whisper.cpp executable                      |
+| Packaging / distribution            | **Planned** | `bundle.active: false`; no build exists                              |
+| Accessibility + performance audit   | **Planned** | Designed for, never measured on the M1/8 GB baseline                 |
 
 ## Known gaps between the documents and the code
 
 Tracked openly so they get fixed rather than forgotten.
 
 - **Placeholder values presented as real.** Largely resolved on 2026-08-05 (see Phase B). Still open:
-  every transcript segment shows the constant speaker `Speaker 1` in a per-segment column, and the
-  New Meeting language select is still unbound.
+  the New Meeting language select is still unbound. Speaker labels are no longer a constant when the
+  diariser is available, but that path has not yet run inside the application.
 - **Archive is unreachable.** The schema supports `archived_at_ms`, but no command exposes it, so `MVP.md`'s "archive" capability does not exist in the UI.
 - **Network acceptance criterion is stale.** `MVP.md` says tests must fail if the core workflow makes non-loopback network access. Consented model downloads now do. Meeting content still never leaves the device — the criterion needs rewording to say exactly that.
 - **German is unvalidated.** The first proving audience is German-speaking project teams, but no German audio has been transcribed or turned into a protocol.
@@ -100,19 +100,37 @@ The alignment is built and tested; what remains is everything around it.
 
 **Ends when:** the protocol attributes actions to the right people without hand-editing.
 
-### Block 1b — Put vocabulary in the application _(next)_
+### Block 1b — Put vocabulary in the application
 
-Vocabulary is proven and lives only in a test harness. The application does not use it.
-
-1. `Planned` Resolve a meeting's vocabulary from the entries already stored for its project.
-2. `Planned` Order it by specificity and cut it to fit whisper's ~224-token prompt: this meeting's
-   participants first, then the project's own names, then ambiguous abbreviations. General field
-   terminology comes last, because the model already knows it.
-3. `Planned` Pass it as the initial prompt with `--carry-initial-prompt`, and record it in the job's
+1. `Done` Resolve a meeting's vocabulary from the entries already stored for its project.
+2. `Done` Order it by specificity and cut it to fit whisper's ~224-token prompt: the project's own
+   entries before shared ones, and within each, people and organisations before abbreviations, with
+   general field terminology last because the model already knows it. A category this build does not
+   recognise sorts above general terminology rather than below, since it may well be a name.
+3. `Done` Pass it as the initial prompt with `--carry-initial-prompt`, and record it in the job's
    provenance so a transcript can be traced to the vocabulary that shaped it.
-4. `Planned` Make the vocabulary library editable, which Block 3 already required.
+4. `Done` The vocabulary library is editable: add, edit, switch off without losing, and delete, with
+   duplicates within one scope refused.
+5. `Done` Generation receives only the terms the meeting used. A list that fits the prompt is sent
+   whole; a larger one is narrowed to the terms the transcript actually contains, matched inside
+   compounds so a listed term still applies within a longer German word.
+6. `Planned` A meeting's own participants, once participants are a real field, ahead of everything
+   else. This is the one part of the specificity rule the data model cannot yet express.
+7. `Planned` Prove it end to end: import into a project with vocabulary and confirm the names come
+   out right without intervention.
 
 **Ends when:** importing a meeting into a project with vocabulary produces correct names unaided.
+
+### Block 1d — Show the reader where the transcript is weak
+
+1. `Done` Transcription records per-token probabilities and names the words the model was unsure of,
+   using a rule measured against real German audio rather than a chosen constant. See
+   [MODEL_EVALUATION.md](MODEL_EVALUATION.md).
+2. `Done` Review names those words rather than only marking the segment, and can narrow the
+   transcript to the unclear passages. Editing a segment settles the doubt.
+3. `Planned` Offer the project's vocabulary as suggestions when correcting an unclear word, since a
+   misheard name is usually a name the project already knows.
+4. `Planned` Confirm the rule holds on English audio. It has only been measured on German.
 
 ### Block 1c — Configure itself instead of asking
 
@@ -133,7 +151,7 @@ Vocabulary is proven and lives only in a test harness. The application does not 
 
 ### Block 3 — Reach the remaining capability goals
 
-1. `Planned` Editable vocabulary and protocol-style library.
+1. `Partial` Vocabulary is editable; the protocol-style library is still read-only.
 2. `Planned` Expose archive, or remove the claim from `MVP.md`.
 3. `Planned` Backup and restore.
 

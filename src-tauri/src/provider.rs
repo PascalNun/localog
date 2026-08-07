@@ -338,6 +338,12 @@ impl OllamaProvider {
         }
         progress(18, "resolving_protocol_inputs")?;
 
+        // A library can hold everything a firm has ever written down, but a prompt
+        // cannot. Narrowing it here — before sections are planned — keeps the space
+        // reserved for vocabulary equal to what is actually sent.
+        let focused = focus_vocabulary(request);
+        let request = &focused;
+
         let sections = plan_sections(request);
         if sections.len() <= 1 {
             return self.generate_in_one_pass(request, cancelled, progress);
@@ -653,6 +659,61 @@ fn encode_prompt<T: Serialize>(payload: &T) -> Result<String> {
     String::from_utf8(bytes).map_err(|error| ProviderError::InvalidResponse(error.to_string()))
 }
 
+/// Characters of vocabulary a prompt will carry.
+///
+/// Vocabulary competes with the transcript for the same window, so it cannot grow
+/// with the library. Roughly 650 tokens of German: enough for the names, firms and
+/// recurring subjects of one meeting, and far short of what a firm accumulates.
+const VOCABULARY_BUDGET: usize = 2_000;
+
+/// Narrow a project's vocabulary to the terms this meeting actually needs.
+///
+/// A vocabulary that fits is sent whole: there is nothing to gain by withholding
+/// part of a short list, and a term that was misheard would otherwise lose the very
+/// correction it exists to provide.
+///
+/// A vocabulary that does not fit is reduced to the terms the transcript uses. This
+/// is decided on the transcript rather than guessed, so a term drops out only when
+/// the meeting did not mention it — in which case it could not have helped write
+/// this protocol, and naming it to the model risks it being written in regardless.
+fn focus_vocabulary(request: &GenerationRequest) -> GenerationRequest {
+    let mut focused = request.clone();
+    let total: usize = request.vocabulary.iter().map(|term| term.len() + 2).sum();
+    if total <= VOCABULARY_BUDGET {
+        return focused;
+    }
+    let spoken = request
+        .transcript
+        .iter()
+        .map(|segment| segment.text.to_lowercase())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let mut used = 0;
+    focused.vocabulary = request
+        .vocabulary
+        .iter()
+        .filter(|term| mentions(&spoken, term))
+        .take_while(|term| {
+            used += term.len() + 2;
+            used <= VOCABULARY_BUDGET
+        })
+        .cloned()
+        .collect();
+    focused
+}
+
+/// Whether a transcript used a term.
+///
+/// Matching is done on the lowered forms without word boundaries, because German
+/// builds compounds out of its terms: a project that lists "Fassade" needs its
+/// spelling respected inside "Fassadenplanung", and a listed surname needs it
+/// inside the genitive. A term of one or two characters is too short to match
+/// anything meaningfully and is treated as always relevant.
+fn mentions(spoken: &str, term: &str) -> bool {
+    let needle = term.trim().to_lowercase();
+    needle.chars().count() <= 2 || spoken.contains(&needle)
+}
+
 /// Divide the transcript into contiguous section ranges that each fit the model's
 /// window alongside the style, vocabulary and room for the answer. Returns a single
 /// range when the whole transcript already fits.
@@ -882,6 +943,47 @@ mod tests {
             context_tokens: 8192,
             maximum_output_tokens: 2048,
         }
+    }
+
+    #[test]
+    fn a_vocabulary_that_fits_is_sent_whole() {
+        let mut request = synthetic_request(4, 5);
+        // Including a term the meeting never mentioned: withholding it from a short
+        // list saves nothing, and a misheard term needs its correction present.
+        request.vocabulary = vec!["NORVEK".into(), "Mustermann".into()];
+        assert_eq!(
+            focus_vocabulary(&request).vocabulary,
+            vec!["NORVEK".to_string(), "Mustermann".to_string()]
+        );
+    }
+
+    #[test]
+    fn an_oversized_vocabulary_keeps_only_what_the_meeting_said() {
+        let mut request = synthetic_request(3, 4);
+        request.transcript[1].text = "Die Fassadenplanung von NORVEK ist unverändert.".into();
+        // A firm's accumulated library, of which this meeting used two entries.
+        let mut vocabulary: Vec<String> =
+            (0..400).map(|index| format!("Fremdwort{index}")).collect();
+        vocabulary.insert(0, "NORVEK".into());
+        vocabulary.insert(1, "Fassade".into());
+        request.vocabulary = vocabulary;
+
+        let focused = focus_vocabulary(&request).vocabulary;
+        // "Fassade" survives inside the compound "Fassadenplanung", which is how
+        // German uses its own terminology.
+        assert_eq!(focused, vec!["NORVEK".to_string(), "Fassade".to_string()]);
+    }
+
+    #[test]
+    fn a_narrowed_vocabulary_still_respects_the_budget() {
+        let mut request = synthetic_request(2, 3);
+        request.transcript[0].text = "wort ".repeat(4_000);
+        // Every one of these is genuinely used, so only the budget can stop them.
+        request.vocabulary = (0..500).map(|_| "wort".to_string()).collect();
+        let focused = focus_vocabulary(&request).vocabulary;
+        let length: usize = focused.iter().map(|term| term.len() + 2).sum();
+        assert!(length <= VOCABULARY_BUDGET, "sent {length} characters");
+        assert!(!focused.is_empty());
     }
 
     #[test]

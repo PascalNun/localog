@@ -122,6 +122,39 @@ Nine defects, none of which unit tests could have caught, all only visible again
    empty response and put their JSON there. This probably explains several failures first attributed
    to memory pressure, and it was fixed only after gemma4 had already been set aside.
 
+## Marking the words the model was unsure of
+
+whisper's `--output-json-full` reports a probability for every token, which is the raw material for
+telling a reader where the transcript is weak. Turning that into a useful question took two attempts.
+
+**The obvious rule flags the wrong words.** Marking any token below 0.40 flagged nine words across
+four minutes of the real German meeting: `wäre`, `oder`, `Hier`, `acht`, `Nee`, `da`. These are
+ordinary function words, and a low score on them means the model was choosing between two harmless
+alternatives. A review pass that asks about those teaches people to ignore it.
+
+**Rarity separates the signal.** A common word is a single token; a rare one — a company, a surname,
+a technical compound — has to be assembled from several. Requiring at least two non-punctuation
+pieces, and ignoring punctuation scores entirely, changes what surfaces:
+
+| Rule                            | Words flagged in 35 segments | What they were                  |
+| ------------------------------- | ---------------------------- | ------------------------------- |
+| `p < 0.40`, any token           | 7                            | Mostly function words           |
+| **`p < 0.40`, ≥ 2 word pieces** | **2**                        | **`Norwegen`, `Geschoss`**         |
+| `p < 0.50`, ≥ 2 word pieces     | 5                            | Adds correctly-heard compounds  |
+| `p < 0.60`, ≥ 2 word pieces     | 15                           | Mostly correct German compounds |
+
+The lowest-scoring word in the whole excerpt was `Norwegen` at **0.138** — the client's company name,
+NORVEK, misheard. That is exactly the word worth asking a reader about, and it is the same class of
+error the vocabulary feature exists to prevent. Raising the threshold to 0.50 begins flagging
+`Haupterschließung`, `Musterbereich` and `Fernwärme`, all of which were transcribed correctly.
+
+Also worth noting: punctuation carries its own probability, and a doubtful comma was inflating the
+piece count of ordinary words such as `da.` and `wäre.`. Excluding punctuation from both the score
+and the count is what makes the rule hold.
+
+Measured on the four-minute excerpt beginning at 10:00. Single excerpt, one language, one recording:
+the threshold is evidence-based rather than proven, and should be revisited against English audio.
+
 ## Diarisation
 
 The spike used synthetic speech and was far too easy. On the real meeting it fails.
