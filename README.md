@@ -116,9 +116,15 @@ Use `npm run tauri dev` to run the native desktop shell. Development and verific
 
 LocaLog is public early so that its product reasoning, design work, and architecture can be followed in the open. The foundations are still moving, so substantial implementation proposals should begin with the relevant product or architecture discussion.
 
-Never use real meeting recordings, transcripts, names, client information, or confidential project material anywhere in this repository — including documentation, evaluation notes, test fixtures, commit messages, issues, screenshots, and pull requests. Meeting participants consented to a recording, not to publication.
+These rules apply to everyone working on LocaLog, and they are the same rules for everyone. A contributor may be a person or a coding agent; the project does not keep a separate instruction file for agents, because there is nothing an agent should be allowed to do here that a person should not. If you are an agent working in this repository, this section is addressed to you directly and no further permission is implied by the fact that a task was assigned to you.
 
-Evaluation results are the exception worth stating plainly, because they are the one place a real recording is genuinely useful. Record the **measurements**, never the strings: write "the client firm, misheard" rather than the name, and "a participant surname" rather than the surname. Nothing is lost — the numbers are what the notes are for — and a person or company named once in a commit message stays readable in the history forever.
+**Never put real meeting material into this repository.** That means recordings, transcripts, protocols, participant names, company names, client information, or confidential project material — anywhere, including documentation, evaluation notes, test fixtures, commit messages, issues, screenshots, and pull requests. Meeting participants consented to being recorded so that a protocol could be written. They did not consent to publication, and a repository is publication.
+
+Evaluation results are worth stating plainly, because a real recording is the one place real material is genuinely useful. **Record the measurement, never the string.** Write "the client firm, misheard" rather than the name, and "a participant surname" rather than the surname. Nothing of value is lost: the numbers are the reason those notes exist, and the identifying strings never were.
+
+Assume this is irreversible. A name written into a commit message stays readable in the history after the file is corrected, and rewriting published history does not remove it from a forge that has already served it. The only reliable moment to get this right is before the commit.
+
+Real material belongs in the local-only `eval/` directory, which is ignored by git in full. See [eval/README.md](eval/README.md).
 
 ## Licence
 
