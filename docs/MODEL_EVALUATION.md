@@ -152,6 +152,22 @@ Also worth noting: punctuation carries its own probability, and a doubtful comma
 piece count of ordinary words such as `da.` and `wäre.`. Excluding punctuation from both the score
 and the count is what makes the rule hold.
 
+The shipped parser was then run over that same real whisper output and produced exactly this:
+
+```
+2 of 35 segments flagged
+    102.0s  ["Norwegen"]
+    204.5s  ["Geschoss"]
+```
+
+That check is kept as an ignored test, since it needs meeting audio that never lives in this
+repository:
+
+```
+LOCALOG_EVAL_WHISPER_JSON=/path/to/out.json \
+  cargo test --lib uncertain_words_against_real_output -- --ignored --nocapture
+```
+
 Measured on the four-minute excerpt beginning at 10:00. Single excerpt, one language, one recording:
 the threshold is evidence-based rather than proven, and should be revisited against English audio.
 
