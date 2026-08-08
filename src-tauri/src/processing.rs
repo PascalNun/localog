@@ -22,6 +22,21 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+/// Whether this build should use the deterministic adapters instead of the real
+/// runtimes.
+///
+/// The test suite has to pass on a machine with no whisper.cpp, no diariser and no
+/// Ollama, and must not depend on what a model happens to say, so a test build
+/// substitutes deterministic adapters everywhere.
+///
+/// That has one consequence worth stating: no test in this crate can exercise the
+/// real pipeline, which is why the whole-pipeline harness exists and why it has to
+/// ask for the real runtimes by name. Outside a test build this is always false, so
+/// the variable cannot change anything for someone running the application.
+fn use_synthetic_adapters() -> bool {
+    cfg!(test) && std::env::var_os("LOCALOG_REAL_RUNTIMES").is_none()
+}
+
 const FAKE_PROVIDER: &str = "localog-deterministic-fake";
 const FAKE_RUNTIME_VERSION: &str = "1";
 const FAKE_MODEL_DIGEST: &str = "sha256:localog-synthetic-model-v1";
@@ -248,7 +263,7 @@ pub(crate) fn queue_transcription(
         .join("transcripts/revisions")
         .join(format!("{revision_id}.json"));
     let (provider, runtime_version, model_digest, settings_json, runtime_config_json) =
-        transcription_metadata(&repository, &language, cfg!(test))?;
+        transcription_metadata(&repository, &language, use_synthetic_adapters())?;
     let now = unix_time_millis();
     let transaction = repository
         .connection
@@ -487,7 +502,7 @@ pub(crate) fn queue_generation(
         .ok_or(StorageError::MissingMeeting)?;
     let protocol_inputs = repository.protocol_inputs(meeting_id)?;
     let (provider_name, runtime_version, model_digest, settings_json, runtime_config_json) =
-        generation_metadata(&repository, &protocol_inputs, cfg!(test))?;
+        generation_metadata(&repository, &protocol_inputs, use_synthetic_adapters())?;
     let job_id = new_id("job");
     let revision_id = new_id("protocol");
     let final_relative_path = meeting_root(&project_id, meeting_id)
@@ -703,7 +718,7 @@ fn execute_transcription(
         )?;
     verify_streamed_checksum(root, &source_path, &expected_checksum, cancellation)?;
     let mut report = |value, stage| progress(repository, job, value, stage, notify);
-    let artifact = if cfg!(test) {
+    let artifact = if use_synthetic_adapters() {
         DeterministicFakeAdapter {
             fail_requested: job.fail_requested,
         }
@@ -760,7 +775,7 @@ fn execute_generation(
         serde_json::from_slice(&bytes).map_err(|_| ProcessingError::InvalidOutput)?;
     validate_transcript_artifact(&transcript, &job.meeting_id)?;
     let mut report = |value, stage| progress(repository, job, value, stage, notify);
-    let markdown = if cfg!(test) {
+    let markdown = if use_synthetic_adapters() {
         DeterministicFakeAdapter {
             fail_requested: job.fail_requested,
         }
@@ -1980,14 +1995,18 @@ pub(crate) fn retry_job(
             [meeting_id],
             |row| row.get(0),
         )?;
-        Some(transcription_metadata(&repository, &language, cfg!(test))?)
+        Some(transcription_metadata(
+            &repository,
+            &language,
+            use_synthetic_adapters(),
+        )?)
     } else {
         None
     };
     let generation_snapshot = if kind == "generation" {
         let inputs = repository.protocol_inputs(meeting_id)?;
         Some((
-            generation_metadata(&repository, &inputs, cfg!(test))?,
+            generation_metadata(&repository, &inputs, use_synthetic_adapters())?,
             inputs.style.revision,
             inputs.vocabulary_revision,
         ))
