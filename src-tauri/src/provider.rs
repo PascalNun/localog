@@ -305,6 +305,33 @@ impl OllamaProvider {
         Ok(value.version)
     }
 
+    /// The context window the model was actually built with.
+    ///
+    /// Assuming a number here is not safe in either direction: too small truncates
+    /// the answer, and too large costs memory the machine may not have — measured
+    /// at roughly 30 KB of key-value cache per token, so a 128K window is gigabytes
+    /// before any weights are loaded.
+    ///
+    /// Ollama reports it under `model_info`, keyed by the model's own architecture
+    /// (`qwen3.context_length`, `gemma3.context_length`, and so on), so the key is
+    /// found by suffix rather than guessed. Returns `None` when the server does not
+    /// report one, leaving the caller to fall back rather than fail.
+    pub fn model_context_length(&self, model: &str) -> Option<u32> {
+        let mut response = self
+            .agent
+            .post(format!("{}/api/show", self.base_url))
+            .send_json(serde_json::json!({ "model": model }))
+            .ok()?;
+        let value: serde_json::Value = response.body_mut().read_json().ok()?;
+        value
+            .get("model_info")?
+            .as_object()?
+            .iter()
+            .find(|(key, _)| key.ends_with(".context_length"))
+            .and_then(|(_, value)| value.as_u64())
+            .and_then(|value| u32::try_from(value).ok())
+    }
+
     pub fn installed_models(&self) -> Result<Vec<ModelDescriptor>> {
         let mut response = self
             .agent
