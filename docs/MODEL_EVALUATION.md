@@ -301,6 +301,57 @@ token needs is not known until the token before it has been computed, so there i
 be committed to in advance. Training also includes a load-balancing term that deliberately spreads
 usage, which works against the idea that a narrow task concentrates on a few experts.
 
+## The whole pipeline, inside the application
+
+Everything above was measured by calling the provider directly. This section is the first run through
+the application's own functions — import, transcription with the project's vocabulary, speaker
+separation, and generation — on the real 81-minute meeting.
+
+| Stage                                 | Result                                      |
+| ------------------------------------- | ------------------------------------------- |
+| Import                                | 2.3 s                                       |
+| Transcription + vocabulary + speakers | **1,920 s** — 753 segments, **8 speakers**  |
+| Passages flagged unclear              | 84 of 753 (11%)                             |
+| Vocabulary provenance                 | recorded against the job as a real checksum |
+| Generation                            | **365 s** — 2,747 characters                |
+
+**Vocabulary works in the application.** The client firm appears 7 times, correctly spelled, and the
+brand name it used to be misheard as appears 0 times. A participant surname came through correctly.
+This was previously only shown in a test harness.
+
+**The speaker count is what makes separation usable.** Eight speakers, against 86 from the same
+recording when clustering had no expected number to work from.
+
+**The protocol is far too short.** 2,747 characters against an 18,212-character human reference, and
+only two headings — it introduces the meeting, lists participants, and stops. Generation was not
+truncated: the model finished of its own accord. So the remaining problem is not a budget, it is that
+a small model asked to read, judge and compose in one move writes a summary instead of a protocol.
+That is precisely what [PROTOCOL_GENERATION.md](PROTOCOL_GENERATION.md) proposes to fix, and this run
+is the evidence for doing it.
+
+### Five defects this run found
+
+None of them could have been caught by the tests that existed, and all five sat in the same place:
+the seam between queueing work and running it. Unit tests substitute deterministic adapters, and the
+evaluation harness calls the provider directly. Neither ever crossed that seam.
+
+1. **Generation stored three values one column to the left.** The provider configuration went into a
+   neighbouring column and the job rejected itself with "the saved protocol provider configuration is
+   invalid". Protocol generation had never once succeeded through the application.
+2. **The context window was hardcoded to 8,192** while the model in use reports 262,144, so the
+   answer had no room left after the prompt.
+3. **The answer ceiling was 2,048 tokens.** A full-length protocol needs over 4,500. No model could
+   have produced one at any quality.
+4. **Required sections were matched as English strings** against a protocol written in the meeting's
+   language, so every German meeting was rejected for correctly writing "Zusammenfassung".
+5. The harness itself drove import through the wrong function, which is a harness bug rather than a
+   product one, but is worth recording as the first thing an end-to-end test found.
+
+Numbers 2 and 3 have a consequence for everything above them: the evaluation harness supplied
+sensible values through its own defaults, so **every quality result recorded in this document was
+measured against a configuration the application never used.** The comparisons between models remain
+valid relative to one another; none of them described what a person would have received.
+
 ## Candidates not yet tested
 
 Recorded so they are not lost between sessions. Sizes and context from ollama.com; nothing here has
