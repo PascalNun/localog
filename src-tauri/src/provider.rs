@@ -854,19 +854,30 @@ fn protocol_schema() -> serde_json::Value {
     })
 }
 
-fn validate_markdown(markdown: &str, required_sections: &[String]) -> Result<()> {
+/// Reject a protocol that is not a protocol at all.
+///
+/// This used to also require each of the style's section names to appear
+/// literally in the output, and that check could never have passed for the
+/// audience this product is built for. A style names its sections in English —
+/// "Summary", "Decisions" — while the protocol is written in the language of the
+/// meeting, so a German meeting correctly produced "Zusammenfassung" and was
+/// rejected for it. Every German protocol failed, and German is the first
+/// language LocaLog is meant to serve.
+///
+/// Matching translated headings by string is not a fixable version of that idea,
+/// and discarding a finished draft over a heading was the wrong response in any
+/// case: these are drafts for a person to review, and a draft missing a section
+/// is more useful to that person than no draft at all. The sections are still
+/// given to the model as part of the style, which is where they belong.
+///
+/// Reporting which sections a draft appears to cover is worth doing, and belongs
+/// in the review workspace next to the text rather than in a gate that throws the
+/// work away. It is recorded in the plan.
+fn validate_markdown(markdown: &str, _required_sections: &[String]) -> Result<()> {
     if markdown.trim().is_empty() {
         return Err(ProviderError::InvalidResponse(
             "The model returned an empty protocol.".into(),
         ));
-    }
-    let normalized = markdown.to_ascii_lowercase();
-    for section in required_sections {
-        if !normalized.contains(&section.to_ascii_lowercase()) {
-            return Err(ProviderError::InvalidResponse(format!(
-                "The model output is missing the required section: {section}"
-            )));
-        }
     }
     Ok(())
 }
@@ -1014,10 +1025,15 @@ mod tests {
     }
 
     #[test]
-    fn validates_required_sections_without_prompt_leakage() {
+    fn rejects_only_a_protocol_that_is_not_one() {
         let sections = vec!["Summary".into(), "Actions".into()];
         assert!(validate_markdown("# Summary\n\n# Actions\n", &sections).is_ok());
-        assert!(validate_markdown("# Summary\n", &sections).is_err());
+        // A protocol written in the meeting's language names its sections in that
+        // language. Rejecting it for that made every German meeting fail.
+        assert!(
+            validate_markdown("# Zusammenfassung\n\n# Maßnahmen\n", &sections).is_ok(),
+            "a translated heading is not a defect"
+        );
     }
 
     #[test]
