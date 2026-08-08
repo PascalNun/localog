@@ -72,9 +72,10 @@ minutes against an 18,212-character human reference, with company and participan
   was derived from a real professional protocol, and existing databases receive it through a
   migration that leaves an edited style alone.
 - `Done` Speaker alignment: joining diariser turns to transcript segments by overlap.
-- `Partial` Speaker labelling is wired into the transcription job, now with the machine's cores, its
-  neural accelerator, and a known speaker count when one is set. It has never run against the real
-  diariser inside the application.
+- `Done` Speaker labelling runs inside the application, with the machine's cores, its neural
+  accelerator and a known speaker count. On the real 81-minute meeting the transcription stage took
+  32 minutes and produced 753 segments across **8 speakers** — against 86 from the same recording
+  when clustering had no expected count to work from.
 - `Done` One heavy task at a time. Transcription, generation and model downloads share a single
   admission slot, so a download can no longer quietly halve the speed of a transcription.
 - `Planned` Judge the current protocol against the human reference on prose, not only on size.
@@ -95,8 +96,9 @@ The alignment is built and tested; what remains is everything around it.
    like the transcription models. 45 MB together, downloaded and verified in twelve seconds. Both are
    required, so a partial set reports as unavailable rather than failing at the point of use.
 2. `Planned` Resolve the diariser runtime the same way as whisper.cpp, so no path is typed by hand.
-3. `Planned` Run it against the real 81-minute meeting inside the application and confirm the
-   speakers that appear are the people who spoke.
+3. `Done` Run it against the real 81-minute meeting inside the application. Eight speakers appear
+   where a threshold alone had produced eighty-six. Whether those eight are the people who spoke,
+   rather than merely a sensible number, still needs a person to listen.
 4. `Planned` Regenerate the protocol with speakers present, and check whether attribution to the
    correct organisation improves. This is the failure that motivated the work.
 5. `Planned` Speaker tools in review: rename everywhere, reassign a segment, merge two labels.
@@ -119,8 +121,10 @@ The alignment is built and tested; what remains is everything around it.
    compounds so a listed term still applies within a longer German word.
 6. `Planned` A meeting's own participants, once participants are a real field, ahead of everything
    else. This is the one part of the specificity rule the data model cannot yet express.
-7. `Planned` Prove it end to end: import into a project with vocabulary and confirm the names come
-   out right without intervention.
+7. `Partial` Proven to run end to end: import, transcription with the project's vocabulary, speaker
+   separation and generation now complete through the application's own functions on the real
+   meeting, and the vocabulary that shaped the transcript is recorded against the job. Whether the
+   names come out right is the next question, and needs the protocol read.
 
 **Ends when:** importing a meeting into a project with vocabulary produces correct names unaided.
 
