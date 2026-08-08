@@ -80,6 +80,9 @@ minutes against an 18,212-character human reference, with company and participan
 - `Planned` Judge the current protocol against the human reference on prose, not only on size.
 - `Planned` Decide what a missing required section should do. A completed draft was once discarded
   over one absent heading, which sits badly with a product whose protocols are drafts for review.
+  [PROTOCOL_GENERATION.md](PROTOCOL_GENERATION.md) proposes answering this properly rather than
+  patching it: separate what was _found_ from what was _written_, so a missing section is either an
+  empty finding worth printing or a retry of one pass.
 - `Planned` Generate from an English meeting. No English reference pair exists yet.
 
 **Ends when:** a German meeting produces a protocol a professional would accept after light editing.
@@ -131,6 +134,22 @@ The alignment is built and tested; what remains is everything around it.
 3. `Planned` Offer the project's vocabulary as suggestions when correcting an unclear word, since a
    misheard name is usually a name the project already knows.
 4. `Planned` Confirm the rule holds on English audio. It has only been measured on German.
+
+### Block 1e — Generate by parts rather than in one move _(proposed)_
+
+Design in [PROTOCOL_GENERATION.md](PROTOCOL_GENERATION.md). The intermediate between reading and
+writing is currently a blob of prose, which means nothing downstream can be checked, one missing
+heading discards a whole run, and a 4B model is asked to judge, attribute and compose at once — the
+hardest possible shape for the only class of model the 8 GB baseline can run.
+
+1. `Planned` Define the meeting record and produce it from the extract pass.
+2. `Planned` Compose from the record, and compare quality against today's output before keeping it.
+3. `Planned` Mechanical checks: actions without owners, statements citing no segment.
+4. `Planned` Persist the record; link protocol lines to transcript segments.
+5. `Planned` Retry one failed pass instead of failing the run.
+
+**Ends when:** more of the reference protocol's decisions and actions survive, with no more invented
+material, in under ten minutes.
 
 ### Block 1c — Configure itself instead of asking
 
