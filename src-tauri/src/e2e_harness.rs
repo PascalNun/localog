@@ -62,8 +62,18 @@ fn drive(root: &Path, job_id: &str, label: &str) {
 fn runs_the_whole_pipeline_on_a_real_meeting() {
     let audio = required("LOCALOG_E2E_AUDIO");
     let language = std::env::var("LOCALOG_E2E_LANGUAGE").unwrap_or_else(|_| "German".to_string());
+    // A run costs half an hour, so the workspace can be kept for inspection
+    // afterwards rather than vanishing with the temporary directory.
+    let kept = std::env::var("LOCALOG_E2E_ROOT").ok().map(PathBuf::from);
     let temporary = tempfile::tempdir().unwrap();
-    let root = temporary.path();
+    let root: &Path = match kept.as_deref() {
+        Some(path) => {
+            std::fs::create_dir_all(path).unwrap();
+            path
+        }
+        None => temporary.path(),
+    };
+    println!("workspace: {}", root.display());
 
     stage_model(
         root,
@@ -95,6 +105,14 @@ fn runs_the_whole_pipeline_on_a_real_meeting() {
         .write_setting(
             "diarisation.executable",
             required("LOCALOG_E2E_DIARISER").to_str().unwrap(),
+        )
+        .unwrap();
+    // Generation needs a model that Ollama actually has installed; the provider
+    // rejects an unknown one before any work starts.
+    repository
+        .write_setting(
+            "generation.ollamaModel",
+            &std::env::var("LOCALOG_E2E_MODEL").unwrap_or_else(|_| "qwen3.5:4b".to_string()),
         )
         .unwrap();
     if let Ok(count) = std::env::var("LOCALOG_E2E_SPEAKERS") {
