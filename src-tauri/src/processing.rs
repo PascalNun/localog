@@ -22,6 +22,21 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+/// How much room to allow the model for the protocol itself.
+///
+/// This is a separate limit from the context window and truncates independently
+/// of it: the provider reports a run as incomplete when generation stops because
+/// the answer hit its ceiling rather than because the model finished.
+///
+/// The reference protocol written by a person for the evaluation meeting is about
+/// 18,000 characters. German runs near four characters to the token here, so a
+/// full-length protocol needs somewhere over 4,500 — and the earlier value of
+/// 2,048 could not have produced one at any quality, on any model. The value is
+/// generous rather than tight because it is a ceiling, not an allocation: what is
+/// actually requested is this or whatever the window still has room for,
+/// whichever is smaller, so a wide answer budget never costs a narrow one.
+const PROTOCOL_OUTPUT_TOKENS: u32 = 8_192;
+
 /// The context window to ask a model for.
 ///
 /// Two failure modes sit either side of this number. Too small truncates: the
@@ -635,7 +650,7 @@ fn generation_metadata(
         seed: 42,
         temperature_milli: 200,
         context_tokens: affordable_context(&provider::OllamaProvider::loopback(), &model),
-        maximum_output_tokens: 2048,
+        maximum_output_tokens: PROTOCOL_OUTPUT_TOKENS,
     };
     let runtime_config_json = serde_json::to_string(&config).map_err(|_| {
         StorageError::InvalidData("The protocol provider configuration could not be saved.")
