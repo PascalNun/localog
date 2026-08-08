@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 #[cfg(test)]
+mod e2e_harness;
+#[cfg(test)]
 mod eval_harness;
 
 mod diarisation;
