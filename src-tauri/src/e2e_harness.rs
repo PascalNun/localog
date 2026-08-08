@@ -252,3 +252,52 @@ fn vocabulary_from_environment() -> Vec<(String, String)> {
         })
         .collect()
 }
+
+/// Generate a protocol from a workspace a previous run left behind.
+///
+/// The full pipeline costs half an hour, almost all of it transcription and
+/// speaker separation. When only generation is in question, repeating those is
+/// waste, so this picks up the finished workspace instead.
+///
+/// ```text
+/// LOCALOG_REAL_RUNTIMES=1 LOCALOG_E2E_ROOT=/path/to/workspace \
+/// LOCALOG_E2E_MODEL=qwen3.5:4b LOCALOG_E2E_OUT=/path/to/protocol.md \
+///   cargo test --lib -- --ignored --nocapture generates_from_an_existing_workspace
+/// ```
+#[test]
+#[ignore = "requires a workspace left by the whole-pipeline harness"]
+fn generates_from_an_existing_workspace() {
+    let root = required("LOCALOG_E2E_ROOT");
+    let repository = WorkspaceRepository::open(&root).unwrap();
+    let meeting_id: String = repository
+        .connection
+        .query_row(
+            "SELECT id FROM meetings WHERE lifecycle IN ('transcript_ready', 'protocol_draft')
+             ORDER BY created_at_ms DESC LIMIT 1",
+            [],
+            |row| row.get(0),
+        )
+        .expect("the workspace holds no transcribed meeting");
+    if let Ok(model) = std::env::var("LOCALOG_E2E_MODEL") {
+        repository
+            .write_setting("generation.ollamaModel", &model)
+            .unwrap();
+    }
+    drop(repository);
+
+    let (generation, _) = processing::queue_generation(&root, &meeting_id, false).unwrap();
+    drive(&root, &generation.id, "generation");
+
+    let repository = WorkspaceRepository::open(&root).unwrap();
+    let snapshot = repository.workspace_snapshot().unwrap();
+    let protocol = snapshot
+        .protocols
+        .get(&meeting_id)
+        .expect("a protocol was produced");
+    println!("  protocol: {} characters", protocol.markdown.len());
+    if let Ok(out) = std::env::var("LOCALOG_E2E_OUT") {
+        std::fs::write(&out, &protocol.markdown).unwrap();
+        println!("  written to {out}");
+    }
+    assert!(protocol.markdown.len() > 2_000, "the protocol is too short");
+}

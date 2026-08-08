@@ -532,9 +532,9 @@ pub(crate) fn queue_generation(
             runtime_version,
             model_digest,
             settings_json,
+            runtime_config_json,
             protocol_inputs.style.revision,
             protocol_inputs.vocabulary_revision,
-            runtime_config_json,
             managed_relative_path(&final_relative_path)?,
             i64::from(fail_requested),
             now,
@@ -2774,6 +2774,44 @@ mod tests {
             "leading whitespace must be trimmed"
         );
         assert_eq!(segment.id, "segment-abcdef01-0001");
+    }
+
+    /// A queued generation job stores its provenance in named columns, and the
+    /// values have to land in the columns they are named after.
+    ///
+    /// They did not: three parameters were rotated by one, so the provider
+    /// configuration was written into `style_revision`'s neighbour and the job
+    /// failed at the point of use with "the saved protocol provider configuration
+    /// is invalid". Nothing caught it, because a test build substitutes
+    /// deterministic adapters and those never read the column. Generation had
+    /// therefore never once succeeded through the application's own pipeline.
+    #[test]
+    fn a_queued_generation_job_stores_each_value_in_its_own_column() {
+        let fixture = Fixture::source_ready();
+        fixture.transcribe();
+        let (generation, _) = queue_generation(&fixture.root, &fixture.meeting_id, false).unwrap();
+
+        let repository = WorkspaceRepository::open(&fixture.root).unwrap();
+        let (style_revision, vocabulary_revision): (Option<String>, Option<String>) = repository
+            .connection
+            .query_row(
+                "SELECT style_revision, vocabulary_revision FROM jobs WHERE id = ?1",
+                [&generation.id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+
+        let inputs = repository.protocol_inputs(&fixture.meeting_id).unwrap();
+        assert_eq!(
+            style_revision.as_deref(),
+            Some(inputs.style.revision.as_str()),
+            "style_revision must hold the style's revision"
+        );
+        assert_eq!(
+            vocabulary_revision.as_deref(),
+            Some(inputs.vocabulary_revision.as_str()),
+            "vocabulary_revision must hold the vocabulary's revision"
+        );
     }
 
     #[test]
