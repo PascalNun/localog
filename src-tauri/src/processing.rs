@@ -22,6 +22,34 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+/// The context window to ask a model for.
+///
+/// Two failure modes sit either side of this number. Too small truncates: the
+/// answer budget is what remains of the window after the prompt, so an
+/// eighty-one minute meeting against an 8,192-token window left no room to reply
+/// and generation failed with "the local model stopped before returning a
+/// complete protocol".
+///
+/// Too large is not free either. Measured on the development machine, the same
+/// model spans 3.6 GB resident at 4,096 tokens and 7.3 GB at 131,072 — roughly
+/// 30 KB of key-value cache per token — so a model advertising 262,144 would cost
+/// gigabytes of context before any weight is loaded, and the baseline machine has
+/// eight gigabytes in total.
+///
+/// So: ask the model what it supports, and cap it at a width that has actually
+/// been run. 40,960 is that width — it holds a whole meeting in one pass and
+/// measured 4.70 GB resident. Sizing the cap to the machine's own memory rather
+/// than to this one is the next step, and is tracked in the plan.
+fn affordable_context(provider: &provider::OllamaProvider, model: &str) -> u32 {
+    const MEASURED_AFFORDABLE: u32 = 40_960;
+    const WHEN_UNREPORTED: u32 = 8_192;
+    provider
+        .model_context_length(model)
+        .map_or(WHEN_UNREPORTED, |supported| {
+            supported.min(MEASURED_AFFORDABLE)
+        })
+}
+
 /// Whether this build should use the deterministic adapters instead of the real
 /// runtimes.
 ///
@@ -606,7 +634,7 @@ fn generation_metadata(
             .collect(),
         seed: 42,
         temperature_milli: 200,
-        context_tokens: 8192,
+        context_tokens: affordable_context(&provider::OllamaProvider::loopback(), &model),
         maximum_output_tokens: 2048,
     };
     let runtime_config_json = serde_json::to_string(&config).map_err(|_| {
