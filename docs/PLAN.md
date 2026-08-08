@@ -79,8 +79,10 @@ minutes against an 18,212-character human reference, with company and participan
 - `Done` One heavy task at a time. Transcription, generation and model downloads share a single
   admission slot, so a download can no longer quietly halve the speed of a transcription.
 - `Planned` Judge the current protocol against the human reference on prose, not only on size.
-- `Planned` Decide what a missing required section should do. A completed draft was once discarded
-  over one absent heading, which sits badly with a product whose protocols are drafts for review.
+- `Done` Decided: a missing section no longer discards the draft. The check could never have passed
+  anyway — it matched English section names against a protocol written in the meeting's language, so
+  every German meeting was rejected for correctly writing "Zusammenfassung". Reporting which sections
+  a draft covers belongs beside the text in review, not in a gate, and is part of Block 1e.
   [PROTOCOL_GENERATION.md](PROTOCOL_GENERATION.md) proposes answering this properly rather than
   patching it: separate what was _found_ from what was _written_, so a missing section is either an
   empty finding worth printing or a retry of one pass.
@@ -121,10 +123,9 @@ The alignment is built and tested; what remains is everything around it.
    compounds so a listed term still applies within a longer German word.
 6. `Planned` A meeting's own participants, once participants are a real field, ahead of everything
    else. This is the one part of the specificity rule the data model cannot yet express.
-7. `Partial` Proven to run end to end: import, transcription with the project's vocabulary, speaker
-   separation and generation now complete through the application's own functions on the real
-   meeting, and the vocabulary that shaped the transcript is recorded against the job. Whether the
-   names come out right is the next question, and needs the protocol read.
+7. `Done` Proven end to end on the real meeting through the application's own functions. The client
+   firm appears seven times correctly spelled and the name it used to be misheard as appears none,
+   so vocabulary works in the product and not only in a harness.
 
 **Ends when:** importing a meeting into a project with vocabulary produces correct names unaided.
 
@@ -157,7 +158,9 @@ material, in under ten minutes.
 
 ### Block 1c — Configure itself instead of asking
 
-1. `Planned` Read the model's real context limit from the provider rather than assuming 8192.
+1. `Done` Read the model's real context limit from the provider rather than assuming 8192. It was
+   assuming 8,192 against a model reporting 262,144, which left the answer no room; the value is now
+   read and capped at 40,960, a width that has been measured at 4.70 GB resident.
 2. `Planned` Detect installed memory and recommend a model tier from it.
    2b. `Planned` Turn that into a first-run flow: measure the machine, offer only what can run, mark one
    quality as recommended, and make downloading it the obvious next step rather than a setting to
