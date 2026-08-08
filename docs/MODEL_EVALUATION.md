@@ -271,6 +271,36 @@ processing the input rather than loading the weights — that run is a separate 
 What it does establish firmly: at 8.26 GB resident, **gemma4:12b cannot run on the 8 GB baseline at
 all**, whatever its quality. It can only ever be an option for larger machines.
 
+### Mixture of experts: measured, not assumed
+
+The hope was that a mixture-of-experts model would need only the experts a narrow task uses, so a
+large model could fit a small machine. Measured with `granite4:tiny-h` — a real MoE with roughly 7B
+total parameters and about 1B active per token — against the dense model in use:
+
+| Model                   | File   | Params        | Resident | Generation |
+| ----------------------- | ------ | ------------- | -------- | ---------- |
+| `granite4:tiny-h` (MoE) | 4.2 GB | 7B / ~1B live | 4.14 GB  | 45.4 tok/s |
+| `qwen3.5:4b` (dense)    | 3.4 GB | 4B            | 3.61 GB  | 31.8 tok/s |
+
+**Memory is not saved.** Resident memory matched the file almost exactly. Nothing was left unloaded,
+even though six sevenths of the parameters are idle for any given token. On this machine Ollama hands
+the weights to Metal as GPU buffers rather than leaving them as a demand-paged file mapping, so the
+page cache never gets the chance to keep unused experts off memory.
+
+**Compute genuinely is saved.** The MoE ran **43% faster** than a dense model of nearly half its
+parameter count. That is the real benefit and it is substantial.
+
+So the rule for choosing models is: **an MoE buys speed, not memory.** Its total parameter count
+still has to fit, and its active parameter count is what it will feel like to use. That makes MoE
+attractive for the 16 GB machine and no help at all for the 8 GB baseline, which is the opposite of
+what would have been assumed from the active-parameter figure alone.
+
+Why the idea cannot work by simply preloading fewer experts: routing is decided per token _and_ per
+layer, so a thirty-layer model makes thirty choices for every token generated. Which expert the next
+token needs is not known until the token before it has been computed, so there is no subset that can
+be committed to in advance. Training also includes a load-balancing term that deliberately spreads
+usage, which works against the idea that a narrow task concentrates on a few experts.
+
 ## Candidates not yet tested
 
 Recorded so they are not lost between sessions. Sizes and context from ollama.com; nothing here has
