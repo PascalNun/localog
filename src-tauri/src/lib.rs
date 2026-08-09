@@ -7,6 +7,7 @@ mod eval_harness;
 
 mod diarisation;
 mod domain;
+mod facts;
 mod imports;
 mod media;
 mod models;

@@ -66,9 +66,9 @@ program and hope; it works in steps and verifies after each, feeding failures ba
 applies here, and one observation makes it concrete.
 
 **For some facts, ground truth can be computed without a model.** Scanning the reference meeting's
-transcript with plain code takes half a second and finds ten quantities — areas, percentages,
-measurements. The human protocol recorded nine of them. The generated protocol recorded one. That
-gap is not a matter of judgement: the information was present, findable by pattern, and lost.
+transcript with plain code takes milliseconds and finds **nineteen quantities** — areas,
+percentages, measurements, sums. The generated protocol accounts for **one** of them. That gap is
+not a matter of judgement: the information was present, findable without a model, and lost.
 
 So the question put to the model can be bounded and answerable rather than open:
 
@@ -154,7 +154,7 @@ quantity where the reference carried nine.
 The acceptance test is therefore mechanical and known in advance:
 
 - **Every quantity found by the scan is accounted for**, either recorded in the protocol or
-  explicitly dismissed. On the reference meeting that is ten of ten.
+  explicitly dismissed. On the reference meeting that is nineteen of nineteen, against one today.
 - **Every vocabulary term that occurs in the transcript** appears spelled correctly, which the
   current pipeline already achieves.
 - **Nothing is stated that no segment supports**, which the segment references make checkable rather
