@@ -368,7 +368,12 @@ fn finds_the_topics_of_a_real_meeting() {
 
     let started = Instant::now();
     let (topics, unclaimed) = provider
-        .find_topics(&request, &AtomicBool::new(false), &mut |_, _| Ok(()))
+        .find_topics(&request, &AtomicBool::new(false), &mut |_, stage| {
+            if stage.starts_with("join") {
+                println!("  {stage}");
+            }
+            Ok(())
+        })
         .expect("the topic pass failed");
     let listing = topics
         .iter()

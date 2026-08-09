@@ -533,14 +533,72 @@ impl OllamaProvider {
         cancelled: &AtomicBool,
         progress: &mut dyn FnMut(u64, &str) -> Result<()>,
     ) -> Result<Vec<crate::topics::Topic>> {
+        if topics.len() < 3 {
+            return Ok(topics);
+        }
         progress(32, &format!("joining_subjects:{}", topics.len()))?;
+        // Sent in batches, because a hundred and fifty subjects with a sentence
+        // each is ten thousand tokens against a window of eight — the call was
+        // starved and grouped a tenth of what it should have.
+        //
+        // Ordered by title first, so that subjects worded alike arrive in the same
+        // batch. Six headings that all begin "Fassade" are the duplicates worth
+        // catching, and plain sorting puts them in front of the model together
+        // rather than leaving it to chance.
+        let mut ordered = topics;
+        ordered.sort_by_key(|topic| crate::topics::sort_key(&topic.title));
+        let before = ordered.len();
+        let mut joined: Vec<crate::topics::Topic> = Vec::new();
+        for (index, batch) in ordered.chunks(GROUP_BATCH).enumerate() {
+            if cancelled.load(Ordering::Acquire) {
+                return Err(ProviderError::Cancelled);
+            }
+            progress(
+                32,
+                &format!(
+                    "joining_subjects:batch {} of {}",
+                    index + 1,
+                    before.div_ceil(GROUP_BATCH)
+                ),
+            )?;
+            joined.extend(self.group_batch(request, batch.to_vec(), cancelled, progress)?);
+        }
+        joined.sort_by_key(|topic| topic.segments.first().copied().unwrap_or(usize::MAX));
+        progress(
+            34,
+            &format!("joined_subjects:{before} subjects to {}", joined.len()),
+        )?;
+        Ok(joined)
+    }
+
+    /// Group one batch of subjects, judging by what was said rather than by how the
+    /// titles happen to be worded. If it fails the batch is returned untouched: a
+    /// protocol with the facade under six headings is worse than one heading and
+    /// far better than no protocol.
+    fn group_batch(
+        &self,
+        request: &GenerationRequest,
+        topics: Vec<crate::topics::Topic>,
+        cancelled: &AtomicBool,
+        progress: &mut dyn FnMut(u64, &str) -> Result<()>,
+    ) -> Result<Vec<crate::topics::Topic>> {
         if topics.len() < 3 {
             return Ok(topics);
         }
         let listing = topics
             .iter()
             .enumerate()
-            .map(|(index, topic)| format!("{}. {}", index + 1, topic.title))
+            .map(|(index, topic)| {
+                let excerpt = topic
+                    .segments
+                    .iter()
+                    .filter_map(|position| request.transcript.get(*position))
+                    .map(|segment| segment.text.trim())
+                    .max_by_key(|text| text.len())
+                    .unwrap_or_default();
+                let excerpt: String = excerpt.chars().take(140).collect();
+                format!("{}. {}\n   \"{excerpt}\"", index + 1, topic.title)
+            })
             .collect::<Vec<_>>()
             .join("\n");
         let generated = self.complete(
@@ -554,10 +612,18 @@ impl OllamaProvider {
             cancelled,
             &mut |_| Ok(()),
         );
-        let Ok(generated) = generated else {
-            return Ok(topics);
+        let generated = match generated {
+            Ok(generated) => generated,
+            Err(error) => {
+                progress(
+                    33,
+                    &format!("joining_failed:{}", truncate(&error.to_string(), 80)),
+                )?;
+                return Ok(topics);
+            }
         };
         let Ok(structured) = serde_json::from_str::<StructuredGroups>(&generated) else {
+            progress(33, "joining_failed:the reply was not valid")?;
             return Ok(topics);
         };
         let groups: Vec<(String, Vec<i64>)> = structured
@@ -1083,6 +1149,10 @@ const TOPIC_WINDOW_OVERLAP: usize = 6;
 /// a remark inside another discussion, and is folded into the nearest one.
 const TOPIC_MINIMUM_SEGMENTS: usize = 4;
 
+/// Subjects weighed against each other in one call. Small enough that the listing
+/// and its excerpts fit a modest window with room to answer.
+const GROUP_BATCH: usize = 24;
+
 /// Asking only for "the subjects" produced one per exchange: fifty titles of two
 /// segments each over an eighty-minute meeting, where the protocol a person wrote
 /// has thirty sections in total. A small model reads "subject" as "thing just
@@ -1094,7 +1164,7 @@ const TOPIC_SYSTEM: &str = "Divide this passage of a meeting transcript into the
 /// sees it, so the same thing arrives under several names. The list of names is
 /// short even for a long meeting, which is why this can be settled in one pass
 /// over titles alone rather than by reading the transcript again.
-const GROUP_SYSTEM: &str = "Below is a numbered list of subject titles taken from one meeting. Several may name the same subject in different words, because the meeting returned to it more than once.\n\nGroup the titles that a written protocol would gather under a single heading. For each group give the heading, in the meeting's language, and the numbers of the titles it covers. Leave a subject out of every group if it stands on its own. Do not group two subjects merely because they were discussed near each other, and do not invent a subject that is not in the list. Return only schema-valid JSON.";
+const GROUP_SYSTEM: &str = "Below is a numbered list of subjects taken from one meeting, each with a sentence spoken about it. Several may name the same subject in different words, because the meeting returned to it more than once.\n\nJudge by what was said, not only by the wording of the titles. Group the subjects that a written protocol would gather under a single heading. For each group give the heading, in the meeting's language, and the numbers of the titles it covers. Leave a subject out of every group if it stands on its own. Do not group two subjects merely because they were discussed near each other, and do not invent a subject that is not in the list. Return only schema-valid JSON.";
 
 #[derive(Debug, Deserialize)]
 struct StructuredGroups {

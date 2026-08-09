@@ -1899,6 +1899,14 @@ fn job_stage_label(kind: &str, stage: &str, state: JobState) -> String {
             Some(detail) => format!("Finding what was discussed — passage {detail}"),
             None => "Finding what was discussed".to_string(),
         },
+        ("joining_failed", _) => match detail {
+            Some(detail) => format!("Subjects could not be joined — {detail}"),
+            None => "Subjects could not be joined".to_string(),
+        },
+        ("joined_subjects", _) => match detail {
+            Some(detail) => format!("Joined subjects — {detail}"),
+            None => "Joined subjects".to_string(),
+        },
         ("joining_subjects", _) => match detail {
             Some(detail) => format!("Joining subjects that belong together — {detail} found"),
             None => "Joining subjects that belong together".to_string(),

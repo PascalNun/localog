@@ -238,6 +238,12 @@ pub(crate) fn unclaimed(segment_count: usize, topics: &[Topic]) -> Vec<usize> {
         .collect()
 }
 
+/// Order subjects so that ones worded alike stand together. Six headings starting
+/// "Fassade" are the duplicates worth catching, and sorting costs nothing.
+pub(crate) fn sort_key(title: &str) -> String {
+    normalise(title)
+}
+
 /// Compare titles without punctuation, case or spacing getting in the way.
 fn normalise(title: &str) -> String {
     title
