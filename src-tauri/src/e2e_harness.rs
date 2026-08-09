@@ -301,3 +301,84 @@ fn generates_from_an_existing_workspace() {
     }
     assert!(protocol.markdown.len() > 2_000, "the protocol is too short");
 }
+
+/// Run only the topic pass over a real transcript and print what it found.
+///
+/// The topic pass decides everything written after it, so it is inspected on its
+/// own before anything is built on top of it. Nothing else runs: no protocol is
+/// written and no workspace is touched.
+///
+/// ```text
+/// LOCALOG_REAL_RUNTIMES=1 LOCALOG_E2E_ROOT=/path/to/workspace \
+/// LOCALOG_E2E_MODEL=qwen3.5:4b \
+///   cargo test --lib -- --ignored --nocapture finds_the_topics_of_a_real_meeting
+/// ```
+#[test]
+#[ignore = "requires a transcribed workspace and a running Ollama"]
+fn finds_the_topics_of_a_real_meeting() {
+    use crate::provider::{GenerationRequest, GenerationSegment, GenerationStyle, OllamaProvider};
+
+    let root = required("LOCALOG_E2E_ROOT");
+    let repository = WorkspaceRepository::open(&root).unwrap();
+    let snapshot = repository.workspace_snapshot().unwrap();
+    let transcript = snapshot
+        .transcripts
+        .values()
+        .max_by_key(|document| document.segments.len())
+        .expect("the workspace holds no transcript");
+    let segments: Vec<GenerationSegment> = transcript
+        .segments
+        .iter()
+        .map(|segment| GenerationSegment {
+            start_ms: segment.start_ms,
+            speaker: segment.speaker.clone(),
+            text: segment.text.clone(),
+        })
+        .collect();
+
+    let provider = OllamaProvider::loopback();
+    let model_name =
+        std::env::var("LOCALOG_E2E_MODEL").unwrap_or_else(|_| "qwen3.5:4b".to_string());
+    let model = provider
+        .installed_models()
+        .unwrap()
+        .into_iter()
+        .find(|candidate| candidate.name == model_name)
+        .expect("the requested model is not installed");
+    let request = GenerationRequest {
+        model: model.name.clone(),
+        model_digest: model.digest.clone(),
+        runtime_version: provider.version().expect("ollama must be running"),
+        meeting_language: "German".to_string(),
+        style: GenerationStyle {
+            id: "style-formal".into(),
+            revision: "1".into(),
+            density: crate::domain::ProtocolDensity::Comprehensive,
+            instructions: Vec::new(),
+            required_sections: Vec::new(),
+        },
+        vocabulary_revision: "topics".into(),
+        vocabulary: Vec::new(),
+        transcript: segments,
+        seed: 42,
+        temperature_milli: 200,
+        context_tokens: 8_192,
+        maximum_output_tokens: 1_024,
+    };
+
+    let started = Instant::now();
+    let (topics, unclaimed) = provider
+        .find_topics(&request, &AtomicBool::new(false), &mut |_, _| Ok(()))
+        .expect("the topic pass failed");
+    println!(
+        "\n{} segments -> {} topics in {:.1}s, {} segments claimed by none",
+        request.transcript.len(),
+        topics.len(),
+        started.elapsed().as_secs_f64(),
+        unclaimed.len()
+    );
+    for topic in &topics {
+        println!("  {:>3} segments  {}", topic.segments.len(), topic.title);
+    }
+    assert!(!topics.is_empty(), "no topics were found at all");
+}

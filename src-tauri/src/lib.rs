@@ -15,6 +15,7 @@ mod processing;
 mod provider;
 mod runtime;
 mod storage;
+mod topics;
 
 use domain::{MeetingSummary, NewMeetingInput, NewProjectInput, ProjectSummary, WorkspaceSnapshot};
 use rusqlite::OptionalExtension;
