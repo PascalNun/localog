@@ -20,9 +20,9 @@
   // What a style asks for, said plainly. The value steers the model and sizes the
   // answer budget, so it belongs where someone choosing a style can see it.
   const DENSITY_LABEL: Record<string, string> = {
-    comprehensive: 'Full record',
-    selective: 'Results and reasoning',
-    minimal: 'Decisions only',
+    comprehensive: 'Full prose',
+    concise: 'Plain statements',
+    terse: 'A line per point',
   };
 
   const CATEGORIES = [

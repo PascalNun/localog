@@ -191,53 +191,66 @@ pub struct ProtocolStyle {
     pub density: ProtocolDensity,
 }
 
-/// How much prose a style wants around the facts.
+/// How much room a style spends saying a thing — not which things it says.
 ///
-/// Measured on one meeting for which a person wrote three documents of different
-/// lengths: the quantities the meeting stated survived into all three at almost
-/// the same rate — 15, 14 and 15 of 24 — across a two-fold range in length. What
-/// compression removes is narrative, context and the account of the discussion,
-/// not the figures.
+/// A style is how a person wants information conveyed. It is not a decision
+/// about what information belongs in a protocol, because what was decided, asked
+/// and agreed belongs in one whatever its form. A terse protocol says the same
+/// thing in fewer words; it does not say less.
 ///
-/// So this steers volume, and nothing else. It is deliberately not a licence to
-/// drop facts, and the checks recorded against a job apply at every density.
+/// The evidence is a meeting for which a person wrote three documents of 8,915,
+/// 12,927 and 18,212 characters. The quantities the meeting stated survived into
+/// all three at almost the same rate — 14, 15 and 15 of 24 — so what compression
+/// removed was elaboration and context, not content.
+///
+/// The reason to hold to that is not tidiness, it is what the two mistakes cost.
+/// A person reviewing a draft deletes an unwanted line in a keystroke. Noticing
+/// that something is *absent* means realising that a thing they discussed is not
+/// there at all, while reading a document that reads perfectly well without it.
+/// Someone may also choose a short style and change their mind once they see the
+/// draft, and they can only cut what was put in front of them.
+///
+/// So the directives below say how much to write per point and never which points
+/// to drop, and the checks recorded against a job apply at full strength at every
+/// setting: a terser protocol is not entitled to lose anything.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProtocolDensity {
-    /// A record someone absent could follow: the discussion as well as its result.
+    /// Full prose, with the context a reader who was absent would need.
     Comprehensive,
-    /// The result and enough of the reasoning to understand it.
+    /// Plain statements, without elaboration.
     #[default]
-    Selective,
-    /// What was decided and what happens next, and little else.
-    Minimal,
+    Concise,
+    /// A line per point.
+    Terse,
 }
 
 impl ProtocolDensity {
     pub fn from_str(value: &str) -> Option<Self> {
         match value {
             "comprehensive" => Some(Self::Comprehensive),
-            "selective" => Some(Self::Selective),
-            "minimal" => Some(Self::Minimal),
+            "concise" => Some(Self::Concise),
+            "terse" => Some(Self::Terse),
             _ => None,
         }
     }
 
     /// What the model is told, in the same voice as a style's other instructions.
     ///
-    /// Each says what to leave out rather than how long to be. A length in words
-    /// invites padding to reach it, and a meeting that warrants three pages should
-    /// not be stretched to five because the style says so.
+    /// Each governs how much is written per point, never which points survive. No
+    /// target length is given: a number of words invites padding to reach it, and
+    /// a meeting that warrants three pages should not be stretched to five because
+    /// the style asked for prose.
     pub fn directive(self) -> &'static str {
         match self {
             Self::Comprehensive => {
-                "Write a full record. Someone who was absent must be able to follow what was discussed, not only what was concluded. Keep the reasoning, the alternatives considered, and the context."
+                "Write in full prose, giving each point the context a reader who was not present would need to understand it."
             }
-            Self::Selective => {
-                "Write the result and enough of the reasoning to make it understandable. Leave out the back-and-forth of the discussion, but keep why a conclusion was reached."
+            Self::Concise => {
+                "Write plainly and without elaboration. State each point, and its reason where one was given, in a sentence or two."
             }
-            Self::Minimal => {
-                "Write only what was decided, what remains open, and what happens next. Leave out the discussion entirely."
+            Self::Terse => {
+                "Write as briefly as the meaning allows, roughly a line per point. Omit nothing that was decided, asked, agreed or stated as a figure - say it in fewer words instead."
             }
         }
     }
