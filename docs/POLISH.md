@@ -94,8 +94,25 @@ meeting jobs.
 - **It survives navigation.** Work continues while the user reads a transcript or edits a protocol,
   and the status line is what makes that visible without pulling them back.
 
+- **A long step says where it has got to, not what it is called.** A stage name that does not change
+  for four minutes reads as a hung program, however accurate it is. Stages may carry a live detail —
+  "Finding what was discussed — passage 3 of 13", "Joining subjects that belong together — 41 found"
+  — and any step measured in minutes should use one. This was only possible after the provider was
+  allowed to report a string built at the moment rather than a fixed name.
+
 The underlying rule: a user should never have to guess whether the application is working, waiting,
 or stuck. Anything that takes longer than a moment is announced in one predictable place.
+
+**Applied to work as it is built.** This is not a polish item to be done at the end. Every stage
+added since has reported itself: the topic pass counts its passages, the grouping pass says how many
+subjects it is weighing. A step written without its status line is a step that will have to be opened
+again, and the moment to decide what a step should say is while writing it, when what it is doing is
+still obvious.
+
+The next thing this asks for, and which does not exist yet: **showing the work, not only the
+counter.** A reader watching subjects appear as the meeting is divided learns what the machine
+understood, which a percentage never conveys. That is also the cheapest moment to notice that a
+subject is wrong — before anything has been written from it.
 
 ## 2. Names and language
 

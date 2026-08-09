@@ -412,25 +412,74 @@ impl OllamaProvider {
         cancelled: &AtomicBool,
         progress: &mut dyn FnMut(u64, &str) -> Result<()>,
     ) -> Result<(Vec<crate::topics::Topic>, Vec<usize>)> {
-        let sizes: Vec<usize> = request
-            .transcript
+        let mut found = Vec::new();
+        let mut pending: Vec<usize> = (0..request.transcript.len()).collect();
+        // Read what no subject claimed again, because on a real meeting the first
+        // reading left a quarter of the segments behind and they were not
+        // pleasantries: whole consecutive discussions of areas and funding limits,
+        // exactly the material a protocol exists to record. Bounded, and stopped as
+        // soon as a round claims nothing, so it cannot circle.
+        for round in 0..3 {
+            if pending.len() < request.transcript.len() / 20 {
+                break;
+            }
+            let claimed = self.scan(request, &pending, round, cancelled, progress, &mut found)?;
+            if claimed == 0 {
+                break;
+            }
+            let taken: std::collections::HashSet<usize> = found
+                .iter()
+                .flat_map(|topic| topic.segments.iter().copied())
+                .collect();
+            pending.retain(|index| !taken.contains(index));
+        }
+        let grouped =
+            self.group_topics(request, crate::topics::merge(found), cancelled, progress)?;
+        let topics = crate::topics::absorb_small(grouped, TOPIC_MINIMUM_SEGMENTS);
+        let unclaimed = crate::topics::unclaimed(request.transcript.len(), &topics);
+        Ok((topics, unclaimed))
+    }
+
+    /// One reading of a selection of segments, appending whatever subjects it named.
+    /// Returns how many segments were claimed, so a round that achieves nothing can
+    /// stop the loop rather than repeat itself.
+    fn scan(
+        &self,
+        request: &GenerationRequest,
+        selection: &[usize],
+        round: usize,
+        cancelled: &AtomicBool,
+        progress: &mut dyn FnMut(u64, &str) -> Result<()>,
+        found: &mut Vec<crate::topics::Topic>,
+    ) -> Result<usize> {
+        let sizes: Vec<usize> = selection
             .iter()
-            .map(|segment| segment.text.len() + 8)
+            .map(|index| request.transcript[*index].text.len() + 8)
             .collect();
         let windows = crate::topics::plan_windows(&sizes, TOPIC_WINDOW_CHARS, TOPIC_WINDOW_OVERLAP);
-        let mut found = Vec::new();
+        let mut claimed = 0;
         for (index, window) in windows.iter().enumerate() {
             if cancelled.load(Ordering::Acquire) {
                 return Err(ProviderError::Cancelled);
             }
-            let share = 8 + (index as u64 * 24) / windows.len().max(1) as u64;
-            // Four minutes of silence reads as a hung program. The count carries so
-            // a reader can watch the meeting being divided up rather than wait.
+            let share = 8 + (index as u64 * 20) / windows.len().max(1) as u64;
             progress(
                 share,
-                &format!("finding_subjects:{} of {}", index + 1, windows.len()),
+                &format!(
+                    "finding_subjects:{} of {}{}",
+                    index + 1,
+                    windows.len(),
+                    if round == 0 { "" } else { ", second reading" }
+                ),
             )?;
-            let prompt = number_window(&request.transcript, window);
+            let prompt = selection[window.clone()]
+                .iter()
+                .enumerate()
+                .map(|(offset, index)| {
+                    format!("{}. {}", offset + 1, request.transcript[*index].text.trim())
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
             let generated = self.complete(
                 request,
                 Completion {
@@ -449,21 +498,19 @@ impl OllamaProvider {
                 serde_json::from_str(&generated).map_err(|error| {
                     ProviderError::InvalidResponse(truncate(&error.to_string(), 280))
                 })?;
-            found.extend(structured.topics.into_iter().filter_map(|topic| {
-                let segments = crate::topics::resolve(window, &topic.segments);
-                (!segments.is_empty() && !topic.title.trim().is_empty()).then_some(
-                    crate::topics::Topic {
-                        title: topic.title.trim().to_string(),
-                        segments,
-                    },
-                )
-            }));
+            for topic in structured.topics {
+                let segments = crate::topics::resolve_within(selection, window, &topic.segments);
+                if segments.is_empty() || topic.title.trim().is_empty() {
+                    continue;
+                }
+                claimed += segments.len();
+                found.push(crate::topics::Topic {
+                    title: topic.title.trim().to_string(),
+                    segments,
+                });
+            }
         }
-        let grouped =
-            self.group_topics(request, crate::topics::merge(found), cancelled, progress)?;
-        let topics = crate::topics::absorb_small(grouped, TOPIC_MINIMUM_SEGMENTS);
-        let unclaimed = crate::topics::unclaimed(request.transcript.len(), &topics);
-        Ok((topics, unclaimed))
+        Ok(claimed)
     }
 
     /// Join the subjects that name the same thing.

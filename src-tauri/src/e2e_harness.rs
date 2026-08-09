@@ -379,6 +379,28 @@ fn finds_the_topics_of_a_real_meeting() {
         std::fs::write(&path, &listing).unwrap();
     }
     println!("{listing}");
+    // What no subject claimed is the interesting part: crosstalk is fine to lose,
+    // but a real discussion sitting here is a subject the pass failed to find.
+    let by_length = |indices: &[usize]| -> (usize, usize) {
+        let lengths: Vec<usize> = indices
+            .iter()
+            .map(|index| request.transcript[*index].text.trim().len())
+            .collect();
+        let short = lengths.iter().filter(|length| **length < 60).count();
+        (short, lengths.iter().sum::<usize>() / lengths.len().max(1))
+    };
+    let (short, mean) = by_length(&unclaimed);
+    println!(
+        "\nunclaimed: {} segments, {short} of them under 60 characters, {mean} characters on average",
+        unclaimed.len()
+    );
+    println!("longest unclaimed passages:");
+    let mut longest = unclaimed.clone();
+    longest.sort_by_key(|index| std::cmp::Reverse(request.transcript[*index].text.trim().len()));
+    for index in longest.iter().take(6) {
+        let text = request.transcript[*index].text.trim();
+        println!("  [{index}] {}", &text[..text.len().min(110)]);
+    }
     let covered: usize = topics.iter().map(|topic| topic.segments.len()).sum();
     println!(
         "\n{} segments -> {} subjects in {:.1}s\n{} segments claimed by no subject, {covered} placements",
