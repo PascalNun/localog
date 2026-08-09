@@ -58,6 +58,53 @@ because an item citing no segment is by definition something the model made up.
 4. **Check** — verify mechanically. Required sections present; every action either has an owner or is
    explicitly marked unassigned; every statement cites a segment.
 
+## Driving the model instead of asking it
+
+The passes above split the work. They do not yet **check** it, and checking is what makes the
+difference between a smaller task and a reliable one. A coding agent does not ask for a finished
+program and hope; it works in steps and verifies after each, feeding failures back. The same shape
+applies here, and one observation makes it concrete.
+
+**For some facts, ground truth can be computed without a model.** Scanning the reference meeting's
+transcript with plain code takes half a second and finds ten quantities — areas, percentages,
+measurements. The human protocol recorded nine of them. The generated protocol recorded one. That
+gap is not a matter of judgement: the information was present, findable by pattern, and lost.
+
+So the question put to the model can be bounded and answerable rather than open:
+
+1. **Scan first, in code.** Quantities with units, money, percentages, the project's own vocabulary
+   terms, speaker turns — anything a regular expression can find. The result is a checklist with a
+   known count.
+2. **Give the model the checklist, not only the text.** "These ten quantities were said. For each,
+   state what it refers to, or mark it as not worth recording." Every answer is checkable against a
+   number that was known before the model ran.
+3. **Re-ask only about what failed.** If seven of ten are unaccounted for, ask again about those
+   seven with the segments around them. Two or three rounds, then stop and record what is still
+   missing rather than looping.
+4. **Let it look things up instead of holding everything.** A pass that can retrieve the segments
+   mentioning a term does not need the whole transcript in context, which is the constraint that
+   binds hardest on the baseline machine.
+
+### What cannot be checked this way
+
+Most of a protocol is judgement — which discussion mattered, how a decision should be phrased — and
+no regular expression will find that. The scan covers the part that is mechanical, which is
+precisely the part currently being lost, and leaves the rest to the model and the reader.
+
+### What the meeting did not say
+
+The same exercise corrected an assumption worth recording. The generated protocols contain no dates,
+and that first looked like the same kind of loss. It is not: **the transcript contains no dates
+either** — no month names, no weekdays, two mentions of a deadline in eighty-one minutes. People in
+meetings say "next week" and "before the review", and the human protocol's dates came from the
+author's own knowledge of the schedule rather than from the recording.
+
+Two consequences. **A protocol cannot contain what the meeting did not say**, so measuring against a
+reference that includes outside knowledge sets a bar nothing local can reach; the honest bar is
+everything the meeting _did_ say that mattered. And where something is expected but absent, the
+right output is to say so — "no date was stated" — and let the reader supply it. Inventing a
+plausible date would be the worse failure by a wide margin.
+
 ## What this buys
 
 - **Localised failure.** A missing "Decisions" section is now answerable: either the record held no
@@ -99,8 +146,23 @@ Each step is useful alone and can be abandoned without stranding the next.
 
 ## What would show it worked
 
-Against the reference meeting, compared with the current pipeline: **more of the reference protocol's
-actions and decisions present, with no increase in invented material**, at a wall-clock cost that is
-still under ten minutes. If extraction finds more but composition writes worse prose, that is a
-result too — it would mean keeping the record for checks and traceability while leaving composition
-as it is.
+**Coverage of what was actually said, not length.** Length has now been the wrong measure twice: once
+when a 2,048-token ceiling made every protocol short regardless of model, and again when a protocol
+that matched the human reference on structure — thirty headings against thirty — still carried one
+quantity where the reference carried nine.
+
+The acceptance test is therefore mechanical and known in advance:
+
+- **Every quantity found by the scan is accounted for**, either recorded in the protocol or
+  explicitly dismissed. On the reference meeting that is ten of ten.
+- **Every vocabulary term that occurs in the transcript** appears spelled correctly, which the
+  current pipeline already achieves.
+- **Nothing is stated that no segment supports**, which the segment references make checkable rather
+  than a matter of reading carefully.
+- Wall clock under ten minutes, against six today.
+
+Length is not in the list. A shorter protocol that keeps the numbers is worth more than a long one
+that loses them, and that is the whole finding.
+
+If extraction covers more but composition writes worse prose, that is a result too: it would mean
+keeping the record for its checks and traceability while leaving composition alone.
