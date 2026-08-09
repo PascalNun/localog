@@ -86,11 +86,14 @@ export interface ProtocolDraft {
   revisions: ProtocolRevisionSummary[];
 }
 
+export type ProtocolDensity = 'comprehensive' | 'selective' | 'minimal';
+
 export interface ProtocolStyle {
   id: string;
   name: string;
   description: string;
   language: string;
+  density: ProtocolDensity;
 }
 
 export interface VocabularyDraft {

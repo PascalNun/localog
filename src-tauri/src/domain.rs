@@ -188,6 +188,59 @@ pub struct ProtocolStyle {
     pub description: String,
     /// Styles follow the meeting language; they do not impose an interface language.
     pub language: String,
+    pub density: ProtocolDensity,
+}
+
+/// How much prose a style wants around the facts.
+///
+/// Measured on one meeting for which a person wrote three documents of different
+/// lengths: the quantities the meeting stated survived into all three at almost
+/// the same rate — 15, 14 and 15 of 24 — across a two-fold range in length. What
+/// compression removes is narrative, context and the account of the discussion,
+/// not the figures.
+///
+/// So this steers volume, and nothing else. It is deliberately not a licence to
+/// drop facts, and the checks recorded against a job apply at every density.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProtocolDensity {
+    /// A record someone absent could follow: the discussion as well as its result.
+    Comprehensive,
+    /// The result and enough of the reasoning to understand it.
+    #[default]
+    Selective,
+    /// What was decided and what happens next, and little else.
+    Minimal,
+}
+
+impl ProtocolDensity {
+    pub fn from_str(value: &str) -> Option<Self> {
+        match value {
+            "comprehensive" => Some(Self::Comprehensive),
+            "selective" => Some(Self::Selective),
+            "minimal" => Some(Self::Minimal),
+            _ => None,
+        }
+    }
+
+    /// What the model is told, in the same voice as a style's other instructions.
+    ///
+    /// Each says what to leave out rather than how long to be. A length in words
+    /// invites padding to reach it, and a meeting that warrants three pages should
+    /// not be stretched to five because the style says so.
+    pub fn directive(self) -> &'static str {
+        match self {
+            Self::Comprehensive => {
+                "Write a full record. Someone who was absent must be able to follow what was discussed, not only what was concluded. Keep the reasoning, the alternatives considered, and the context."
+            }
+            Self::Selective => {
+                "Write the result and enough of the reasoning to make it understandable. Leave out the back-and-forth of the discussion, but keep why a conclusion was reached."
+            }
+            Self::Minimal => {
+                "Write only what was decided, what remains open, and what happens next. Leave out the discussion entirely."
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]

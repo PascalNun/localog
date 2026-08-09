@@ -37,6 +37,21 @@ const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// whichever is smaller, so a wide answer budget never costs a narrow one.
 const PROTOCOL_OUTPUT_TOKENS: u32 = 8_192;
 
+/// Room for the protocol, sized to what the style asked for.
+///
+/// A ceiling is not an allocation — what is requested is this or whatever the
+/// window has left, whichever is smaller — but it is still a signal. A style that
+/// wants only decisions and next steps, handed room for eight thousand tokens,
+/// has been invited to fill them.
+fn output_tokens_for(density: crate::domain::ProtocolDensity) -> u32 {
+    use crate::domain::ProtocolDensity::*;
+    match density {
+        Comprehensive => PROTOCOL_OUTPUT_TOKENS,
+        Selective => PROTOCOL_OUTPUT_TOKENS * 3 / 4,
+        Minimal => PROTOCOL_OUTPUT_TOKENS / 4,
+    }
+}
+
 /// The context window to ask a model for.
 ///
 /// Two failure modes sit either side of this number. Too small truncates: the
@@ -638,6 +653,7 @@ fn generation_metadata(
         style: provider::GenerationStyle {
             id: inputs.style.id.clone(),
             revision: inputs.style.revision.clone(),
+            density: inputs.style.density,
             instructions: inputs.style.instructions.clone(),
             required_sections: inputs.style.required_sections.clone(),
         },
@@ -650,7 +666,7 @@ fn generation_metadata(
         seed: 42,
         temperature_milli: 200,
         context_tokens: affordable_context(&provider::OllamaProvider::loopback(), &model),
-        maximum_output_tokens: PROTOCOL_OUTPUT_TOKENS,
+        maximum_output_tokens: output_tokens_for(inputs.style.density),
     };
     let runtime_config_json = serde_json::to_string(&config).map_err(|_| {
         StorageError::InvalidData("The protocol provider configuration could not be saved.")

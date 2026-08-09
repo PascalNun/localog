@@ -17,6 +17,14 @@
   // Ordered by how much a transcriber gains from being told. Names cannot be
   // guessed; field terminology is usually already known. The runtime is given
   // only a short prompt, so this order decides what survives.
+  // What a style asks for, said plainly. The value steers the model and sizes the
+  // answer budget, so it belongs where someone choosing a style can see it.
+  const DENSITY_LABEL: Record<string, string> = {
+    comprehensive: 'Full record',
+    selective: 'Results and reasoning',
+    minimal: 'Decisions only',
+  };
+
   const CATEGORIES = [
     'Person',
     'Organisation',
@@ -138,7 +146,7 @@
             <h2>{style.name}</h2>
             <p>{style.description}</p>
           </div>
-          <span class="meta">{style.language}</span>
+          <span class="meta">{DENSITY_LABEL[style.density] ?? style.language}</span>
         </article>{/each}
     </section>
   {:else}
