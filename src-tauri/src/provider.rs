@@ -537,33 +537,52 @@ impl OllamaProvider {
             return Ok(topics);
         }
         progress(32, &format!("joining_subjects:{}", topics.len()))?;
-        // Sent in batches, because a hundred and fifty subjects with a sentence
-        // each is ten thousand tokens against a window of eight — the call was
-        // starved and grouped a tenth of what it should have.
+        // Plain code proposes, the model judges. Sorting by title put subjects
+        // together only when they happened to begin with the same word, which is
+        // why five subjects naming accessibility were never weighed against each
+        // other: two of them begin "Rechtliche" and "Wohnungsgrundriss". Matching
+        // on any telling word costs nothing and asks a far smaller question — of
+        // these five, which belong together — rather than how to organise a
+        // hundred and fifty.
         //
-        // Ordered by title first, so that subjects worded alike arrive in the same
-        // batch. Six headings that all begin "Fassade" are the duplicates worth
-        // catching, and plain sorting puts them in front of the model together
-        // rather than leaving it to chance.
-        let mut ordered = topics;
-        ordered.sort_by_key(|topic| crate::topics::sort_key(&topic.title));
-        let before = ordered.len();
+        // Sharing a word is a reason to ask, never an answer. Five subjects naming
+        // the facade may be one subject, or two, or five, and the reply may hold
+        // as many groups as there really are. Subjects sharing no telling word are
+        // not sent anywhere: there is nothing to ask about them.
+        let before = topics.len();
+        let candidates = crate::topics::candidate_groups(&topics);
         let mut joined: Vec<crate::topics::Topic> = Vec::new();
-        for (index, batch) in ordered.chunks(GROUP_BATCH).enumerate() {
+        let mut asked = vec![false; topics.len()];
+        for (index, candidate) in candidates.iter().enumerate() {
             if cancelled.load(Ordering::Acquire) {
                 return Err(ProviderError::Cancelled);
             }
             progress(
                 32,
                 &format!(
-                    "joining_subjects:batch {} of {}",
+                    "joining_subjects:{} of {} possible groups",
                     index + 1,
-                    before.div_ceil(GROUP_BATCH)
+                    candidates.len()
                 ),
             )?;
-            joined.extend(self.group_batch(request, batch.to_vec(), cancelled, progress)?);
+            let batch: Vec<crate::topics::Topic> = candidate
+                .iter()
+                .map(|position| {
+                    asked[*position] = true;
+                    topics[*position].clone()
+                })
+                .collect();
+            joined.extend(self.group_batch(request, batch, cancelled, progress)?);
         }
-        joined.sort_by_key(|topic| topic.segments.first().copied().unwrap_or(usize::MAX));
+        for (position, topic) in topics.into_iter().enumerate() {
+            if !asked[position] {
+                joined.push(topic);
+            }
+        }
+        // Grouping invents headings, and two groups may invent the same one. Merging
+        // again costs nothing and is the difference between a protocol with one
+        // "Grundrissplanung" and a protocol with two.
+        let joined = crate::topics::merge(joined);
         progress(
             34,
             &format!("joined_subjects:{before} subjects to {}", joined.len()),
@@ -582,7 +601,7 @@ impl OllamaProvider {
         cancelled: &AtomicBool,
         progress: &mut dyn FnMut(u64, &str) -> Result<()>,
     ) -> Result<Vec<crate::topics::Topic>> {
-        if topics.len() < 3 {
+        if topics.len() < 2 {
             return Ok(topics);
         }
         let listing = topics
@@ -1149,10 +1168,6 @@ const TOPIC_WINDOW_OVERLAP: usize = 6;
 /// a remark inside another discussion, and is folded into the nearest one.
 const TOPIC_MINIMUM_SEGMENTS: usize = 4;
 
-/// Subjects weighed against each other in one call. Small enough that the listing
-/// and its excerpts fit a modest window with room to answer.
-const GROUP_BATCH: usize = 24;
-
 /// Asking only for "the subjects" produced one per exchange: fifty titles of two
 /// segments each over an eighty-minute meeting, where the protocol a person wrote
 /// has thirty sections in total. A small model reads "subject" as "thing just
@@ -1164,7 +1179,7 @@ const TOPIC_SYSTEM: &str = "Divide this passage of a meeting transcript into the
 /// sees it, so the same thing arrives under several names. The list of names is
 /// short even for a long meeting, which is why this can be settled in one pass
 /// over titles alone rather than by reading the transcript again.
-const GROUP_SYSTEM: &str = "Below is a numbered list of subjects taken from one meeting, each with a sentence spoken about it. Several may name the same subject in different words, because the meeting returned to it more than once.\n\nJudge by what was said, not only by the wording of the titles. Group the subjects that a written protocol would gather under a single heading. For each group give the heading, in the meeting's language, and the numbers of the titles it covers. Leave a subject out of every group if it stands on its own. Do not group two subjects merely because they were discussed near each other, and do not invent a subject that is not in the list. Return only schema-valid JSON.";
+const GROUP_SYSTEM: &str = "Below is a numbered list of subjects taken from one meeting, each with a sentence spoken about it. Several may name the same subject in different words, because the meeting returned to it more than once.\n\nJudge by what was said, not only by the wording of the titles. Group the subjects that a written protocol would gather under a single heading. For each group give one heading of your own in the meeting's language, naming what the group is about -- never two of the old titles joined together -- and the numbers of the titles it covers. Leave a subject out of every group if it stands on its own. Do not group two subjects merely because they were discussed near each other, and do not invent a subject that is not in the list. Return only schema-valid JSON.";
 
 #[derive(Debug, Deserialize)]
 struct StructuredGroups {
@@ -1226,16 +1241,6 @@ fn topics_schema() -> serde_json::Value {
         },
         "required": ["topics"]
     })
-}
-
-/// The passage a window covers, numbered from one for the model to refer to.
-fn number_window(transcript: &[GenerationSegment], window: &std::ops::Range<usize>) -> String {
-    transcript[window.clone()]
-        .iter()
-        .enumerate()
-        .map(|(offset, segment)| format!("{}. {}", offset + 1, segment.text.trim()))
-        .collect::<Vec<_>>()
-        .join("\n")
 }
 
 fn validate_markdown(markdown: &str) -> Result<()> {

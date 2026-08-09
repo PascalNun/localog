@@ -238,10 +238,82 @@ pub(crate) fn unclaimed(segment_count: usize, topics: &[Topic]) -> Vec<usize> {
         .collect()
 }
 
-/// Order subjects so that ones worded alike stand together. Six headings starting
-/// "Fassade" are the duplicates worth catching, and sorting costs nothing.
-pub(crate) fn sort_key(title: &str) -> String {
-    normalise(title)
+/// Words too common in German titles to say anything about the subject.
+const EMPTY_WORDS: &[&str] = &[
+    "und", "oder", "sowie", "der", "die", "das", "den", "dem", "des", "ein", "eine", "einer",
+    "von", "vom", "mit", "bei", "für", "auf", "aus", "als", "zum", "zur", "über", "unter", "im",
+    "in", "an", "bis", "the", "and",
+];
+
+/// Characters of a word that decide whether two titles are about the same thing.
+/// Long enough that "Technikräume" and "Terminplanung" stay apart, short enough
+/// that a compound and its root come together.
+const STEM_CHARS: usize = 6;
+
+/// Candidate groups: subjects whose titles share a telling word.
+///
+/// Deciding whether five subjects are one is judgement and belongs to the model.
+/// Working out *which* five are worth asking about is a string match and belongs
+/// here. Asking a model to organise a hundred and fifty titles asks it to plan,
+/// which it does poorly; asking whether five titles naming "Barrierefreiheit" are
+/// one subject asks it to judge, which it does well.
+///
+/// A word counts when it is long enough to mean something, is not one of the words
+/// every German title contains, appears in more than one subject, and does not
+/// appear in so many that it groups the whole meeting. Subjects sharing no such
+/// word are not sent anywhere: there is nothing to ask about them.
+pub(crate) fn candidate_groups(topics: &[Topic]) -> Vec<Vec<usize>> {
+    // Matched on the front of a word rather than the whole of it, because German
+    // builds its vocabulary by compounding: Grundriss, Grundrisse, Grundrissplanung
+    // and Grundrisslösungen are four tokens and one subject. Whole-word matching put
+    // none of them in front of the model together.
+    let words: Vec<Vec<String>> = topics
+        .iter()
+        .map(|topic| {
+            normalise(&topic.title)
+                .split_whitespace()
+                .filter(|word| word.chars().count() >= 6 && !EMPTY_WORDS.contains(word))
+                .map(|word| word.chars().take(STEM_CHARS).collect::<String>())
+                .collect()
+        })
+        .collect();
+
+    let mut by_word: Vec<(String, Vec<usize>)> = Vec::new();
+    for (index, title_words) in words.iter().enumerate() {
+        for word in title_words {
+            match by_word.iter_mut().find(|(known, _)| known == word) {
+                Some((_, members)) => {
+                    if !members.contains(&index) {
+                        members.push(index);
+                    }
+                }
+                None => by_word.push((word.clone(), vec![index])),
+            }
+        }
+    }
+
+    // A word shared by most subjects groups nothing; one shared by none asks nothing.
+    // The floor matters for short lists, where two fifths rounds down to nothing
+    // and a word shared by three subjects would be rejected for being too popular.
+    let ceiling = (topics.len() * 2 / 5).max(4);
+    by_word.retain(|(_, members)| members.len() > 1 && members.len() <= ceiling);
+    // Largest first, so the most telling shared word claims a subject before a
+    // weaker one does.
+    by_word.sort_by_key(|(word, members)| (std::cmp::Reverse(members.len()), word.clone()));
+
+    let mut taken = vec![false; topics.len()];
+    let mut groups = Vec::new();
+    for (_, members) in by_word {
+        let free: Vec<usize> = members.into_iter().filter(|index| !taken[*index]).collect();
+        if free.len() < 2 {
+            continue;
+        }
+        for index in &free {
+            taken[*index] = true;
+        }
+        groups.push(free);
+    }
+    groups
 }
 
 /// Compare titles without punctuation, case or spacing getting in the way.
@@ -406,6 +478,44 @@ mod tests {
         // The second window of that selection starts at its third entry.
         assert_eq!(resolve_within(&leftovers, &(2..5), &[1, 2]), vec![40, 41]);
         assert!(resolve_within(&leftovers, &(0..5), &[99, 0]).is_empty());
+    }
+
+    #[test]
+    fn subjects_sharing_a_telling_word_become_one_question() {
+        let topics = vec![
+            topic("Barrierefreiheit und Bäder", &[1]),
+            topic("Fassadengestaltung", &[2]),
+            topic("Rechtliche Auflagen Barrierefreiheit", &[3]),
+            topic("Wohnungsgrundriss und Barrierefreiheit", &[4]),
+            topic("Abstellräume", &[5]),
+            topic("Fassadenarbeiten und Wettbewerb", &[6]),
+        ];
+        let groups = candidate_groups(&topics);
+        // The three naming accessibility are asked about together, however each
+        // title happens to begin.
+        assert!(groups.iter().any(|group| group.len() == 3
+            && group.contains(&0)
+            && group.contains(&2)
+            && group.contains(&3)));
+        // A subject sharing no telling word with any other is never asked about.
+        assert!(!groups.iter().any(|group| group.contains(&4)));
+        // A compound and its relative are one candidate, which whole-word matching
+        // could never see: Fassadengestaltung against Fassadenarbeiten.
+        assert!(
+            groups
+                .iter()
+                .any(|group| group.contains(&1) && group.contains(&5))
+        );
+    }
+
+    /// A word every title contains would put the whole meeting in one question,
+    /// which is the situation this exists to avoid.
+    #[test]
+    fn a_word_shared_by_almost_everything_groups_nothing() {
+        let topics: Vec<Topic> = (0..10)
+            .map(|index| topic(&format!("Planung Punkt {index}"), &[index]))
+            .collect();
+        assert!(candidate_groups(&topics).is_empty());
     }
 
     /// The safety net: a subject the pass missed must be visible, not silent.
