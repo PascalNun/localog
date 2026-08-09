@@ -776,7 +776,7 @@ fn execute_transcription(
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )?;
     verify_streamed_checksum(root, &source_path, &expected_checksum, cancellation)?;
-    let mut report = |value, stage| progress(repository, job, value, stage, notify);
+    let mut report = |value: u64, stage: &str| progress(repository, job, value, stage, notify);
     let artifact = if use_synthetic_adapters() {
         DeterministicFakeAdapter {
             fail_requested: job.fail_requested,
@@ -833,7 +833,7 @@ fn execute_generation(
     let transcript: TranscriptArtifact =
         serde_json::from_slice(&bytes).map_err(|_| ProcessingError::InvalidOutput)?;
     validate_transcript_artifact(&transcript, &job.meeting_id)?;
-    let mut report = |value, stage| progress(repository, job, value, stage, notify);
+    let mut report = |value: u64, stage: &str| progress(repository, job, value, stage, notify);
     let markdown = if use_synthetic_adapters() {
         DeterministicFakeAdapter {
             fail_requested: job.fail_requested,
@@ -883,7 +883,9 @@ fn execute_generation(
             context_tokens: config.context_tokens,
             maximum_output_tokens: config.maximum_output_tokens,
         };
-        let mut provider_progress = |value, stage| {
+        // Annotated so the closure is general over the borrow: a stage may now be a
+        // string built at the moment it is reported, not only a literal.
+        let mut provider_progress = |value: u64, stage: &str| -> provider::Result<()> {
             report(value, stage).map_err(|error| match error {
                 ProcessingError::Cancelled => provider::ProviderError::Cancelled,
                 other => provider::ProviderError::Unavailable(other.to_string()),

@@ -370,15 +370,22 @@ fn finds_the_topics_of_a_real_meeting() {
     let (topics, unclaimed) = provider
         .find_topics(&request, &AtomicBool::new(false), &mut |_, _| Ok(()))
         .expect("the topic pass failed");
+    let listing = topics
+        .iter()
+        .map(|topic| format!("{:>3} segments  {}", topic.segments.len(), topic.title))
+        .collect::<Vec<_>>()
+        .join("\n");
+    if let Ok(path) = std::env::var("LOCALOG_E2E_OUT") {
+        std::fs::write(&path, &listing).unwrap();
+    }
+    println!("{listing}");
+    let covered: usize = topics.iter().map(|topic| topic.segments.len()).sum();
     println!(
-        "\n{} segments -> {} topics in {:.1}s, {} segments claimed by none",
+        "\n{} segments -> {} subjects in {:.1}s\n{} segments claimed by no subject, {covered} placements",
         request.transcript.len(),
         topics.len(),
         started.elapsed().as_secs_f64(),
         unclaimed.len()
     );
-    for topic in &topics {
-        println!("  {:>3} segments  {}", topic.segments.len(), topic.title);
-    }
     assert!(!topics.is_empty(), "no topics were found at all");
 }

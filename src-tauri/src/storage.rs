@@ -1888,7 +1888,21 @@ fn job_stage_label(kind: &str, stage: &str, state: JobState) -> String {
     if stage == "failed" && kind != "import" {
         return "Local processing could not finish — stable work retained".to_string();
     }
+    // A stage may carry a live detail after a colon, so that a step lasting minutes
+    // can say where it has got to instead of showing the same words throughout.
+    let (stage, detail) = match stage.split_once(':') {
+        Some((code, detail)) => (code, Some(detail)),
+        None => (stage, None),
+    };
     match (stage, state) {
+        ("finding_subjects", _) => match detail {
+            Some(detail) => format!("Finding what was discussed — passage {detail}"),
+            None => "Finding what was discussed".to_string(),
+        },
+        ("joining_subjects", _) => match detail {
+            Some(detail) => format!("Joining subjects that belong together — {detail} found"),
+            None => "Joining subjects that belong together".to_string(),
+        },
         ("ready_to_import", _) => "Ready to copy into local storage".to_string(),
         ("copying", JobState::Cancelling) => "Cancelling the local copy safely".to_string(),
         ("copying", _) => "Copying into local managed storage".to_string(),
@@ -2341,6 +2355,32 @@ mod tests {
             Some(ProtocolDensity::Concise)
         );
         assert_eq!(density("style-decision-log"), Some(ProtocolDensity::Terse));
+    }
+
+    /// A step that runs for minutes has to say where it has got to. The status
+    /// line is the only place the reader is told anything at all while work is
+    /// happening, so a stage may carry a live detail and the label must use it.
+    #[test]
+    fn a_stage_can_report_where_it_has_got_to() {
+        let running = JobState::Running;
+        assert_eq!(
+            job_stage_label("generation", "finding_subjects:3 of 13", running),
+            "Finding what was discussed — passage 3 of 13"
+        );
+        assert_eq!(
+            job_stage_label("generation", "joining_subjects:41", running),
+            "Joining subjects that belong together — 41 found"
+        );
+        // Without a detail it still reads as a sentence rather than a code.
+        assert_eq!(
+            job_stage_label("generation", "finding_subjects", running),
+            "Finding what was discussed"
+        );
+        // Stages that carry no detail are untouched.
+        assert_eq!(
+            job_stage_label("transcription", "transcribing_audio", running),
+            "Transcribing locally"
+        );
     }
 
     #[test]

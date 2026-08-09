@@ -366,7 +366,7 @@ impl OllamaProvider {
         &self,
         request: &GenerationRequest,
         cancelled: &AtomicBool,
-        progress: &mut dyn FnMut(u64, &'static str) -> Result<()>,
+        progress: &mut dyn FnMut(u64, &str) -> Result<()>,
     ) -> Result<String> {
         let runtime_version = self.version()?;
         if runtime_version != request.runtime_version {
@@ -410,7 +410,7 @@ impl OllamaProvider {
         &self,
         request: &GenerationRequest,
         cancelled: &AtomicBool,
-        progress: &mut dyn FnMut(u64, &'static str) -> Result<()>,
+        progress: &mut dyn FnMut(u64, &str) -> Result<()>,
     ) -> Result<(Vec<crate::topics::Topic>, Vec<usize>)> {
         let sizes: Vec<usize> = request
             .transcript
@@ -424,7 +424,12 @@ impl OllamaProvider {
                 return Err(ProviderError::Cancelled);
             }
             let share = 8 + (index as u64 * 24) / windows.len().max(1) as u64;
-            progress(share, "reading_transcript")?;
+            // Four minutes of silence reads as a hung program. The count carries so
+            // a reader can watch the meeting being divided up rather than wait.
+            progress(
+                share,
+                &format!("finding_subjects:{} of {}", index + 1, windows.len()),
+            )?;
             let prompt = number_window(&request.transcript, window);
             let generated = self.complete(
                 request,
@@ -454,9 +459,60 @@ impl OllamaProvider {
                 )
             }));
         }
-        let topics = crate::topics::merge(found);
+        let grouped =
+            self.group_topics(request, crate::topics::merge(found), cancelled, progress)?;
+        let topics = crate::topics::absorb_small(grouped, TOPIC_MINIMUM_SEGMENTS);
         let unclaimed = crate::topics::unclaimed(request.transcript.len(), &topics);
         Ok((topics, unclaimed))
+    }
+
+    /// Join the subjects that name the same thing.
+    ///
+    /// Only the titles are sent, so this stays one small call however long the
+    /// meeting was. If it fails the topics are returned as they were: a protocol
+    /// with the facade discussed under six headings is worse than one with a single
+    /// heading, and far better than no protocol at all.
+    fn group_topics(
+        &self,
+        request: &GenerationRequest,
+        topics: Vec<crate::topics::Topic>,
+        cancelled: &AtomicBool,
+        progress: &mut dyn FnMut(u64, &str) -> Result<()>,
+    ) -> Result<Vec<crate::topics::Topic>> {
+        progress(32, &format!("joining_subjects:{}", topics.len()))?;
+        if topics.len() < 3 {
+            return Ok(topics);
+        }
+        let listing = topics
+            .iter()
+            .enumerate()
+            .map(|(index, topic)| format!("{}. {}", index + 1, topic.title))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let generated = self.complete(
+            request,
+            Completion {
+                system: GROUP_SYSTEM,
+                prompt: &listing,
+                format: groups_schema(),
+                num_predict: 2_048,
+            },
+            cancelled,
+            &mut |_| Ok(()),
+        );
+        let Ok(generated) = generated else {
+            return Ok(topics);
+        };
+        let Ok(structured) = serde_json::from_str::<StructuredGroups>(&generated) else {
+            return Ok(topics);
+        };
+        let groups: Vec<(String, Vec<i64>)> = structured
+            .groups
+            .into_iter()
+            .filter(|group| !group.title.trim().is_empty())
+            .map(|group| (group.title, group.topics))
+            .collect();
+        Ok(crate::topics::group(topics, &groups))
     }
 
     /// Short meetings fit the window, so the protocol is written directly.
@@ -464,7 +520,7 @@ impl OllamaProvider {
         &self,
         request: &GenerationRequest,
         cancelled: &AtomicBool,
-        progress: &mut dyn FnMut(u64, &'static str) -> Result<()>,
+        progress: &mut dyn FnMut(u64, &str) -> Result<()>,
     ) -> Result<String> {
         let instructions = with_density(request);
         let payload = PromptPayload {
@@ -502,7 +558,7 @@ impl OllamaProvider {
         request: &GenerationRequest,
         sections: &[std::ops::Range<usize>],
         cancelled: &AtomicBool,
-        progress: &mut dyn FnMut(u64, &'static str) -> Result<()>,
+        progress: &mut dyn FnMut(u64, &str) -> Result<()>,
     ) -> Result<String> {
         let count = sections.len();
         let mut notes = Vec::with_capacity(count);
@@ -630,7 +686,7 @@ impl OllamaProvider {
         request: &GenerationRequest,
         group: &[String],
         cancelled: &AtomicBool,
-        progress: &mut dyn FnMut(u64, &'static str) -> Result<()>,
+        progress: &mut dyn FnMut(u64, &str) -> Result<()>,
     ) -> Result<String> {
         if group.len() == 1 {
             return Ok(group[0].clone());
@@ -969,12 +1025,53 @@ const TOPIC_WINDOW_CHARS: usize = 6_000;
 /// a boundary is seen whole by at least one of them.
 const TOPIC_WINDOW_OVERLAP: usize = 6;
 
+/// Segments a subject needs before it earns a section of its own. Below this it is
+/// a remark inside another discussion, and is folded into the nearest one.
+const TOPIC_MINIMUM_SEGMENTS: usize = 4;
+
 /// Asking only for "the subjects" produced one per exchange: fifty titles of two
 /// segments each over an eighty-minute meeting, where the protocol a person wrote
 /// has thirty sections in total. A small model reads "subject" as "thing just
 /// said" unless told the size wanted, so the size is stated, in the terms the
 /// answer is for — a section of a document, not a turn in a conversation.
 const TOPIC_SYSTEM: &str = "Divide this passage of a meeting transcript into the few substantial subjects it covers. Each segment is numbered.\n\nGive between one and four subjects for the whole passage. A subject is something a written protocol would give its own section to, gathering many minutes of talk under one heading — not every question, remark or exchange. If the passage is one long discussion of a single thing, return one subject covering it.\n\nFor each subject give a short title in the meeting's language and the numbers of every segment belonging to it. Most segments belong to a subject; a segment of pleasantries or crosstalk may belong to none. Do not summarise, do not write a protocol, and do not name a subject the passage does not discuss. Return only schema-valid JSON.";
+
+/// A meeting that returns to a subject is described afresh by each window that
+/// sees it, so the same thing arrives under several names. The list of names is
+/// short even for a long meeting, which is why this can be settled in one pass
+/// over titles alone rather than by reading the transcript again.
+const GROUP_SYSTEM: &str = "Below is a numbered list of subject titles taken from one meeting. Several may name the same subject in different words, because the meeting returned to it more than once.\n\nGroup the titles that a written protocol would gather under a single heading. For each group give the heading, in the meeting's language, and the numbers of the titles it covers. Leave a subject out of every group if it stands on its own. Do not group two subjects merely because they were discussed near each other, and do not invent a subject that is not in the list. Return only schema-valid JSON.";
+
+#[derive(Debug, Deserialize)]
+struct StructuredGroups {
+    groups: Vec<StructuredGroup>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StructuredGroup {
+    title: String,
+    topics: Vec<i64>,
+}
+
+fn groups_schema() -> serde_json::Value {
+    serde_json::json!({
+        "type": "object",
+        "properties": {
+            "groups": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "title": { "type": "string" },
+                        "topics": { "type": "array", "items": { "type": "integer" } }
+                    },
+                    "required": ["title", "topics"]
+                }
+            }
+        },
+        "required": ["groups"]
+    })
+}
 
 #[derive(Debug, Deserialize)]
 struct StructuredTopics {
