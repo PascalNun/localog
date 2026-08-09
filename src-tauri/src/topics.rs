@@ -105,6 +105,95 @@ pub(crate) fn merge(found: Vec<Topic>) -> Vec<Topic> {
     merged
 }
 
+/// Apply a grouping of subjects, given as one-based positions into `topics`.
+///
+/// Merging by title alone joins only what two windows worded identically, and a
+/// meeting that returns to the facade six times produces six facade subjects with
+/// six different names. Deciding which of those name the same thing is judgement,
+/// so it is asked of the model — but only that, and only over a list of titles.
+/// Which segments then belong where, and what happens to a subject the grouping
+/// forgot, are settled here.
+///
+/// A subject named in no group survives on its own. A position that does not exist
+/// is ignored. Neither is treated as a reason to lose a subject, because losing one
+/// silently is the failure this whole pass is built to avoid.
+pub(crate) fn group(topics: Vec<Topic>, groups: &[(String, Vec<i64>)]) -> Vec<Topic> {
+    let mut taken = vec![false; topics.len()];
+    let mut grouped: Vec<Topic> = Vec::new();
+    for (title, positions) in groups {
+        let mut segments = Vec::new();
+        for position in positions {
+            let Some(index) = usize::try_from(*position - 1)
+                .ok()
+                .filter(|i| *i < topics.len())
+            else {
+                continue;
+            };
+            if std::mem::replace(&mut taken[index], true) {
+                continue;
+            }
+            segments.extend(topics[index].segments.iter().copied());
+        }
+        if segments.is_empty() {
+            continue;
+        }
+        segments.sort_unstable();
+        segments.dedup();
+        grouped.push(Topic {
+            title: title.trim().to_string(),
+            segments,
+        });
+    }
+    // Anything the grouping did not mention keeps its own place.
+    for (index, topic) in topics.into_iter().enumerate() {
+        if !taken[index] {
+            grouped.push(topic);
+        }
+    }
+    grouped.sort_by_key(|topic| topic.segments.first().copied().unwrap_or(usize::MAX));
+    grouped
+}
+
+/// Fold subjects too small to be sections into the ones around them.
+///
+/// A window that mentions a thing once reports it as a subject, and it is right to
+/// — it was discussed. But a protocol section built from one segment is a sentence
+/// wearing a heading, and a document of those reads as a transcript with titles.
+///
+/// The small subject is not discarded. Its segments join the nearest subject in
+/// time, which is almost always the discussion it was a remark within, so the
+/// material survives and only the heading goes. When there is nothing to join, the
+/// subject is kept as it is: losing it would be worse than a short section.
+pub(crate) fn absorb_small(topics: Vec<Topic>, minimum: usize) -> Vec<Topic> {
+    let (mut kept, small): (Vec<Topic>, Vec<Topic>) = topics
+        .into_iter()
+        .partition(|topic| topic.segments.len() >= minimum);
+    if kept.is_empty() {
+        return small;
+    }
+    for topic in small {
+        let Some(anchor) = topic.segments.first().copied() else {
+            continue;
+        };
+        let nearest = kept
+            .iter_mut()
+            .min_by_key(|candidate| {
+                candidate
+                    .segments
+                    .iter()
+                    .map(|index| index.abs_diff(anchor))
+                    .min()
+                    .unwrap_or(usize::MAX)
+            })
+            .expect("at least one subject remains");
+        nearest.segments.extend(topic.segments);
+        nearest.segments.sort_unstable();
+        nearest.segments.dedup();
+    }
+    kept.sort_by_key(|topic| topic.segments.first().copied().unwrap_or(usize::MAX));
+    kept
+}
+
 /// Segments no subject claimed.
 ///
 /// This is the whole safety net. A subject the pass failed to name would otherwise
@@ -213,6 +302,66 @@ mod tests {
     fn subjects_discussed_together_are_not_merged() {
         let merged = merge(vec![topic("Kosten", &[3, 4]), topic("Termine", &[3, 4])]);
         assert_eq!(merged.len(), 2, "shared segments are not shared subjects");
+    }
+
+    #[test]
+    fn grouping_joins_the_subjects_a_reader_would_call_one() {
+        let topics = vec![
+            topic("Fassade und Wettbewerb", &[4, 5]),
+            topic("Erschließung", &[1]),
+            topic("Fassadengestaltung und Elemente", &[9]),
+        ];
+        let grouped = group(topics, &[("Fassade".to_string(), vec![1, 3])]);
+        assert_eq!(grouped.len(), 2);
+        // Untouched subjects keep their place, and order follows the meeting.
+        assert_eq!(grouped[0].title, "Erschließung");
+        assert_eq!(grouped[1].title, "Fassade");
+        assert_eq!(grouped[1].segments, vec![4, 5, 9]);
+    }
+
+    /// A grouping that forgets a subject, names one twice, or points at nothing
+    /// must not cost a subject. Losing one silently is the failure this pass exists
+    /// to prevent, so every defect here fails towards keeping things.
+    #[test]
+    fn a_faulty_grouping_never_loses_a_subject() {
+        let topics = vec![
+            topic("Kosten", &[1]),
+            topic("Termine", &[2]),
+            topic("Fassade", &[3]),
+        ];
+        let grouped = group(
+            topics,
+            &[
+                ("Kosten und Termine".to_string(), vec![1, 2, 2, 99, -1]),
+                ("Nichts".to_string(), vec![404]),
+            ],
+        );
+        assert_eq!(grouped.len(), 2, "the forgotten subject survives");
+        assert_eq!(grouped[0].segments, vec![1, 2], "a repeat is counted once");
+        assert_eq!(grouped[1].title, "Fassade");
+    }
+
+    #[test]
+    fn a_subject_too_small_to_be_a_section_joins_the_nearest_one() {
+        let topics = vec![
+            topic("Erschließung", &[0, 1, 2, 3]),
+            topic("Nebenbemerkung", &[4]),
+            topic("Fassade", &[20, 21, 22, 23]),
+        ];
+        let folded = absorb_small(topics, 3);
+        assert_eq!(folded.len(), 2);
+        // The remark belonged to the discussion it interrupted, and its material
+        // survives even though its heading does not.
+        assert_eq!(folded[0].segments, vec![0, 1, 2, 3, 4]);
+        assert_eq!(folded[1].title, "Fassade");
+    }
+
+    /// Folding must never be able to empty the meeting.
+    #[test]
+    fn nothing_is_folded_away_when_everything_is_small() {
+        let topics = vec![topic("Eins", &[0]), topic("Zwei", &[5])];
+        let folded = absorb_small(topics, 4);
+        assert_eq!(folded.len(), 2, "keeping a short section beats losing it");
     }
 
     /// The safety net: a subject the pass missed must be visible, not silent.

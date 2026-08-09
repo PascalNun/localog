@@ -85,12 +85,13 @@ fn generates_a_protocol_from_a_real_transcript() {
 
     let started = Instant::now();
     let cancelled = AtomicBool::new(false);
-    let mut last_stage = "";
+    // A stage may now be built at the moment it is reported, so it is kept by value.
+    let mut last_stage = String::new();
     let markdown = provider
         .generate(&request, &cancelled, &mut |percent, stage| {
             if stage != last_stage {
                 println!("  {percent}% {stage} ({:?})", started.elapsed());
-                last_stage = stage;
+                last_stage = stage.to_string();
             }
             Ok(())
         })
