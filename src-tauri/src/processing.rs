@@ -881,6 +881,7 @@ fn execute_generation(
         return Err(ProcessingError::InvalidOutput);
     }
     progress(repository, job, 82, "validating_protocol", notify)?;
+    record_quantity_coverage(repository, job, &transcript, &markdown);
     commit_protocol_output(
         root,
         repository,
@@ -1520,6 +1521,41 @@ fn commit_transcript_output(
     transaction.commit()?;
     cleanup_working_backup(root, &working_relative);
     Ok(())
+}
+
+/// Record how much of what the meeting actually stated survived into the protocol.
+///
+/// A quantity was either said or it was not, so this needs no model and no reader:
+/// the transcript is scanned, and each number is either present in the protocol or
+/// missing from it. On the reference meeting the first measurement was one of
+/// nineteen, which is the kind of thing a length check cannot see at all.
+///
+/// It is written to the job rather than enforced. A draft that loses a number is
+/// still a draft worth having, and the number belongs next to the text where a
+/// reader can act on it — which is what the generation redesign is for.
+fn record_quantity_coverage(
+    repository: &WorkspaceRepository,
+    job: &ProcessingJobRecord,
+    transcript: &TranscriptArtifact,
+    markdown: &str,
+) {
+    let stated = crate::facts::quantities(&transcript.segments);
+    if stated.is_empty() {
+        return;
+    }
+    let accounted = stated
+        .iter()
+        .filter(|fact| crate::facts::is_accounted_for(fact, markdown))
+        .count();
+    let coverage = serde_json::json!({
+        "quantitiesStated": stated.len(),
+        "quantitiesAccounted": accounted,
+    });
+    // Provenance, not a gate: failing to record it must never fail the protocol.
+    let _ = repository.connection.execute(
+        "UPDATE jobs SET outcome_json = ?2 WHERE id = ?1",
+        params![job.id, coverage.to_string()],
+    );
 }
 
 fn commit_protocol_output(

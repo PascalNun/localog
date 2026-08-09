@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 9;
+const CURRENT_SCHEMA_VERSION: i64 = 10;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -1686,6 +1686,20 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
                    revision = revision + 1
              WHERE id = 'style-formal' AND revision = 1;
             PRAGMA user_version = 9;
+            COMMIT;
+            "#,
+        )?;
+        version = 9;
+    }
+    if version == 9 {
+        // What a completed job found out about its own result. The first use is
+        // how many of the quantities the meeting stated survived into the
+        // protocol, which is a measure of quality that needs no reader.
+        connection.execute_batch(
+            r#"
+            BEGIN IMMEDIATE;
+            ALTER TABLE jobs ADD COLUMN outcome_json TEXT;
+            PRAGMA user_version = 10;
             COMMIT;
             "#,
         )?;
