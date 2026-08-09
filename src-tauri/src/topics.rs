@@ -74,6 +74,29 @@ pub(crate) fn resolve(window: &Range<usize>, local: &[i64]) -> Vec<usize> {
     resolved
 }
 
+/// Turn window numbers into transcript indices when the window covers a chosen
+/// subset of the transcript rather than a stretch of it.
+///
+/// The pass runs again over whatever no subject claimed, and those leftovers are
+/// scattered through the meeting. The model still sees a passage numbered from
+/// one; this maps back through the selection it was built from.
+pub(crate) fn resolve_within(
+    selection: &[usize],
+    window: &Range<usize>,
+    local: &[i64],
+) -> Vec<usize> {
+    let mut resolved: Vec<usize> = local
+        .iter()
+        .filter(|number| **number >= 1)
+        .map(|number| window.start + (*number as usize) - 1)
+        .filter(|position| window.contains(position))
+        .filter_map(|position| selection.get(position).copied())
+        .collect();
+    resolved.sort_unstable();
+    resolved.dedup();
+    resolved
+}
+
 /// Combine what the windows found into one list of subjects.
 ///
 /// Overlapping windows mean the same subject is reported twice, so topics naming
@@ -362,6 +385,21 @@ mod tests {
         let topics = vec![topic("Eins", &[0]), topic("Zwei", &[5])];
         let folded = absorb_small(topics, 4);
         assert_eq!(folded.len(), 2, "keeping a short section beats losing it");
+    }
+
+    /// Reading the leftovers again means the passage in front of the model is no
+    /// longer a stretch of the meeting, so its numbers map back through the
+    /// selection rather than through a range.
+    #[test]
+    fn window_numbers_map_back_through_a_selection() {
+        let leftovers = [7, 8, 40, 41, 90];
+        assert_eq!(
+            resolve_within(&leftovers, &(0..5), &[1, 3, 5]),
+            vec![7, 40, 90]
+        );
+        // The second window of that selection starts at its third entry.
+        assert_eq!(resolve_within(&leftovers, &(2..5), &[1, 2]), vec![40, 41]);
+        assert!(resolve_within(&leftovers, &(0..5), &[99, 0]).is_empty());
     }
 
     /// The safety net: a subject the pass missed must be visible, not silent.
