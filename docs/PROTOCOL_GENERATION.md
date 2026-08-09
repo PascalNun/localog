@@ -58,6 +58,86 @@ because an item citing no segment is by definition something the model made up.
 4. **Check** — verify mechanically. Required sections present; every action either has an owner or is
    explicitly marked unassigned; every statement cites a segment.
 
+## Topics first, then write each one from the source
+
+The design above compresses the transcript into a record and then writes the protocol from that
+record. There is a better shape, and it differs in one decisive respect: **the writing goes back to
+the transcript rather than to a summary of it.**
+
+1. **Find the topics.** Read the transcript in windows and produce only a list: what was discussed,
+   and which segments discussed it. The output is small even for a long meeting — a few dozen lines
+   for eighty-one minutes — so the windows can be modest and the list merged in one further pass.
+2. **Write each topic from its own segments.** For each topic, gather the segments it cites and write
+   that section from them, with the style and its density. Nothing else is in context.
+3. **Assemble in plain Rust.** Order the sections, add the participants, and leave the prose alone.
+
+### Why this is better than a record
+
+**It never compresses before writing.** An extraction pass decides what matters before anything is
+written, and whatever it dropped cannot be recovered downstream. Here the writing sees what was
+actually said.
+
+**It inverts the context problem instead of moving it.** Today one prompt carries the whole
+transcript — about 24,600 tokens — which is why the window is set to 40,960 and why generation costs
+4.70 GB resident. In this shape no call needs more than a few thousand tokens. On the eight-gigabyte
+baseline that is the difference between the machine being the constraint and not being one, and the
+memory it frees can be spent on a better model rather than on key-value cache.
+
+**It changes what a model must be good at.** A long context stops being a requirement. That reopens
+small models, and moves the question from "what fits an entire meeting" to "what writes German
+well" — which is the axis that actually decides quality and the one still unresearched.
+
+**Traceability and absence come out of it rather than being added.** Each section already knows its
+segments, so a line can be traced to what was said. And segments belonging to no topic at all are
+precisely the answer to "what did not make it in", which a reader needs before deciding a draft is
+finished.
+
+**Failure stops being total.** One topic that fails is one topic to write again.
+
+### Iterating, without putting the model in charge
+
+The three steps above read as a fixed pipeline, and that is not quite the intention. The work should
+be split the way a person splits work: look at the material, break off a piece, do it, see where that
+leaves things, and break off the next piece. The shape of the job comes from the job.
+
+There is a line to hold, though, and it is worth stating because it is easy to cross by analogy. A
+coding agent that decomposes its own work is a large model reasoning about its own task with room to
+think. The model here has four billion parameters and must also fit an eight-gigabyte machine
+alongside everything else. Deciding how to divide a problem is harder than writing one section of it,
+so handing the division to the model asks the weakest thing of the weakest component. It also makes
+two runs over the same meeting produce differently-shaped documents, which is poor behaviour for
+something a person will compare against last month's.
+
+So the division adapts to the meeting while the procedure stays fixed:
+
+| Decision                   | Made by                                     |
+| -------------------------- | ------------------------------------------- |
+| What the units are         | the meeting, through the topics pass        |
+| How large a unit may be    | plain code — split further past a threshold |
+| Whether a unit is finished | a check against that unit's own segments    |
+| When to stop trying        | plain code — a fixed number of rounds       |
+
+The iteration lives inside a unit rather than above it. Write the section, check whether the figures
+its segments state appear in it, and if they do not, write it again with the omission named. Two or
+three rounds, then record what is still missing instead of continuing. A person reviewing the draft
+is better placed to judge a stubborn omission than another attempt by the same model.
+
+This is what separates it from an agent loop: nothing decides what to do next. The units come from
+the material, the bounds come from the code, and the model is only ever asked to write one thing at a
+time and told plainly when it left something out.
+
+### What has to be true, and what could go wrong
+
+- **The topic pass decides everything downstream.** A topic missed there is a topic missing from the
+  protocol, and no later stage can notice. This is the pass to measure first and hardest.
+- **Coherence is the real risk.** Sections written independently can read as a list of sections. The
+  human reference is continuous prose that refers backwards and forwards. Assembly may need an
+  opening written last, once the sections exist.
+- **A segment may belong to several topics, or to none.** Both need a decision rather than a default:
+  overlap is normal in a meeting that returns to a subject, and orphans are the absence signal.
+- **More calls, each smaller.** Total prompt tokens rise while each call falls. Whether wall clock
+  improves is genuinely unknown and must be measured, not assumed.
+
 ## Driving the model instead of asking it
 
 The passes above split the work. They do not yet **check** it, and checking is what makes the
