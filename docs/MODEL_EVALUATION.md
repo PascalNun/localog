@@ -354,6 +354,10 @@ valid relative to one another; none of them described what a person would have r
 
 ## Candidates not yet tested
 
+Published research on candidate models now lives in [MODEL_RESEARCH.md](MODEL_RESEARCH.md), which is
+kept separate because nothing in it has been run. The table below is retained for the reasoning it
+records; where the two disagree, the research file is newer.
+
 Recorded so they are not lost between sessions. Sizes and context from ollama.com; nothing here has
 been run.
 
