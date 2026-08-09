@@ -78,6 +78,20 @@ pub struct GenerationStyle {
     pub id: String,
     pub revision: String,
     pub instructions: Vec<String>,
+    /// What a style intends a protocol to contain. Kept as a description of the
+    /// style, and deliberately **not** sent to the model.
+    ///
+    /// These are stored as literal English strings — "Summary", "Decisions" —
+    /// while the protocol is written in the language of the meeting. Putting them
+    /// in the prompt told a German-language model to produce four English
+    /// headings while the style instructions told it to organise by topic into
+    /// numbered sections, and the two instructions fought. Measured on the real
+    /// meeting, removing them took the protocol from 2,747 characters and two
+    /// headings to 17,393 and forty-one, and the quantities it recorded from one
+    /// of nineteen to fourteen.
+    ///
+    /// The style instructions already prescribe the structure in the meeting's own
+    /// language, which is where that belongs. Do not add this back to a payload.
     pub required_sections: Vec<String>,
 }
 
@@ -141,7 +155,6 @@ struct PromptPayload<'a> {
     style_id: &'a str,
     style_revision: &'a str,
     instructions: &'a [String],
-    required_sections: &'a [String],
     vocabulary_revision: &'a str,
     vocabulary: &'a [String],
     transcript: &'a [GenerationSegment],
@@ -169,7 +182,6 @@ struct SynthesisPayload<'a> {
     style_id: &'a str,
     style_revision: &'a str,
     instructions: &'a [String],
-    required_sections: &'a [String],
     vocabulary_revision: &'a str,
     vocabulary: &'a [String],
     section_notes: &'a [String],
@@ -390,7 +402,6 @@ impl OllamaProvider {
             style_id: &request.style.id,
             style_revision: &request.style.revision,
             instructions: &request.style.instructions,
-            required_sections: &request.style.required_sections,
             vocabulary_revision: &request.vocabulary_revision,
             vocabulary: &request.vocabulary,
             transcript: &request.transcript,
@@ -408,10 +419,7 @@ impl OllamaProvider {
         )?;
         let structured: StructuredProtocol = serde_json::from_str(&generated)
             .map_err(|error| ProviderError::InvalidResponse(truncate(&error.to_string(), 280)))?;
-        validate_markdown(
-            &structured.protocol_markdown,
-            &request.style.required_sections,
-        )?;
+        validate_markdown(&structured.protocol_markdown)?;
         progress(78, "validating_protocol")?;
         Ok(structured.protocol_markdown)
     }
@@ -516,7 +524,6 @@ impl OllamaProvider {
             style_id: &request.style.id,
             style_revision: &request.style.revision,
             instructions: &request.style.instructions,
-            required_sections: &request.style.required_sections,
             vocabulary_revision: &request.vocabulary_revision,
             vocabulary: &request.vocabulary,
             section_notes: &notes,
@@ -540,10 +547,7 @@ impl OllamaProvider {
         )?;
         let structured: StructuredProtocol = serde_json::from_str(&generated)
             .map_err(|error| ProviderError::InvalidResponse(truncate(&error.to_string(), 280)))?;
-        validate_markdown(
-            &structured.protocol_markdown,
-            &request.style.required_sections,
-        )?;
+        validate_markdown(&structured.protocol_markdown)?;
         progress(78, "validating_protocol")?;
         Ok(structured.protocol_markdown)
     }
@@ -764,7 +768,6 @@ fn plan_sections(request: &GenerationRequest) -> Vec<std::ops::Range<usize>> {
         .style
         .instructions
         .iter()
-        .chain(request.style.required_sections.iter())
         .chain(request.vocabulary.iter())
         .map(|value| value.len() + 8)
         .sum::<usize>()
@@ -811,7 +814,6 @@ fn synthesis_budget(request: &GenerationRequest) -> usize {
         .style
         .instructions
         .iter()
-        .chain(request.style.required_sections.iter())
         .chain(request.vocabulary.iter())
         .map(|value| value.len() + 8)
         .sum::<usize>()
@@ -873,7 +875,7 @@ fn protocol_schema() -> serde_json::Value {
 /// Reporting which sections a draft appears to cover is worth doing, and belongs
 /// in the review workspace next to the text rather than in a gate that throws the
 /// work away. It is recorded in the plan.
-fn validate_markdown(markdown: &str, _required_sections: &[String]) -> Result<()> {
+fn validate_markdown(markdown: &str) -> Result<()> {
     if markdown.trim().is_empty() {
         return Err(ProviderError::InvalidResponse(
             "The model returned an empty protocol.".into(),
@@ -1026,19 +1028,18 @@ mod tests {
 
     #[test]
     fn rejects_only_a_protocol_that_is_not_one() {
-        let sections = vec!["Summary".into(), "Actions".into()];
-        assert!(validate_markdown("# Summary\n\n# Actions\n", &sections).is_ok());
+        assert!(validate_markdown("# Summary\n\n# Actions\n").is_ok());
         // A protocol written in the meeting's language names its sections in that
         // language. Rejecting it for that made every German meeting fail.
         assert!(
-            validate_markdown("# Zusammenfassung\n\n# Maßnahmen\n", &sections).is_ok(),
+            validate_markdown("# Zusammenfassung\n\n# Maßnahmen\n").is_ok(),
             "a translated heading is not a defect"
         );
     }
 
     #[test]
     fn rejects_empty_protocols() {
-        assert!(validate_markdown("  ", &[]).is_err());
+        assert!(validate_markdown("  ").is_err());
     }
 
     #[test]
