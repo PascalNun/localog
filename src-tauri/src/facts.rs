@@ -73,13 +73,41 @@ pub(crate) fn quantities(segments: &[TranscriptSegment]) -> Vec<Fact> {
 /// Whether a protocol accounts for a fact.
 ///
 /// Matching is on the number rather than the whole phrase, because a protocol
-/// legitimately rewrites "dreißig Prozent" as "30 %" or moves the unit. The
-/// number surviving is the part that matters; how it is worded is the author's.
+/// legitimately rewrites "dreissig Prozent" as "30 %" or moves the unit. The
+/// number surviving is what matters; how it is worded is the author's business.
+///
+/// The number must stand on its own. A plain substring search reports "30" as
+/// present inside "1930" and inside "Punkt 305", which does not overstate the
+/// count a little — it silently inflates the one measurement this project uses
+/// to decide whether a protocol is any good. Both sides of the match must
+/// therefore end at something that is not part of a number.
 pub(crate) fn is_accounted_for(fact: &Fact, protocol: &str) -> bool {
     let Some(number) = leading_number(&fact.text) else {
         return false;
     };
-    protocol.contains(number)
+    occurrences(protocol, number).any(|(start, end)| {
+        let before = protocol[..start].chars().next_back();
+        let after = protocol[end..].chars().next();
+        !before.is_some_and(is_number_part) && !after.is_some_and(is_number_part)
+    })
+}
+
+/// A digit, or a separator that only counts when it sits between digits — so the
+/// full stop ending a sentence does not disqualify a number that closes it.
+fn is_number_part(character: char) -> bool {
+    character.is_ascii_digit()
+}
+
+fn occurrences<'a>(
+    haystack: &'a str,
+    needle: &'a str,
+) -> impl Iterator<Item = (usize, usize)> + 'a {
+    let mut from = 0;
+    std::iter::from_fn(move || {
+        let found = haystack[from..].find(needle)? + from;
+        from = found + needle.len().max(1);
+        Some((found, found + needle.len()))
+    })
 }
 
 /// The quantities in one piece of text, as (offset, text) pairs.
@@ -236,10 +264,29 @@ mod tests {
         let fact = &quantities(&segments)[0];
         // The unit moved and the wording changed; the number is what carries.
         assert!(is_accounted_for(fact, "Je Geschoss rund 120 Quadratmeter."));
+        // A number closing a sentence still counts.
+        assert!(is_accounted_for(fact, "Die Fläche beträgt 120."));
         assert!(!is_accounted_for(
             fact,
             "Je Geschoss rund 140 Quadratmeter."
         ));
         assert!(!is_accounted_for(fact, "Die Fläche wurde besprochen."));
+    }
+
+    /// The count decides whether a protocol is considered any good, so a number
+    /// found inside a larger one must not be reported as present. A plain
+    /// substring search inflates the measurement rather than merely blurring it.
+    #[test]
+    fn a_number_inside_another_number_does_not_count() {
+        let segments = [segment("a", "Ungefähr 30 Prozent der Fläche.")];
+        let fact = &quantities(&segments)[0];
+        assert!(!is_accounted_for(fact, "Das Gebäude stammt von 1930."));
+        assert!(!is_accounted_for(fact, "Siehe Position 305 der Liste."));
+        assert!(!is_accounted_for(fact, "Die Norm 4030 gilt."));
+        // But a genuine mention anywhere in the document does count.
+        assert!(is_accounted_for(
+            fact,
+            "Von 1930 bis heute, rund 30 % davon."
+        ));
     }
 }
