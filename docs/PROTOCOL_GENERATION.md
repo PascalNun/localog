@@ -126,6 +126,34 @@ This is what separates it from an agent loop: nothing decides what to do next. T
 the material, the bounds come from the code, and the model is only ever asked to write one thing at a
 time and told plainly when it left something out.
 
+### The last step before a person
+
+Something has to happen once the sections exist, and it is tempting to make it a review: ask the
+model whether the protocol is right, and hand it over when it says yes. That is the one shape to
+avoid.
+
+A four-billion-parameter model asked to judge its own output approves it. It can only compare the
+document against itself, since checking it against the transcript means re-reading the twenty-four
+thousand tokens this design exists to avoid. And the damage is not that the verdict is worthless.
+A tool that says it has checked the work and found it sound is asking the reader to look less
+carefully, and the reader looking carefully is the mechanism by which this product is any good at
+all. A confident machine opinion placed immediately before a person suppresses the only reliable
+check in the system.
+
+What a final pass can usefully do is work, not judgement:
+
+- **Write the opening.** It is the one part that needs the finished document in view, and it is a
+  real task rather than a verdict. It also answers the coherence risk, since sections written
+  independently read as a list until something ties them together.
+- **Look for contradictions between sections.** A concrete question with a checkable answer, unlike
+  whether a document is good.
+- **Say what it could not place.** Which segments belong to no topic, which figures it could not
+  situate, which speakers it never identified.
+
+The last of those is the honest form of a final review: the step before a person reports what it is
+unsure of, never that it is satisfied. The mechanical checks stay where they are, because a count of
+figures is worth more than an opinion about them, and the verdict stays with the reader.
+
 ### What has to be true, and what could go wrong
 
 - **The topic pass decides everything downstream.** A topic missed there is a topic missing from the
