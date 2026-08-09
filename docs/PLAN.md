@@ -147,6 +147,10 @@ writing is currently a blob of prose, which means nothing downstream can be chec
 heading discards a whole run, and a 4B model is asked to judge, attribute and compose at once — the
 hardest possible shape for the only class of model the 8 GB baseline can run.
 
+0. `Done` Scan the transcript for what can be found without a model, so the checklist exists before
+   any model runs. On the reference meeting it finds **19 quantities, of which the generated
+   protocol accounts for 1**. That is the baseline the rest of this block is measured against, and
+   it needed no runtime to establish.
 1. `Planned` Define the meeting record and produce it from the extract pass.
 2. `Planned` Compose from the record, and compare quality against today's output before keeping it.
 3. `Planned` Mechanical checks, driven from a scan of the transcript rather than from the model's
@@ -157,7 +161,7 @@ hardest possible shape for the only class of model the 8 GB baseline can run.
 5. `Planned` Retry one failed pass instead of failing the run.
 
 **Ends when:** every quantity the transcript contains is accounted for in the protocol or explicitly
-dismissed — ten of ten on the reference meeting, against one of ten today — with nothing stated that
+dismissed — nineteen of nineteen on the reference meeting, against **one of nineteen** today — with nothing stated that
 no segment supports, in under ten minutes. Length is deliberately not the measure: it has been the
 wrong one twice.
 
