@@ -1713,17 +1713,18 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
         version = 10;
     }
     if version == 10 {
-        // How much prose a style wants around the facts. Measured on one meeting
-        // for which a person wrote three documents across a two-fold range of
-        // length: the figures survived into all three at almost the same rate, so
-        // this governs volume and never licenses dropping what was said.
+        // How much room a style spends saying a thing, never which things it says.
+        // Measured on one meeting for which a person wrote three documents: the
+        // shortest is half the length of the longest, keeps 25 of its 30 topics,
+        // and carries more bullets than it -- so what compression removed was
+        // prose, not content.
         connection.execute_batch(
             r#"
             BEGIN IMMEDIATE;
-            ALTER TABLE protocol_styles ADD COLUMN density TEXT NOT NULL DEFAULT 'selective'
-                CHECK (density IN ('comprehensive', 'selective', 'minimal'));
+            ALTER TABLE protocol_styles ADD COLUMN density TEXT NOT NULL DEFAULT 'concise'
+                CHECK (density IN ('comprehensive', 'concise', 'terse'));
             UPDATE protocol_styles SET density = 'comprehensive' WHERE id = 'style-formal';
-            UPDATE protocol_styles SET density = 'minimal' WHERE id = 'style-decision-log';
+            UPDATE protocol_styles SET density = 'terse' WHERE id = 'style-decision-log';
             PRAGMA user_version = 11;
             COMMIT;
             "#,
@@ -2337,12 +2338,9 @@ mod tests {
         );
         assert_eq!(
             density("style-working-note"),
-            Some(ProtocolDensity::Selective)
+            Some(ProtocolDensity::Concise)
         );
-        assert_eq!(
-            density("style-decision-log"),
-            Some(ProtocolDensity::Minimal)
-        );
+        assert_eq!(density("style-decision-log"), Some(ProtocolDensity::Terse));
     }
 
     #[test]

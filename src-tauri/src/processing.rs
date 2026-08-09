@@ -47,8 +47,8 @@ fn output_tokens_for(density: crate::domain::ProtocolDensity) -> u32 {
     use crate::domain::ProtocolDensity::*;
     match density {
         Comprehensive => PROTOCOL_OUTPUT_TOKENS,
-        Selective => PROTOCOL_OUTPUT_TOKENS * 3 / 4,
-        Minimal => PROTOCOL_OUTPUT_TOKENS / 4,
+        Concise => PROTOCOL_OUTPUT_TOKENS * 3 / 4,
+        Terse => PROTOCOL_OUTPUT_TOKENS / 4,
     }
 }
 

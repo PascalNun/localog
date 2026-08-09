@@ -207,14 +207,14 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         name: 'Internal working note',
         description: 'Concise working record for an internal project team.',
         language: 'Meeting language',
-        density: 'selective',
+        density: 'concise',
       },
       {
         id: 'style-decision-log',
         name: 'Technical decision log',
         description: 'Emphasises alternatives, constraints, and explicit decisions.',
         language: 'Meeting language',
-        density: 'minimal',
+        density: 'terse',
       },
     ],
     vocabulary: [

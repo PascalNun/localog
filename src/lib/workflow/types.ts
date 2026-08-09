@@ -86,7 +86,7 @@ export interface ProtocolDraft {
   revisions: ProtocolRevisionSummary[];
 }
 
-export type ProtocolDensity = 'comprehensive' | 'selective' | 'minimal';
+export type ProtocolDensity = 'comprehensive' | 'concise' | 'terse';
 
 export interface ProtocolStyle {
   id: string;
