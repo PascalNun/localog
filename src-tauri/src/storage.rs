@@ -1,7 +1,8 @@
 use crate::domain::{
     JobErrorSummary, JobState, JobSummary, MeetingLifecycle, MeetingSummary, NewMeetingInput,
-    NewProjectInput, ProjectSummary, ProtocolDocument, ProtocolRevisionSummary, ProtocolStyle,
-    TranscriptDocument, TranscriptSegment, VocabularyDraft, VocabularyEntry, WorkspaceSnapshot,
+    NewProjectInput, ProjectSummary, ProtocolDensity, ProtocolDocument, ProtocolRevisionSummary,
+    ProtocolStyle, TranscriptDocument, TranscriptSegment, VocabularyDraft, VocabularyEntry,
+    WorkspaceSnapshot,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
@@ -12,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 10;
+const CURRENT_SCHEMA_VERSION: i64 = 11;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -149,6 +150,7 @@ pub(crate) struct ResolvedProtocolStyle {
     pub revision: String,
     pub instructions: Vec<String>,
     pub required_sections: Vec<String>,
+    pub density: ProtocolDensity,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -221,7 +223,7 @@ impl WorkspaceRepository {
             .connection
             .query_row(
                 "SELECT id, name, description, language_scope, instructions_json,
-                        required_sections_json, revision
+                        required_sections_json, revision, density
                  FROM protocol_styles WHERE id = ?1 AND enabled = 1",
                 [&style_id],
                 protocol_style_from_row,
@@ -269,7 +271,7 @@ impl WorkspaceRepository {
         self.connection
             .query_row(
                 "SELECT id, name, description, language_scope, instructions_json,
-                        required_sections_json, revision
+                        required_sections_json, revision, density
                  FROM protocol_styles WHERE id = ?1",
                 [style_id],
                 protocol_style_from_row,
@@ -818,7 +820,7 @@ impl WorkspaceRepository {
 
     fn list_protocol_styles(&self) -> Result<Vec<ProtocolStyle>> {
         let mut statement = self.connection.prepare(
-            "SELECT id, name, description, language_scope
+            "SELECT id, name, description, language_scope, density
              FROM protocol_styles WHERE enabled = 1 ORDER BY id",
         )?;
         let rows = statement.query_map([], |row| {
@@ -827,6 +829,11 @@ impl WorkspaceRepository {
                 name: row.get(1)?,
                 description: row.get(2)?,
                 language: "Meeting language".to_string(),
+                density: row
+                    .get::<_, String>(4)
+                    .ok()
+                    .and_then(|value| ProtocolDensity::from_str(&value))
+                    .unwrap_or_default(),
             })
         })?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
@@ -1703,6 +1710,24 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             COMMIT;
             "#,
         )?;
+        version = 10;
+    }
+    if version == 10 {
+        // How much prose a style wants around the facts. Measured on one meeting
+        // for which a person wrote three documents across a two-fold range of
+        // length: the figures survived into all three at almost the same rate, so
+        // this governs volume and never licenses dropping what was said.
+        connection.execute_batch(
+            r#"
+            BEGIN IMMEDIATE;
+            ALTER TABLE protocol_styles ADD COLUMN density TEXT NOT NULL DEFAULT 'selective'
+                CHECK (density IN ('comprehensive', 'selective', 'minimal'));
+            UPDATE protocol_styles SET density = 'comprehensive' WHERE id = 'style-formal';
+            UPDATE protocol_styles SET density = 'minimal' WHERE id = 'style-decision-log';
+            PRAGMA user_version = 11;
+            COMMIT;
+            "#,
+        )?;
     }
     Ok(())
 }
@@ -1735,6 +1760,11 @@ fn protocol_style_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Resolved
         revision: format!("{}@{}", row.get::<_, String>(0)?, revision),
         instructions,
         required_sections,
+        density: row
+            .get::<_, String>(7)
+            .ok()
+            .and_then(|value| ProtocolDensity::from_str(&value))
+            .unwrap_or_default(),
     })
 }
 
@@ -2286,6 +2316,33 @@ mod tests {
             .record_transcription_vocabulary(&job_id, None)
             .unwrap();
         assert_eq!(recorded(&repository).as_deref(), Some("none"));
+    }
+
+    /// Density is what a style asks for, so the styles that ship must actually
+    /// carry different ones — otherwise the field is decoration.
+    #[test]
+    fn the_shipped_styles_ask_for_different_amounts_of_prose() {
+        let temporary = tempdir().unwrap();
+        let repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let styles = repository.workspace_snapshot().unwrap().styles;
+        let density = |id: &str| {
+            styles
+                .iter()
+                .find(|style| style.id == id)
+                .map(|style| style.density)
+        };
+        assert_eq!(
+            density("style-formal"),
+            Some(ProtocolDensity::Comprehensive)
+        );
+        assert_eq!(
+            density("style-working-note"),
+            Some(ProtocolDensity::Selective)
+        );
+        assert_eq!(
+            density("style-decision-log"),
+            Some(ProtocolDensity::Minimal)
+        );
     }
 
     #[test]

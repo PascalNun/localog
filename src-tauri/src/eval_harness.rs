@@ -109,6 +109,7 @@ fn formal_minutes_style() -> GenerationStyle {
     GenerationStyle {
         id: "style-formal".into(),
         revision: "formal-minutes@2".into(),
+        density: crate::domain::ProtocolDensity::Comprehensive,
         instructions: vec![
             "Write the entire protocol in the meeting's language.".into(),
             "Organise the protocol by topic, not in the order things were discussed. Gather everything said about one subject into a single numbered section, even if it came up several times.".into(),

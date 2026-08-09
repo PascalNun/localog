@@ -75,6 +75,11 @@ pub struct OllamaStatus {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GenerationStyle {
+    /// How much prose the style wants. Set as a directive alongside the style's
+    /// own instructions, and used to size the answer budget: a style that asks
+    /// for only decisions and next steps should not be handed room for eight
+    /// thousand tokens, because that much room is an invitation to fill it.
+    pub density: crate::domain::ProtocolDensity,
     pub id: String,
     pub revision: String,
     pub instructions: Vec<String>,
@@ -397,11 +402,12 @@ impl OllamaProvider {
         cancelled: &AtomicBool,
         progress: &mut dyn FnMut(u64, &'static str) -> Result<()>,
     ) -> Result<String> {
+        let instructions = with_density(request);
         let payload = PromptPayload {
             meeting_language: &request.meeting_language,
             style_id: &request.style.id,
             style_revision: &request.style.revision,
-            instructions: &request.style.instructions,
+            instructions: &instructions,
             vocabulary_revision: &request.vocabulary_revision,
             vocabulary: &request.vocabulary,
             transcript: &request.transcript,
@@ -519,11 +525,12 @@ impl OllamaProvider {
         }
 
         progress(62, "generating_protocol")?;
+        let instructions = with_density(request);
         let payload = SynthesisPayload {
             meeting_language: &request.meeting_language,
             style_id: &request.style.id,
             style_revision: &request.style.revision,
-            instructions: &request.style.instructions,
+            instructions: &instructions,
             vocabulary_revision: &request.vocabulary_revision,
             vocabulary: &request.vocabulary,
             section_notes: &notes,
@@ -875,6 +882,17 @@ fn protocol_schema() -> serde_json::Value {
 /// Reporting which sections a draft appears to cover is worth doing, and belongs
 /// in the review workspace next to the text rather than in a gate that throws the
 /// work away. It is recorded in the plan.
+/// The style's instructions with its density directive appended.
+///
+/// Density is kept structured rather than written into a style's instruction list
+/// so that it can also size the answer budget and be shown in the library, but the
+/// model still needs telling, and this is where it is told.
+fn with_density(request: &GenerationRequest) -> Vec<String> {
+    let mut instructions = request.style.instructions.clone();
+    instructions.push(request.style.density.directive().to_string());
+    instructions
+}
+
 fn validate_markdown(markdown: &str) -> Result<()> {
     if markdown.trim().is_empty() {
         return Err(ProviderError::InvalidResponse(
@@ -966,6 +984,7 @@ mod tests {
             style: GenerationStyle {
                 id: "style-formal".into(),
                 revision: "1".into(),
+                density: crate::domain::ProtocolDensity::Comprehensive,
                 instructions: vec!["Write a calm, factual professional protocol.".into()],
                 required_sections: vec!["Zusammenfassung".into()],
             },

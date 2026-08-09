@@ -200,18 +200,21 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         name: 'Formal minutes',
         description: 'Structured record of discussion, decisions, and actions.',
         language: 'Meeting language',
+        density: 'comprehensive',
       },
       {
         id: 'style-working-note',
         name: 'Internal working note',
         description: 'Concise working record for an internal project team.',
         language: 'Meeting language',
+        density: 'selective',
       },
       {
         id: 'style-decision-log',
         name: 'Technical decision log',
         description: 'Emphasises alternatives, constraints, and explicit decisions.',
         language: 'Meeting language',
+        density: 'minimal',
       },
     ],
     vocabulary: [
