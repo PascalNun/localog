@@ -395,6 +395,70 @@ impl OllamaProvider {
         self.generate_from_sections(request, &sections, cancelled, progress)
     }
 
+    /// Divide the meeting into the subjects it discussed.
+    ///
+    /// Reads the transcript in overlapping windows and asks only which subjects each
+    /// passage covers, never for prose. The answer is small — a few dozen lines for
+    /// an eighty-minute meeting — so this stays cheap however long the recording is,
+    /// and everything written afterwards can be written from a handful of segments
+    /// rather than from the whole meeting.
+    ///
+    /// Segments no subject claimed are returned alongside, because a subject this
+    /// pass fails to name would otherwise disappear from the protocol with nothing
+    /// to show a reader that it ever existed.
+    pub fn find_topics(
+        &self,
+        request: &GenerationRequest,
+        cancelled: &AtomicBool,
+        progress: &mut dyn FnMut(u64, &'static str) -> Result<()>,
+    ) -> Result<(Vec<crate::topics::Topic>, Vec<usize>)> {
+        let sizes: Vec<usize> = request
+            .transcript
+            .iter()
+            .map(|segment| segment.text.len() + 8)
+            .collect();
+        let windows = crate::topics::plan_windows(&sizes, TOPIC_WINDOW_CHARS, TOPIC_WINDOW_OVERLAP);
+        let mut found = Vec::new();
+        for (index, window) in windows.iter().enumerate() {
+            if cancelled.load(Ordering::Acquire) {
+                return Err(ProviderError::Cancelled);
+            }
+            let share = 8 + (index as u64 * 24) / windows.len().max(1) as u64;
+            progress(share, "reading_transcript")?;
+            let prompt = number_window(&request.transcript, window);
+            let generated = self.complete(
+                request,
+                Completion {
+                    system: TOPIC_SYSTEM,
+                    prompt: &prompt,
+                    format: topics_schema(),
+                    // Titles and numbers, never prose — but a window of eighty
+                    // segments spread over four subjects is three hundred numbers,
+                    // and a ceiling sized for the titles alone truncates the JSON.
+                    num_predict: 3_072,
+                },
+                cancelled,
+                &mut |_| Ok(()),
+            )?;
+            let structured: StructuredTopics =
+                serde_json::from_str(&generated).map_err(|error| {
+                    ProviderError::InvalidResponse(truncate(&error.to_string(), 280))
+                })?;
+            found.extend(structured.topics.into_iter().filter_map(|topic| {
+                let segments = crate::topics::resolve(window, &topic.segments);
+                (!segments.is_empty() && !topic.title.trim().is_empty()).then_some(
+                    crate::topics::Topic {
+                        title: topic.title.trim().to_string(),
+                        segments,
+                    },
+                )
+            }));
+        }
+        let topics = crate::topics::merge(found);
+        let unclaimed = crate::topics::unclaimed(request.transcript.len(), &topics);
+        Ok((topics, unclaimed))
+    }
+
     /// Short meetings fit the window, so the protocol is written directly.
     fn generate_in_one_pass(
         &self,
@@ -891,6 +955,66 @@ fn with_density(request: &GenerationRequest) -> Vec<String> {
     let mut instructions = request.style.instructions.clone();
     instructions.push(request.style.density.directive().to_string());
     instructions
+}
+
+/// Characters of transcript to show the topic pass at once.
+///
+/// Small on purpose. The point of finding subjects first is that nothing after it
+/// needs a large context, and the pass itself should not reintroduce the problem
+/// it exists to remove — this fits inside the window an eight-gigabyte machine can
+/// afford without argument.
+const TOPIC_WINDOW_CHARS: usize = 6_000;
+
+/// Segments each window re-reads from the one before, so a subject that straddles
+/// a boundary is seen whole by at least one of them.
+const TOPIC_WINDOW_OVERLAP: usize = 6;
+
+/// Asking only for "the subjects" produced one per exchange: fifty titles of two
+/// segments each over an eighty-minute meeting, where the protocol a person wrote
+/// has thirty sections in total. A small model reads "subject" as "thing just
+/// said" unless told the size wanted, so the size is stated, in the terms the
+/// answer is for — a section of a document, not a turn in a conversation.
+const TOPIC_SYSTEM: &str = "Divide this passage of a meeting transcript into the few substantial subjects it covers. Each segment is numbered.\n\nGive between one and four subjects for the whole passage. A subject is something a written protocol would give its own section to, gathering many minutes of talk under one heading — not every question, remark or exchange. If the passage is one long discussion of a single thing, return one subject covering it.\n\nFor each subject give a short title in the meeting's language and the numbers of every segment belonging to it. Most segments belong to a subject; a segment of pleasantries or crosstalk may belong to none. Do not summarise, do not write a protocol, and do not name a subject the passage does not discuss. Return only schema-valid JSON.";
+
+#[derive(Debug, Deserialize)]
+struct StructuredTopics {
+    topics: Vec<StructuredTopic>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StructuredTopic {
+    title: String,
+    segments: Vec<i64>,
+}
+
+fn topics_schema() -> serde_json::Value {
+    serde_json::json!({
+        "type": "object",
+        "properties": {
+            "topics": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "title": { "type": "string" },
+                        "segments": { "type": "array", "items": { "type": "integer" } }
+                    },
+                    "required": ["title", "segments"]
+                }
+            }
+        },
+        "required": ["topics"]
+    })
+}
+
+/// The passage a window covers, numbered from one for the model to refer to.
+fn number_window(transcript: &[GenerationSegment], window: &std::ops::Range<usize>) -> String {
+    transcript[window.clone()]
+        .iter()
+        .enumerate()
+        .map(|(offset, segment)| format!("{}. {}", offset + 1, segment.text.trim()))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn validate_markdown(markdown: &str) -> Result<()> {
