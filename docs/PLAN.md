@@ -149,12 +149,17 @@ hardest possible shape for the only class of model the 8 GB baseline can run.
 
 1. `Planned` Define the meeting record and produce it from the extract pass.
 2. `Planned` Compose from the record, and compare quality against today's output before keeping it.
-3. `Planned` Mechanical checks: actions without owners, statements citing no segment.
+3. `Planned` Mechanical checks, driven from a scan of the transcript rather than from the model's
+   own account of itself: quantities found by pattern must each be accounted for, statements must
+   cite a segment, actions must name an owner or be marked unassigned. Failures are re-asked, not
+   re-run whole.
 4. `Planned` Persist the record; link protocol lines to transcript segments.
 5. `Planned` Retry one failed pass instead of failing the run.
 
-**Ends when:** more of the reference protocol's decisions and actions survive, with no more invented
-material, in under ten minutes.
+**Ends when:** every quantity the transcript contains is accounted for in the protocol or explicitly
+dismissed — ten of ten on the reference meeting, against one of ten today — with nothing stated that
+no segment supports, in under ten minutes. Length is deliberately not the measure: it has been the
+wrong one twice.
 
 ### Block 1c — Configure itself instead of asking
 
