@@ -1547,9 +1547,16 @@ fn record_quantity_coverage(
         .iter()
         .filter(|fact| crate::facts::is_accounted_for(fact, markdown))
         .count();
+    // How much a protocol keeps depends on the style: a formal record keeps
+    // nearly everything and a set of brief notes deliberately keeps little, so
+    // coverage is a target a style sets rather than a virtue in itself. Stating a
+    // figure the meeting never stated is wrong under every style, which is why
+    // both are recorded and only one of them is ever a defect on its own.
+    let invented = crate::facts::invented(&transcript.segments, markdown);
     let coverage = serde_json::json!({
         "quantitiesStated": stated.len(),
         "quantitiesAccounted": accounted,
+        "quantitiesInvented": invented,
     });
     // Provenance, not a gate: failing to record it must never fail the protocol.
     let _ = repository.connection.execute(

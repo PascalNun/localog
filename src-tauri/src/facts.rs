@@ -110,6 +110,36 @@ fn occurrences<'a>(
     })
 }
 
+/// Quantities the protocol states that the meeting did not.
+///
+/// This is the check that holds whatever style is in use, and it is the one that
+/// matters most. How much a protocol keeps is a matter of what was asked for: a
+/// formal record keeps nearly everything, and a set of brief notes deliberately
+/// keeps very little, so coverage is a target a style sets rather than a virtue
+/// in itself. Inventing a figure is a defect under every style there could be.
+///
+/// A number is treated as invented when the protocol states it as a quantity and
+/// no segment of the transcript states the same number. Numbering the sections of
+/// a document is not stating a quantity, so only numbers carrying a unit are
+/// considered on either side.
+pub(crate) fn invented(segments: &[TranscriptSegment], protocol: &str) -> Vec<String> {
+    let stated: Vec<String> = segments
+        .iter()
+        .flat_map(|segment| quantities_in(&segment.text))
+        .filter_map(|(_, text)| leading_number(&text).map(str::to_string))
+        .collect();
+    let mut found = Vec::new();
+    for (_, text) in quantities_in(protocol) {
+        let Some(number) = leading_number(&text) else {
+            continue;
+        };
+        if !stated.iter().any(|said| said == number) && !found.contains(&text) {
+            found.push(text);
+        }
+    }
+    found
+}
+
 /// The quantities in one piece of text, as (offset, text) pairs.
 fn quantities_in(text: &str) -> Vec<(usize, String)> {
     let bytes = text.as_bytes();
@@ -136,8 +166,7 @@ fn quantities_in(text: &str) -> Vec<(usize, String)> {
             index -= 1;
         }
         let after = skip_spaces(text, index);
-        if let Some(unit) = unit_at(text, after) {
-            let end = after + unit.len();
+        if let Some(end) = unit_at(text, after) {
             found.push((start, text[start..end].to_string()));
             index = end;
         }
@@ -154,21 +183,38 @@ fn skip_spaces(text: &str, from: usize) -> usize {
     index
 }
 
-/// The unit beginning at `from`, if there is one. A unit written in letters must
-/// end there too, so that "Meterware" is not read as a length.
-fn unit_at(text: &str, from: usize) -> Option<&'static str> {
+/// German declines its units. A meeting says "178 Quadratmetern" in the dative
+/// and "zehn Metern" likewise, and requiring the unit to end exactly where the
+/// dictionary form ends misses both — which is not a small loss, because those
+/// are precisely the figures a protocol is judged on.
+///
+/// Only genuine inflections are allowed, so "Meterware" is still not a length.
+const INFLECTIONS: &[&str] = &["", "n", "s", "e", "en", "er", "ern", "es"];
+
+/// The end of the unit beginning at `from`, if there is one.
+fn unit_at(text: &str, from: usize) -> Option<usize> {
     if from >= text.len() || !text.is_char_boundary(from) {
         return None;
     }
     let rest = &text[from..];
-    UNITS.iter().copied().find(|unit| {
-        rest.starts_with(unit)
-            && (!unit.chars().next().is_some_and(char::is_alphabetic)
-                || !rest[unit.len()..]
-                    .chars()
-                    .next()
-                    .is_some_and(char::is_alphanumeric))
-    })
+    let unit = UNITS.iter().copied().find(|unit| rest.starts_with(unit))?;
+    let written_in_letters = unit.chars().next().is_some_and(char::is_alphabetic);
+    if !written_in_letters {
+        return Some(from + unit.len());
+    }
+    let tail = &rest[unit.len()..];
+    INFLECTIONS
+        .iter()
+        .filter(|ending| tail.starts_with(*ending))
+        // Longest first, so "ern" is preferred over "e".
+        .max_by_key(|ending| ending.len())
+        .filter(|ending| {
+            !tail[ending.len()..]
+                .chars()
+                .next()
+                .is_some_and(char::is_alphanumeric)
+        })
+        .map(|ending| from + unit.len() + ending.len())
 }
 
 fn leading_number(text: &str) -> Option<&str> {
@@ -204,6 +250,13 @@ mod tests {
         let found = quantities(&segments);
         let texts: Vec<&str> = found.iter().map(|fact| fact.text.as_str()).collect();
         assert_eq!(texts, ["120 m²", "30%", "1.250,50 Euro", "3,5 Meter"]);
+        // German declines its units, and the dative is what a meeting speaks in.
+        let declined = [segment("d", "Von 178 Quadratmetern auf 12 Metern Breite.")];
+        let texts: Vec<String> = quantities(&declined)
+            .into_iter()
+            .map(|fact| fact.text)
+            .collect();
+        assert_eq!(texts, ["178 Quadratmetern", "12 Metern"]);
         assert_eq!(found[0].segment_id, "a");
         assert_eq!(found[3].segment_id, "c");
     }
@@ -215,11 +268,34 @@ mod tests {
     fn does_not_invent_quantities() {
         let segments = [
             segment("a", "Wir haben 5 Meterware bestellt."),
+            segment("e", "Die 7 Meterlatte liegt dort."),
             segment("b", "Siehe Punkt 3 und Haus 4."),
             segment("c", "Die Norm DIN18040 gilt hier."),
             segment("d", "Um 30 ging es nicht."),
         ];
         assert!(quantities(&segments).is_empty());
+    }
+
+    #[test]
+    fn a_figure_the_meeting_never_stated_is_reported_as_invented() {
+        let segments = [
+            segment("a", "Die Fläche beträgt 120 m² pro Geschoss."),
+            segment("b", "Der Anteil liegt bei 30 Prozent."),
+        ];
+        // Numbering a section is not stating a quantity, and a figure that was
+        // said may be rewritten freely.
+        assert!(
+            invented(
+                &segments,
+                "## 1. Flächen\n\nRund 120 Quadratmeter, davon 30 %."
+            )
+            .is_empty()
+        );
+        // A quantity nobody said is a defect under any style.
+        assert_eq!(
+            invented(&segments, "Die Fläche beträgt 450 m² insgesamt."),
+            vec!["450 m²".to_string()]
+        );
     }
 
     /// Runs the scan over a real transcript and reports the coverage of a real
@@ -254,6 +330,11 @@ mod tests {
             println!(
                 "\ncoverage: {kept} of {} quantities appear in the protocol",
                 found.len()
+            );
+            let made_up = invented(&segments, &protocol);
+            println!(
+                "invented: {} not stated by the meeting {made_up:?}",
+                made_up.len()
             );
         }
     }
