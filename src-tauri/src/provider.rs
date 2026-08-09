@@ -440,6 +440,13 @@ impl OllamaProvider {
         Ok((topics, unclaimed))
     }
 
+    /// Showing a later reading the subjects already named was tried, on the
+    /// reasoning that it sees a fragmented passage and can only name things afresh.
+    /// It did not work: on the real meeting the subjects went from 48 to 47 while
+    /// the segments belonging to none went from 33 to 62, for eighty seconds more.
+    /// Telling the model what to reuse appears to make it claim less rather than
+    /// name more consistently. Not repeated.
+    ///
     /// One reading of a selection of segments, appending whatever subjects it named.
     /// Returns how many segments were claimed, so a round that achieves nothing can
     /// stop the loop rather than repeat itself.

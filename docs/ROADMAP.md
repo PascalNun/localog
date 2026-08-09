@@ -142,6 +142,47 @@ integration, an API surface for others to call, or both is undecided.
 - More precise source citations and confidence/review tooling
 - Optional organisation policies for managed deployments
 
+## Later — borrowing a firm's own machine
+
+Everything runs on the device the meeting was imported to. A firm that already owns a capable server
+could lend it to the work instead: the same application, the same files, but transcription and
+protocol generation carried out on a machine down the corridor rather than on a laptop.
+
+**The architecture barely resists it.** The application already talks to its protocol provider over
+HTTP on loopback, and to its runtimes as supervised processes. Pointing the provider at another host
+is a small change to a setting. That is exactly why the question is not a technical one.
+
+**What changes is the sentence the product is built on.** Today it is "meeting content never leaves
+this device". On a firm's server it becomes "never leaves this organisation's network", which is a
+different promise and a weaker one — true and defensible for a firm that owns its infrastructure,
+and not the same thing at all. It cannot be quietly widened. Anyone whose recording is about to
+travel must be told where it is going, in those words, before it goes.
+
+**The case for it is real even so.** A meeting takes six minutes to transcribe and six to write up on
+an M1; a server with room for a larger model could do better on both, and could hold a model too
+large for any laptop. A firm that has already bought the machine is not asked to buy anything.
+
+**The case against doing it soon is stronger.** The current work is making the thing fast and small
+enough that ordinary hardware suffices, and every improvement there reduces the reason to reach for a
+server. A capability that removes pressure to be efficient is worth deferring precisely while
+efficiency is still improving.
+
+What would have to be settled first:
+
+- **Consent, per meeting, in plain words.** Not a setting configured once and forgotten. The people
+  recorded consented to a recording, and where it is processed is part of what they consented to.
+- **Proof of what the server is.** A hostname in a settings field is not evidence that a machine
+  belongs to the firm rather than to a hosting provider. Without that, "local" becomes a word the
+  product uses and the user cannot check.
+- **What happens when it is unreachable.** Falling back to the laptop silently would be wrong in both
+  directions: it hides where the work went, and it may be slower than the user was told.
+- **Whether anything is left behind.** A server that keeps a copy of a transcript has turned a
+  local-first product into a filing system nobody agreed to.
+
+Related to [fitting into an organisation's own systems](#later--fitting-into-an-organisations-own-systems),
+and to be decided alongside it rather than separately: both are about a firm's infrastructure, and
+both trade a promise that is currently simple for one that needs explaining.
+
 ## Later — adapting a model, rather than training one
 
 Whether LocaLog should have its own model comes up naturally, and the honest answer today is no —
