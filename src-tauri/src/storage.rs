@@ -1885,11 +1885,30 @@ fn import_job_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ImportJobRec
     })
 }
 
+/// What a person is told the application is doing.
+///
+/// These are read by someone waiting, not by someone reading the code, so they
+/// are written in the words that person would use. A revision, a snapshot and a
+/// committed source are real things in here and mean nothing out there; a line
+/// that says "validating the transcript revision" has described the machine to
+/// somebody who wanted to know about their meeting.
+///
+/// Reassurance is not repeated, and not only because it crowds out the one thing
+/// the reader did not already know. Saying a thing that is always true invites the
+/// reader to wonder when it might not be: a line that says work is happening
+/// locally implies that somewhere there is a run that would not, and the promise
+/// starts manufacturing the doubt it was meant to answer. That the work is local
+/// and that an imported file leaves the original alone belong in the interface
+/// once, stated plainly, where they can be trusted rather than repeated.
+///
+/// Failure is the exception. When something has gone wrong, that the original is
+/// untouched stops being a boast and becomes the answer to the question being
+/// asked.
 fn job_stage_label(kind: &str, stage: &str, state: JobState) -> String {
     if stage == "completed" {
         return match kind {
-            "transcription" => "Transcript revision committed".to_string(),
-            "generation" => "Protocol revision committed".to_string(),
+            "transcription" => "Transcript saved".to_string(),
+            "generation" => "Protocol saved".to_string(),
             _ => "Import complete — original unchanged".to_string(),
         };
     }
@@ -1930,36 +1949,36 @@ fn job_stage_label(kind: &str, stage: &str, state: JobState) -> String {
             Some(detail) => format!("Joining subjects that belong together — {detail} found"),
             None => "Joining subjects that belong together".to_string(),
         },
-        ("ready_to_import", _) => "Ready to copy into local storage".to_string(),
-        ("copying", JobState::Cancelling) => "Cancelling the local copy safely".to_string(),
-        ("copying", _) => "Copying into local managed storage".to_string(),
-        ("validating", _) => "Validating the local copy".to_string(),
-        ("temporary_complete", _) => "Preparing the committed source".to_string(),
-        ("finalizing", _) => "Committing the source safely".to_string(),
-        ("duplicate_confirmation", _) => "Possible duplicate found".to_string(),
-        ("completed", _) => "Import complete — original unchanged".to_string(),
+        ("ready_to_import", _) => "Ready to bring the recording in".to_string(),
+        ("copying", JobState::Cancelling) => "Stopping safely".to_string(),
+        ("copying", _) => "Bringing the recording in".to_string(),
+        ("validating", _) => "Checking the copy is complete".to_string(),
+        ("temporary_complete", _) => "Nearly there".to_string(),
+        ("finalizing", _) => "Putting the recording away safely".to_string(),
+        ("duplicate_confirmation", _) => "This recording may already be here".to_string(),
+        ("completed", _) => "Recording is in".to_string(),
         ("cancelled", _) => "Import cancelled — original unchanged".to_string(),
         ("interrupted", _) => "Import was interrupted — original unchanged".to_string(),
         ("failed", _) => "Import could not finish — original unchanged".to_string(),
-        ("transcription_queued", _) => "Transcription ready to start".to_string(),
-        ("checking_source", _) => "Checking the committed source".to_string(),
-        ("preparing_fake_transcriber", _) => "Preparing the deterministic transcriber".to_string(),
+        ("transcription_queued", _) => "Ready to transcribe".to_string(),
+        ("checking_source", _) => "Checking the recording".to_string(),
+        ("preparing_fake_transcriber", _) => "Getting ready".to_string(),
         ("transcribing_synthetic_segments", _) => "Creating transcript segments".to_string(),
-        ("validating_transcript", _) => "Validating the transcript revision".to_string(),
-        ("generation_queued", _) => "Protocol generation ready to start".to_string(),
-        ("checking_transcript", _) => "Checking the committed transcript".to_string(),
-        ("resolving_protocol_inputs", _) => "Resolving style and vocabulary snapshots".to_string(),
+        ("validating_transcript", _) => "Saving the transcript".to_string(),
+        ("generation_queued", _) => "Ready to write the protocol".to_string(),
+        ("checking_transcript", _) => "Checking the transcript".to_string(),
+        ("resolving_protocol_inputs", _) => "Gathering the style and the vocabulary".to_string(),
         ("generating_protocol", _) => "Writing the protocol draft".to_string(),
-        ("validating_protocol", _) => "Validating the protocol revision".to_string(),
-        ("output_staged", _) => "Committing the new revision safely".to_string(),
+        ("validating_protocol", _) => "Saving the protocol".to_string(),
+        ("output_staged", _) => "Saving safely".to_string(),
         // Real transcription stages; without these every step read "Preparing local import".
-        ("probing_media", _) => "Inspecting the recording".to_string(),
-        ("normalizing_audio", _) => "Preparing working audio".to_string(),
-        ("loading_transcription_model", _) => "Loading the local model".to_string(),
-        ("transcribing_audio", _) => "Transcribing the recording".to_string(),
+        ("probing_media", _) => "Looking at the recording".to_string(),
+        ("normalizing_audio", _) => "Preparing the audio".to_string(),
+        ("loading_transcription_model", _) => "Loading the model".to_string(),
+        ("transcribing_audio", _) => "Transcribing".to_string(),
         // A meeting longer than the model's window is condensed section by section first.
-        ("condensing_transcript", _) => "Reading the meeting in sections".to_string(),
-        ("separating_speakers", _) => "Separating speakers".to_string(),
+        ("condensing_transcript", _) => "Reading the meeting through".to_string(),
+        ("separating_speakers", _) => "Telling the speakers apart".to_string(),
         _ => "Working".to_string(),
     }
 }
@@ -2404,7 +2423,7 @@ mod tests {
         // Stages that carry no detail are untouched.
         assert_eq!(
             job_stage_label("transcription", "transcribing_audio", running),
-            "Transcribing the recording"
+            "Transcribing"
         );
     }
 
