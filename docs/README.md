@@ -1,50 +1,52 @@
-# LocaLog documentation
+# Reading the LocaLog documentation
 
-LocaLog is being designed around one clear outcome: helping people turn meeting recordings into useful, reviewed protocols with local AI. Transcription provides the source; the editable written record is the destination. The interface, local processing, data safety, and professional workflow are equally important parts of reaching it.
+The documentation is organised around a simple question: what does a reader need to understand before the next question becomes useful?
 
-These documents move from intention to implementation so that the project can be understood without beginning in source code.
+## If you are new to LocaLog
 
-You do not need to be a software developer to read them. Technical terms are used where precision matters, but each document begins with the purpose behind the machinery.
+Read these in order:
 
-## A useful reading order
+1. [Product](PRODUCT.md) — the problem, the promise, and the first workflow.
+2. [UX](UX.md) — how that promise should feel in use.
+3. [Visual direction](VISUAL_DIRECTION.md) — the visual language behind the interface.
+4. [MVP](MVP.md) — what the first useful version includes and excludes.
+5. [Architecture](ARCHITECTURE.md) — how the product keeps work local, responsive, and recoverable.
+6. [Decisions](DECISIONS.md) — choices that are already accepted and questions that still need an answer.
+7. [Current plan](PLAN.md) — what is implemented, what is only partly working, and what comes next.
 
-1. **[Product definition](PRODUCT.md)** explains the problem LocaLog addresses, who it is for, and what it deliberately does not try to become.
-2. **[Experience and interaction](UX.md)** describes the application from the user’s point of view: projects, meetings, review, editing, progress, failure, and recovery.
-3. **[Visual direction](VISUAL_DIRECTION.md)** defines the restrained, editorial character of the interface and the design rules behind it.
-4. **[v0.1 scope](MVP.md)** turns the product idea into a bounded first release and an ordered implementation plan.
-5. **[Technical architecture](ARCHITECTURE.md)** explains how the interface, application core, files, database, background work, and local AI tools fit together.
-6. **[Decisions](DECISIONS.md)** records accepted choices, evidence, remaining risks, and questions that still require an answer.
-7. **[Working plan](PLAN.md)** tracks what is actually built today and what happens next. It is the living document; the others describe the goals being worked toward.
-8. **[Polishing plan](POLISH.md)** describes what stands between a working pipeline and something a professional would use every week.
-9. **[Model evaluation](MODEL_EVALUATION.md)** records which models have actually been run against real meeting audio, what came out, and what failed.
-10. **[Transcription and speaker experience](TRANSCRIPTION_EXPERIENCE.md)** specifies the seamless model choice and automatic speaker separation (bundled runtime, on-demand models, diarisation).
-11. **[Roadmap](ROADMAP.md)** keeps later possibilities visible without treating them as decided.
+The README is the short public introduction. It should be understandable without a software background.
 
-## A few recurring terms
+## If you are working on the project
 
-- **Local-first** — LocaLog’s normal meeting workflow is designed to run on the user’s computer. It does not require a LocaLog account or cloud service, and it does not silently upload meeting content.
-- **Protocol** — The structured written record or minutes of a meeting. In this project, “protocol” is a document—not a networking term.
-- **Runtime** — A local program that performs specialised work, such as FFmpeg for media processing or an inference engine for transcription and language generation.
-- **Adapter** — A small translation layer between LocaLog and a particular operating system or runtime. Adapters keep product rules independent from macOS, Windows, Linux, FFmpeg, Ollama, or one specific model.
-- **Artifact** — A file produced or preserved by the application, such as an imported recording, a committed transcript revision, or a protocol revision.
-- **Canonical** — The one authoritative version of content. LocaLog avoids keeping two independently editable “master” copies of the same transcript or protocol.
-- **Provenance** — The information needed to understand how a result was produced: application and runtime versions, model identity, settings, style and vocabulary revisions, and input checksums where available. Provenance supports repeatable inputs; it does not guarantee identical model output.
-- **Lifecycle and job state** — A meeting’s durable stage—such as transcript ready—is different from temporary background activity—such as a transcription job currently running or failing. Keeping them separate prevents an interrupted process from corrupting the meeting’s stable state.
-- **Spike** — A deliberately isolated technical study used to answer a risky question with evidence. Spike code does not become production architecture automatically.
+Use the documents for different kinds of truth:
 
-## Platform direction
+- `PRODUCT.md`, `UX.md`, `VISUAL_DIRECTION.md`, and `MVP.md` describe the product we are trying to build.
+- `DECISIONS.md` records choices that change the direction or constrain future work.
+- `PLAN.md` is the current implementation status. It is the document that must be corrected when the code moves ahead or falls behind.
+- `ARCHITECTURE.md` explains the technical shape in plain language and marks proposals as proposals.
+- `ROADMAP.md` keeps later ideas visible without turning them into current requirements.
+- `MODEL_EVALUATION.md`, `MODEL_RESEARCH.md`, `PROTOCOL_GENERATION.md`, and `TRANSCRIPTION_EXPERIENCE.md` contain evidence and investigations. They inform decisions but do not replace them.
+- The documents under `spikes/` explain isolated experiments. Spike code is not automatically production code.
 
-macOS is the first development, performance, and packaging environment because that is where the project is currently being built. LocaLog is intended as a cross-platform desktop application for macOS, Windows, and Linux.
+## Language and status
 
-Shared product and application logic must remain platform-independent. Differences in process handling, data locations, permissions, recording, acceleration, signing, and packaging are kept behind operating-system-specific adapters.
+The documents use these status words consistently:
 
-## Status language
+- **Accepted** — a product or architecture decision has been made.
+- **Proposed** — a direction is being explored but should not be treated as settled.
+- **Open** — a decision is still needed.
+- **Deferred** — the question is deliberately postponed.
+- **Done** — built and verified at the level stated.
+- **Partial** — usable or present, but with a named gap.
+- **Unverified** — code exists, but the relevant real-world or end-to-end proof is still missing.
+- **Planned** — agreed work that has not been implemented.
 
-The decision documents use four labels:
+These words are deliberately different. A working parser is not the same as a validated product feature, and a good idea is not the same as an accepted decision.
 
-- **Accepted** — the current direction, supported by a product decision or completed evidence.
-- **Proposed** — a serious working hypothesis that still needs validation.
-- **Approval required** — a choice that changes product behaviour, data safety, distribution, or long-term architecture.
-- **Deferred** — intentionally not being decided or implemented in the current phase.
+## A note about history
 
-The repository is public while the application is still early. “Documented” does not mean “implemented,” and “validated in a spike” does not mean “ready for distribution.” The [README](../README.md) gives the current implementation status.
+Decisions and measurements are useful because they explain why the project took its current shape. History should support the current product, not obscure it. When an old experiment is no longer the current path, say so plainly and keep the detail in the evidence document rather than presenting it as the next task.
+
+## Privacy
+
+Real meeting recordings, transcripts, protocols, names, client information, and local paths do not belong in the public repository. The `eval/` directory is intentionally local-only. Use the synthetic fixtures for tests and examples.

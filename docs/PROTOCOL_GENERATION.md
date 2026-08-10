@@ -1,312 +1,75 @@
-# Generating a protocol by parts
+# Making protocol generation trustworthy
 
-A design proposal. Nothing here is built yet; `PLAN.md` carries the execution state.
+This document explains the current generation problem and the direction being tested. It is an engineering investigation, not a promise that every part is already in the production path.
 
-## The problem with asking once
+## The problem
 
-Generation today asks the model to do everything in one move: read the transcript, judge what mattered,
-attribute it to the right people, and write a professional document — all while emitting valid JSON.
-For a long meeting the transcript is split into sections first, but that split is by **size**, not by
-task. Inside each section the model is still doing every job at once, and the intermediate result is a
-blob of prose:
+A meeting protocol asks a model to do several difficult things at once:
 
-```rust
-struct StructuredNotes {
-    notes_markdown: String,
-}
-```
+1. understand a long transcript;
+2. decide what mattered;
+3. attribute statements and actions;
+4. write a coherent professional document;
+5. avoid inventing anything;
+6. fit inside the model’s context and output limits.
 
-Three consequences follow from that one field.
+The current small-model path can produce a plausible document, but plausibility is not enough. A protocol can read well while quietly omitting a decision, losing a number, or attributing an action to the wrong person.
 
-**Nothing downstream can be checked.** Whether an action item survived from the transcript into the
-notes is not a question the code can ask. It can only count characters.
+## What the experiments taught us
 
-**Failure is total.** A completed draft was once discarded because one required heading was missing.
-The work that produced the other headings was thrown away with it, because there was no
-representation of "what we found" separate from "what we wrote".
+The long German reference meeting contained roughly 73,000 transcript characters and nineteen quantities that could be found without a language model. One early protocol accounted for only one of those quantities.
 
-**Small models are asked to do the hardest possible thing.** Judging, attributing and composing at
-once is precisely where a 4B model is weakest — and the 8 GB baseline cannot run anything larger.
+Writing one section per topic improved figure coverage but produced a document almost as long as the transcript. The model was no longer forced to decide what to leave out; it simply rewrote the meeting.
 
-## The change: separate reading from writing
+The useful lesson is not “ask for shorter prose” more emphatically. Compression is a judgement, and an instruction cannot reliably replace a constraint enforced by the context window.
 
-Keep the same number of model calls. Change what passes between them from prose to a **record**:
+## The direction being tested
 
-```
+Separate reading from writing without throwing away the source.
+
+The useful intermediate is a record whose entries point back to transcript segments:
+
+```text
 MeetingRecord
-  topics         [ title, segments ]
-  decisions      [ statement, segments, certainty ]
-  actions        [ what, owner, due, segments ]
-  open_questions [ question, segments ]
-  figures        [ statement, segments ]   // numbers, areas, dates, quantities
+  topics         title + source segments
+  decisions      statement + source segments + certainty
+  actions        task + owner + due date + source segments
+  open questions question + source segments
+  figures        quantity + source segments
 ```
 
-Every item names the transcript segments it came from. That single requirement does a surprising
-amount of work: it is the traceability the plan already wants, and it is also an invention check,
-because an item citing no segment is by definition something the model made up.
+The exact shape is still being tested. The important property is that a later step can ask what an item came from, what was not claimed, and what needs another attempt.
 
-### The passes
+## Proposed passes
 
-1. **Extract** — per section, produce a `MeetingRecord` fragment. Narrow output, no prose, no
-   judgement about importance. This replaces the current section pass rather than adding to it.
-2. **Consolidate** — merge fragments into one record. Exact and near-duplicate actions can be merged
-   in plain Rust; only genuine conflicts need the model, which is cheaper and more predictable than
-   asking it to fold prose.
-3. **Compose** — write the protocol from the consolidated record and the style. This stays a single
-   pass, deliberately: prose written in fragments reads like prose written in fragments, and the
-   human reference protocol is continuous text, not a list.
-4. **Check** — verify mechanically. Required sections present; every action either has an owner or is
-   explicitly marked unassigned; every statement cites a segment.
+1. **Read.** Scan manageable transcript sections and extract structured findings, not polished prose.
+2. **Consolidate.** Merge repeated topics and actions in plain code. Ask the model only about genuine ambiguities.
+3. **Compose.** Write one coherent protocol from the evidence and the selected professional style.
+4. **Check.** Compare the protocol with what the transcript actually contains.
+5. **Retry narrowly.** Re-ask one failed pass or section instead of throwing away a complete run.
 
-## Topics first, then write each one from the source
+This is not a universal workflow engine. The number of passes, their limits, and their stopping rules remain explicit application code.
 
-The design above compresses the transcript into a record and then writes the protocol from that
-record. There is a better shape, and it differs in one decisive respect: **the writing goes back to
-the transcript rather than to a summary of it.**
+## What can be checked without a model
 
-1. **Find the topics.** Read the transcript in windows and produce only a list: what was discussed,
-   and which segments discussed it. The output is small even for a long meeting — a few dozen lines
-   for eighty-one minutes — so the windows can be modest and the list merged in one further pass.
-2. **Write each topic from its own segments.** For each topic, gather the segments it cites and write
-   that section from them, with the style and its density. Nothing else is in context.
-3. **Assemble in plain Rust.** Order the sections, add the participants, and leave the prose alone.
+Some checks are mechanical and should stay mechanical:
 
-### Why this is better than a record
+- quantities and dates found by pattern;
+- statements that cite no transcript segment;
+- actions without an owner or an explicit unassigned marker;
+- missing or duplicated required sections;
+- output that is empty, truncated, or larger than a sensible bound.
 
-**It never compresses before writing.** An extraction pass decides what matters before anything is
-written, and whatever it dropped cannot be recovered downstream. Here the writing sees what was
-actually said.
+These checks do not decide whether a protocol is good. They expose omissions and unsupported claims before a person relies on the draft.
 
-**It inverts the context problem instead of moving it.** Today one prompt carries the whole
-transcript — about 24,600 tokens — which is why the window is set to 40,960 and why generation costs
-4.70 GB resident. In this shape no call needs more than a few thousand tokens. On the eight-gigabyte
-baseline that is the difference between the machine being the constraint and not being one, and the
-memory it frees can be spent on a better model rather than on key-value cache.
+## What remains human work
 
-**It changes what a model must be good at.** A long context stops being a requirement. That reopens
-small models, and moves the question from "what fits an entire meeting" to "what writes German
-well" — which is the axis that actually decides quality and the one still unresearched.
+A model must not approve its own protocol. A final “looks good” verdict from the same model would create false confidence rather than trust.
 
-**Traceability and absence come out of it rather than being added.** Each section already knows its
-segments, so a line can be traced to what was said. And segments belonging to no topic at all are
-precisely the answer to "what did not make it in", which a reader needs before deciding a draft is
-finished.
+The person reviewing the document remains responsible for deciding whether the writing is accurate, useful, and appropriate. The application’s job is to make that review easier and more informed.
 
-**Failure stops being total.** One topic that fails is one topic to write again.
+## Current status
 
-### Iterating, without putting the model in charge
+Sectioned generation, fact scanning, subject discovery, subject grouping, and unclaimed-segment reporting have been explored. The production provider still uses the simpler validated generation path while the structured approach is measured and connected carefully.
 
-The three steps above read as a fixed pipeline, and that is not quite the intention. The work should
-be split the way a person splits work: look at the material, break off a piece, do it, see where that
-leaves things, and break off the next piece. The shape of the job comes from the job.
-
-There is a line to hold, though, and it is worth stating because it is easy to cross by analogy. A
-coding agent that decomposes its own work is a large model reasoning about its own task with room to
-think. The model here has four billion parameters and must also fit an eight-gigabyte machine
-alongside everything else. Deciding how to divide a problem is harder than writing one section of it,
-so handing the division to the model asks the weakest thing of the weakest component. It also makes
-two runs over the same meeting produce differently-shaped documents, which is poor behaviour for
-something a person will compare against last month's.
-
-So the division adapts to the meeting while the procedure stays fixed:
-
-| Decision                   | Made by                                     |
-| -------------------------- | ------------------------------------------- |
-| What the units are         | the meeting, through the topics pass        |
-| How large a unit may be    | plain code — split further past a threshold |
-| Whether a unit is finished | a check against that unit's own segments    |
-| When to stop trying        | plain code — a fixed number of rounds       |
-
-The iteration lives inside a unit rather than above it. Write the section, check whether the figures
-its segments state appear in it, and if they do not, write it again with the omission named. Two or
-three rounds, then record what is still missing instead of continuing. A person reviewing the draft
-is better placed to judge a stubborn omission than another attempt by the same model.
-
-This is what separates it from an agent loop: nothing decides what to do next. The units come from
-the material, the bounds come from the code, and the model is only ever asked to write one thing at a
-time and told plainly when it left something out.
-
-### The last step before a person
-
-Something has to happen once the sections exist, and it is tempting to make it a review: ask the
-model whether the protocol is right, and hand it over when it says yes. That is the one shape to
-avoid.
-
-A four-billion-parameter model asked to judge its own output approves it. It can only compare the
-document against itself, since checking it against the transcript means re-reading the twenty-four
-thousand tokens this design exists to avoid. And the damage is not that the verdict is worthless.
-A tool that says it has checked the work and found it sound is asking the reader to look less
-carefully, and the reader looking carefully is the mechanism by which this product is any good at
-all. A confident machine opinion placed immediately before a person suppresses the only reliable
-check in the system.
-
-What a final pass can usefully do is work, not judgement:
-
-- **Write the opening.** It is the one part that needs the finished document in view, and it is a
-  real task rather than a verdict. It also answers the coherence risk, since sections written
-  independently read as a list until something ties them together.
-- **Look for contradictions between sections.** A concrete question with a checkable answer, unlike
-  whether a document is good.
-- **Say what it could not place.** Which segments belong to no topic, which figures it could not
-  situate, which speakers it never identified.
-
-The last of those is the honest form of a final review: the step before a person reports what it is
-unsure of, never that it is satisfied. The mechanical checks stay where they are, because a count of
-figures is worth more than an opinion about them, and the verdict stays with the reader.
-
-### What the window was doing that nobody noticed
-
-Writing subject by subject was tried, twice, and produced **74,276 characters against a transcript of
-73,159** — the meeting retyped under 131 headings. It scored **23 of 24** on figure coverage, the
-best result of any run, on a document nobody would accept.
-
-The cause is worth stating carefully, because it is a property of decomposition rather than a bad
-prompt. A transcript written whole does not fit the window, so the model is _forced_ to compress and
-a protocol comes out. The same model given thirty segments and asked for a section is never forced,
-and writes about all thirty. **The context limit had been supplying the editorial judgement, and
-dividing the work removed it without anything taking its place.**
-
-Two consequences, and the second is the more important.
-
-Stating the compression was tried and did not work. Each section was told the size of the passage it
-had been given and what share of it to write — a third, a fifth or a tenth by density, a share rather
-than a word count so that a section could be long when its subject deserved it. The result went from
-74,276 characters to **64,871**, a reduction of an eighth where a third was asked for, and still
-eighty-nine per cent of the length of the recording.
-
-That is the finding, and it is worth more than the feature would have been. **Compression is
-editorial judgement — deciding what matters enough to keep — and a four-billion-parameter model does
-not have it to give.** The context limit was not encouraging the model to compress, it was doing the
-compressing, by making anything else impossible. An instruction cannot stand in for a constraint that
-was being enforced by arithmetic.
-
-So writing subject by subject is not adopted. The division of the meeting is kept, because it is
-sound and cheap and gives traceability and absences; the writing stays where it was.
-
-And **coverage is confirmed as worthless on its own**. This document scored better than every other
-attempt on the measure the acceptance test was built around, and it is the worst protocol produced so
-far. The design anticipated a model gaming the metric deliberately; what happened instead is that a
-structural change gamed it by accident, which is harder to guard against and more likely to recur.
-Length against the transcript is now recorded alongside, because a protocol longer than the meeting
-is a defect whatever else is true of it.
-
-### What has to be true, and what could go wrong
-
-- **The topic pass decides everything downstream.** A topic missed there is a topic missing from the
-  protocol, and no later stage can notice. This is the pass to measure first and hardest.
-- **Coherence is the real risk.** Sections written independently can read as a list of sections. The
-  human reference is continuous prose that refers backwards and forwards. Assembly may need an
-  opening written last, once the sections exist.
-- **A segment may belong to several topics, or to none.** Both need a decision rather than a default:
-  overlap is normal in a meeting that returns to a subject, and orphans are the absence signal.
-- **More calls, each smaller.** Total prompt tokens rise while each call falls. Whether wall clock
-  improves is genuinely unknown and must be measured, not assumed.
-
-## Driving the model instead of asking it
-
-The passes above split the work. They do not yet **check** it, and checking is what makes the
-difference between a smaller task and a reliable one. A coding agent does not ask for a finished
-program and hope; it works in steps and verifies after each, feeding failures back. The same shape
-applies here, and one observation makes it concrete.
-
-**For some facts, ground truth can be computed without a model.** Scanning the reference meeting's
-transcript with plain code takes milliseconds and finds **nineteen quantities** — areas,
-percentages, measurements, sums. The generated protocol accounts for **one** of them. That gap is
-not a matter of judgement: the information was present, findable without a model, and lost.
-
-So the question put to the model can be bounded and answerable rather than open:
-
-1. **Scan first, in code.** Quantities with units, money, percentages, the project's own vocabulary
-   terms, speaker turns — anything a regular expression can find. The result is a checklist with a
-   known count.
-2. **Give the model the checklist, not only the text.** "These ten quantities were said. For each,
-   state what it refers to, or mark it as not worth recording." Every answer is checkable against a
-   number that was known before the model ran.
-3. **Re-ask only about what failed.** If seven of ten are unaccounted for, ask again about those
-   seven with the segments around them. Two or three rounds, then stop and record what is still
-   missing rather than looping.
-4. **Let it look things up instead of holding everything.** A pass that can retrieve the segments
-   mentioning a term does not need the whole transcript in context, which is the constraint that
-   binds hardest on the baseline machine.
-
-### What cannot be checked this way
-
-Most of a protocol is judgement — which discussion mattered, how a decision should be phrased — and
-no regular expression will find that. The scan covers the part that is mechanical, which is
-precisely the part currently being lost, and leaves the rest to the model and the reader.
-
-### What the meeting did not say
-
-The same exercise corrected an assumption worth recording. The generated protocols contain no dates,
-and that first looked like the same kind of loss. It is not: **the transcript contains no dates
-either** — no month names, no weekdays, two mentions of a deadline in eighty-one minutes. People in
-meetings say "next week" and "before the review", and the human protocol's dates came from the
-author's own knowledge of the schedule rather than from the recording.
-
-Two consequences. **A protocol cannot contain what the meeting did not say**, so measuring against a
-reference that includes outside knowledge sets a bar nothing local can reach; the honest bar is
-everything the meeting _did_ say that mattered. And where something is expected but absent, the
-right output is to say so — "no date was stated" — and let the reader supply it. Inventing a
-plausible date would be the worse failure by a wide margin.
-
-## What this buys
-
-- **Localised failure.** A missing "Decisions" section is now answerable: either the record held no
-  decisions, which is a fact worth printing, or composition dropped them, which is a retry of one
-  pass rather than the whole meeting.
-- **Traceability without extra work.** Clicking a protocol line to hear it said is a UI change once
-  the segment references exist.
-- **Checks that mean something.** "Seventeen actions found, sixteen have owners" is a real statement
-  about quality. Character count is not.
-- **Smaller models become viable.** Each pass has one job and a narrow schema. This is the same
-  reason coding agents decompose rather than asking for a finished program in one reply.
-- **Progress the user can read.** "Reading section 3 of 9 — 12 decisions so far" beats a bar.
-
-## What it costs, honestly
-
-- **Wall clock.** Consolidation is a pass the current design partly avoids. The extract and compose
-  passes replace existing ones, so the increase should be one pass, not five — but it is an increase,
-  against a run that already takes six minutes.
-- **A schema to maintain.** The record becomes a persisted artifact with its own versioning, like the
-  transcript.
-- **Prose quality is the risk.** A protocol written from a list can read like a list. Composition
-  must keep the whole record in view, which puts pressure back on the context window — and
-  `MODEL_EVALUATION.md` shows context is the scarcest resource on the baseline machine. If the record
-  does not fit, this design has moved the problem rather than solved it, and that must be measured
-  before the work is trusted.
-
-## Staging
-
-Each step is useful alone and can be abandoned without stranding the next.
-
-1. Define `MeetingRecord` and have the extract pass produce it, converting to today's prose notes for
-   composition. Nothing visible changes; the record can be compared against the current pipeline on
-   the same meeting.
-2. Compose from the record instead of from prose. Compare protocol quality against the current
-   output on the reference meeting before keeping it.
-3. Add the mechanical checks and report them in the review workspace.
-4. Persist the record and link protocol lines back to transcript segments.
-5. Retry a single failed pass instead of failing the run.
-
-## What would show it worked
-
-**Coverage of what was actually said, not length.** Length has now been the wrong measure twice: once
-when a 2,048-token ceiling made every protocol short regardless of model, and again when a protocol
-that matched the human reference on structure — thirty headings against thirty — still carried one
-quantity where the reference carried nine.
-
-The acceptance test is therefore mechanical and known in advance:
-
-- **Every quantity found by the scan is accounted for**, either recorded in the protocol or
-  explicitly dismissed. On the reference meeting that is nineteen of nineteen, against one today.
-- **Every vocabulary term that occurs in the transcript** appears spelled correctly, which the
-  current pipeline already achieves.
-- **Nothing is stated that no segment supports**, which the segment references make checkable rather
-  than a matter of reading carefully.
-- Wall clock under ten minutes, against six today.
-
-Length is not in the list. A shorter protocol that keeps the numbers is worth more than a long one
-that loses them, and that is the whole finding.
-
-If extraction covers more but composition writes worse prose, that is a result too: it would mean
-keeping the record for its checks and traceability while leaving composition alone.
+The next proof is a complete German run whose quality is judged against the human reference on completeness, correctness, attribution, length, and editing effort. An English run should follow.

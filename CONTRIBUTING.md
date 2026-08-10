@@ -1,80 +1,75 @@
 # Contributing to LocaLog
 
-LocaLog is public at an early stage. The product direction, interface quality, local-first promise, and data-safety rules are already intentional, while many implementation details are still being proven. A contribution should strengthen that direction rather than add surface area for its own sake.
+LocaLog is being developed in the open while its foundations are still moving. A good contribution makes the central workflow clearer, safer, faster, or more useful. It does not add surface area simply because the technology makes it possible.
 
-## Begin with the project, not the code
+## Start with the product
 
 Before changing behaviour or architecture, read:
 
 1. [README.md](README.md)
 2. [docs/PRODUCT.md](docs/PRODUCT.md)
 3. [docs/UX.md](docs/UX.md)
-4. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-5. [docs/MVP.md](docs/MVP.md)
+4. [docs/MVP.md](docs/MVP.md)
+5. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 6. [docs/DECISIONS.md](docs/DECISIONS.md)
+7. [docs/PLAN.md](docs/PLAN.md)
 
-For interface work, also read [docs/VISUAL_DIRECTION.md](docs/VISUAL_DIRECTION.md). The [documentation guide](docs/README.md) explains the project’s recurring terminology.
+For interface work, also read [docs/VISUAL_DIRECTION.md](docs/VISUAL_DIRECTION.md). The documentation guide explains the role of each document.
 
-Phase 0 validation is complete. The next work is Phase 1A: a small durable project and meeting workflow using fake processing runtimes and the existing interface boundary. Real media and model adapters enter one at a time afterwards; a full pipeline should not bypass the recorded spike decisions.
+## How we work
 
-## Working principles
+Keep work small enough to understand and large enough to prove something real.
 
-- Begin with the user’s task: moving from a recording to a useful, trustworthy protocol. Treat models, architecture, and features as means to that outcome rather than achievements by themselves.
-- Plan a bounded change and state its acceptance criteria.
-- Prefer a coherent vertical slice over speculative abstractions.
-- Record material product or architecture choices in `docs/DECISIONS.md` or a focused ADR.
-- Keep the domain and application rules independent from Tauri, Svelte, operating-system APIs, and individual model runtimes.
-- Treat the meeting as the unit of work. A recording never becomes an unassigned top-level object.
-- Keep technical settings out of the primary workflow unless the product documentation requires them.
-- Treat interface quality as equal to local-first behaviour and reliable data handling. Avoid generic dashboard, component-library, or AI-playground patterns.
-- Keep changes and commits small, descriptive, and single-purpose.
+- Start with the user's task: moving from a recording to a useful, trustworthy protocol.
+- State the intended outcome, the acceptance criteria, and anything that is not yet decided.
+- Prefer a coherent vertical slice over a general framework for future features.
+- Keep the meeting as the unit of work. A recording belongs to a meeting, and a meeting belongs to a project.
+- Keep product rules independent from Tauri, Svelte, operating-system APIs, and individual model runtimes.
+- Keep technical settings out of the normal workflow. Advanced details should be available when needed, not placed in front of everyone.
+- Treat interface quality as equal to privacy and data reliability. Calm spacing, clear language, keyboard use, empty states, failures, and recovery are part of the feature.
+- Keep commits small, descriptive, and focused on one change.
+- Record a product or architecture change in [docs/DECISIONS.md](docs/DECISIONS.md), and update [docs/PLAN.md](docs/PLAN.md) when implementation status changes.
 
-Open a discussion before changing the project hierarchy, local-first promise, MVP scope, recording phase, repository licence, public location, or one of the contested alternatives in `docs/DECISIONS.md`. Networked services, telemetry, accounts, remote assets, or cloud dependencies always require an explicit product decision.
+An assigned task is not permission to change an accepted product decision silently.
 
 ## Implementation style
 
-Aim for code that is **lean, legible, proportionate, and responsive**.
+Aim for code that is lean, legible, proportionate, and responsive.
 
-- Build the smallest coherent solution that proves the current workflow. Do not turn a local application into a general platform before the product needs it.
-- Prefer clear names, short focused functions, explicit data flow, and ordinary control structures over clever compression or hidden behaviour.
-- Let code explain what happens. Use comments to explain **why** something is necessary: an invariant, safety boundary, recovery rule, platform difference, or non-obvious trade-off. Do not narrate every line or preserve outdated implementation history in comments.
-- In long files, use sparse section headings to make the main responsibilities easy to scan. Avoid annotations on self-explanatory declarations or functions.
-- Keep modules focused, but split them only when a real boundary has emerged. Avoid universal workflow engines, public plugin systems, broad capability negotiation, or large crate/package graphs without evidence.
-- Make dependencies earn their place. A small maintained dependency is reasonable when it removes real risk; an abstraction layer for a hypothetical future is not.
-- Keep the interface thread free of media work, inference, migrations, large file operations, and synchronous database access. Ordinary navigation, selection, typing, and editing should generally feel immediate—around 100 ms or less—even while background work runs.
-- Bound and throttle progress events, process output, logs, queues, and retries. Avoid keeping large recordings or transcripts in duplicate memory buffers when streaming or incremental work is practical.
-- Optimise architecture before micro-optimising code: isolate heavy work, measure the real bottleneck, then improve it without making the code harder to understand than the gain justifies.
-- Treat errors and cancellation as normal states. A clear failure path is more valuable than a compact happy path that hides what remains safe.
-- Remove dead code and speculative options. If a future idea matters, document it in the roadmap or decision log rather than leaving half-built machinery in production modules.
+- Prefer clear names, focused functions, explicit data flow, and ordinary control structures.
+- Comment why an invariant, recovery rule, safety boundary, or platform difference exists. Do not narrate code that is already self-explanatory.
+- Use section headings in long files so a reader can find the main responsibilities quickly.
+- Split modules when a real boundary has emerged. Do not introduce a workflow engine, provider SDK, export crate, or large dependency graph for hypothetical future needs.
+- Remove dead experiments from production modules. Keep useful research in a spike or evaluation harness.
+- Keep media work, inference, migrations, large file operations, and synchronous database work off the interface thread.
+- Bound progress events, logs, process output, queues, and retries. Ordinary logs must never contain transcript, protocol, or audio content.
+- Optimise the architecture first. Measure a real bottleneck before reaching for low-level optimisation.
+- Treat failure, cancellation, interruption, and recovery as normal states that deserve a clear path.
 
 ## Privacy and test data
 
 Never commit or post:
 
-- real meeting recordings, transcripts, protocols, names, or client/project information;
-- local databases, exports, logs, diagnostic bundles, secrets, or user paths;
+- real recordings, transcripts, protocols, names, client information, or project information;
+- local databases, exports, logs, diagnostic bundles, credentials, or user paths;
 - model weights or runtime binaries;
-- third-party assets without documented provenance and compatible publication rights.
+- third-party material without recorded provenance and compatible publication rights.
 
-Fixtures, examples, screenshots, and issue reproductions must use synthetic material created for redistribution. Ordinary logs must not contain transcript or protocol content.
+Use synthetic, redistributable fixtures. Real evaluation material belongs in the ignored `eval/` directory and should stay on the machine where it was collected.
 
-## Dependencies and local runtimes
+## Runtimes and dependencies
 
-Keep dependencies limited and explain why each is necessary. Prefer maintained, narrowly scoped libraries and standard platform or Rust capabilities where they are sufficient.
+Keep dependencies limited and justify additions. Prefer standard Rust and platform capabilities when they are sufficient.
 
-External processes use argument arrays rather than shell interpolation. Runtimes, binaries, and models must never be downloaded or bundled silently; record their provenance, version, checksum, size, licence, and consent requirements before distribution.
+External processes use argument arrays rather than shell interpolation. Runtime paths, working directories, and environment variables are controlled. Model and runtime downloads are explicit, consent-gated, checksummed, and never hidden in ordinary workflow actions.
 
-The shared application must remain portable across macOS, Windows, and Linux. Put platform-specific process handling, paths, permissions, audio capture, acceleration, signing, and packaging behind focused adapters.
+The application is intended for macOS, Windows, and Linux. Keep platform-specific paths, process handling, permissions, acceleration, signing, recording, and packaging behind focused boundaries.
 
-## Tests and quality
+## Quality checks
 
-Add tests at actual risk boundaries rather than pursuing an arbitrary coverage percentage. Domain and state changes need unit tests; storage, jobs, and runtime adapters need failure-oriented contract tests. When touching those boundaries, consider cancellation, restart recovery, malformed output, missing runtimes/models, hostile paths, and disk errors.
+Add tests at real risk boundaries rather than chasing a coverage percentage. Storage, jobs, runtimes, cancellation, recovery, malformed output, hostile paths, and disk failures deserve tests. Interface changes need keyboard and focus checks in both themes and at compact widths.
 
-The interface must remain keyboard usable with visible focus and accessible names. Review important screens in light and dark modes and at compact widths. Empty, progress, failure, interruption, and recovery states require the same care as the happy path.
-
-## Local checks
-
-Install the pinned JavaScript dependencies with `npm install`. Rust is pinned by `rust-toolchain.toml` and the lockfiles.
+From the repository root:
 
 ```sh
 npm run check
@@ -88,16 +83,10 @@ cd src-tauri
 cargo fmt --check
 cargo test
 cargo clippy --all-targets -- -D warnings
-
-for spike in storage-recovery process-supervision media-transcription local-provider; do
-  (cd "../spikes/$spike" && cargo fmt --check && cargo test && cargo clippy --all-targets -- -D warnings)
-done
 ```
 
-`npm run tauri dev` runs the native shell. Tauri may regenerate `src-tauri/gen/`; that directory is ignored because the capability schemas are build output.
+The isolated spikes have their own READMEs and checks. Real-runtime tests are normally explicit or ignored because they require local tools and models.
 
 ## Licence
 
-LocaLog is licensed under `GPL-3.0-or-later`. By submitting a contribution, you agree to license that contribution under the same terms and confirm that you have the right to do so. Copyright remains with the respective contributor unless a separate written agreement says otherwise.
-
-Third-party code, generated material, models, or copied examples must not be added unless their provenance and compatible licence are documented. See [LICENSE-NOTES.md](LICENSE-NOTES.md).
+LocaLog is licensed under `GPL-3.0-or-later`. Contributions are accepted under the same terms unless a separate written agreement exists. Third-party code, assets, models, and runtimes retain their own licences; see [LICENSE-NOTES.md](LICENSE-NOTES.md).

@@ -1,115 +1,61 @@
 # Visual direction
 
-## Role of the visual direction
+The visual direction is quiet, warm, and editorial. LocaLog should feel closer to a carefully designed writing tool than to a generic SaaS dashboard or an AI playground.
 
-LocaLog’s visual language was developed through early private studies and is now expressed as a public design contract in this document and `docs/UX.md`. The studies themselves are not part of the repository. Future public images should be screenshots of the implemented application once it represents the project honestly.
+The reference images are directional studies. We are borrowing their calmness, spacing, hierarchy, and control treatment—not copying every accidental element in them.
 
-The direction is not a literal screen specification. Controls such as avatars, sharing, account UI, recording actions, automatic speaker handling, rich formatting tools, and generic dashboard elements are excluded unless the product specification independently requires them.
+## Character
 
-## North star
+- warm off-white surfaces rather than clinical white;
+- charcoal text with restrained muted tones;
+- a narrow, quiet sidebar and a generous central workspace;
+- thin rules, whitespace, and typography doing more work than cards and shadows;
+- calm progress and failure states without theatrical AI animation;
+- professional controls with clear affordance, not bright default-primary buttons;
+- enough contrast and focus visibility to remain useful without colour.
 
-Use the light start page and the first New Meeting setup image for style:
-
-- warm cream surfaces
-- generous whitespace
-- calm minimalism
-- precise, editorial typography
-- architectural proportions and grid
-- thin dividers and restrained borders
-- controls that feel deliberate rather than component-library defaults
-
-Use the denser second New Meeting image only for information architecture: it contains useful fields but is too form-heavy visually.
-
-Relevant influences:
-
-- Pascal's website/editorial architectural language for identity
-- Zen Browser for slim sidebar and focus behaviour
-- Mercury-like finish for careful states and typography, not dashboard conventions
-
-UI quality is not a polish phase or a disposable shell around the processing pipeline. It is a core product requirement equal to local-first behaviour and data reliability. The Phase 0 shell should establish foundations that can survive into the vertical slice: real navigation behaviour, visual tokens, typography, layout, interaction states, and accessibility.
-
-Before detailed UI implementation, document and review:
-
-1. semantic light and dark colour/surface tokens;
-2. typography families or platform-safe stacks, sizes, weights, line heights, and hierarchy;
-3. spacing scale, content widths, and layout grid;
-4. sidebar sizing, selection, collapse/resizing policy, and workspace behaviour;
-5. common controls with default, hover, active, focus, disabled, loading, error, and success states;
-6. contextual-inspector and progressive-disclosure rules;
-7. visual acceptance criteria for the start, project, new-meeting, transcript-review, protocol-editor, and settings screens.
-
-The authoritative tokens, hierarchy, grid, control states, inspector rules, and screen criteria are consolidated in `docs/UX.md`. Update that contract before detailed UI implementation when visual evidence changes.
-
-## Layout rules
-
-- Prefer planes, columns, spacing, type, and thin rules over nested cards.
-- Keep the persistent sidebar narrow and quiet; project names carry more weight than icons.
-- Integrate the shell with native window chrome. On macOS, the sidebar and workspace surfaces extend beneath the native title bar and traffic-light controls; never imitate operating-system controls inside the interface.
-- Let the central work surface dominate.
-- Introduce a contextual inspector only when a task needs it; do not reserve a permanent empty panel.
-- Dense screens such as transcript review may tighten spacing, but must preserve the same hierarchy and calmness.
-- Use progressive disclosure and sensible defaults. Advanced model/runtime settings never dominate the normal workflow.
+The light start page is the primary visual reference. The new-meeting view is the primary reference for spacing and control treatment. The other studies help with information architecture and complex states.
 
 ## Typography
 
-Barlow is the approved primary application typeface. Use it for navigation, controls, labels, metadata, headings, and other application chrome. Bundle the required font files with the application; never load them from a remote font service at runtime. Define a platform-appropriate system sans-serif fallback for missing or failed assets.
+Barlow is the primary application typeface. It is bundled locally in the weights currently needed by the interface. A system sans-serif remains as a fallback if the asset cannot load.
 
-Keep the initial weight set narrow and purposeful. Record the source, licence, version, selected files, and checksums when the font assets are introduced. Exact sizes, weights, line heights, tracking, and text-style tokens are defined in `docs/UX.md` and must be checked for legibility, text scaling, and light/dark rendering.
+Use typography to establish hierarchy:
 
-Phase 0 uses `@fontsource/barlow` 5.3.0 under the SIL Open Font License 1.1. Vite bundles only the Latin WOFF2 files referenced by the stylesheet; there is no runtime font request.
+- large, calm page titles;
+- small, spaced uppercase labels for context, not for whole paragraphs;
+- readable body text with generous line height;
+- restrained metadata and status text;
+- clear, not oversized, control labels.
 
-| Asset                           | SHA-256                                                            |
-| ------------------------------- | ------------------------------------------------------------------ |
-| `barlow-latin-400-normal.woff2` | `b0a8ad37ac45f5fb22ced461576db72e44e295107aad7a9c8a7a4bad728fd03b` |
-| `barlow-latin-500-normal.woff2` | `cd759df8ef9efc98fee14307b4eb5ba27f08b1f8f2f3ad2872432e25c89907a8` |
-| `barlow-latin-600-normal.woff2` | `4b52ddd4836b592df0e4832b8286956883cdc651b015126bdd18f184b7f90cc3` |
+Do not add a second document font until reading tests show a real benefit.
 
-The start-page sound mark uses seven rounded vertical strokes with a deliberately varied, slightly asymmetric rhythm. It is a provisional visual signature rather than a detailed audio waveform. The application icon remains a Phase 0 scaffold asset derived from this idea; its tile uses an optical margin so it sits at a conventional size beside other desktop icons. Neither mark is an approved final identity.
+## Colour and surfaces
 
-No complementary document/editor typeface is selected yet. Add one only when reading and interaction tests demonstrate a real need.
+Light mode uses warm cream and off-white planes. Dark mode is designed independently with warm charcoal surfaces, warm off-white text, restrained borders, and quiet selection states.
 
-## Colour and surface
+Accent colours are sparse and purposeful. Success, warning, and failure states need to remain legible without relying on colour alone. Bright blue, neon, gradients, glass, glow, and decorative model branding do not belong to the product identity.
 
-Light mode uses warm off-white/cream rather than clinical white. Text is charcoal, secondary text is muted and still accessible. Accent colour is quiet and sparse; bright default blue is not the product identity.
+## Layout
 
-Dark mode is designed, not inverted:
+The application is organised as two main planes: a persistent sidebar and a dominant workspace. Content width is controlled so reading and editing do not stretch across the entire window. Dense transcript screens may tighten spacing, but they should keep the same calm hierarchy.
 
-- deep warm charcoal rather than pure black
-- subtly distinct sidebar/selection surfaces
-- warm off-white primary text
-- muted grey secondary text
-- restrained borders
-- no glow, glass, neon, or “cyber” styling
+Contextual inspectors appear only when the task needs them. There is no permanent empty third column.
 
-Accessibility contrast and legibility take precedence over preserving any exploratory colour value.
+## Controls
 
-## Components and states
+Prefer quiet iconography, typographic actions, thin rules, and subtle surface changes. Rounded corners are small and functional rather than decorative. Avoid excessive pills, shadows, filled cards, and card grids for document-like content.
 
-- Avoid excessive rounded cards, pills, shadows, and filled primary buttons.
-- Prefer typographic actions and quiet iconography where affordance remains clear.
-- Selection may use a subtle surface change, weight, or fine rule.
-- Progress indicators are calm and honest, without “AI magic” animation.
-- Local status is informative, not a decorative badge.
-- Focus and error states must be unmistakable even in a restrained palette.
-- Routine navigation, selection, typing, and editing must remain immediate during fake or real background work.
-- Empty, loading, progress, cancellation, failure, retry, interrupted, and recovered states receive the same visual care as the happy path.
-- Transcript review and protocol editing require purpose-built interaction design by the vertical slice; the Phase 0 shell may bound their behaviour but must not establish generic placeholder forms as the final pattern.
+Every common control needs considered default, hover, active, disabled, loading, error, success, and keyboard-focus states. Essential actions must not exist only on hover.
 
-## Explicitly avoid
+## Identity elements
 
-- Generic SaaS dashboard composition
-- Permanent chat UI
-- Bright blue as the default action colour
-- Decorative AI imagery, sparkles, gradients, and model branding
-- Avatars without a real participant function
-- Card grids for document-like content
-- Hidden hover-only essential actions
-- Generic component-library defaults that override the product's typography, spacing, surface, or interaction character
+The start-page sound mark is a provisional seven-stroke waveform with a slightly asymmetric rhythm. The application icon is a temporary scaffold based on the same idea. Neither is the final identity.
 
-## Review test
+The logo should support the product’s purpose without pretending that LocaLog is a recording utility. It is a mark for turning spoken work into a useful written protocol.
 
-A screen belongs to LocaLog if it feels like a quiet professional writing and project tool, remains legible without colour, and makes the current project, meeting, workflow state, and local-processing status clear.
+## Visual review
 
-Review the key screens at representative desktop sizes in light and dark modes. Verify keyboard focus, text scaling, reduced motion, meaningful empty/error/recovery states, and interaction responsiveness alongside visual character. Consistency, calmness, clarity, architectural spacing, and professional finish matter more than fidelity to an earlier study.
+Review the start page, project view, new-meeting flow, transcript review, protocol editor, and settings in both themes and at representative desktop and compact sizes.
 
-When a technical shortcut would materially weaken those qualities, record the trade-off and raise it for review before adopting it.
+A screen belongs to LocaLog when it is calm without being vague, clear without being loud, and useful without explaining its implementation. It should make the current task and next action obvious, retain the visual character of the reference studies, and remain keyboard-accessible.
