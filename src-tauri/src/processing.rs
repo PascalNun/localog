@@ -1571,10 +1571,21 @@ fn record_quantity_coverage(
     // figure the meeting never stated is wrong under every style, which is why
     // both are recorded and only one of them is ever a defect on its own.
     let invented = crate::facts::invented(&transcript.segments, markdown);
+    // Length against the transcript, because coverage alone cannot see the failure
+    // that matters most. A protocol written subject by subject once scored 23 of 24
+    // quantities while being longer than the recording it described: the meeting
+    // retyped under headings, which every figure-based measure calls excellent.
+    let spoken: usize = transcript
+        .segments
+        .iter()
+        .map(|segment| segment.text.len())
+        .sum();
     let coverage = serde_json::json!({
         "quantitiesStated": stated.len(),
         "quantitiesAccounted": accounted,
         "quantitiesInvented": invented,
+        "charactersSpoken": spoken,
+        "charactersWritten": markdown.len(),
     });
     // Provenance, not a gate: failing to record it must never fail the protocol.
     let _ = repository.connection.execute(
