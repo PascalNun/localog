@@ -469,8 +469,13 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   /// The browser preview has no native window, so nothing is ever dropped on it.
-  subscribeFileDrops(_handler: (event: FileDropEvent) => void): () => void {
-    return () => undefined;
+  /// Delegated like every other call that needs the real application. Returning a
+  /// no-op unconditionally is why dropping a recording did nothing: the interface
+  /// talks to this bridge, not to the store behind it, so a method that forgets to
+  /// pass the call through is indistinguishable from a feature that was never
+  /// built. In the browser preview there is no native window to drop onto.
+  subscribeFileDrops(handler: (event: FileDropEvent) => void): () => void {
+    return this.workspaceStore?.subscribeFileDrops(handler) ?? (() => undefined);
   }
 
   async saveVocabularyEntry(draft: VocabularyDraft): Promise<void> {
