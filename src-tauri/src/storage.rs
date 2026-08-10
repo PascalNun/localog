@@ -1342,6 +1342,24 @@ fn schema_version(connection: &Connection) -> Result<i64> {
     Ok(connection.query_row("PRAGMA user_version", [], |row| row.get(0))?)
 }
 
+/// Whether a column is already present.
+///
+/// A migration that adds one must be able to run twice. The version is recorded
+/// separately from the change it describes, so a process that stops between the
+/// two leaves a database whose schema has moved and whose version has not — and
+/// the next start then fails on `duplicate column name` and cannot open the
+/// workspace at all. Asking first costs nothing and makes the step repeatable.
+fn has_column(connection: &Connection, table: &str, column: &str) -> Result<bool> {
+    let mut statement = connection.prepare(&format!("PRAGMA table_info({table})"))?;
+    let mut rows = statement.query([])?;
+    while let Some(row) = rows.next()? {
+        if row.get::<_, String>(1)? == column {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 fn migrate(connection: &Connection, version: i64) -> Result<()> {
     let mut version = version;
     if version == 0 {
@@ -1702,14 +1720,10 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
         // What a completed job found out about its own result. The first use is
         // how many of the quantities the meeting stated survived into the
         // protocol, which is a measure of quality that needs no reader.
-        connection.execute_batch(
-            r#"
-            BEGIN IMMEDIATE;
-            ALTER TABLE jobs ADD COLUMN outcome_json TEXT;
-            PRAGMA user_version = 10;
-            COMMIT;
-            "#,
-        )?;
+        if !has_column(connection, "jobs", "outcome_json")? {
+            connection.execute("ALTER TABLE jobs ADD COLUMN outcome_json TEXT", [])?;
+        }
+        connection.pragma_update(None, "user_version", 10)?;
         version = 10;
     }
     if version == 10 {
@@ -1718,17 +1732,17 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
         // shortest is half the length of the longest, keeps 25 of its 30 topics,
         // and carries more bullets than it -- so what compression removed was
         // prose, not content.
-        connection.execute_batch(
-            r#"
-            BEGIN IMMEDIATE;
-            ALTER TABLE protocol_styles ADD COLUMN density TEXT NOT NULL DEFAULT 'concise'
-                CHECK (density IN ('comprehensive', 'concise', 'terse'));
-            UPDATE protocol_styles SET density = 'comprehensive' WHERE id = 'style-formal';
-            UPDATE protocol_styles SET density = 'terse' WHERE id = 'style-decision-log';
-            PRAGMA user_version = 11;
-            COMMIT;
-            "#,
-        )?;
+        if !has_column(connection, "protocol_styles", "density")? {
+            connection.execute_batch(
+                r#"
+                ALTER TABLE protocol_styles ADD COLUMN density TEXT NOT NULL DEFAULT 'concise'
+                    CHECK (density IN ('comprehensive', 'concise', 'terse'));
+                UPDATE protocol_styles SET density = 'comprehensive' WHERE id = 'style-formal';
+                UPDATE protocol_styles SET density = 'terse' WHERE id = 'style-decision-log';
+                "#,
+            )?;
+        }
+        connection.pragma_update(None, "user_version", 11)?;
     }
     Ok(())
 }
@@ -2394,6 +2408,36 @@ mod tests {
             job_stage_label("transcription", "transcribing_audio", running),
             "Transcribing locally"
         );
+    }
+
+    /// A migration must survive being interrupted between changing the schema and
+    /// recording that it did. Stopping in that gap left a real workspace with the
+    /// columns of two migrations and the version of neither, and every start after
+    /// that failed on "duplicate column name" without opening the workspace at all.
+    #[test]
+    fn a_migration_interrupted_before_it_was_recorded_can_be_run_again() {
+        let temporary = tempdir().unwrap();
+        WorkspaceRepository::open(temporary.path()).unwrap();
+        let path = temporary.path().join("localog.sqlite3");
+
+        // Exactly the state observed: the schema has moved, the version has not.
+        let connection = Connection::open(&path).unwrap();
+        connection.pragma_update(None, "user_version", 9).unwrap();
+        drop(connection);
+
+        // Opening again must migrate rather than fail on what is already there.
+        let repository = WorkspaceRepository::open(temporary.path())
+            .expect("a half-applied migration must not lock the user out of their work");
+        let version: i64 = repository
+            .connection
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, CURRENT_SCHEMA_VERSION);
+        assert!(
+            has_column(&repository.connection, "jobs", "outcome_json").unwrap(),
+            "the column must survive, not be added twice or lost"
+        );
+        assert_eq!(repository.workspace_snapshot().unwrap().styles.len(), 3);
     }
 
     #[test]
