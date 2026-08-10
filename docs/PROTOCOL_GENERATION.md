@@ -154,6 +154,42 @@ The last of those is the honest form of a final review: the step before a person
 unsure of, never that it is satisfied. The mechanical checks stay where they are, because a count of
 figures is worth more than an opinion about them, and the verdict stays with the reader.
 
+### What the window was doing that nobody noticed
+
+Writing subject by subject was tried, twice, and produced **74,276 characters against a transcript of
+73,159** — the meeting retyped under 131 headings. It scored **23 of 24** on figure coverage, the
+best result of any run, on a document nobody would accept.
+
+The cause is worth stating carefully, because it is a property of decomposition rather than a bad
+prompt. A transcript written whole does not fit the window, so the model is _forced_ to compress and
+a protocol comes out. The same model given thirty segments and asked for a section is never forced,
+and writes about all thirty. **The context limit had been supplying the editorial judgement, and
+dividing the work removed it without anything taking its place.**
+
+Two consequences, and the second is the more important.
+
+Stating the compression was tried and did not work. Each section was told the size of the passage it
+had been given and what share of it to write — a third, a fifth or a tenth by density, a share rather
+than a word count so that a section could be long when its subject deserved it. The result went from
+74,276 characters to **64,871**, a reduction of an eighth where a third was asked for, and still
+eighty-nine per cent of the length of the recording.
+
+That is the finding, and it is worth more than the feature would have been. **Compression is
+editorial judgement — deciding what matters enough to keep — and a four-billion-parameter model does
+not have it to give.** The context limit was not encouraging the model to compress, it was doing the
+compressing, by making anything else impossible. An instruction cannot stand in for a constraint that
+was being enforced by arithmetic.
+
+So writing subject by subject is not adopted. The division of the meeting is kept, because it is
+sound and cheap and gives traceability and absences; the writing stays where it was.
+
+And **coverage is confirmed as worthless on its own**. This document scored better than every other
+attempt on the measure the acceptance test was built around, and it is the worst protocol produced so
+far. The design anticipated a model gaming the metric deliberately; what happened instead is that a
+structural change gamed it by accident, which is harder to guard against and more likely to recur.
+Length against the transcript is now recorded alongside, because a protocol longer than the meeting
+is a defect whatever else is true of it.
+
 ### What has to be true, and what could go wrong
 
 - **The topic pass decides everything downstream.** A topic missed there is a topic missing from the

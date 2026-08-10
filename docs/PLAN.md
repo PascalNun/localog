@@ -151,7 +151,23 @@ hardest possible shape for the only class of model the 8 GB baseline can run.
    any model runs. On the reference meeting it finds **19 quantities, of which the generated
    protocol accounts for 1**. That is the baseline the rest of this block is measured against, and
    it needed no runtime to establish.
-1. `Planned` Define the meeting record and produce it from the extract pass.
+1. `Superseded` A meeting record as the intermediate. Writing now goes back to the transcript for
+   each subject instead, so nothing is compressed before it is written — see
+   [PROTOCOL_GENERATION.md](PROTOCOL_GENERATION.md).
+   1a. `Done` Divide the meeting into subjects, in overlapping windows, reading again what no subject
+   claimed. On the reference meeting: 753 segments to 57 subjects, 33 claimed by none, about seven
+   minutes. Candidate groups are proposed in plain code by shared word stems and the model is asked
+   only whether they are one subject — which consolidated accessibility from five subjects to one of
+   49 segments, technical rooms from five to one of 47, and the facade from six to one of 62.
+   1b. `Rejected` Writing each subject from its own segments. Built, run twice, and reverted: it
+   produced 74,276 characters against a transcript of 73,159, and 64,871 after being told explicitly
+   to compress. The context window had been supplying the editorial judgement by making anything
+   else impossible, and an instruction cannot replace a constraint enforced by arithmetic. Both
+   attempts scored better on figure coverage than any other run — 23 and 24 of 24 — which is why
+   length against the transcript is now recorded alongside.
+   1c. `Planned` Use the division as an index instead: record the subjects and the segments no subject
+   claimed against the job, so a reader can be shown what did not reach the protocol. This was
+   always the solid half.
 2. `Planned` Compose from the record, and compare quality against today's output before keeping it.
 3. `Planned` Mechanical checks, driven from a scan of the transcript rather than from the model's
    own account of itself: quantities found by pattern must each be accounted for, statements must
