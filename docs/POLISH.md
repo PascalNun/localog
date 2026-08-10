@@ -94,6 +94,18 @@ meeting jobs.
 - **It survives navigation.** Work continues while the user reads a transcript or edits a protocol,
   and the status line is what makes that visible without pulling them back.
 
+- **It says what is happening, not that it is happening here.** The heading read "Processing
+  locally", which is true of everything this application has ever done and therefore tells a reader
+  nothing, while pushing the one thing they wanted to know into the small line beneath it. Several
+  stage labels said "locally" a second time under it. A promise that holds always is not news, and
+  repeating it spends the most-read line in the interface on reassurance instead of information.
+
+  The exception is worth naming, because it is the only thing that would change this: if work can
+  ever happen somewhere other than this device — a firm's own server, as
+  [ROADMAP.md](ROADMAP.md) contemplates — then where becomes a fact that varies, and a varying fact
+  belongs in the status line. Until then it belongs in the trust surface, said once, not in the line
+  that reports work.
+
 - **A long step says where it has got to, not what it is called.** A stage name that does not change
   for four minutes reads as a hung program, however accurate it is. Stages may carry a live detail —
   "Finding what was discussed — passage 3 of 13", "Joining subjects that belong together — 41 found"
