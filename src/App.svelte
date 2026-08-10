@@ -348,6 +348,7 @@
           onCreateProject={() => navigate({ name: 'new-project', returnToImport: true })}
           onSelectNativeSource={workspaceStore?.selectMediaSource.bind(workspaceStore)}
           onCreate={createMeeting}
+          subscribeFileDrops={(handler) => bridge.subscribeFileDrops(handler)}
         />
       {:else if route.name === 'project' && project}
         <ProjectView

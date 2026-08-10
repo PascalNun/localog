@@ -6,6 +6,13 @@ LocaLog is intended for macOS, Windows, and Linux. macOS receives the first comp
 
 ## Phase 2 — recording and richer review
 
+**Recording is wanted earlier than this ordering implies.** It was placed after the import workflow
+on the reasoning that importing proves the pipeline and recording only adds a source. That
+understates it: a product people reach for at the start of a meeting is a different product from one
+they remember afterwards, and every import begins with someone having already solved the recording
+problem another way. Treat it as the first thing after the current work rather than as the opening
+of a later phase.
+
 - Microphone recording with interruption/recovery handling
 - macOS system-audio capture, then platform equivalents
 - Multiple synchronized recording sources per meeting
