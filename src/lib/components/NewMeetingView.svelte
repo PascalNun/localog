@@ -4,9 +4,7 @@
     ProjectSummary,
     ProtocolStyle,
     SourceSelection,
-    FileDropEvent,
   } from '../workflow/types';
-  import { onDestroy } from 'svelte';
   import Icon from './Icon.svelte';
 
   export let projects: ProjectSummary[];
@@ -16,8 +14,12 @@
   export let onCreateProject: () => void;
   export let onSelectNativeSource: (() => Promise<SourceSelection | null>) | undefined = undefined;
   export let onCreate: (input: NewMeetingInput) => Promise<void>;
-  export let subscribeFileDrops:
-    ((handler: (event: FileDropEvent) => void) => () => void) | undefined = undefined;
+  /// Drops are handled once, by the application, because the commonest moment to
+  /// drop a recording is before this step exists — on the start screen, with
+  /// nothing open yet.
+  export let draggingFile = false;
+  export let droppedRecording: string | null = null;
+  export let droppedRefusal = '';
 
   let projectId = initialProjectId ?? projects[0]?.id ?? '';
   let title = '';
@@ -29,60 +31,12 @@
     projects.find((project) => project.id === projectId)?.defaultStyleId ?? styles[0]?.id ?? '';
   let submitting = false;
   let submitError = '';
-  let draggingOver = false;
-  let dropError = '';
-
-  // What the import stage can actually take. ffmpeg reads far more than this, but
-  // a list a person can read is worth more than a complete one, and anything not
-  // named here is refused with its own name rather than silently ignored.
-  const ACCEPTED = [
-    'mp3',
-    'm4a',
-    'wav',
-    'aac',
-    'flac',
-    'ogg',
-    'opus',
-    'wma',
-    'aiff',
-    'aif',
-    'mp4',
-    'mov',
-    'm4v',
-    'mkv',
-    'avi',
-    'webm',
-  ];
-
-  function acceptDrop(paths: string[]) {
-    draggingOver = false;
-    dropError = '';
-    const usable = paths.find((path) => ACCEPTED.includes(extensionOf(path)));
-    if (!usable) {
-      const refused = paths[0] ? extensionOf(paths[0]).toUpperCase() : '';
-      dropError = refused
-        ? `LocaLog cannot read a ${refused} file. Drop an audio or video recording.`
-        : 'Drop an audio or video recording.';
-      return;
-    }
-    sourcePath = usable;
-    sourceName = usable.split('/').pop() ?? usable;
+  $: draggingOver = draggingFile;
+  $: dropError = droppedRefusal;
+  $: if (droppedRecording && droppedRecording !== sourcePath) {
+    sourcePath = droppedRecording;
+    sourceName = droppedRecording.split('/').pop() ?? droppedRecording;
     if (!title) title = titleFromFile(sourceName);
-  }
-
-  function extensionOf(path: string): string {
-    return path.split('.').pop()?.toLowerCase() ?? '';
-  }
-
-  $: if (subscribeFileDrops) {
-    // Only while the import step is on screen: a file dropped while someone is
-    // reading a transcript is not a file they meant to import here.
-    const stop = subscribeFileDrops((event) => {
-      if (event.kind === 'over') draggingOver = true;
-      else if (event.kind === 'leave') draggingOver = false;
-      else acceptDrop(event.paths);
-    });
-    onDestroy(stop);
   }
 
   $: selectedProject = projects.find((project) => project.id === projectId);
