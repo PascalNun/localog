@@ -130,9 +130,7 @@
           </select>
         </div>
         <div class="setting-actions">
-          <button class="secondary-action" onclick={onRefreshProvider}
-            >Refresh local provider</button
-          >
+          <button class="secondary-action" onclick={onRefreshProvider}>Check again</button>
           <button
             class="secondary-action"
             onclick={() => onConfigureProvider(selectedProviderModel || null)}
@@ -269,7 +267,7 @@
         <div class="setting-row">
           <div>
             <h3>Typeface</h3>
-            <p>Barlow is bundled locally; no remote font request.</p>
+            <p>The typeface ships with the application. No font is ever fetched.</p>
           </div>
           <span class="setting-value">Barlow</span>
         </div>

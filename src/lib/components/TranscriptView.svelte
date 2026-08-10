@@ -294,11 +294,11 @@
         <div>
           <strong
             >{saveState === 'saving'
-              ? 'Saving locally…'
+              ? 'Saving…'
               : saveState === 'failed'
                 ? 'Autosave failed — your last saved work is intact'
                 : transcript?.isDirty
-                  ? 'Working edits saved locally'
+                  ? 'Edits saved'
                   : 'Transcript revision saved'}</strong
           ><small>Speaker labels are a starting point—rename them to the people who spoke.</small>
         </div>

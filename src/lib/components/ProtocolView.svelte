@@ -131,7 +131,7 @@
           class:error={saveState === 'failed'}
           class="save-state"
           >{saveState === 'saving'
-            ? 'Saving locally…'
+            ? 'Saving…'
             : saveState === 'failed'
               ? 'Autosave failed'
               : protocol.isDirty

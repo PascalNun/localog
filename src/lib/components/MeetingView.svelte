@@ -42,7 +42,7 @@
   }
 
   function formatBytes(bytes: number | null) {
-    if (bytes === null) return 'Stored locally';
+    if (bytes === null) return 'In your workspace';
     if (bytes < 1_000_000) return `${Math.round(bytes / 1_000)} KB`;
     return `${(bytes / 1_000_000).toFixed(bytes >= 10_000_000 ? 0 : 1)} MB`;
   }
@@ -99,7 +99,7 @@
     {:else if meeting.lifecycle === 'source_ready'}
       <div class="stage-message">
         <p class="eyebrow">Source ready</p>
-        <h2>Ready to transcribe locally</h2>
+        <h2>Ready to transcribe</h2>
         <p>
           {#if meeting.sourceByteCount !== null}<strong>{meeting.sourceName}</strong> is safely stored
             with this meeting. The external original was not modified.{:else}<strong
@@ -131,7 +131,7 @@
           onclick={startTranscription}
           disabled={startingTranscription || transcriptionUnavailable}
           >{startingTranscription
-            ? 'Preparing local transcription…'
+            ? 'Getting ready to transcribe…'
             : transcriptionUnavailable
               ? 'Use the job controls above'
               : 'Transcribe'}

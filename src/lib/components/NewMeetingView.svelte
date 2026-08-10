@@ -99,7 +99,7 @@
     <div>
       <p class="eyebrow">Structured import</p>
       <h1 tabindex="-1">New meeting</h1>
-      <p>Place the source, confirm the essentials, then process it locally.</p>
+      <p>Choose the recording, confirm the details, and LocaLog takes it from there.</p>
     </div>
   </header>
 
@@ -136,7 +136,7 @@
             <p class="eyebrow">Source</p>
             <h2 id="source-heading">Import recording</h2>
           </div>
-          <span class="privacy-note">Local managed import</span>
+          <span class="privacy-note">Your original stays where it is</span>
         </div>
         {#if onSelectNativeSource}<button
             class:has-source={sourceName}
@@ -243,7 +243,7 @@
         class="primary-action"
         type="submit"
         disabled={!projectId || !sourceName || submitting}
-        >{submitting ? 'Starting local import…' : 'Create meeting and import'}
+        >{submitting ? 'Bringing the recording in…' : 'Create meeting and import'}
         <Icon name="arrow" /></button
       >
     </footer>

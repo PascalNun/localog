@@ -126,17 +126,53 @@ counter.** A reader watching subjects appear as the meeting is divided learns wh
 understood, which a percentage never conveys. That is also the cheapest moment to notice that a
 subject is wrong — before anything has been written from it.
 
-## 2. Names and language
+## 2. Language
 
-The interface should use the words a project team uses, not the words the implementation uses.
+The words are not a layer over the product; for most of the time someone spends with LocaLog, the
+words **are** the product. A person waiting eleven minutes for a protocol is reading a line of text
+and nothing else. This section is the standard those lines are written to, and it is meant to be
+applied while writing them rather than in a pass afterwards.
 
-- Review every visible string for implementation vocabulary. "Runtime", "adapter", "provider",
-  "context window" and "job" are our words, not the user's.
-- Stage names during processing should describe what is happening to the meeting, not which
-  subprocess is running. "Reading the meeting in sections" is closer than "condensing transcript".
-- Errors say what happened, what is still safe, and what to do next — in that order, without codes.
-- Keep German and English equal in the interface's own language handling. No content language is
-  privileged.
+**Say what is happening, in the words the reader would use.** A revision, a snapshot, a committed
+source, a provider and a runtime are real things in this codebase and mean nothing outside it. A line
+reading "validating the transcript revision" has described the machine to somebody who wanted to know
+about their meeting. "Saving the transcript" says the same thing to the person who is waiting.
+
+**Do not repeat what is always true.** This is the rule that is easiest to break with good
+intentions, because each repetition looks like reassurance. It is not, for two reasons. It spends the
+line the reader looks at first on something they already know, pushing the news into the small print.
+And more seriously, stating an invariant invites the reader to wonder when it might not hold: a line
+reporting that work is happening locally implies that somewhere there is a run that would not, and a
+promise repeated often enough begins manufacturing the doubt it was meant to answer. Say it once,
+plainly, where the promise is made. Then let it be true.
+
+**Reassurance belongs where the question is being asked.** That an imported file leaves the original
+untouched is noise on a successful copy and is exactly what somebody wants to know when a copy has
+failed. The same sentence is either padding or the answer depending on when it appears.
+
+**Prefer the specific to the general.** "Working" says nothing. "Telling the speakers apart" says what
+the machine is doing, roughly how long it might take, and what it will have when it finishes. Where a
+step runs for minutes it should also say where it has got to — see section 1c.
+
+**Write for someone who is not reading carefully.** These lines are seen sideways, between other
+things. Short, concrete, front-loaded. No sentence whose meaning arrives at the end.
+
+**Say the thing rather than gesturing at it.** "An issue occurred" and "something went wrong" are
+ways of not saying what happened. If we know, we say it; if we do not, we say that instead.
+
+### Two mistakes already made here
+
+Both are recorded because they were made in good faith and would be made again.
+
+The first was writing the interface from inside the code: stage labels that named subprocesses, a
+badge reading "Local managed import", an export that reported itself "prepared locally". Each was
+accurate and none of them was addressed to anyone.
+
+The second was worse, because it was a correction that missed the point. Told to think carefully
+about the words, the response was to search for one word and replace nineteen instances of it. That
+is a cleanup, not a standard. **The instruction was about how language is chosen, not about which
+word was wrong**, and a product whose copy is fixed by find-and-replace will need fixing again next
+week.
 
 ## 3. The shape of the pipeline
 
