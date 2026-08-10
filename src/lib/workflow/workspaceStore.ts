@@ -64,6 +64,7 @@ export interface WorkspaceStore {
     speaker: string,
     replacement: string,
   ): Promise<WorkspaceData>;
+  subscribeFileDrops(handler: (event: FileDropEvent) => void): () => void;
   saveVocabularyEntry(entry: VocabularyDraft): Promise<WorkspaceData>;
   deleteVocabularyEntry(entryId: string): Promise<WorkspaceData>;
   autosaveProtocol(meetingId: string, markdown: string): Promise<WorkspaceData>;
