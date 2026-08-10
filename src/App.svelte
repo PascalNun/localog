@@ -90,6 +90,11 @@
   $: meeting = meetingId
     ? (snapshot?.meetings.find((candidate) => candidate.id === meetingId) ?? null)
     : null;
+  // The sidebar names the meeting the work belongs to, which is the one thing the
+  // panel inside that meeting never has to say.
+  $: activeJobMeeting =
+    snapshot?.meetings.find((entry) => entry.id === snapshot?.activeJob?.meetingId)?.title ?? null;
+
   $: currentProjectId = meeting?.projectId ?? ('projectId' in route ? route.projectId : null);
   $: project = currentProjectId
     ? (snapshot?.projects.find((candidate) => candidate.id === currentProjectId) ?? null)
@@ -217,9 +222,9 @@
     if (job.state === 'queued') return 'Ready to continue';
     if (job.state === 'cancelling') return 'Cancelling safely';
     if (job.kind === 'import' && job.totalBytes !== null) {
-      return `${formatBytes(job.progressBytes)} of ${formatBytes(job.totalBytes)} copied locally`;
+      return `${formatBytes(job.progressBytes)} of ${formatBytes(job.totalBytes)} copied`;
     }
-    return `${job.progress}% · running locally`;
+    return `${job.progress}%`;
   }
 
   function formatBytes(bytes: number) {
@@ -320,7 +325,7 @@
     if (!protocol) return;
     const nativeExported = await bridge.exportProtocol(meeting.id, format, meeting.title);
     if (nativeExported) {
-      announcement = `${format === 'markdown' ? 'Markdown' : 'Plain text'} export saved locally`;
+      announcement = `${format === 'markdown' ? 'Markdown' : 'Plain text'} export saved`;
       return;
     }
     const content =
@@ -335,7 +340,7 @@
     anchor.download = `${meeting.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.${format === 'markdown' ? 'md' : 'txt'}`;
     anchor.click();
     URL.revokeObjectURL(href);
-    announcement = `${format === 'markdown' ? 'Markdown' : 'Plain text'} export prepared locally`;
+    announcement = `${format === 'markdown' ? 'Markdown' : 'Plain text'} export prepared`;
   }
 </script>
 
@@ -352,6 +357,7 @@
       {route}
       {currentProjectId}
       activeJob={snapshot.activeJob}
+      {activeJobMeeting}
       width={sidebarWidth}
       open={sidebarOpen}
       {theme}
@@ -538,7 +544,7 @@
     </div>
   {:else if startupError}
     <main class="startup-failure" id="main-content">
-      <p class="eyebrow">Local workspace</p>
+      <p class="eyebrow">Workspace</p>
       <h1 tabindex="-1">Workspace could not be opened</h1>
       <p>{startupError} Your existing files have not been changed.</p>
       <button class="secondary-action" onclick={() => window.location.reload()}>Try again</button>

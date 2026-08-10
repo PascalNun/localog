@@ -7,6 +7,9 @@
   export let route: AppRoute;
   export let currentProjectId: string | null;
   export let activeJob: ActiveJob | null;
+  /// Which meeting the work belongs to. The sidebar exists to answer that when the
+  /// meeting is no longer on screen; the panel inside the meeting never needs to.
+  export let activeJobMeeting: string | null = null;
   export let width: number;
   export let open = false;
   export let theme: 'light' | 'dark';
@@ -22,17 +25,18 @@
     operationalJob?.state === 'interrupted' ||
     operationalJob?.state === 'cancelled' ||
     operationalJob?.requiresDuplicateConfirmation;
-  // The heading says what is happening. It used to say "Processing locally",
-  // which is true of everything this application has ever done and therefore
-  // tells a reader nothing — while pushing the one thing they wanted to know
-  // into the small line beneath it.
+  // Two lines, two different facts. Naming the work here said the same thing as
+  // the stage beneath it — "Transcribing" over "Transcribing · 43%" — and the same
+  // words again in the panel inside the meeting, three times on one screen.
+  //
+  // So this line answers what the panel cannot: which meeting the work belongs to.
+  // That is the question someone has once they have walked away from it, which is
+  // the only time this corner of the screen is the one they are reading.
   $: jobHeading = jobNeedsAttention
     ? operationalJob?.requiresDuplicateConfirmation
       ? 'Import needs your decision'
       : 'Needs your attention'
-    : operationalJob?.state === 'queued'
-      ? 'Ready to continue'
-      : workHeading(operationalJob?.kind);
+    : (activeJobMeeting ?? workHeading(operationalJob?.kind));
 
   function workHeading(kind: string | undefined): string {
     switch (kind) {
@@ -49,6 +53,9 @@
 
   function jobDetail(job: ActiveJob) {
     if (jobNeedsAttention || job.state === 'queued') return job.error?.title ?? job.stage;
+    // Without a meeting name above it, the stage would be the only line, so the
+    // work is named here instead of being lost.
+    if (!activeJobMeeting) return `${job.stage} · ${job.progress}%`;
     if (job.kind === 'import' && job.totalBytes !== null) {
       return `${formatBytes(job.progressBytes)} of ${formatBytes(job.totalBytes)}`;
     }

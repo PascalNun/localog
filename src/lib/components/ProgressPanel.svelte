@@ -12,7 +12,7 @@
     job.kind === 'import'
       ? 'Importing recording'
       : job.kind === 'transcription'
-        ? 'Transcribing locally'
+        ? 'Transcribing'
         : 'Generating protocol';
 
   $: byteProgress =
