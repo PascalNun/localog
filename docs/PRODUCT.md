@@ -1,147 +1,106 @@
-# Product definition
+# Product
 
-This document describes why LocaLog exists and what kind of product it should become. It starts from professional meeting work rather than from AI capabilities.
+## The idea
 
-In LocaLog, a **protocol** is the structured written record or minutes of a meeting. It is not a networking term.
+LocaLog helps a person turn a meeting recording into a useful written protocol without sending the conversation to a hosted AI service.
 
-## Problem
+The finished protocol is the purpose of the product. Transcription matters because it gives the person something they can review before the model turns the meeting into a document. The result is not meant to be a mysterious answer from an AI system. It is a draft with a visible source, a history, and a human decision at the end.
 
-Professional meetings produce decisions, responsibilities, unresolved questions, and technical detail that must become a reliable written record. Their recordings can also contain confidential conversations, personal information, internal decisions, client details, or other material that should not leave the organisation’s controlled environment. Manual protocols are slow; generic cloud meeting assistants are often unsuitable for this sensitive project content and tend to optimise for summaries rather than controlled documentation.
+## Who it is for
 
-## Product goal
+LocaLog is for professionals who regularly need to turn meetings into reliable written records: project teams, consultants, planners, architects, researchers, and organisations that handle information which should remain inside their own environment.
 
-LocaLog is an open-source, local-first AI desktop application for creating structured, editable meeting protocols from audio and video on the user’s device. The protocol is the intended result. Local transcription and transcript review provide controlled source material for a local language model to create a draft, which the user can then refine and export.
+The first audience is German-speaking project teams, but the product is not a German-language application. Interface language and meeting language are separate concepts. The same workflow should work in German, English, and other languages when the local models support them.
 
-This path combines project context, deliberate human review, and a carefully designed writing workflow; no LocaLog account or cloud service is required for the core experience. Transcription is an essential capability, but it serves the protocol rather than becoming a second, equally weighted product destination.
+## Why local matters
 
-The privacy focus follows from this architecture: the normal workflow should not require sensitive meeting content to be uploaded to a third-party transcription or language-model service. Local-first describes where the work happens and who remains in control of the data, not merely a deployment preference.
+Meeting recordings can contain personal information, internal decisions, client details, and material subject to professional or contractual duties. LocaLog is privacy-focused for a practical reason: the core workflow is designed so the content stays on the user's device.
 
-Its differentiator is not local inference alone. LocaLog connects the full documentation sequence—from source preservation and transcription to correction, controlled generation, revision, and export—without separating privacy, professional structure, and interface quality into secondary concerns.
+There is no required account, LocaLog cloud, telemetry, or third-party AI service. A future organisation-controlled runtime may be considered, but it would require a separate decision and a plain explanation before any meeting data moved elsewhere.
 
-Interface quality is a core product requirement and principal differentiator, equal in importance to local-first architecture and reliable data handling. The product succeeds only when local processing becomes a calm, immediate, intuitive, and trustworthy professional desktop workflow; working transcription and generation engines alone are insufficient.
+Local processing is not the whole promise. A private application that is confusing, slow, or careless with revisions would still fail its users. Privacy, data safety, and interface quality belong together.
 
-## User-centred principle
+## The product model
 
-LocaLog is evaluated from the user’s point of view: can someone move from a meeting recording to a useful, trustworthy protocol clearly, quickly, and with control? Models, architecture, and feature breadth are means to that outcome, not measures of success by themselves.
-
-Product and implementation choices should reduce unnecessary effort, waiting, uncertainty, and cognitive load throughout that task. When the technically easiest option would materially weaken the workflow, the trade-off must be raised and reviewed. User focus does not override privacy, data integrity, or human review; those safeguards are part of what makes the product useful and trustworthy.
-
-## Initial users
-
-The first proving context is architecture and planning work, including architects, engineers, project managers, consultants, construction teams, and public-sector project teams. The product model should remain useful to other professional project teams; architecture-specific language belongs in presets and vocabulary, not hard-coded application logic.
-
-The application is intended for macOS, Windows, and Linux. macOS is the first development and validation environment, not the final limit of the product.
-
-## Product model
+LocaLog keeps work in a simple hierarchy:
 
 ```text
 Project
 └── Meeting
-    ├── Recording(s)
-    ├── Transcript and revisions
-    ├── Protocol draft and revisions
-    └── Export(s)
+    ├── recording(s)
+    ├── transcript revisions
+    ├── protocol revisions
+    └── exports
 ```
 
-Every recording belongs to a meeting and every meeting belongs to a project. A meeting may eventually contain separate microphone and system-audio sources, so `Recording` is one-to-many even though v0.1 imports one source.
+Projects provide a home for related meetings, vocabulary, and professional defaults. A meeting is the unit of work. An imported recording never becomes an unassigned file floating outside that context.
 
-Microphone and system-audio recording remain specified for Phase 2, but the Record action is omitted from the first functional MVP shell until recording actually works.
+Stable meeting progress and temporary processing are different things. A meeting may be ready for transcript review while a later generation job is running or has failed. The database keeps those two axes separate so the interface can describe the situation honestly.
 
-## Core capabilities
+## The first complete workflow
 
-- Create projects and meetings with inherited defaults.
-- Import audio or video, preserve the source, and normalise working audio locally.
-- Transcribe locally with human-friendly quality presets, using a bundled runtime and models downloaded on demand (the user picks a quality, not a runtime).
-- Separate speakers automatically, presented as editable, provisional labels rather than confirmed identities.
-- Review transcript text, timestamps, speaker labels, and unclear terms.
-- Apply global and project vocabulary containing names, acronyms, organisations, places, and technical terms.
-- Generate an editable protocol with a user-selectable local model and reusable protocol style.
-- Save the canonical protocol as Markdown plus structured metadata.
-- Export Markdown and plain text in v0.1; add DOCX next.
+```text
+Create a project → create a meeting → import a recording
+→ prepare and transcribe it locally → review the transcript
+→ generate a protocol draft locally → edit and review it
+→ export Markdown or plain text
+```
 
-## Defaults and overrides
+The user should be able to stop between each step, understand what has happened, correct mistakes, and return after a restart without losing work.
 
-Configuration resolves in this order:
+## Product principles
 
-`global default < project default < meeting override`
+### The protocol is the outcome
 
-The resolved values should be snapshotted when a processing job starts so a later settings change cannot silently alter a running result or its provenance. Relevant settings include meeting/content language, transcription preset, vocabulary sets, participants, protocol style, writing provider/model, and export template. The goal is repeatability of inputs, not a guarantee of byte-identical model output.
+LocaLog is not primarily a transcript viewer and not a general-purpose chatbot. The workflow is shaped around creating a useful protocol with as little unnecessary work as possible.
 
-Interface language and meeting/content language are independent. The language selected for transcription and protocol generation never implicitly changes the application interface language.
+### Human review stays visible
 
-No content language is privileged. The workflow is designed to work in whatever language a meeting was held in, and the first validation happens in German and English only because that is where the first users and the first reference material are — not because the product is built around them. Language is a parameter of a meeting, not a branch in the application: a protocol style describes structure and tone and produces output in the meeting's language, rather than existing as a separate per-language variant. Where a language cannot be identified, the transcription runtime detects it rather than the application assuming one.
+A generated protocol is a draft. The application keeps revisions, makes the source transcript available, and never silently presents model output as an authoritative final record.
 
-## Vocabulary
+### Local processing should feel calm
 
-Vocabulary is a library object, not a free-form prompt box. Entries should support term, preferred spelling, category, aliases, optional note, scope, and enabled state. v0.1 uses vocabulary as transcription context where supported and as protocol-generation context; it does not claim to fine-tune models.
+Heavy work belongs in the background. Navigation, selection, typing, and editing should remain immediate while transcription or generation runs. Progress should explain what is happening without flooding the interface with technical output.
 
-## Protocol styles
+### Context is more valuable than a file list
 
-A style is a named professional preset containing structured instructions and output expectations. Styles are selected as professional outcomes, not presented as arbitrary per-meeting prompt engineering. An advanced style editor may eventually expose the underlying instructions in a controlled form. Initial examples:
+The project and meeting structure gives every recording, transcript, vocabulary term, protocol, and export a place. This is what makes the result useful later, not merely impressive at the moment it is generated.
 
-- Internal working note
-- Formal minutes
-- Task list
-- Client summary
-- Technical decision log
-- German and English variants
+### Technical detail should be available, not dominant
 
-Styles are content, not model settings. Temperature, context size, quantisation, and chunking remain advanced implementation choices.
+People choose a quality outcome such as “Fast”, “Balanced”, or “Accurate”. Runtime paths, model identifiers, memory limits, and diagnostics belong behind progressive disclosure until the user actually needs them.
 
-## Experience quality
+### The interface is a core feature
 
-- The first shell establishes the real navigation, spacing, typography, hierarchy, light/dark tokens, and interaction behaviour; it is not a disposable wrapper around backend work.
-- Routine navigation, selection, typing, and editing should feel immediate while local processing runs.
-- Progressive disclosure and sensible defaults keep technical settings out of the normal workflow.
-- Transcript review and protocol editing are serious professional workspaces, not placeholder forms in the completed vertical slice.
-- Accessibility, keyboard use, focus, text scaling, empty/progress/error states, and recovery communication are part of product quality.
-- Material implementation trade-offs that weaken calmness, clarity, or professional quality require review rather than silently choosing the technically easiest UI.
+The product should feel like a carefully made desktop writing and productivity tool: quiet surfaces, clear hierarchy, useful empty states, serious editing, honest failures, and dependable recovery. It should not look like a model manager, a generic SaaS dashboard, or an AI playground.
 
-## Trust and privacy
+## Scope of the first version
 
-- The generated protocol is visibly labelled a draft until the user marks it reviewed.
-- Review status belongs to one exact protocol revision. Later edits preserve the reviewed revision and present the current document as changed since review until it is explicitly reviewed again.
-- The source recording and transcript are never deleted as an implicit side effect of generation or export.
-- No telemetry, analytics SDK, remote crash reporting, cloud sync, or automatic upload.
-- Network-capable local runtimes must be documented and explicitly configured; LocaLog binds or connects to loopback only where it controls the endpoint.
-- Logs must exclude transcript/protocol bodies and redact user paths by default.
+The first complete version focuses on imported audio and video. It includes local transcription, transcript review, local protocol generation, Markdown editing, and Markdown/plain-text export.
 
-## Working with sensitive data
+Recording from the microphone or system audio remains part of the long-term product direction, but the Record action is not shown until it works reliably on the relevant platforms.
 
-Local-first is not a reason to avoid sensitive data; it is what makes handling it responsibly
-possible. A cloud assistant cannot reasonably hold voice characteristics of everyone who has sat in a
-client meeting, because that creates a breach surface and a processor relationship. LocaLog can,
-because the data stays on the machine that already holds the recording. Declining to use it would
-waste the architecture rather than honour it.
+The first version does not include accounts, cloud sync, collaboration, calendar integration, live meeting bots, mobile applications, DOCX/PDF export, semantic search, automatic finalisation, a public provider SDK, or automatic model downloads from arbitrary sources.
 
-The product is therefore willing to derive and store useful signals from meeting material — speaker
-characteristics being the first real example — provided the handling is explicit:
+Known local models may be downloaded with the user's consent when that is part of the accepted runtime direction. The application must not download anything silently.
 
-- it stays on the device, and is never uploaded or included in ordinary logs;
-- it lives in app-managed storage tied to the project it came from;
-- it is visible: the user can see what has been derived and for whom;
-- it is deletable, individually and completely, without disturbing the meeting record;
-- it is never a silent side effect — deriving it is a choice the user makes and can reverse;
-- it is excluded from exports and shared bundles unless deliberately included.
+## Storage and portability
 
-This carries a real obligation. Voice characteristics used to recognise a specific person are
-personal data of the meeting's participants, not of the user, and professional users in Europe will
-have their own duties towards the people they record. LocaLog's job is to make those duties easy to
-meet: keeping processing local removes the third-party processor entirely, and the ability to delete
-one person's derived data on request is a product requirement rather than a nicety.
+App-managed storage is the approved working model for v0.1. It is not permission to hide professional data inside an opaque container.
 
-## Non-goals for v0.1
+LocaLog must keep the data location documented, provide explicit user-selected exports, and preserve a path to backup/restore and a portable project bundle. Basic backup/restore belongs in v0.1 hardening even if a polished bundle arrives later.
 
-- Generic chatbot or permanent prompt field
-- Cloud accounts, sync, team collaboration, or sharing
-- Calendar integrations or meeting bots
-- Mobile clients
-- Live transcription
-- System-audio or microphone recording
-- Model marketplace or training/fine-tuning (managed on-demand download of known models is in scope; a marketplace and fine-tuning are not)
-- Final-authority or compliance claims
-- Rich project management, task tracking, or search across an organisation
+Imported originals are never modified. Committed revisions are immutable and recoverable. Working autosaves are separate from those revisions.
 
-## Success signal
+## Success criteria
 
-With a synthetic or consented real-world recording, a user can complete the core workflow without the app becoming unresponsive, without data leaving the machine through LocaLog, and with enough review control to produce a useful Markdown protocol.
+The first success criterion is not a benchmark score. It is a real, consented or synthetic meeting that can move through the complete workflow and produce a protocol a professional accepts after light editing.
+
+That workflow must be:
+
+- local by default and clear about any exception;
+- responsive while heavy work runs;
+- recoverable after cancellation, failure, or restart;
+- traceable enough that a person can understand which transcript and settings produced a draft;
+- useful in both light and dark themes and with keyboard access;
+- honest about uncertainty instead of hiding it behind confident language.

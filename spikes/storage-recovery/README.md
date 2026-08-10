@@ -1,31 +1,26 @@
-# Storage and recovery spike
+# Storage and recovery study
 
-This crate is intentionally isolated from `src-tauri`. It tests storage invariants; it is not production architecture and must not be imported by the application.
+This small isolated crate tested the storage idea before it was used in the application. It is a reference and fault-injection study, not a production module.
 
-## Hypothesis
+## What it asked
 
-- SQLite can own identity, relationships, lifecycle, jobs, revision metadata, and artifact path/checksum records.
-- A durably written immutable artifact can own the content of a committed transcript or protocol revision.
-- Database-backed visibility after the durable file write prevents a partially committed revision from appearing after a crash.
-- Startup reconciliation can identify incomplete writes, unreferenced files, missing/corrupt committed files, and interrupted jobs without modifying committed content.
-- A structured immutable JSON artifact is a viable initial canonical transcript representation; mutable autosave remains a separate working file.
+Can SQLite describe the relationships, lifecycle, jobs, revisions, and checksums while immutable files hold committed transcript and protocol content? Can the application recover safely if it stops between writing a file and recording it in the database?
 
-## Acceptance checks
+## What it covered
 
-- Inject a failure after file durability but before the database transaction and prove the revision is not visible.
-- Detect the resulting unreferenced artifact on recovery.
-- Mark queued/running/cancelling jobs interrupted while leaving terminal jobs unchanged.
-- Detect incomplete, missing, and checksum-mismatched files.
-- Preserve prior committed revisions while replacing mutable autosave state.
-- Copy a synthetic original without modifying its source and verify the managed checksum on load.
-- Reject hostile identifiers before constructing paths.
-- Measure a synthetic long transcript commit, verified read, and recovery scan.
+- file durability before database visibility;
+- unreferenced, missing, incomplete, and checksum-mismatched files;
+- interrupted jobs;
+- separate working autosaves and committed revisions;
+- immutable imported originals;
+- hostile identifiers and path containment;
+- long synthetic documents and recovery scans.
 
-Run with:
+Run:
 
 ```sh
 cargo test
 cargo run --example measure --release
 ```
 
-The final keep/change result and measurements are recorded in `docs/DECISIONS.md`. Keep this crate isolated as an executable reference/fault-test oracle; rewrite the production storage module behind the application boundary.
+The application keeps the tested invariants, but the study itself remains isolated so its fault-injection code cannot quietly become production architecture.

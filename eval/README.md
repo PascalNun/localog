@@ -1,34 +1,24 @@
 # Evaluation material (never committed)
 
-A local-only place for real meeting recordings and the protocols a person actually wrote from them,
-used to judge whether LocaLog's generated protocols are good enough.
+This directory is for local quality evaluation: recordings, the protocols people actually wrote, and notes about what a generated protocol gets right or wrong.
 
-Everything in this directory except this file and `.gitignore` is ignored by git. That is deliberate:
-`CONTRIBUTING.md` and `MVP.md` both forbid real recordings, transcripts, names, client information or
-protocols from entering fixtures, tests, screenshots or issues. Synthetic fixtures for tests belong in
-`fixtures/` or beside their spike; nothing here is a test fixture.
+Everything here except this README and `.gitignore` is ignored by Git. That is deliberate. Real meeting material is useful for honest evaluation, but it is not publication material and it is not a test fixture.
 
-Suggested shape, one directory per meeting:
+Suggested shape, one neutral directory per meeting:
 
 ```text
 eval/<short-label>/
 ├── audio.<ext>        the recording
-├── reference.md       the protocol a person wrote from it
-└── notes.md           what makes this one useful, and anything the reference gets wrong
+├── reference.md       the protocol a person wrote
+└── notes.md            why the example is useful
 ```
 
-Keep the labels neutral. A directory name is still a name.
+A directory name can still reveal information, so keep labels generic.
 
 ## What leaves the machine
 
-Running this material through LocaLog is entirely local: import, transcription and generation all
-happen on the device, which is the point of the product.
+Running the material through the local application is local. Reading it in an assistant conversation is not: content shown to a hosted model leaves the device. Do not use an assistant to inspect sensitive evaluation material merely because it is convenient.
 
-Reading it in an assistant conversation is not local. Content pasted into or read out of this
-directory during a chat is sent to a model provider. Judging quality does not require that: the
-metrics in an evaluation run — section coverage, length, whether decisions and actions were captured,
-whether anything was invented — can be computed and compared locally, and the verdict on wording is
-better made by the person who wrote the reference anyway.
+Useful measures can be computed locally: whether decisions and actions were captured, whether quantities survived, whether unsupported claims appeared, how long the output is, and how much editing it required. The person who wrote the reference remains the best judge of whether the wording is good.
 
-Prefer, in order: a meeting with no client or personal content; a redacted copy; a synthetic
-re-enactment. Use a genuinely sensitive recording only where the whole loop stays on the device.
+Prefer, in order: a meeting with no client or personal content, a redacted copy, or a synthetic re-enactment. Use a genuinely sensitive recording only when the whole evaluation loop stays on the device.

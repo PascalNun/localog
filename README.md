@@ -2,102 +2,77 @@
 
 ### Local AI that turns meeting recordings into clear, reviewable protocols.
 
-LocaLog is an open-source, local-first desktop application being built to turn meeting audio and video into structured, editable protocols—the written minutes or record of a meeting. It transcribes the recording, gives you a focused place to correct the transcript, and then uses a local language model to create a protocol draft that you can review, refine, and export.
+LocaLog is a local-first desktop application for people who need a useful written record after a meeting, but cannot send the conversation to a cloud AI service.
 
-The protocol is the purpose of the workflow. Transcription is the essential, reviewable source for it—not a separate end product. Recordings, transcript revisions, protocol drafts, and exports remain connected to the right meeting and project, while AI output stays provisional until a person has reviewed it.
+You import an audio or video recording, review the local transcript, and ask a local language model to prepare a protocol draft. The draft remains editable and provisional until a person has checked it. Projects and meetings keep the recording, transcript, protocol, and export together so the work does not disappear into a folder of unrelated files.
 
-Meeting recordings often contain confidential conversations, personal information, internal decisions, client details, or material that is not permitted to leave an organisation’s controlled environment. LocaLog is privacy-focused for that practical reason: its core workflow is designed to keep this sensitive content on the user’s device instead of requiring it to be sent to a third-party AI service.
+The protocol is the point of the product. Transcription is the reviewable source that makes a reliable protocol possible.
 
-The difference is not simply that the models run locally. Privacy, human control, reliable data handling, and a calm professional interface are designed as one product rather than added around an AI pipeline afterwards.
+<p>
+  <img src="docs/assets/screenshots/localog-start-light.png" alt="LocaLog light start screen" width="49%" />
+  <img src="docs/assets/screenshots/localog-start-dark.png" alt="LocaLog dark start screen" width="49%" />
+</p>
 
-![LocaLog development shell showing the light meeting start screen](docs/assets/screenshots/localog-start-light.png)
+_The current shell uses synthetic project data. These screenshots show the visual direction in light and dark mode, not a finished release._
 
-_Current development shell using synthetic project data. The interface will continue to evolve._
+## Why LocaLog exists
 
-## The proposition
+Meeting recordings can contain personal information, internal decisions, client details, and material that is not allowed to leave an organisation's controlled environment. LocaLog is designed around that reality:
 
-- **The protocol is the outcome.** Transcription, correction, and local generation form one deliberate path toward useful, editable meeting minutes.
-- **Private by structure.** Sensitive meeting content stays on the device through LocaLog’s core workflow; there is no required LocaLog account, cloud workspace, or third-party AI service.
-- **Context before files.** Projects and meetings keep recordings, vocabulary, transcripts, protocols, and exports meaningfully connected.
-- **Human review by design.** AI output is visible, editable, and provisional. LocaLog does not quietly turn generated text into an authoritative record.
-- **A serious desktop tool.** The interface is designed for reading, writing, focus, failure, and recovery—not as a chatbot, model playground, or generic SaaS dashboard.
-- **Open and cross-platform.** The source is licensed under GPL-3.0-or-later. macOS is the first development environment; Windows and Linux are intended platforms.
+- meeting content stays on the device through the core workflow;
+- no LocaLog account, cloud workspace, telemetry, or hosted AI service is required;
+- generated text is visible, editable, and never silently treated as the final record;
+- projects and meetings provide context for every recording and document;
+- the interface is meant to feel like a calm professional writing tool, not a chatbot or model dashboard.
 
-## A deliberate working sequence
+The project is open source under [GPL-3.0-or-later](LICENSE). macOS is the first development and validation platform. Windows and Linux remain intended platforms, with operating-system-specific work kept at the edges of the application.
 
-LocaLog treats meeting documentation as one connected piece of work:
+## The workflow
 
-`Project → Meeting → Import → Transcribe → Review → Generate → Edit → Export`
+```text
+Project → Meeting → Import → Transcribe → Review → Generate → Edit → Export
+```
 
-A recording is never left without context. It belongs to a meeting, and that meeting belongs to a project. The transcript can be corrected before it becomes the basis of a protocol. Generated text remains an editable draft until a person has reviewed it.
-
-This structure matters as much as the underlying transcription and language models. The aim is not simply to produce a transcript or run local AI, but to help someone create a useful protocol through a professional workflow that feels immediate, legible, and trustworthy.
-
-## What guides the project
-
-- **The user’s task comes first.** Models, architecture, and features matter only when they help someone reach a trustworthy protocol with less effort, less uncertainty, and more control.
-- **Local by default.** Recordings, transcripts, vocabulary, drafts, and exports remain on the device through LocaLog’s core workflow.
-- **Human review is part of the process.** Generated text is a starting point, never an automatic final record.
-- **Projects provide context.** Meetings and their documents stay connected instead of becoming a loose collection of files.
-- **The interface is part of the product.** Typography, spacing, navigation, writing, failure states, and recovery deserve the same care as storage and inference.
-- **Technical detail stays in its place.** Professional choices are visible; model and runtime internals remain secondary.
-- **The architecture is cross-platform.** Development and validation begin on macOS, while Windows and Linux remain intended application platforms.
-
-LocaLog is not planned as a meeting bot, generic chatbot, cloud workspace, or model-management dashboard. Built-in microphone and system-audio recording may come later; the first complete workflow begins with imported audio or video.
+The first useful workflow begins with an imported recording. Built-in microphone and system-audio recording are later possibilities, not part of the first complete path.
 
 ## Current state
 
-LocaLog is in early development. It is **not ready for production use or public presentation as a finished application**.
+LocaLog is an early working prototype, not a production application.
 
 The repository currently contains:
 
-- a working Tauri, Rust, Svelte, and TypeScript desktop foundation;
-- the real navigation, visual language, light and dark themes, and primary workflow screens;
-- a synthetic end-to-end demonstration with import, progress, cancellation, failure, retry, transcript review, protocol editing, and export states;
-- a production SQLite repository for projects, meetings, source metadata, and durable import jobs, connected to the native shell;
-- staged managed-media copying with SHA-256 checksums, truthful byte progress, cancellation, duplicate confirmation, and restart recovery;
-- durable transcription and protocol-generation jobs running through immutable revisions, cancellation, retry, and restart recovery;
-- a user-configured whisper.cpp boundary that probes imported media, caches derived mono/16 kHz audio safely, validates local JSON transcript output, and records runtime/model provenance (real inference still requires an installed runtime and model);
-- durable professional protocol-style presets and a structured vocabulary boundary, plus a loopback-only Ollama adapter that discovers an already running local server/model and records exact generation provenance;
-- native user-selected Markdown and plain-text export from verified protocol artifacts, with the browser download retained only as a development fallback;
-- persistent transcript correction and Markdown protocol editing with atomic autosave, revision history, and exact review status;
-- completed architecture studies for durable storage, process supervision, media normalisation and transcription, local protocol generation, and Markdown autosave.
+- a Tauri desktop shell with Svelte and TypeScript on the frontend and Rust at the core;
+- a warm light/dark visual system using locally bundled Barlow typography;
+- project and meeting storage in SQLite with versioned transcript and protocol artifacts;
+- durable import, transcription, and generation jobs with cancellation, retry, and restart recovery;
+- local media probing and normalisation through supervised FFmpeg processes;
+- a whisper.cpp boundary for local transcription, with consent-gated verified model downloads;
+- an Ollama protocol provider for development and early technical previews;
+- transcript review, Markdown editing, autosave, revision history, and Markdown/plain-text export;
+- synthetic fixtures, evaluation harnesses, and isolated architecture spikes.
 
-The native shell now preserves created projects, meetings, committed source copies, structured transcript revisions, transcript corrections, Markdown protocol revisions, working edits, review state, normalized-media cache metadata, provider/style/vocabulary job provenance, and job history across restarts. It recovers interrupted work without presenting partial output as complete. The browser and automated tests retain deterministic fake processing; native protocol generation uses the optional user-managed Ollama adapter when it is configured and ready. Real whisper.cpp inference and live Ollama generation still require manually supplied/started local runtimes; there are no release builds yet.
+The native path still requires a locally supplied whisper.cpp executable and a user-managed Ollama server. Runtime bundling, the final public generation runtime, M1/8 GB performance validation, Windows/Linux builds, accessibility auditing, and backup/restore remain unfinished.
 
-The next technical gate is to validate the whisper.cpp command contract and measure the complete local path on the documented M1/8 GB baseline. Ollama remains a development and early technical-preview option, not the final public distribution model.
+The most important unfinished work is protocol quality: proving that the generated document is complete, factually supported, and useful to a professional after light editing.
 
-## How the application is being built
+## Documentation
 
-The technical structure is intentionally modest:
+Start with the [documentation guide](docs/README.md). It explains which document to read for a particular question and distinguishes product goals, accepted decisions, current implementation status, and experimental evidence.
 
-- **Svelte and TypeScript** form the interface and its interaction model.
-- **Tauri** provides the native desktop shell.
-- **Rust** owns application rules, storage, background jobs, files, and local runtime integration.
-- **SQLite and versioned files** preserve relationships, progress, and committed document revisions.
-- **Supervised local tools** perform media and model work outside the interface thread, so navigation and writing can remain responsive.
+- [Product](docs/PRODUCT.md) — what LocaLog is for, who it serves, and what belongs in the first version
+- [Experience and UX](docs/UX.md) — how the application should behave and feel
+- [Visual direction](docs/VISUAL_DIRECTION.md) — typography, colour, spacing, and visual character
+- [MVP](docs/MVP.md) — the first complete workflow and its boundaries
+- [Architecture](docs/ARCHITECTURE.md) — how the application stores data and runs local work
+- [Decisions](docs/DECISIONS.md) — accepted choices, open questions, and the evidence behind them
+- [Current plan](docs/PLAN.md) — what is true now and what should happen next
+- [Roadmap](docs/ROADMAP.md) — later possibilities, not promises for the current release
 
-The application core does not depend on macOS-specific concepts. Operating-system differences—such as file locations, process control, permissions, audio capture, acceleration, signing, and packaging—belong behind focused platform adapters. macOS is the first test and packaging environment; Windows and Linux are part of the intended architecture and roadmap.
+The `spikes/` folders contain isolated studies. They are evidence and test oracles, not production modules. The local-only `eval/` folder may contain real evaluation material and must never be committed or shared.
 
-The project does not silently download models or runtimes. Ollama and an installed Whisper environment have been used to validate boundaries, but neither is yet the final public distribution model.
+## Running the current build
 
-## Read the documentation
-
-The documentation is organised from purpose to implementation. [Start with the documentation guide](docs/README.md) if you are new to the project or do not work primarily in software.
-
-- [Product definition](docs/PRODUCT.md) — the problem, goal, audience, scope, and principles
-- [Experience and interaction](docs/UX.md) — how the application should behave and feel
-- [Visual direction](docs/VISUAL_DIRECTION.md) — typography, hierarchy, restraint, and interface character
-- [v0.1 scope](docs/MVP.md) — what the first useful version must prove
-- [Technical architecture](docs/ARCHITECTURE.md) — how data, background work, and local runtimes fit together
-- [Decisions](docs/DECISIONS.md) — what has been accepted, what remains open, and why
-- [Roadmap](docs/ROADMAP.md) — later possibilities that are not commitments
-
-The folders under `spikes/` contain isolated technical evidence. They are test oracles and learning records, not production modules.
-
-## Run the current shell
-
-The current build is useful for design and workflow development only. It uses synthetic fixture data.
+The browser shell is useful for visual and workflow development. It uses synthetic data. The native shell exercises the real storage and process boundaries when the required local runtimes are available.
 
 Prerequisites:
 
@@ -110,26 +85,20 @@ npm install
 npm run dev
 ```
 
-Use `npm run tauri dev` to run the native desktop shell. Development and verification commands are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
+To run the Tauri shell:
+
+```sh
+npm run tauri dev
+```
+
+The complete checks are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Contributing
 
-LocaLog is public early so that its product reasoning, design work, and architecture can be followed in the open. The foundations are still moving, so substantial implementation proposals should begin with the relevant product or architecture discussion.
-
-These rules apply to everyone working on LocaLog, and they are the same rules for everyone. A contributor may be a person or a coding agent; the project does not keep a separate instruction file for agents, because there is nothing an agent should be allowed to do here that a person should not. If you are an agent working in this repository, this section is addressed to you directly and no further permission is implied by the fact that a task was assigned to you.
-
-**Never put real meeting material into this repository.** That means recordings, transcripts, protocols, participant names, company names, client information, or confidential project material — anywhere, including documentation, evaluation notes, test fixtures, commit messages, issues, screenshots, and pull requests. Meeting participants consented to being recorded so that a protocol could be written. They did not consent to publication, and a repository is publication.
-
-Evaluation results are worth stating plainly, because a real recording is the one place real material is genuinely useful. **Record the measurement, never the string.** Write "the client firm, misheard" rather than the name, and "a participant surname" rather than the surname. Nothing of value is lost: the numbers are the reason those notes exist, and the identifying strings never were.
-
-Assume this is irreversible. A name written into a commit message stays readable in the history after the file is corrected, and rewriting published history does not remove it from a forge that has already served it. The only reliable moment to get this right is before the commit.
-
-Real material belongs in the local-only `eval/` directory, which is ignored by git in full. See [eval/README.md](eval/README.md).
+The project is public while its foundations are still being proven. Before changing behaviour, read the product and architecture documents and check the current plan. Keep changes small, explain important trade-offs, and do not add real meeting material, credentials, model files, or runtime binaries to the repository.
 
 ## Licence
 
-LocaLog is free software licensed under the [GNU General Public License v3.0 or later](LICENSE). You may use, study, modify, and redistribute it under those terms, including commercially. Distributors of the application or modified versions must preserve the same freedoms and provide the corresponding source as required by the licence.
-
-Third-party dependencies and bundled assets remain under their respective licences. Future runtime binaries and model files require separate review before they can be distributed with the application.
+LocaLog is free software licensed under the [GNU General Public License v3.0 or later](LICENSE). You may use, study, modify, and redistribute it, including commercially, under the licence terms. Third-party dependencies, fonts, runtimes, models, and other assets retain their own licences.
 
 Copyright © 2026 Pascal Nünninghoff.
