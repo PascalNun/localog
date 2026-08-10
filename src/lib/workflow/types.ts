@@ -96,6 +96,10 @@ export interface ProtocolStyle {
   density: ProtocolDensity;
 }
 
+/** A file being dragged over the window, or let go of. */
+export type FileDropEvent =
+  { kind: 'over' } | { kind: 'leave' } | { kind: 'dropped'; paths: string[] };
+
 export interface VocabularyDraft {
   id: string | null;
   term: string;
@@ -241,6 +245,8 @@ export interface WorkflowBridge {
   updateMeetingTitle(meetingId: string, title: string): Promise<void>;
   updateTranscriptSegment(meetingId: string, segmentId: string, text: string): Promise<void>;
   updateSpeaker(meetingId: string, speaker: string, replacement: string): Promise<void>;
+  /** Files dropped onto the window. Returns an unsubscribe function. */
+  subscribeFileDrops(handler: (event: FileDropEvent) => void): () => void;
   saveVocabularyEntry(entry: VocabularyDraft): Promise<void>;
   deleteVocabularyEntry(entryId: string): Promise<void>;
   updateProtocol(meetingId: string, markdown: string): Promise<void>;

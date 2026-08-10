@@ -907,17 +907,50 @@ textarea::placeholder {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 210px;
-  padding: 32px;
+  gap: 4px;
+  min-height: 240px;
+  padding: 40px 32px;
   background: color-mix(in srgb, var(--raised) 52%, transparent);
-  border: 1px solid var(--line-strong);
-  border-radius: 7px;
+  /* Dashed while empty: a solid rectangle reads as a panel, and a person has to
+     be told the thing accepts something rather than merely contains something. */
+  border: 1.5px dashed var(--line-strong);
+  border-radius: 10px;
   text-align: center;
   transition:
     border-color 130ms ease,
     background 130ms ease;
 }
+.drop-zone strong {
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+.drop-zone small {
+  max-width: 46ch;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+/* Once a recording is chosen it is a statement of fact, not an invitation. */
+.drop-zone.has-source {
+  border-style: solid;
+}
 
+/* While a file is over the window the target has to say it will take it, or the
+   person is left guessing whether letting go will do anything at all. */
+.drop-zone.dragging {
+  border-style: solid;
+  border-color: var(--action);
+  background: color-mix(in srgb, var(--action) 8%, transparent);
+}
+.drop-zone.dragging .drop-icon {
+  transform: translateY(-2px);
+}
+.drop-error {
+  margin-top: 12px;
+  color: var(--danger);
+  font-size: 0.82rem;
+}
 .drop-zone:hover,
 .drop-zone.has-source {
   background: var(--raised);
@@ -938,7 +971,15 @@ textarea::placeholder {
   max-width: 460px;
 }
 .drop-icon {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  margin-bottom: 14px;
   color: var(--ink);
+  background: var(--subtle);
+  border-radius: 50%;
+  transition: transform 130ms ease;
 }
 .demo-fixture-action {
   margin-top: 8px;

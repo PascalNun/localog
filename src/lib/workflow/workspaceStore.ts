@@ -1,4 +1,5 @@
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
+import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import type {
@@ -20,6 +21,7 @@ import type {
   ModelDownloadProgress,
   VocabularyDraft,
   VocabularyEntry,
+  FileDropEvent,
 } from './types';
 
 export interface WorkspaceData {
@@ -191,6 +193,33 @@ class TauriWorkspaceStore implements WorkspaceStore {
     replacement: string,
   ): Promise<WorkspaceData> {
     return invoke('rename_transcript_speaker', { meetingId, speaker, replacement });
+  }
+
+  /// Dropping a recording onto the window is how most people expect to start,
+  /// and it is also the only way that never asks them to find a file twice. The
+  /// webview reports the drag as it happens so the target can show that it will
+  /// accept the file, rather than only reacting once it has been let go.
+  subscribeFileDrops(handler: (event: FileDropEvent) => void): () => void {
+    let stop: UnlistenFn | null = null;
+    let cancelled = false;
+    void getCurrentWebview()
+      .onDragDropEvent((event) => {
+        if (event.payload.type === 'enter' || event.payload.type === 'over') {
+          handler({ kind: 'over' });
+        } else if (event.payload.type === 'leave') {
+          handler({ kind: 'leave' });
+        } else if (event.payload.type === 'drop') {
+          handler({ kind: 'dropped', paths: event.payload.paths });
+        }
+      })
+      .then((unlisten) => {
+        if (cancelled) unlisten();
+        else stop = unlisten;
+      });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
   }
 
   saveVocabularyEntry(entry: VocabularyDraft): Promise<WorkspaceData> {

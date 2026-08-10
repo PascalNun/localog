@@ -14,6 +14,7 @@ import type {
   WorkflowSnapshot,
   TranscriptionRuntimeStatus,
   VocabularyDraft,
+  FileDropEvent,
 } from './types';
 import type { WorkspaceStore } from './workspaceStore';
 
@@ -465,6 +466,11 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     }
     if (document) document.isDirty = true;
     this.emit();
+  }
+
+  /// The browser preview has no native window, so nothing is ever dropped on it.
+  subscribeFileDrops(_handler: (event: FileDropEvent) => void): () => void {
+    return () => undefined;
   }
 
   async saveVocabularyEntry(draft: VocabularyDraft): Promise<void> {
