@@ -22,13 +22,30 @@
     operationalJob?.state === 'interrupted' ||
     operationalJob?.state === 'cancelled' ||
     operationalJob?.requiresDuplicateConfirmation;
+  // The heading says what is happening. It used to say "Processing locally",
+  // which is true of everything this application has ever done and therefore
+  // tells a reader nothing — while pushing the one thing they wanted to know
+  // into the small line beneath it.
   $: jobHeading = jobNeedsAttention
     ? operationalJob?.requiresDuplicateConfirmation
       ? 'Import needs your decision'
-      : 'Local job needs attention'
+      : 'Needs your attention'
     : operationalJob?.state === 'queued'
-      ? 'Import ready to continue'
-      : 'Processing locally';
+      ? 'Ready to continue'
+      : workHeading(operationalJob?.kind);
+
+  function workHeading(kind: string | undefined): string {
+    switch (kind) {
+      case 'import':
+        return 'Importing the recording';
+      case 'transcription':
+        return 'Transcribing';
+      case 'generation':
+        return 'Writing the protocol';
+      default:
+        return 'Working';
+    }
+  }
 
   function jobDetail(job: ActiveJob) {
     if (jobNeedsAttention || job.state === 'queued') return job.error?.title ?? job.stage;

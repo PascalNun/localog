@@ -1943,26 +1943,24 @@ fn job_stage_label(kind: &str, stage: &str, state: JobState) -> String {
         ("failed", _) => "Import could not finish — original unchanged".to_string(),
         ("transcription_queued", _) => "Transcription ready to start".to_string(),
         ("checking_source", _) => "Checking the committed source".to_string(),
-        ("preparing_fake_transcriber", _) => "Preparing the local fake transcriber".to_string(),
-        ("transcribing_synthetic_segments", _) => {
-            "Creating transcript segments locally".to_string()
-        }
+        ("preparing_fake_transcriber", _) => "Preparing the deterministic transcriber".to_string(),
+        ("transcribing_synthetic_segments", _) => "Creating transcript segments".to_string(),
         ("validating_transcript", _) => "Validating the transcript revision".to_string(),
         ("generation_queued", _) => "Protocol generation ready to start".to_string(),
         ("checking_transcript", _) => "Checking the committed transcript".to_string(),
         ("resolving_protocol_inputs", _) => "Resolving style and vocabulary snapshots".to_string(),
-        ("generating_protocol", _) => "Creating the protocol draft locally".to_string(),
+        ("generating_protocol", _) => "Writing the protocol draft".to_string(),
         ("validating_protocol", _) => "Validating the protocol revision".to_string(),
         ("output_staged", _) => "Committing the new revision safely".to_string(),
         // Real transcription stages; without these every step read "Preparing local import".
         ("probing_media", _) => "Inspecting the recording".to_string(),
         ("normalizing_audio", _) => "Preparing working audio".to_string(),
         ("loading_transcription_model", _) => "Loading the local model".to_string(),
-        ("transcribing_audio", _) => "Transcribing locally".to_string(),
+        ("transcribing_audio", _) => "Transcribing the recording".to_string(),
         // A meeting longer than the model's window is condensed section by section first.
         ("condensing_transcript", _) => "Reading the meeting in sections".to_string(),
         ("separating_speakers", _) => "Separating speakers".to_string(),
-        _ => "Working locally".to_string(),
+        _ => "Working".to_string(),
     }
 }
 
@@ -2406,7 +2404,7 @@ mod tests {
         // Stages that carry no detail are untouched.
         assert_eq!(
             job_stage_label("transcription", "transcribing_audio", running),
-            "Transcribing locally"
+            "Transcribing the recording"
         );
     }
 
