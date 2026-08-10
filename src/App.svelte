@@ -102,6 +102,34 @@
       ) ?? null)
     : null;
 
+  // A recording dropped on the window is an import wherever the person happens to
+  // be looking. Held here rather than in the import step because the commonest
+  // moment to drop one is before that step exists — on the start screen, with
+  // nothing open yet.
+  onMount(() => {
+    return bridge.subscribeFileDrops((event) => {
+      if (event.kind === 'over') {
+        draggingFile = true;
+      } else if (event.kind === 'leave') {
+        draggingFile = false;
+      } else {
+        draggingFile = false;
+        const usable = event.paths.find((path) => isRecording(path));
+        if (!usable) {
+          droppedRefusal = event.paths[0]
+            ? `LocaLog cannot read a ${extensionOf(event.paths[0]).toUpperCase()} file. Drop an audio or video recording.`
+            : '';
+          return;
+        }
+        droppedRefusal = '';
+        droppedRecording = usable;
+        if (route.name !== 'new-meeting') {
+          navigate({ name: 'new-meeting', projectId: currentProjectId });
+        }
+      }
+    });
+  });
+
   onMount(() => {
     // Native overlay spacing belongs only to Tauri on macOS, never to browser previews or other OSes.
     document.documentElement.dataset.windowChrome = resolveWindowChrome(
@@ -197,6 +225,37 @@
   function formatBytes(bytes: number) {
     if (bytes < 1_000_000) return `${Math.round(bytes / 1_000)} KB`;
     return `${(bytes / 1_000_000).toFixed(bytes >= 10_000_000 ? 0 : 1)} MB`;
+  }
+
+  // What the import stage reads. Named rather than complete: a person can check a
+  // list, and anything not on it is refused by name instead of ignored.
+  const RECORDING_TYPES = [
+    'mp3',
+    'm4a',
+    'wav',
+    'aac',
+    'flac',
+    'ogg',
+    'opus',
+    'wma',
+    'aiff',
+    'aif',
+    'mp4',
+    'mov',
+    'm4v',
+    'mkv',
+    'avi',
+    'webm',
+  ];
+  let draggingFile = false;
+  let droppedRecording: string | null = null;
+  let droppedRefusal = '';
+
+  function extensionOf(path: string): string {
+    return path.split('.').pop()?.toLowerCase() ?? '';
+  }
+  function isRecording(path: string): boolean {
+    return RECORDING_TYPES.includes(extensionOf(path));
   }
 
   function navigate(nextRoute: AppRoute) {
@@ -348,7 +407,9 @@
           onCreateProject={() => navigate({ name: 'new-project', returnToImport: true })}
           onSelectNativeSource={workspaceStore?.selectMediaSource.bind(workspaceStore)}
           onCreate={createMeeting}
-          subscribeFileDrops={(handler) => bridge.subscribeFileDrops(handler)}
+          {draggingFile}
+          {droppedRecording}
+          {droppedRefusal}
         />
       {:else if route.name === 'project' && project}
         <ProjectView
