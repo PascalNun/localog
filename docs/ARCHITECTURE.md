@@ -86,22 +86,24 @@ The application needs only a few narrow capabilities:
 - media probing and normalisation;
 - transcription with timestamps, uncertainty, provenance, cancellation, and progress;
 - optional speaker separation with provisional labels;
+- optional, consent-gated speaker profiles layered above anonymous diarisation labels;
 - protocol generation with validated output and provenance;
 - explicit Markdown and plain-text export.
 
 The first concrete choices are:
 
-| Area               | Current direction                             | Status                                                                  |
-| ------------------ | --------------------------------------------- | ----------------------------------------------------------------------- |
-| Desktop shell      | Tauri 2                                       | Accepted                                                                |
-| Interface          | Svelte with TypeScript                        | Accepted                                                                |
-| Core               | Rust                                          | Accepted                                                                |
-| Storage            | SQLite plus immutable files                   | Accepted                                                                |
-| Media              | FFmpeg/FFprobe through supervised processes   | Accepted for the vertical slice                                         |
-| Transcription      | whisper.cpp sidecar boundary                  | Accepted direction; packaging still open                                |
-| Speaker separation | sherpa-onnx sidecar plus verified ONNX models | Accepted v0.1 direction; sidecar build path exists, quality provisional |
-| Protocol provider  | narrow port, Ollama first                     | Accepted for development and early previews; final public runtime open  |
-| Protocol source    | Markdown                                      | Accepted                                                                |
+| Area               | Current direction                                   | Status                                                                  |
+| ------------------ | --------------------------------------------------- | ----------------------------------------------------------------------- |
+| Desktop shell      | Tauri 2                                             | Accepted                                                                |
+| Interface          | Svelte with TypeScript                              | Accepted                                                                |
+| Core               | Rust                                                | Accepted                                                                |
+| Storage            | SQLite plus immutable files                         | Accepted                                                                |
+| Media              | FFmpeg/FFprobe through supervised processes         | Accepted for the vertical slice                                         |
+| Transcription      | whisper.cpp sidecar boundary                        | Accepted direction; packaging still open                                |
+| Speaker separation | sherpa-onnx sidecar plus verified ONNX models       | Accepted v0.1 direction; sidecar build path exists, quality provisional |
+| Speaker profiles   | Confirmed names plus optional local voice signature | Proposed later layer; sensitive data and review safeguards required     |
+| Protocol provider  | narrow port, Ollama first                           | Accepted for development and early previews; final public runtime open  |
+| Protocol source    | Markdown                                            | Accepted                                                                |
 
 The model-download path is consent-gated and verifies known files by checksum. It is not a model marketplace. The user chooses a quality outcome rather than a runtime path. The runtime-bundling and distribution details remain open.
 
@@ -145,6 +147,8 @@ macOS 13+ on Apple Silicon is the provisional first baseline, with an M1 Mac and
 - Paths are resolved inside the managed root and hostile filenames are rejected.
 - Loopback providers have bounded responses, timeouts, and explicit readiness states.
 - No cloud service, account, telemetry, analytics, or remote feature flag is required.
+- Speaker profiles remain separate from raw diarisation output; any voice signature is opt-in, local-only,
+  separately deletable, and never applied without human confirmation.
 - Runtime binaries, fonts, models, and third-party assets require provenance and licence review before distribution.
 
 ## What this architecture deliberately does not contain

@@ -20,6 +20,11 @@ There is no required account, LocaLog cloud, telemetry, or third-party AI servic
 
 Local processing is not the whole promise. A private application that is confusing, slow, or careless with revisions would still fail its users. Privacy, data safety, and interface quality belong together.
 
+Speaker profiles require an additional safeguard. An anonymous diarisation label is not an identity. A
+person may explicitly confirm a name for a speaker and, separately, opt in to remembering a local voice
+signature for future suggestions. Voice-derived data is sensitive biometric-like information: it must
+never be collected silently, used as an unquestioned identity, or made difficult to delete.
+
 ## The product model
 
 LocaLog keeps work in a simple hierarchy:

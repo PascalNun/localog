@@ -18,7 +18,11 @@
   $: byteProgress =
     job.kind === 'import' && job.totalBytes !== null
       ? `${formatBytes(job.progressBytes)} of ${formatBytes(job.totalBytes)}`
-      : `${job.progress}%`;
+      : job.stage.toLowerCase().includes('speaker')
+        ? 'Working…'
+        : `${job.progress}%`;
+  $: indeterminate = job.stage.toLowerCase().includes('speaker');
+  $: stageLabel = indeterminate ? 'Separating speakers' : job.stage;
   $: continueLabel =
     job.kind === 'import'
       ? 'Continue import'
@@ -40,7 +44,7 @@
   <div class="progress-copy">
     <p class="eyebrow">{job.state === 'failed' ? 'Needs attention' : 'Background work'}</p>
     <h2>{job.error?.title ?? kindLabel}</h2>
-    <p>{job.error?.detail ?? job.stage}</p>
+    <p>{job.error?.detail ?? stageLabel}</p>
   </div>
   {#if job.requiresDuplicateConfirmation}
     <div class="progress-actions duplicate-actions">
@@ -71,16 +75,24 @@
     </div>
   {:else}
     <div class="progress-meter-wrap">
-      <div class="progress-meta"><span>{job.stage}</span><span>{byteProgress}</span></div>
+      <div class="progress-meta"><span>{stageLabel}</span><span>{byteProgress}</span></div>
+      {#if indeterminate}
+        <p class="progress-subnote">
+          This pass reads the full recording to compare voice turns. Long recordings can take a few
+          minutes; you can cancel safely at any time.
+        </p>
+      {/if}
       <div
+        class:indeterminate
         class="progress-track"
         role="progressbar"
         aria-label={kindLabel}
-        aria-valuenow={job.progress}
+        aria-valuenow={indeterminate ? undefined : job.progress}
+        aria-valuetext={indeterminate ? 'Separating speakers' : `${job.progress}%`}
         aria-valuemin="0"
         aria-valuemax="100"
       >
-        <span style={`width: ${job.progress}%`}></span>
+        <span class:indeterminate style={`width: ${indeterminate ? 35 : job.progress}%`}></span>
       </div>
       <button class="secondary-action" onclick={onCancel} disabled={job.state === 'cancelling'}
         >{job.state === 'cancelling' ? 'Cancelling safely…' : 'Cancel'}</button

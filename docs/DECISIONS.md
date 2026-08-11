@@ -54,6 +54,7 @@ Status words:
 29. LocaLog is licensed under GPL-3.0-or-later. Third-party runtimes, models, fonts, binaries, and assets retain their own licences and need separate distribution review.
 30. The repository is public as `PascalNun/localog`. Issues and project management should follow real implementation needs rather than reproduce a speculative backlog.
 31. Protocol model choice is a global preference in Settings. The normal workflow reuses that choice; optional language-specific profiles and per-meeting overrides remain advanced possibilities. Every job records the exact resolved model and settings used.
+32. Speaker profiles are a separate, consent-gated layer above anonymous diarisation labels. A confirmed display name may be remembered for a project, but voice-derived signatures are sensitive biometric-like data: they must be opt-in, local-only, separately deletable, never silently matched into a transcript, and never treated as a confirmed identity without review.
 
 ## Open questions
 
@@ -66,12 +67,14 @@ These are the questions that still affect product behaviour, distribution, or lo
 5. Should language detection be offered as an advisory preflight, and what confidence threshold would make it useful without overriding the selected language?
 6. Will macOS distribution use a direct notarised build, the Mac App Store, or both? The answer affects sandboxing and sidecars.
 7. Which transcript content should remain canonical if a future structured transcript view and Markdown editing surface both exist? The current answer is one structured JSON transcript artifact, with derived views rather than two editable sources.
+8. What exact encrypted-at-rest mechanism should protect opt-in voice signatures, and should profiles remain project-scoped in v0.1 or support an explicitly enabled global scope?
 
 ## Deferred decisions
 
 - integrated recording;
 - collaboration, sharing, accounts, cloud sync, calendars, live bots, and mobile applications;
 - semantic search across projects;
+- speaker voice matching and reusable voice signatures until the consent, encryption, deletion, and review flow is specified;
 - DOCX/PDF export and a rich template designer;
 - a public provider/plugin SDK and broad capability negotiation;
 - a portable project-bundle format beyond basic backup/restore;
