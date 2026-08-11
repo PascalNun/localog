@@ -13,6 +13,7 @@ import type {
   WorkflowBridge,
   WorkflowSnapshot,
   TranscriptionRuntimeStatus,
+  SpeakerSeparationStatus,
   VocabularyDraft,
   FileDropEvent,
 } from './types';
@@ -140,6 +141,7 @@ function sampleTranscriptDocument(meetingId: string): TranscriptDocument {
     meetingId,
     revisionId: `transcript-demo-${meetingId}`,
     language: 'English',
+    speakerResolution: 'resolved',
     segments: structuredClone(sampleTranscript),
     baseRevisionId: `transcript-demo-${meetingId}`,
     isDirty: false,
@@ -353,11 +355,14 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     this.startJob(meetingId, 'import');
   }
 
-  async startTranscription(meetingId: string): Promise<void> {
+  async startTranscription(
+    meetingId: string,
+    _expectedSpeakers: number | null = null,
+  ): Promise<void> {
     if (this.workspaceStore) {
       const failRequested = this.snapshot.nextJobOutcome === 'failure';
       this.snapshot.nextJobOutcome = 'success';
-      await this.workspaceStore.startTranscription(meetingId, failRequested);
+      await this.workspaceStore.startTranscription(meetingId, failRequested, _expectedSpeakers);
       return;
     }
     this.startJob(meetingId, 'transcription');
@@ -427,6 +432,19 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     if (!nextTitle) return;
     if (this.workspaceStore) await this.workspaceStore.updateMeetingTitle(meetingId, nextTitle);
     meeting.title = nextTitle;
+    this.emit();
+  }
+
+  async updateMeetingLanguage(meetingId: string, language: string): Promise<void> {
+    const nextLanguage = language.trim();
+    if (!nextLanguage) throw new Error('Choose a meeting language.');
+    if (this.workspaceStore?.updateMeetingLanguage) {
+      await this.workspaceStore.updateMeetingLanguage(meetingId, nextLanguage);
+      return;
+    }
+    this.findMeeting(meetingId).language = nextLanguage;
+    const transcript = this.snapshot.transcripts[meetingId];
+    if (transcript) transcript.language = nextLanguage;
     this.emit();
   }
 
@@ -635,6 +653,35 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     return this.getTranscriptionRuntimeStatus();
   }
 
+  async getSpeakerSeparationStatus(): Promise<SpeakerSeparationStatus> {
+    if (this.workspaceStore?.getSpeakerSeparationStatus) {
+      return this.workspaceStore.getSpeakerSeparationStatus();
+    }
+    return {
+      modelsInstalled: false,
+      runtimeConfigured: false,
+      runtimeHealthy: false,
+      runtimeVersion: null,
+      runtimePath: null,
+      downloadBytes: 0,
+    };
+  }
+
+  async configureSpeakerRuntime(executablePath: string): Promise<SpeakerSeparationStatus> {
+    if (this.workspaceStore?.configureSpeakerRuntime) {
+      return this.workspaceStore.configureSpeakerRuntime(executablePath);
+    }
+    return this.getSpeakerSeparationStatus();
+  }
+
+  async downloadSpeakerModels(): Promise<void> {
+    await this.workspaceStore?.downloadSpeakerModels?.();
+  }
+
+  subscribeSpeakerEvents(handler: (status: SpeakerSeparationStatus) => void): () => void {
+    return this.workspaceStore?.subscribeSpeakerEvents?.(handler) ?? (() => {});
+  }
+
   async getMeetingAudio(meetingId: string): Promise<import('./types').MeetingAudio | null> {
     // The browser preview has no managed media, so no audio is offered.
     return this.workspaceStore?.getMeetingAudio?.(meetingId) ?? null;
@@ -820,7 +867,9 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     meeting.lifecycle = completionLifecycle[job.kind];
     if (job.kind === 'import') meeting.durationLabel = '42 min';
     if (job.kind === 'transcription') {
-      this.snapshot.transcripts[job.meetingId] = sampleTranscriptDocument(job.meetingId);
+      const transcript = sampleTranscriptDocument(job.meetingId);
+      transcript.language = meeting.language;
+      this.snapshot.transcripts[job.meetingId] = transcript;
     }
     if (job.kind === 'generation') {
       this.snapshot.protocols[job.meetingId] = {

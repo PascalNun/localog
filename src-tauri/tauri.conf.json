@@ -33,7 +33,7 @@
     }
   },
   "bundle": {
-    "active": false,
+    "active": true,
     "targets": "all",
     "macOS": { "minimumSystemVersion": "13.0" }
   }

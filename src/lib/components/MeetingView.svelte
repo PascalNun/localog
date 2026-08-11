@@ -1,5 +1,12 @@
 <script lang="ts">
-  import type { ActiveJob, AppRoute, MeetingSummary, ProjectSummary } from '../workflow/types';
+  import type {
+    ActiveJob,
+    AppRoute,
+    MeetingSummary,
+    ProjectSummary,
+    SpeakerSeparationStatus,
+  } from '../workflow/types';
+  import { COMMON_MEETING_LANGUAGES } from '../workflow/languages';
   import Icon from './Icon.svelte';
   import ProgressPanel from './ProgressPanel.svelte';
   import StageRail from './StageRail.svelte';
@@ -10,25 +17,43 @@
   export let presetLabel: string = 'Not selected';
   export let job: ActiveJob | null;
   export let onNavigate: (route: AppRoute) => void;
-  export let onTranscribe: () => Promise<void>;
+  export let onTranscribe: (expectedSpeakers: number | null) => Promise<void>;
   export let onCancel: () => Promise<void>;
   export let onRetry: () => Promise<void>;
   export let onConfirmDuplicate: () => Promise<void>;
   export let onReselectSource: () => Promise<void>;
   export let onRename: (title: string) => Promise<void>;
+  export let onUpdateLanguage: (language: string) => Promise<void>;
+  export let speakerStatus: SpeakerSeparationStatus = {
+    modelsInstalled: false,
+    runtimeConfigured: false,
+    runtimeHealthy: false,
+    runtimeVersion: null,
+    runtimePath: null,
+    downloadBytes: 0,
+  };
+  export let speakerPreparing = false;
+  export let speakerDownloadPercent = 0;
+  export let onPrepareSpeakerModels: () => Promise<void>;
 
   let editingTitle = false;
   let titleDraft = meeting.title;
   let startingTranscription = false;
   let transcriptionStartError = '';
+  // This is a hint for this transcription run, not a global application setting.
+  let expectedSpeakers = '';
+  let editingLanguage = false;
+  let languageDraft = meeting.language;
+  let languageError = '';
   $: relevantJob = job?.meetingId === meeting.id ? job : null;
   $: transcriptionUnavailable = Boolean(relevantJob && relevantJob.state !== 'completed');
+  $: speakerNeedsPreparation = Boolean(expectedSpeakers && !speakerStatus.modelsInstalled);
 
   async function startTranscription() {
     startingTranscription = true;
     transcriptionStartError = '';
     try {
-      await onTranscribe();
+      await onTranscribe(expectedSpeakers ? Number(expectedSpeakers) : null);
     } catch {
       transcriptionStartError = 'Transcription could not be started. Please try again.';
     } finally {
@@ -39,6 +64,16 @@
   async function saveTitle() {
     await onRename(titleDraft);
     editingTitle = false;
+  }
+
+  async function saveLanguage() {
+    languageError = '';
+    try {
+      await onUpdateLanguage(languageDraft);
+      editingLanguage = false;
+    } catch (error) {
+      languageError = error instanceof Error ? error.message : String(error);
+    }
   }
 
   function formatBytes(bytes: number | null) {
@@ -66,9 +101,28 @@
             onclick={() => (editingTitle = true)}>✎</button
           >{/if}
       </div>
-      <p>
-        {meeting.occurredAt} · {meeting.language} · {meeting.durationLabel ?? 'Duration pending'}
+      <p class="meeting-language-line">
+        {meeting.occurredAt} ·
+        {#if editingLanguage}<input
+            bind:value={languageDraft}
+            list="meeting-view-languages"
+            aria-label="Meeting language"
+          /><datalist id="meeting-view-languages">
+            {#each COMMON_MEETING_LANGUAGES as language (language)}<option value={language}
+              ></option>{/each}
+          </datalist><button class="text-action" onclick={saveLanguage}>Save language</button
+          ><button class="text-action" onclick={() => (editingLanguage = false)}>Cancel</button>
+        {:else}<button
+            class="inline-setting"
+            disabled={transcriptionUnavailable}
+            onclick={() => {
+              languageDraft = meeting.language;
+              editingLanguage = true;
+            }}
+            aria-label="Change meeting language">{meeting.language}</button
+          >{/if} · {meeting.durationLabel ?? 'Duration pending'}
       </p>
+      {#if languageError}<p class="form-error" role="alert">{languageError}</p>{/if}
     </div>
   </header>
 
@@ -119,22 +173,60 @@
           </div>
           <div>
             <dt>Language</dt>
-            <dd>{meeting.language}<small>Meeting setting</small></dd>
+            <dd>
+              {meeting.language}<small>Meeting setting · change above before transcribing</small>
+            </dd>
           </div>
           <div>
             <dt>Preset</dt>
             <dd>{presetLabel}<small>Global default</small></dd>
           </div>
         </dl>
+        <label class="transcription-option">
+          <span>People speaking</span>
+          <select bind:value={expectedSpeakers}>
+            <option value="">Let LocaLog estimate</option>
+            {#each Array.from({ length: 9 }, (_, index) => index + 2) as count (count)}
+              <option value={count}>{count} speakers</option>
+            {/each}
+          </select>
+          <small>Optional hint for this transcription</small>
+        </label>
+        {#if speakerNeedsPreparation}
+          <div class="speaker-preparation" role="status">
+            <div>
+              <strong>Prepare speaker separation</strong>
+              <p>
+                LocaLog needs two verified local model files before it can add provisional speaker
+                labels. Your recording stays on this device.
+              </p>
+            </div>
+            <button
+              class="secondary-action"
+              onclick={onPrepareSpeakerModels}
+              disabled={speakerPreparing}
+              >{speakerPreparing
+                ? `Preparing ${speakerDownloadPercent}%`
+                : `Prepare${speakerStatus.downloadBytes > 0 ? ` (${formatBytes(speakerStatus.downloadBytes)})` : ''}`}</button
+            >
+          </div>
+        {:else if expectedSpeakers && !speakerStatus.runtimeHealthy}
+          <p class="setting-hint speaker-runtime-note">
+            The speaker runtime is not available in this installation. Transcription can continue,
+            but the transcript will use editable generic speaker labels.
+          </p>
+        {/if}
         <button
           class="primary-action"
           onclick={startTranscription}
-          disabled={startingTranscription || transcriptionUnavailable}
+          disabled={startingTranscription || transcriptionUnavailable || speakerNeedsPreparation}
           >{startingTranscription
             ? 'Getting ready to transcribe…'
             : transcriptionUnavailable
               ? 'Use the job controls above'
-              : 'Transcribe'}
+              : speakerNeedsPreparation
+                ? 'Prepare speaker separation first'
+                : 'Transcribe'}
           <Icon name="arrow" /></button
         >
         {#if transcriptionStartError}<p class="form-error" role="alert">

@@ -62,6 +62,9 @@ fn drive(root: &Path, job_id: &str, label: &str) {
 fn runs_the_whole_pipeline_on_a_real_meeting() {
     let audio = required("LOCALOG_E2E_AUDIO");
     let language = std::env::var("LOCALOG_E2E_LANGUAGE").unwrap_or_else(|_| "German".to_string());
+    let expected_speakers = std::env::var("LOCALOG_E2E_SPEAKERS")
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok());
     // A run costs half an hour, so the workspace can be kept for inspection
     // afterwards rather than vanishing with the temporary directory.
     let kept = std::env::var("LOCALOG_E2E_ROOT").ok().map(PathBuf::from);
@@ -115,12 +118,6 @@ fn runs_the_whole_pipeline_on_a_real_meeting() {
             &std::env::var("LOCALOG_E2E_MODEL").unwrap_or_else(|_| "qwen3.5:4b".to_string()),
         )
         .unwrap();
-    if let Ok(count) = std::env::var("LOCALOG_E2E_SPEAKERS") {
-        repository
-            .write_setting("diarisation.expectedSpeakers", &count)
-            .unwrap();
-    }
-
     let project = repository
         .create_project(NewProjectInput {
             name: "Pipeline exercise".to_string(),
@@ -172,7 +169,9 @@ fn runs_the_whole_pipeline_on_a_real_meeting() {
     );
 
     println!("stage 2 — transcription, vocabulary and speakers");
-    let (transcription, _) = processing::queue_transcription(root, &meeting.id, false).unwrap();
+    let (transcription, _) =
+        processing::queue_transcription_with_expected(root, &meeting.id, false, expected_speakers)
+            .unwrap();
     drive(root, &transcription.id, "transcription");
 
     let repository = WorkspaceRepository::open(root).unwrap();

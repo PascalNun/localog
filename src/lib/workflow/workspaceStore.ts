@@ -17,6 +17,7 @@ import type {
   TranscriptionCapability,
   TranscriptionPreset,
   TranscriptionRuntimeStatus,
+  SpeakerSeparationStatus,
   ModelDownloadError,
   ModelDownloadProgress,
   VocabularyDraft,
@@ -45,12 +46,17 @@ export interface WorkspaceStore {
   createProject(input: NewProjectInput): Promise<ProjectSummary>;
   createMeeting(input: NewMeetingInput): Promise<MeetingSummary>;
   updateMeetingTitle(meetingId: string, title: string): Promise<void>;
+  updateMeetingLanguage?: (meetingId: string, language: string) => Promise<void>;
   selectMediaSource(): Promise<SourceSelection | null>;
   startImport(meetingId: string): Promise<void>;
   cancelImport(meetingId: string): Promise<void>;
   retryImport(meetingId: string, allowDuplicate: boolean): Promise<void>;
   replaceImportSource(meetingId: string, source: SourceSelection): Promise<void>;
-  startTranscription(meetingId: string, failRequested: boolean): Promise<void>;
+  startTranscription(
+    meetingId: string,
+    failRequested: boolean,
+    expectedSpeakers?: number | null,
+  ): Promise<void>;
   startGeneration(meetingId: string, failRequested: boolean): Promise<void>;
   cancelProcessing(meetingId: string): Promise<void>;
   retryProcessing(meetingId: string): Promise<void>;
@@ -78,6 +84,10 @@ export interface WorkspaceStore {
   subscribe(listener: (workspace: WorkspaceData) => void): Promise<UnlistenFn>;
   getTranscriptionRuntimeStatus?: () => Promise<TranscriptionRuntimeStatus>;
   configureTranscriptionRuntime?: (executablePath: string) => Promise<TranscriptionRuntimeStatus>;
+  getSpeakerSeparationStatus?: () => Promise<SpeakerSeparationStatus>;
+  configureSpeakerRuntime?: (executablePath: string) => Promise<SpeakerSeparationStatus>;
+  downloadSpeakerModels?: () => Promise<void>;
+  subscribeSpeakerEvents?: (handler: (status: SpeakerSeparationStatus) => void) => () => void;
   getMeetingAudio?: (meetingId: string) => Promise<MeetingAudio | null>;
   getTranscriptionCapability?: () => Promise<TranscriptionCapability>;
   setTranscriptionPreset?: (preset: TranscriptionPreset) => Promise<TranscriptionCapability>;
@@ -113,6 +123,10 @@ class TauriWorkspaceStore implements WorkspaceStore {
 
   updateMeetingTitle(meetingId: string, title: string): Promise<void> {
     return invoke('update_meeting_title', { meetingId, title });
+  }
+
+  updateMeetingLanguage(meetingId: string, language: string): Promise<void> {
+    return invoke('update_meeting_language', { meetingId, language });
   }
 
   async selectMediaSource(): Promise<SourceSelection | null> {
@@ -164,8 +178,12 @@ class TauriWorkspaceStore implements WorkspaceStore {
     });
   }
 
-  startTranscription(meetingId: string, failRequested: boolean): Promise<void> {
-    return invoke('start_transcription', { meetingId, failRequested });
+  startTranscription(
+    meetingId: string,
+    failRequested: boolean,
+    expectedSpeakers: number | null = null,
+  ): Promise<void> {
+    return invoke('start_transcription', { meetingId, failRequested, expectedSpeakers });
   }
 
   startGeneration(meetingId: string, failRequested: boolean): Promise<void> {
@@ -266,6 +284,33 @@ class TauriWorkspaceStore implements WorkspaceStore {
     return invoke<TranscriptionRuntimeStatus>('configure_transcription_runtime', {
       executablePath,
     });
+  }
+
+  getSpeakerSeparationStatus(): Promise<SpeakerSeparationStatus> {
+    return invoke<SpeakerSeparationStatus>('speaker_separation_status');
+  }
+
+  configureSpeakerRuntime(executablePath: string): Promise<SpeakerSeparationStatus> {
+    return invoke<SpeakerSeparationStatus>('configure_speaker_runtime', { executablePath });
+  }
+
+  downloadSpeakerModels(): Promise<void> {
+    return invoke('download_speaker_models');
+  }
+
+  subscribeSpeakerEvents(handler: (status: SpeakerSeparationStatus) => void): () => void {
+    let stop: UnlistenFn | null = null;
+    let cancelled = false;
+    void listen<SpeakerSeparationStatus>('speakers://changed', (event) =>
+      handler(event.payload),
+    ).then((unlisten) => {
+      if (cancelled) unlisten();
+      else stop = unlisten;
+    });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
   }
 
   async getMeetingAudio(meetingId: string): Promise<MeetingAudio | null> {

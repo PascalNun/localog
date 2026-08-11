@@ -117,6 +117,63 @@ pub(crate) fn validate_config(executable: &Path, model: &Path) -> Result<Runtime
     })
 }
 
+/// Find a bundled or PATH-provided runtime without asking the person using the
+/// app to browse for an executable. The explicit setting still wins, which is
+/// useful for development and for a future signed sidecar override.
+pub(crate) fn discover_executable(names: &[&str]) -> Option<PathBuf> {
+    let mut locations = std::env::var_os("PATH")
+        .map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
+        .unwrap_or_default();
+    if let Ok(current) = std::env::current_exe()
+        && let Some(parent) = current.parent()
+    {
+        // Tauri places external binaries next to the application executable in
+        // development and in the packaged app bundle. Keep these locations
+        // ahead of PATH so a release cannot accidentally pick up a different
+        // system installation.
+        locations.push(parent.to_path_buf());
+        locations.push(parent.join("Resources"));
+        locations.push(parent.join("..").join("Resources"));
+        locations.push(parent.join("binaries"));
+    }
+    #[cfg(debug_assertions)]
+    locations.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("binaries"));
+    names.iter().find_map(|name| {
+        locations.iter().find_map(|directory| {
+            let candidate = directory.join(name);
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+            // Tauri's development layout keeps the target triple in the file
+            // name; release bundles use the logical base name. Accept both.
+            std::fs::read_dir(directory)
+                .ok()?
+                .filter_map(Result::ok)
+                .map(|entry| entry.path())
+                .find(|path| {
+                    path.is_file()
+                        && path
+                            .file_name()
+                            .and_then(|value| value.to_str())
+                            .is_some_and(|value| {
+                                value.starts_with(&format!("{name}-"))
+                                    || value.starts_with(&format!("{name}."))
+                            })
+                })
+        })
+    })
+}
+
+/// A cheap launch probe used for optional runtimes. The probe is deliberately
+/// bounded and never runs on the UI thread; it catches a missing executable or
+/// an incompatible architecture before a meeting is started.
+pub(crate) fn executable_health(path: &Path) -> bool {
+    let mut command = Command::new(path);
+    command.arg("--help");
+    let token = AtomicBool::new(false);
+    run_process(command, &token, ProcessLimits::version()).is_ok()
+}
+
 pub(crate) fn model_provenance(path: &Path) -> std::io::Result<ModelProvenance> {
     let mut file = File::open(path)?;
     let mut hasher = Sha256::new();

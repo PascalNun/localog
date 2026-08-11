@@ -42,7 +42,7 @@ Status words:
 
 21. FFmpeg/FFprobe are the first media boundary.
 22. whisper.cpp is the first transcription runtime direction and should eventually be shipped as a signed sidecar.
-23. sherpa-onnx is the accepted v0.1 direction for optional automatic speaker separation. Labels remain provisional and editable.
+23. sherpa-onnx is the accepted v0.1 direction for optional automatic speaker separation. Its executable is built as a target-specific Tauri sidecar and discovered automatically; its verified model files are prepared on first use with explicit consent. Labels remain provisional and editable.
 24. Ollama is accepted for development spikes and early technical previews through a narrow loopback-only provider boundary. It is not the final public distribution decision.
 25. D-014’s original “discover installed models only” rule is superseded. Known transcription and diarisation models may be downloaded on demand with explicit user consent, HTTPS verification, checksums, atomic installation, and no silent acquisition. A model marketplace is not part of the product.
 26. Reproducibility means recording provenance and resolved inputs, not promising byte-identical model output.
@@ -53,6 +53,7 @@ Status words:
 28. macOS 13+ on Apple Silicon is the provisional first platform. An M1 Mac with 8 GB RAM is the weakest representative test machine. Windows and Linux remain intended platforms.
 29. LocaLog is licensed under GPL-3.0-or-later. Third-party runtimes, models, fonts, binaries, and assets retain their own licences and need separate distribution review.
 30. The repository is public as `PascalNun/localog`. Issues and project management should follow real implementation needs rather than reproduce a speculative backlog.
+31. Protocol model choice is a global preference in Settings. The normal workflow reuses that choice; optional language-specific profiles and per-meeting overrides remain advanced possibilities. Every job records the exact resolved model and settings used.
 
 ## Open questions
 
@@ -60,10 +61,11 @@ These are the questions that still affect product behaviour, distribution, or lo
 
 1. What self-contained local runtime, if any, should replace or accompany Ollama for public protocol generation?
 2. What is the minimum backup/restore experience for v0.1 hardening, and when should a portable project bundle become an acceptance criterion?
-3. Which interface locales ship first, and how should the first-run meeting/content language be chosen independently?
+3. Which interface locales ship first? Meeting language is now chosen independently through project defaults and per-meeting overrides; the first interface locale is still English.
 4. Should speaker separation be on by default when its runtime is available, or remain an explicit optional step?
-5. Will macOS distribution use a direct notarised build, the Mac App Store, or both? The answer affects sandboxing and sidecars.
-6. Which transcript content should remain canonical if a future structured transcript view and Markdown editing surface both exist? The current answer is one structured JSON transcript artifact, with derived views rather than two editable sources.
+5. Should language detection be offered as an advisory preflight, and what confidence threshold would make it useful without overriding the selected language?
+6. Will macOS distribution use a direct notarised build, the Mac App Store, or both? The answer affects sandboxing and sidecars.
+7. Which transcript content should remain canonical if a future structured transcript view and Markdown editing surface both exist? The current answer is one structured JSON transcript artifact, with derived views rather than two editable sources.
 
 ## Deferred decisions
 

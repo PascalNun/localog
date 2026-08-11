@@ -59,6 +59,7 @@ export interface TranscriptDocument {
   meetingId: string;
   revisionId: string;
   language: string;
+  speakerResolution: 'unknown' | 'unavailable' | 'failed' | 'resolved';
   segments: TranscriptSegment[];
   baseRevisionId: string;
   isDirty: boolean;
@@ -178,6 +179,16 @@ export interface TranscriptionRuntimeStatus {
   modelByteCount: number | null;
 }
 
+/** Readiness of optional speaker separation; it never blocks transcription. */
+export interface SpeakerSeparationStatus {
+  modelsInstalled: boolean;
+  runtimeConfigured: boolean;
+  runtimeHealthy: boolean;
+  runtimeVersion: string | null;
+  runtimePath: string | null;
+  downloadBytes: number;
+}
+
 // The user chooses a quality; the exact model stays an Advanced detail.
 export type TranscriptionPreset = 'fast' | 'balanced' | 'accurate';
 
@@ -236,13 +247,14 @@ export interface WorkflowBridge {
   createProject(input: NewProjectInput): Promise<ProjectSummary>;
   createMeeting(input: NewMeetingInput): Promise<MeetingSummary>;
   importRecording(meetingId: string): Promise<void>;
-  startTranscription(meetingId: string): Promise<void>;
+  startTranscription(meetingId: string, expectedSpeakers?: number | null): Promise<void>;
   generateProtocol(meetingId: string): Promise<void>;
   cancelActiveJob(meetingId: string): Promise<void>;
   retryActiveJob(meetingId: string): Promise<void>;
   confirmDuplicateImport(meetingId: string): Promise<void>;
   reselectImportSource(meetingId: string): Promise<void>;
   updateMeetingTitle(meetingId: string, title: string): Promise<void>;
+  updateMeetingLanguage(meetingId: string, language: string): Promise<void>;
   updateTranscriptSegment(meetingId: string, segmentId: string, text: string): Promise<void>;
   updateSpeaker(meetingId: string, speaker: string, replacement: string): Promise<void>;
   /** Files dropped onto the window. Returns an unsubscribe function. */
@@ -260,6 +272,10 @@ export interface WorkflowBridge {
   setNextJobOutcome(outcome: FakeJobOutcome): Promise<void>;
   getTranscriptionRuntimeStatus(): Promise<TranscriptionRuntimeStatus>;
   configureTranscriptionRuntime(executablePath: string): Promise<TranscriptionRuntimeStatus>;
+  getSpeakerSeparationStatus(): Promise<SpeakerSeparationStatus>;
+  configureSpeakerRuntime(executablePath: string): Promise<SpeakerSeparationStatus>;
+  downloadSpeakerModels(): Promise<void>;
+  subscribeSpeakerEvents(handler: (status: SpeakerSeparationStatus) => void): () => void;
   /** Working audio for transcript review, or null until it exists. */
   getMeetingAudio(meetingId: string): Promise<MeetingAudio | null>;
   getTranscriptionCapability(): Promise<TranscriptionCapability>;

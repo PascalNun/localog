@@ -30,6 +30,8 @@ coverage/
 *.sqlite3-wal
 *.db
 models/
+!src/lib/models/
+!src/lib/models/*.ts
 recordings/
 transcripts/
 protocols/
@@ -61,3 +63,7 @@ temp/
 
 # Local agent tooling (launch configs, session scratch)
 .claude/
+
+# Generated Tauri sidecars
+src-tauri/binaries/localog-speaker-diarization-*
+src-tauri/binaries/*.exe

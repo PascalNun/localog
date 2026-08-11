@@ -142,6 +142,18 @@ pub struct TranscriptSegment {
     pub uncertain_words: Vec<String>,
 }
 
+/// Records whether the optional speaker-separation pass produced usable turns.
+/// Older artifacts omit this field and therefore remain explicitly unknown.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SpeakerResolution {
+    #[default]
+    Unknown,
+    Unavailable,
+    Failed,
+    Resolved,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TranscriptDocument {
@@ -149,6 +161,7 @@ pub struct TranscriptDocument {
     pub meeting_id: String,
     pub revision_id: String,
     pub language: String,
+    pub speaker_resolution: SpeakerResolution,
     pub segments: Vec<TranscriptSegment>,
     pub base_revision_id: String,
     pub is_dirty: bool,

@@ -8,6 +8,8 @@ It is not a second roadmap. Work belongs in [PLAN.md](PLAN.md); this document ex
 
 The normal path should ask for a quality outcome, not an executable path or a model name. The application should measure what the machine can reasonably handle, recommend a choice, explain the disk and time cost, and keep advanced details available without putting them in front of everyone.
 
+Model choice is a persistent Settings preference, not a per-protocol interruption. A curated catalogue can show a recommended model and alternatives for stronger machines, while the regular workflow stays focused on the meeting and its protocol.
+
 Nothing is downloaded without consent. A model or runtime is never fetched as a hidden side effect of importing a meeting.
 
 Until runtimes are bundled, the current development build still exposes configuration controls. Those controls are scaffolding, not the desired public experience.
