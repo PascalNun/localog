@@ -55,11 +55,19 @@
     if (jobNeedsAttention || job.state === 'queued') return job.error?.title ?? job.stage;
     // Without a meeting name above it, the stage would be the only line, so the
     // work is named here instead of being lost.
-    if (!activeJobMeeting) return `${job.stage} · ${job.progress}%`;
+    if (!activeJobMeeting) return `${stageLabel(job)} · ${progressLabel(job)}`;
     if (job.kind === 'import' && job.totalBytes !== null) {
       return `${formatBytes(job.progressBytes)} of ${formatBytes(job.totalBytes)}`;
     }
-    return `${job.stage} · ${job.progress}%`;
+    return `${stageLabel(job)} · ${progressLabel(job)}`;
+  }
+
+  function stageLabel(job: ActiveJob) {
+    return job.stage.toLowerCase().includes('speaker') ? 'Separating speakers' : job.stage;
+  }
+
+  function progressLabel(job: ActiveJob) {
+    return job.stage.toLowerCase().includes('speaker') ? 'Working…' : `${job.progress}%`;
   }
 
   function formatBytes(bytes: number) {

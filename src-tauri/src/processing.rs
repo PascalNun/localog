@@ -843,7 +843,9 @@ fn execute_transcription(
     };
     validate_transcript_artifact(&artifact, &job.meeting_id)?;
     let bytes = serde_json::to_vec_pretty(&artifact).map_err(|_| ProcessingError::InvalidOutput)?;
-    progress(repository, job, 76, "validating_transcript", notify)?;
+    // Speaker separation is the final expensive phase. Keep validation after it
+    // near completion so the progress bar never jumps backwards from 90%.
+    progress(repository, job, 96, "validating_transcript", notify)?;
     commit_transcript_output(root, repository, job, &artifact, &bytes)?;
     notify(WorkspaceRepository::open(root)?.workspace_snapshot()?);
     Ok(())
