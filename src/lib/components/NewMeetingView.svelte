@@ -5,6 +5,7 @@
     ProtocolStyle,
     SourceSelection,
   } from '../workflow/types';
+  import { COMMON_MEETING_LANGUAGES } from '../workflow/languages';
   import Icon from './Icon.svelte';
 
   export let projects: ProjectSummary[];
@@ -192,20 +193,8 @@
               list="meeting-languages"
               placeholder="Any language"
             /><datalist id="meeting-languages">
-              <option value="English"></option>
-              <option value="German"></option>
-              <option value="French"></option>
-              <option value="Spanish"></option>
-              <option value="Italian"></option>
-              <option value="Dutch"></option>
-              <option value="Portuguese"></option>
-              <option value="Polish"></option>
-              <option value="Danish"></option>
-              <option value="Swedish"></option>
-              <option value="Norwegian"></option>
-              <option value="Finnish"></option>
-              <option value="Czech"></option>
-              <option value="Turkish"></option>
+              {#each COMMON_MEETING_LANGUAGES as language (language)}<option value={language}
+                ></option>{/each}
             </datalist><small
               >{selectedProject?.defaultLanguage === language
                 ? 'Project default'

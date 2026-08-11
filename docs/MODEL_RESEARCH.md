@@ -21,6 +21,7 @@ The run is valuable evidence, but it is not a release acceptance test. It was on
 - Very small or heavily quantised models may lose exactly the multilingual and factual precision a protocol needs.
 - Bonsai-8B was not a good candidate: the tested runtime support and available quality evidence were weaker than the current model.
 - Mistral and Gemma remain research candidates for machines with more memory, not baseline assumptions.
+- The initial catalogue now treats Ministral 3B as the first European baseline candidate, Ministral 8B as a 16 GB comparison, and Granite/Llama 8B models as additional comparison slots. Catalogue entries are not product recommendations until the same German and English harness has measured them.
 
 The final public generation runtime remains open. Ollama is useful for development and early previews, but it is not yet the distribution model.
 
@@ -31,5 +32,7 @@ The final public generation runtime remains open. Ollama is useful for developme
 3. Test a more efficient Qwen runtime or model variant without changing the application boundary.
 4. Compare one or two multilingual candidates on German and English rather than relying on English benchmarks.
 5. Record licence, size, memory, speed, and provenance before considering a model for distribution.
+
+The first user-facing model choice is a global Settings preference. It is intentionally separate from the per-job provenance record and from any future language-specific model profiles.
 
 No model should become a product requirement merely because it performed well in one isolated run.

@@ -20,7 +20,7 @@ mod topics;
 use domain::{MeetingSummary, NewMeetingInput, NewProjectInput, ProjectSummary, WorkspaceSnapshot};
 use rusqlite::OptionalExtension;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use storage::{Result as StorageResult, WorkspaceRepository};
@@ -118,7 +118,12 @@ fn runtime_status(repository: &WorkspaceRepository) -> TranscriptionRuntimeStatu
     let executable_path = repository
         .read_setting("transcription.whisperExecutable")
         .ok()
-        .flatten();
+        .flatten()
+        .filter(|path| Path::new(path).is_file())
+        .or_else(|| {
+            runtime::discover_executable(&["whisper-cli", "whisper-cpp"])
+                .map(|path| path.to_string_lossy().into_owned())
+        });
     // The model follows the selected quality preset; it is never a user-entered path.
     let model = models::model_path_for_preset(&repository.root, &selected_preset(repository));
     let model_path = model
@@ -370,9 +375,11 @@ async fn meeting_audio(
 struct SpeakerSeparationStatus {
     models_installed: bool,
     runtime_configured: bool,
+    runtime_healthy: bool,
+    runtime_version: Option<String>,
+    runtime_path: Option<String>,
     /// Bytes still to download; zero once the models are present.
     download_bytes: u64,
-    expected_speakers: Option<u32>,
 }
 
 #[tauri::command]
@@ -386,20 +393,32 @@ async fn speaker_separation_status(
 }
 
 fn speaker_status(repository: &WorkspaceRepository) -> SpeakerSeparationStatus {
+    let runtime_path = repository
+        .read_setting("diarisation.executable")
+        .ok()
+        .flatten()
+        .map(PathBuf::from)
+        .filter(|path| path.is_file())
+        .or_else(|| {
+            runtime::discover_executable(&[
+                "localog-speaker-diarization",
+                "sherpa-onnx-offline-speaker-diarization",
+                "sherpa-onnx-speaker-diarization",
+            ])
+        });
+    let runtime_healthy = runtime_path
+        .as_deref()
+        .is_some_and(runtime::executable_health);
+    let runtime_version = runtime_path
+        .as_deref()
+        .and_then(runtime::executable_version);
     SpeakerSeparationStatus {
         models_installed: models::diarisation_model_paths(&repository.root).is_some(),
-        runtime_configured: repository
-            .read_setting("diarisation.executable")
-            .ok()
-            .flatten()
-            .map(PathBuf::from)
-            .is_some_and(|path| path.is_file()),
+        runtime_configured: runtime_path.is_some(),
+        runtime_healthy,
+        runtime_version,
+        runtime_path: runtime_path.map(|path| path.to_string_lossy().into_owned()),
         download_bytes: models::diarisation_download_bytes(&repository.root),
-        expected_speakers: repository
-            .read_setting("diarisation.expectedSpeakers")
-            .ok()
-            .flatten()
-            .and_then(|value| value.parse().ok()),
     }
 }
 
@@ -418,29 +437,6 @@ async fn configure_speaker_runtime(
             ));
         }
         repository.write_setting("diarisation.executable", &executable_path)?;
-        Ok(speaker_status(repository))
-    })
-    .await
-}
-
-/// How many people were in the meeting. Clustering a long recording by voice
-/// similarity alone splits one person into many, so a known count matters.
-#[tauri::command]
-async fn set_expected_speakers(
-    storage: State<'_, StorageState>,
-    count: Option<u32>,
-) -> Result<SpeakerSeparationStatus, String> {
-    with_repository(storage.root.clone(), move |repository| {
-        let value = match count {
-            Some(count) if (2..=64).contains(&count) => count.to_string(),
-            Some(_) => {
-                return Err(storage::StorageError::InvalidData(
-                    "Enter how many people spoke, between 2 and 64.",
-                ));
-            }
-            None => String::new(),
-        };
-        repository.write_setting("diarisation.expectedSpeakers", &value)?;
         Ok(speaker_status(repository))
     })
     .await
@@ -586,11 +582,19 @@ async fn start_transcription(
     coordinator: State<'_, JobCoordinatorState>,
     meeting_id: String,
     fail_requested: bool,
+    expected_speakers: Option<u32>,
 ) -> Result<(), String> {
     let root = storage.root.clone();
     let (job, snapshot) = with_repository_root(root.clone(), {
         let meeting_id = meeting_id.clone();
-        move |root| processing::queue_transcription(root, &meeting_id, fail_requested)
+        move |root| {
+            processing::queue_transcription_with_expected(
+                root,
+                &meeting_id,
+                fail_requested,
+                expected_speakers,
+            )
+        }
     })
     .await?;
     let _ = app.emit("workspace://changed", snapshot);
@@ -991,6 +995,18 @@ async fn update_meeting_title(
     .await
 }
 
+#[tauri::command]
+async fn update_meeting_language(
+    state: State<'_, StorageState>,
+    meeting_id: String,
+    language: String,
+) -> Result<(), String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.update_meeting_language(&meeting_id, &language)
+    })
+    .await
+}
+
 async fn with_repository<T, F>(root: PathBuf, operation: F) -> Result<T, String>
 where
     T: Send + 'static,
@@ -1038,7 +1054,6 @@ pub fn run() {
             remove_transcription_model,
             speaker_separation_status,
             configure_speaker_runtime,
-            set_expected_speakers,
             download_speaker_models,
             meeting_audio,
             protocol_provider_status,
@@ -1051,6 +1066,7 @@ pub fn run() {
             retry_import,
             replace_import_source,
             update_meeting_title,
+            update_meeting_language,
             start_transcription,
             start_generation,
             cancel_processing,

@@ -51,7 +51,7 @@ The repository currently contains:
 - transcript review, Markdown editing, autosave, revision history, and Markdown/plain-text export;
 - synthetic fixtures, evaluation harnesses, and isolated architecture spikes.
 
-The native path still requires a locally supplied whisper.cpp executable and a user-managed Ollama server. Runtime bundling, the final public generation runtime, M1/8 GB performance validation, Windows/Linux builds, accessibility auditing, and backup/restore remain unfinished.
+The native development path still accepts a locally supplied whisper.cpp executable and a user-managed Ollama server. Speaker separation now has a release-sidecar build path and first-use model preparation; whisper/FFmpeg packaging, the final public generation runtime, M1/8 GB performance validation, Windows/Linux builds, accessibility auditing, and backup/restore remain unfinished.
 
 The most important unfinished work is protocol quality: proving that the generated document is complete, factually supported, and useful to a professional after light editing.
 
@@ -90,6 +90,15 @@ To run the Tauri shell:
 ```sh
 npm run tauri dev
 ```
+
+For a packaged build, build the native speaker sidecar first and then use the release config:
+
+```sh
+npm run tauri:build
+```
+
+The sidecar is bundled into the installer. Its two verified model files are downloaded only when a
+person asks for speaker separation in a meeting, with progress and an explicit size shown first.
 
 The complete checks are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
 

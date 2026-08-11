@@ -18,6 +18,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:editor-spike": "vitest run --config spikes/markdown-editor/vitest.config.ts",
+    "build:sidecar": "bash scripts/build-sherpa-sidecar.sh",
+    "tauri:build": "npm run build:sidecar && tauri build --config src-tauri/tauri.release.conf.json",
     "test:watch": "vitest",
     "tauri": "tauri"
   },

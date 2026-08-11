@@ -1,8 +1,8 @@
 use crate::domain::{
     JobErrorSummary, JobState, JobSummary, MeetingLifecycle, MeetingSummary, NewMeetingInput,
     NewProjectInput, ProjectSummary, ProtocolDensity, ProtocolDocument, ProtocolRevisionSummary,
-    ProtocolStyle, TranscriptDocument, TranscriptSegment, VocabularyDraft, VocabularyEntry,
-    WorkspaceSnapshot,
+    ProtocolStyle, SpeakerResolution, TranscriptDocument, TranscriptSegment, VocabularyDraft,
+    VocabularyEntry, WorkspaceSnapshot,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
@@ -71,6 +71,8 @@ pub(crate) struct TranscriptArtifact {
     pub meeting_id: String,
     pub revision_id: String,
     pub language: String,
+    #[serde(default)]
+    pub speaker_resolution: SpeakerResolution,
     pub segments: Vec<TranscriptSegment>,
 }
 
@@ -454,6 +456,19 @@ impl WorkspaceRepository {
         let updated = self.connection.execute(
             "UPDATE meetings SET title = ?1, updated_at_ms = ?2 WHERE id = ?3",
             params![title, unix_time_millis(), meeting_id],
+        )?;
+        if updated == 0 {
+            return Err(StorageError::MissingMeeting);
+        }
+        Ok(())
+    }
+
+    pub fn update_meeting_language(&self, meeting_id: &str, language: &str) -> Result<()> {
+        let meeting_id = required_text(meeting_id, 128, "Choose a valid meeting.")?;
+        let language = required_text(language, 64, "Choose a meeting language.")?;
+        let updated = self.connection.execute(
+            "UPDATE meetings SET language = ?1, updated_at_ms = ?2 WHERE id = ?3",
+            params![language, unix_time_millis(), meeting_id],
         )?;
         if updated == 0 {
             return Err(StorageError::MissingMeeting);
@@ -1231,6 +1246,7 @@ impl WorkspaceRepository {
                     meeting_id: artifact.meeting_id,
                     revision_id: artifact.revision_id,
                     language: artifact.language,
+                    speaker_resolution: artifact.speaker_resolution,
                     segments: artifact.segments,
                     base_revision_id,
                     is_dirty: working_checksum != base_checksum,
@@ -2712,6 +2728,32 @@ mod tests {
         assert_eq!(
             repository.workspace_snapshot().unwrap().meetings[0].title,
             "Revised synthetic title"
+        );
+    }
+
+    #[test]
+    fn language_updates_are_durable_and_validated() {
+        let temporary = tempdir().unwrap();
+        let source = synthetic_source(temporary.path());
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let project = repository.create_project(project_input()).unwrap();
+        let meeting = repository
+            .create_meeting(meeting_input(&project.id, &source))
+            .unwrap();
+
+        repository
+            .update_meeting_language(&meeting.id, "German")
+            .unwrap();
+        assert!(matches!(
+            repository.update_meeting_language(&meeting.id, " "),
+            Err(StorageError::InvalidData(_))
+        ));
+        drop(repository);
+
+        let repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        assert_eq!(
+            repository.workspace_snapshot().unwrap().meetings[0].language,
+            "German"
         );
     }
 

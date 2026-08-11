@@ -26,6 +26,7 @@
     NewMeetingInput,
     NewProjectInput,
     ProtocolProviderStatus,
+    SpeakerSeparationStatus,
     WorkflowSnapshot,
     TranscriptionCapability,
     TranscriptionPreset,
@@ -54,10 +55,20 @@
     modelByteCount: null,
   };
   let runtimeError: string | null = null;
+  let speakerStatus: SpeakerSeparationStatus = {
+    modelsInstalled: false,
+    runtimeConfigured: false,
+    runtimeHealthy: false,
+    runtimeVersion: null,
+    runtimePath: null,
+    downloadBytes: 0,
+  };
+  let speakerError: string | null = null;
   let capability: TranscriptionCapability = { selectedPreset: 'balanced', presets: [] };
   // modelId → percent, present only while a download is in flight.
   let downloading: Record<string, number> = {};
   let modelError: string | null = null;
+  let providerError: string | null = null;
 
   const presetNames: Record<TranscriptionPreset, string> = {
     fast: 'Fast',
@@ -149,6 +160,7 @@
     theme = savedTheme === 'dark' || (!savedTheme && prefersDark) ? 'dark' : 'light';
     applyTheme();
     bridge.getTranscriptionRuntimeStatus().then((status) => (runtimeStatus = status));
+    bridge.getSpeakerSeparationStatus().then((status) => (speakerStatus = status));
     bridge.getProtocolProviderStatus().then((status) => (providerStatus = status));
     bridge
       .getTranscriptionCapability()
@@ -175,13 +187,27 @@
         modelError = message;
       },
     });
+    const stopSpeakerEvents = bridge.subscribeSpeakerEvents((status) => {
+      speakerStatus = status;
+      downloading = withoutModel(downloading, 'speaker-separation');
+    });
 
     const stopWorkspace = bridge.subscribe(
       (nextSnapshot) => {
         snapshot = nextSnapshot;
         if (!locationRestored && nextSnapshot.activeMeetingId && nextSnapshot.activeRoute) {
+          const restoredMeeting = nextSnapshot.meetings.find(
+            (candidate) => candidate.id === nextSnapshot.activeMeetingId,
+          );
+          // A fresh transcript invalidates the old protocol as the current stage.
+          // Reopen review rather than showing a document generated from stale text.
+          const restoredRoute =
+            nextSnapshot.activeRoute === 'protocol' &&
+            !['protocol_draft', 'reviewed'].includes(restoredMeeting?.lifecycle ?? '')
+              ? 'transcript'
+              : nextSnapshot.activeRoute;
           route = {
-            name: nextSnapshot.activeRoute,
+            name: restoredRoute,
             meetingId: nextSnapshot.activeMeetingId,
           };
           locationRestored = true;
@@ -197,6 +223,7 @@
 
     return () => {
       stopModelEvents();
+      stopSpeakerEvents();
       stopWorkspace();
     };
   });
@@ -432,9 +459,24 @@
           presetLabel={presetDisplayName(capability.selectedPreset)}
           job={snapshot.jobs.find((job) => job.meetingId === meeting.id) ?? snapshot.activeJob}
           onNavigate={navigate}
-          onTranscribe={() => bridge.startTranscription(meeting.id)}
+          onTranscribe={(expectedSpeakers) =>
+            bridge.startTranscription(meeting.id, expectedSpeakers)}
+          {speakerStatus}
+          speakerPreparing={downloading['speaker-separation'] !== undefined}
+          speakerDownloadPercent={downloading['speaker-separation'] ?? 0}
+          onPrepareSpeakerModels={async () => {
+            speakerError = null;
+            downloading = { ...downloading, 'speaker-separation': 0 };
+            try {
+              await bridge.downloadSpeakerModels();
+            } catch (error) {
+              downloading = withoutModel(downloading, 'speaker-separation');
+              speakerError = error instanceof Error ? error.message : String(error);
+            }
+          }}
           onCancel={() => bridge.cancelActiveJob(meeting.id)}
           onRetry={() => bridge.retryActiveJob(meeting.id)}
+          onUpdateLanguage={(language) => bridge.updateMeetingLanguage(meeting.id, language)}
           onConfirmDuplicate={() => bridge.confirmDuplicateImport(meeting.id)}
           onReselectSource={() => bridge.reselectImportSource(meeting.id)}
           onRename={(title) => bridge.updateMeetingTitle(meeting.id, title)}
@@ -451,6 +493,8 @@
           onGenerate={() => bridge.generateProtocol(meeting.id)}
           onCancel={() => bridge.cancelActiveJob(meeting.id)}
           onRetry={() => bridge.retryActiveJob(meeting.id)}
+          onRerunTranscription={() => bridge.startTranscription(meeting.id)}
+          onUpdateLanguage={(language) => bridge.updateMeetingLanguage(meeting.id, language)}
           onUpdateSegment={(segmentId, text) =>
             bridge.updateTranscriptSegment(meeting.id, segmentId, text)}
           onUpdateSpeaker={(speaker, replacement) =>
@@ -483,10 +527,13 @@
           {theme}
           {runtimeStatus}
           {runtimeError}
+          {speakerStatus}
+          {speakerError}
           {providerStatus}
           {capability}
           {downloading}
           {modelError}
+          {providerError}
           nextJobOutcome={snapshot.nextJobOutcome}
           onToggleTheme={toggleTheme}
           onSetNextJobOutcome={(outcome: FakeJobOutcome) => bridge.setNextJobOutcome(outcome)}
@@ -531,11 +578,52 @@
               runtimeError = error instanceof Error ? error.message : String(error);
             }
           }}
+          onRefreshSpeaker={async () => {
+            try {
+              speakerStatus = await bridge.getSpeakerSeparationStatus();
+              speakerError = null;
+            } catch (error) {
+              speakerError = error instanceof Error ? error.message : String(error);
+            }
+          }}
+          onDownloadSpeaker={async () => {
+            speakerError = null;
+            downloading = { ...downloading, 'speaker-separation': 0 };
+            try {
+              await bridge.downloadSpeakerModels();
+              // The browser preview has no native downloader; complete the fake path
+              // immediately so its progress state cannot remain stuck at 0%.
+              if (!workspaceStore) {
+                speakerStatus = {
+                  ...speakerStatus,
+                  modelsInstalled: true,
+                  runtimeConfigured: true,
+                  runtimeHealthy: true,
+                  runtimeVersion: 'Synthetic runtime',
+                  runtimePath: speakerStatus.runtimePath,
+                };
+                downloading = withoutModel(downloading, 'speaker-separation');
+              }
+            } catch (error) {
+              downloading = withoutModel(downloading, 'speaker-separation');
+              speakerError = error instanceof Error ? error.message : String(error);
+            }
+          }}
           onRefreshProvider={async () => {
-            providerStatus = await bridge.getProtocolProviderStatus();
+            try {
+              providerStatus = await bridge.getProtocolProviderStatus();
+              providerError = null;
+            } catch (error) {
+              providerError = error instanceof Error ? error.message : String(error);
+            }
           }}
           onConfigureProvider={async (model) => {
-            providerStatus = await bridge.configureProtocolProvider(model);
+            try {
+              providerStatus = await bridge.configureProtocolProvider(model);
+              providerError = null;
+            } catch (error) {
+              providerError = error instanceof Error ? error.message : String(error);
+            }
           }}
         />
       {:else}

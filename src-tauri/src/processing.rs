@@ -1,7 +1,7 @@
 //! Durable fake transcription and protocol generation through production-shaped boundaries.
 
 use crate::diarisation;
-use crate::domain::{TranscriptSegment, WorkspaceSnapshot};
+use crate::domain::{SpeakerResolution, TranscriptSegment, WorkspaceSnapshot};
 use crate::media;
 use crate::models;
 use crate::provider;
@@ -291,6 +291,22 @@ pub(crate) fn queue_transcription(
     meeting_id: &str,
     fail_requested: bool,
 ) -> StorageResult<(ProcessingJobRecord, WorkspaceSnapshot)> {
+    queue_transcription_with_expected(root, meeting_id, fail_requested, None)
+}
+
+pub(crate) fn queue_transcription_with_expected(
+    root: &Path,
+    meeting_id: &str,
+    fail_requested: bool,
+    expected_speakers: Option<u32>,
+) -> StorageResult<(ProcessingJobRecord, WorkspaceSnapshot)> {
+    if let Some(count) = expected_speakers
+        && !(2..=64).contains(&count)
+    {
+        return Err(StorageError::InvalidData(
+            "Expected speakers must be between 2 and 64.",
+        ));
+    }
     let mut repository = WorkspaceRepository::open(root)?;
     ensure_no_active_processing(&repository.connection)?;
     let (project_id, recording_id, lifecycle, language): (String, String, String, String) =
@@ -322,6 +338,7 @@ pub(crate) fn queue_transcription(
         .join(format!("{revision_id}.json"));
     let (provider, runtime_version, model_digest, settings_json, runtime_config_json) =
         transcription_metadata(&repository, &language, use_synthetic_adapters())?;
+    let settings_json = transcription_settings_with_speakers(&settings_json, expected_speakers);
     let now = unix_time_millis();
     let transaction = repository
         .connection
@@ -358,6 +375,25 @@ pub(crate) fn queue_transcription(
     Ok((job, repository.workspace_snapshot()?))
 }
 
+fn transcription_settings_with_speakers(
+    settings_json: &str,
+    expected_speakers: Option<u32>,
+) -> String {
+    let mut settings = serde_json::from_str::<serde_json::Value>(settings_json)
+        .unwrap_or_else(|_| serde_json::json!({}));
+    if let Some(object) = settings.as_object_mut() {
+        match expected_speakers {
+            Some(count) => {
+                object.insert("expectedSpeakers".to_string(), serde_json::json!(count));
+            }
+            None => {
+                object.insert("expectedSpeakers".to_string(), serde_json::Value::Null);
+            }
+        }
+    }
+    serde_json::to_string(&settings).unwrap_or_else(|_| settings_json.to_string())
+}
+
 /// Name only what is actually missing, so the message points at one next action.
 fn missing_runtime_message(repository: &WorkspaceRepository) -> String {
     let preset = repository
@@ -372,7 +408,8 @@ fn missing_runtime_message(repository: &WorkspaceRepository) -> String {
         .ok()
         .flatten()
         .map(PathBuf::from)
-        .is_some_and(|path| path.is_file());
+        .is_some_and(|path| path.is_file())
+        || runtime::discover_executable(&["whisper-cli", "whisper-cpp"]).is_some();
     match (model_ready, executable_ready) {
         (false, _) => format!(
             "Download the {preset} transcription quality in Settings → Transcription, then try again."
@@ -405,7 +442,9 @@ fn transcription_metadata(
 
     let executable = repository
         .read_setting("transcription.whisperExecutable")?
-        .map(PathBuf::from);
+        .map(PathBuf::from)
+        .filter(|path| path.is_file())
+        .or_else(|| runtime::discover_executable(&["whisper-cli", "whisper-cpp"]));
     // The user chooses a quality preset; the model is resolved from what is
     // installed for it, never from a user-entered path.
     let preset = repository
@@ -1099,11 +1138,43 @@ fn execute_real_transcription(
             message: failure.to_string(),
         },
     })?;
-    let json_path = media::expected_json_path(&output_base);
-    let json = fs::read_to_string(&json_path).map_err(|_| ProcessingError::Runtime {
-        code: "invalid_transcript_output",
-        message: "whisper.cpp did not produce its JSON transcript.".into(),
+    let json_path = media::json_output_path(&output_base).ok_or_else(|| {
+        let diagnostic = output
+            .stderr
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .rev()
+            .take(6)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>()
+            .join(" ");
+        let message = if diagnostic.is_empty() {
+            "whisper.cpp completed without producing its JSON transcript. Check that the selected executable is whisper-cli and supports JSON output.".to_string()
+        } else {
+            format!(
+                "whisper.cpp completed without producing its JSON transcript. Runtime message: {}",
+                diagnostic.chars().take(900).collect::<String>()
+            )
+        };
+        ProcessingError::Runtime {
+            code: "invalid_transcript_output",
+            message,
+        }
     })?;
+    let json_bytes = fs::read(&json_path).map_err(|error| ProcessingError::Runtime {
+        code: "invalid_transcript_output",
+        message: format!(
+            "The whisper.cpp JSON transcript could not be read: {}",
+            error
+        ),
+    })?;
+    // Some whisper.cpp builds have emitted an invalid byte in an otherwise
+    // usable JSON string. Lossy decoding replaces only those bytes and lets the
+    // structural JSON parser reject genuinely broken output below.
+    let json = String::from_utf8_lossy(&json_bytes);
     let mut artifact = parse_whisper_json(
         &json,
         &job.meeting_id,
@@ -1115,44 +1186,73 @@ fn execute_real_transcription(
 
     // Speakers are a separate capability. When it is unavailable the transcript is
     // still committed with the neutral label rather than the job failing.
-    if let Some(turns) = diarise(repository, &normalized, cancellation, report)? {
-        let names = diarisation::assign_speakers(&artifact.segments, &turns);
-        for (segment, name) in artifact.segments.iter_mut().zip(names) {
-            segment.speaker = name;
+    let expected_speakers = job
+        .settings_json
+        .as_deref()
+        .and_then(|settings| serde_json::from_str::<serde_json::Value>(settings).ok())
+        .and_then(|settings| {
+            settings
+                .get("expectedSpeakers")
+                .and_then(serde_json::Value::as_u64)
+        })
+        .and_then(|count| u32::try_from(count).ok());
+    match diarise(
+        repository,
+        &normalized,
+        expected_speakers,
+        cancellation,
+        report,
+    )? {
+        DiarisationOutcome::Resolved(turns) => {
+            let names = diarisation::assign_speakers(&artifact.segments, &turns);
+            for (segment, name) in artifact.segments.iter_mut().zip(names) {
+                segment.speaker = name;
+            }
+            artifact.speaker_resolution = SpeakerResolution::Resolved;
         }
+        DiarisationOutcome::Failed => artifact.speaker_resolution = SpeakerResolution::Failed,
+        DiarisationOutcome::Unavailable => {}
     }
     let _ = output.stderr;
     Ok(artifact)
 }
 
-/// Run the configured diariser over the same working audio the transcript came
-/// from. Returns `None` when no diariser is configured, and reports a failure as
-/// absence rather than an error: a transcript without speaker labels is useful,
-/// a lost transcript is not.
+/// The optional diariser must never make a usable transcript disappear. Its
+/// outcome is retained on the transcript so the review UI can distinguish a
+/// real speaker pass from the neutral `Speaker 1` fallback.
+enum DiarisationOutcome {
+    Unavailable,
+    Failed,
+    Resolved(Vec<diarisation::SpeakerTurn>),
+}
+
 fn diarise(
     repository: &WorkspaceRepository,
     normalized: &Path,
+    expected_speakers: Option<u32>,
     cancellation: &AtomicBool,
     report: &mut dyn FnMut(u64, &'static str) -> Result<(), ProcessingError>,
-) -> Result<Option<Vec<diarisation::SpeakerTurn>>, ProcessingError> {
+) -> Result<DiarisationOutcome, ProcessingError> {
     let Some(executable) = repository
         .read_setting("diarisation.executable")?
         .map(PathBuf::from)
         .filter(|path| path.is_file())
+        .or_else(|| {
+            runtime::discover_executable(&[
+                "localog-speaker-diarization",
+                "sherpa-onnx-offline-speaker-diarization",
+                "sherpa-onnx-speaker-diarization",
+            ])
+        })
     else {
-        return Ok(None);
+        return Ok(DiarisationOutcome::Unavailable);
     };
     // Both models come from managed storage, like the transcription models. If
     // either is missing the diariser cannot run, and the transcript proceeds
     // without speaker labels rather than failing.
     let Some((segmentation, embedding)) = models::diarisation_model_paths(&repository.root) else {
-        return Ok(None);
+        return Ok(DiarisationOutcome::Unavailable);
     };
-    // Participants are the natural source of this once they exist; until then it is
-    // an explicit setting rather than a guess.
-    let expected_speakers = repository
-        .read_setting("diarisation.expectedSpeakers")?
-        .and_then(|value| value.parse::<u32>().ok());
     report(90, "separating_speakers")?;
     let output = runtime::run_process(
         media::diarisation_command(&media::DiarisationRequest {
@@ -1168,11 +1268,15 @@ fn diarise(
     match output {
         Ok(output) => {
             let turns = diarisation::parse_turns(&output.stdout);
-            Ok((!turns.is_empty()).then_some(turns))
+            if turns.is_empty() {
+                Ok(DiarisationOutcome::Failed)
+            } else {
+                Ok(DiarisationOutcome::Resolved(turns))
+            }
         }
         Err(runtime::ProcessFailure::Cancelled) => Err(ProcessingError::Cancelled),
         // Any other diariser problem leaves the transcript intact and unlabelled.
-        Err(_) => Ok(None),
+        Err(_) => Ok(DiarisationOutcome::Failed),
     }
 }
 
@@ -1239,6 +1343,7 @@ fn parse_whisper_json(
         meeting_id: meeting_id.into(),
         revision_id: revision_id.into(),
         language: language.into(),
+        speaker_resolution: SpeakerResolution::Unavailable,
         segments,
     })
 }
@@ -1432,6 +1537,7 @@ fn deterministic_transcript(
         meeting_id: job.meeting_id.clone(),
         revision_id: job.result_revision_id.clone(),
         language: language.to_string(),
+        speaker_resolution: SpeakerResolution::Resolved,
         segments: rows
             .into_iter()
             .enumerate()
@@ -2092,14 +2198,14 @@ pub(crate) fn retry_job(
     meeting_id: &str,
 ) -> StorageResult<(ProcessingJobRecord, WorkspaceSnapshot)> {
     let mut repository = WorkspaceRepository::open(root)?;
-    let (job_id, kind): (String, String) = repository
+    let (job_id, kind, prior_settings): (String, String, Option<String>) = repository
         .connection
         .query_row(
-            "SELECT id, kind FROM jobs WHERE meeting_id = ?1 AND kind IN ('transcription', 'generation')
+            "SELECT id, kind, settings_json FROM jobs WHERE meeting_id = ?1 AND kind IN ('transcription', 'generation')
              AND state IN ('queued', 'failed', 'cancelled', 'interrupted')
              ORDER BY created_at_ms DESC LIMIT 1",
             [meeting_id],
-            |row| Ok((row.get(0)?, row.get(1)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
         .optional()?
         .ok_or(StorageError::MissingJob)?;
@@ -2110,11 +2216,26 @@ pub(crate) fn retry_job(
             [meeting_id],
             |row| row.get(0),
         )?;
-        Some(transcription_metadata(
-            &repository,
-            &language,
-            use_synthetic_adapters(),
-        )?)
+        Some({
+            let metadata =
+                transcription_metadata(&repository, &language, use_synthetic_adapters())?;
+            let expected_speakers = prior_settings
+                .as_deref()
+                .and_then(|settings| serde_json::from_str::<serde_json::Value>(settings).ok())
+                .and_then(|settings| {
+                    settings
+                        .get("expectedSpeakers")
+                        .and_then(serde_json::Value::as_u64)
+                })
+                .and_then(|count| u32::try_from(count).ok());
+            (
+                metadata.0,
+                metadata.1,
+                metadata.2,
+                transcription_settings_with_speakers(&metadata.3, expected_speakers),
+                metadata.4,
+            )
+        })
     } else {
         None
     };
@@ -3341,6 +3462,21 @@ mod tests {
         assert_eq!(artifact.segments[0].start_ms, 0);
         assert_eq!(artifact.segments[0].speaker, "Speaker 1");
         assert_eq!(artifact.segments[1].text, "Second point");
+    }
+
+    #[test]
+    fn lossy_utf8_decoding_keeps_structurally_valid_transcript_json_usable() {
+        let bytes = b"{\"transcription\":[{\"offsets\":{\"from\":0,\"to\":1200},\"text\":\"Guten \xFFTag\"}]}";
+        let json = String::from_utf8_lossy(bytes);
+        let artifact = parse_whisper_json(
+            &json,
+            "meeting-1",
+            "revision-1",
+            "German",
+            "abcdef0123456789",
+        )
+        .unwrap();
+        assert_eq!(artifact.segments[0].text, "Guten �Tag");
     }
 
     #[test]

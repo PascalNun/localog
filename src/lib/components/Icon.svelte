@@ -8,6 +8,7 @@
     | 'document'
     | 'download'
     | 'folder'
+    | 'info'
     | 'menu'
     | 'moon'
     | 'pause'
@@ -55,6 +56,8 @@
     <path d="M12 3v12m-4-4 4 4 4-4M5 20h14" />
   {:else if name === 'folder'}
     <path d="M3 6h7l2 2h9v11H3z" />
+  {:else if name === 'info'}
+    <circle cx="12" cy="12" r="9" /><path d="M12 10v6M12 7h.01" />
   {:else if name === 'menu'}
     <path d="M4 7h16M4 12h16M4 17h16" />
   {:else if name === 'moon'}

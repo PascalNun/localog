@@ -91,19 +91,21 @@ The application needs only a few narrow capabilities:
 
 The first concrete choices are:
 
-| Area               | Current direction                           | Status                                                                 |
-| ------------------ | ------------------------------------------- | ---------------------------------------------------------------------- |
-| Desktop shell      | Tauri 2                                     | Accepted                                                               |
-| Interface          | Svelte with TypeScript                      | Accepted                                                               |
-| Core               | Rust                                        | Accepted                                                               |
-| Storage            | SQLite plus immutable files                 | Accepted                                                               |
-| Media              | FFmpeg/FFprobe through supervised processes | Accepted for the vertical slice                                        |
-| Transcription      | whisper.cpp sidecar boundary                | Accepted direction; packaging still open                               |
-| Speaker separation | sherpa-onnx/ONNX candidate                  | Accepted v0.1 direction; quality still provisional                     |
-| Protocol provider  | narrow port, Ollama first                   | Accepted for development and early previews; final public runtime open |
-| Protocol source    | Markdown                                    | Accepted                                                               |
+| Area               | Current direction                             | Status                                                                  |
+| ------------------ | --------------------------------------------- | ----------------------------------------------------------------------- |
+| Desktop shell      | Tauri 2                                       | Accepted                                                                |
+| Interface          | Svelte with TypeScript                        | Accepted                                                                |
+| Core               | Rust                                          | Accepted                                                                |
+| Storage            | SQLite plus immutable files                   | Accepted                                                                |
+| Media              | FFmpeg/FFprobe through supervised processes   | Accepted for the vertical slice                                         |
+| Transcription      | whisper.cpp sidecar boundary                  | Accepted direction; packaging still open                                |
+| Speaker separation | sherpa-onnx sidecar plus verified ONNX models | Accepted v0.1 direction; sidecar build path exists, quality provisional |
+| Protocol provider  | narrow port, Ollama first                     | Accepted for development and early previews; final public runtime open  |
+| Protocol source    | Markdown                                      | Accepted                                                                |
 
 The model-download path is consent-gated and verifies known files by checksum. It is not a model marketplace. The user chooses a quality outcome rather than a runtime path. The runtime-bundling and distribution details remain open.
+
+The protocol model is a global application preference stored in Settings. The UI exposes a small, curated catalogue with hardware and evaluation labels. It may recommend a model, but it does not ask for a model per protocol. A job snapshots the resolved model identifier, digest, runtime and settings so changing the global preference never changes an existing artifact.
 
 ## Provenance and repeatability
 

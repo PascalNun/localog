@@ -9,6 +9,7 @@
     TranscriptDocument,
     TranscriptSegment,
   } from '../workflow/types';
+  import { COMMON_MEETING_LANGUAGES } from '../workflow/languages';
   import Icon from './Icon.svelte';
   import ProgressPanel from './ProgressPanel.svelte';
   import StageRail from './StageRail.svelte';
@@ -23,6 +24,8 @@
   export let onGenerate: () => Promise<void>;
   export let onCancel: () => Promise<void>;
   export let onRetry: () => Promise<void>;
+  export let onRerunTranscription: () => Promise<void>;
+  export let onUpdateLanguage: (language: string) => Promise<void>;
   export let onUpdateSegment: (segmentId: string, text: string) => Promise<void>;
   export let onUpdateSpeaker: (speaker: string, replacement: string) => Promise<void>;
   export let onLoadAudio: (
@@ -43,6 +46,11 @@
   let audioError: string | null = null;
   let isScrubbing = false;
   let loadedAudioFor: string | null = null;
+  let editingLanguage = false;
+  let languageDraft = meeting.language;
+  let languageError = '';
+  let rerunError = '';
+  let rerunning = false;
 
   $: segments = transcript?.segments ?? [];
 
@@ -82,7 +90,9 @@
     element?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
-  $: relevantJob = job?.meetingId === meeting.id && job.kind === 'generation' ? job : null;
+  $: relevantJob = job?.meetingId === meeting.id ? job : null;
+  // A transcript rerun and generation both use the single heavy-work lane.
+  // Keep the editor calm while either job is active.
   $: generationUnavailable = Boolean(relevantJob && relevantJob.state !== 'completed');
   $: filteredSegments = segments
     .filter((segment) => !onlyFlagged || segment.needsReview)
@@ -92,6 +102,15 @@
         `${segment.speaker} ${segment.text}`.toLowerCase().includes(query.toLowerCase()),
     );
   $: speakers = [...new Set(segments.map((segment) => segment.speaker))];
+  $: speakerResolution = transcript?.speakerResolution ?? 'unavailable';
+  $: speakerResolutionCopy =
+    speakerResolution === 'resolved'
+      ? 'Speaker turns were resolved locally. Labels are provisional—rename them only when you know the participant.'
+      : speakerResolution === 'failed'
+        ? 'Speaker separation did not produce usable turns for this run. The transcript is intact and uses neutral labels; you can continue with manual labels.'
+        : speakerResolution === 'unknown'
+          ? 'This older transcript does not record whether speaker separation ran. Its neutral labels are not evidence that there was only one speaker.'
+          : 'Speaker separation was not available for this run. The transcript is intact and uses a neutral label; you can still rename it manually.';
   $: unclearCount = segments.filter((segment) => segment.needsReview).length;
 
   // Whisper reports how sure it was of each word. Where it was not sure, the word
@@ -135,6 +154,33 @@
       saveState = 'saved';
     } catch {
       saveState = 'failed';
+    }
+  }
+
+  async function saveLanguage() {
+    languageError = '';
+    try {
+      await onUpdateLanguage(languageDraft);
+      editingLanguage = false;
+    } catch (error) {
+      languageError = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  async function rerunTranscription() {
+    if (rerunning || !transcript) return;
+    const confirmed = window.confirm(
+      `Rerun transcription in ${meeting.language}? The current transcript will stay until the new result is committed, then this working transcript will be replaced.`,
+    );
+    if (!confirmed) return;
+    rerunning = true;
+    rerunError = '';
+    try {
+      await onRerunTranscription();
+    } catch (error) {
+      rerunError = error instanceof Error ? error.message : String(error);
+    } finally {
+      rerunning = false;
     }
   }
 
@@ -322,9 +368,18 @@
           >
         </div>
         <p class="inspector-copy">
-          Rename generic labels only when you know the participant. Automatic diarisation is not
-          implied.
+          {speakerResolutionCopy}
         </p>
+        {#if speakerResolution !== 'resolved'}
+          <p class="speaker-status" role="status">
+            <Icon name="info" size={14} />
+            {speakerResolution === 'failed'
+              ? 'Speaker separation is not available in this installation yet. You can continue with manual labels.'
+              : speakerResolution === 'unknown'
+                ? 'Rerun this transcript to record a current speaker-separation result.'
+                : 'Speaker separation was not available for this run. You can continue with manual labels.'}
+          </p>
+        {/if}
         <div class="speaker-list">
           {#each speakers as speaker, index (speaker)}
             <label
@@ -335,6 +390,49 @@
               /></label
             >
           {/each}
+        </div>
+        <div class="inspector-section">
+          <p class="eyebrow">Transcription input</p>
+          <h3>Language</h3>
+          {#if editingLanguage}<label class="setting-field"
+              ><span class="sr-only">Meeting language</span><input
+                bind:value={languageDraft}
+                list="transcript-languages"
+                aria-label="Meeting language"
+              /><datalist id="transcript-languages">
+                {#each COMMON_MEETING_LANGUAGES as language (language)}<option value={language}
+                  ></option>{/each}
+              </datalist></label
+            >
+            <div class="inspector-actions">
+              <button
+                class="secondary-action"
+                onclick={saveLanguage}
+                disabled={Boolean(relevantJob && relevantJob.state !== 'completed')}
+                >Save language</button
+              >
+              <button class="quiet-action" onclick={() => (editingLanguage = false)}>Cancel</button>
+            </div>{:else}<p>{meeting.language}</p>
+            <button
+              class="quiet-action"
+              disabled={Boolean(relevantJob && relevantJob.state !== 'completed')}
+              onclick={() => {
+                languageDraft = meeting.language;
+                editingLanguage = true;
+              }}>Change language</button
+            >{/if}
+          {#if languageError}<p class="setting-error" role="alert">{languageError}</p>{/if}
+          <button
+            class="secondary-action rerun-transcription"
+            onclick={rerunTranscription}
+            disabled={rerunning || Boolean(relevantJob && relevantJob.state !== 'completed')}
+            >{rerunning ? 'Preparing a new transcript…' : 'Rerun transcription'}</button
+          >
+          <small class="inspector-note"
+            >Use this after changing the language or transcription settings. The new run is recorded
+            as a separate revision.</small
+          >
+          {#if rerunError}<p class="setting-error" role="alert">{rerunError}</p>{/if}
         </div>
         <div class="inspector-section">
           <p class="eyebrow">Unclear terms</p>

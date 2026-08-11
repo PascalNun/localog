@@ -97,6 +97,20 @@ describe('FakeWorkflowBridge', () => {
     expect(snapshot.transcripts['meeting-kickoff']?.segments).toHaveLength(4);
   });
 
+  it('allows the meeting language to be corrected before a fresh transcript revision', async () => {
+    const bridge = new FakeWorkflowBridge({ tickMs: 10, progressStep: 100 });
+    await bridge.startTranscription('meeting-kickoff');
+    await vi.advanceTimersByTimeAsync(20);
+
+    await bridge.updateMeetingLanguage('meeting-kickoff', 'German');
+    await bridge.startTranscription('meeting-kickoff');
+    await vi.advanceTimersByTimeAsync(20);
+
+    const snapshot = await bridge.getSnapshot();
+    expect(snapshot.meetings.find(({ id }) => id === 'meeting-kickoff')?.language).toBe('German');
+    expect(snapshot.transcripts['meeting-kickoff']?.language).toBe('German');
+  });
+
   it('preserves the reviewed revision when working content changes', async () => {
     const bridge = new FakeWorkflowBridge();
     await bridge.markReviewed('meeting-envelope-options');

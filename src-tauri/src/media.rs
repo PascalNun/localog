@@ -194,6 +194,13 @@ pub(crate) struct DiarisationRequest<'a> {
 /// cores and its neural accelerator measured 1.64 times faster with no other change.
 pub(crate) fn diarisation_command(request: &DiarisationRequest<'_>) -> Command {
     let threads = worker_threads();
+    // Core ML is useful on macOS, but the product also targets Windows and Linux.
+    // Keep the command portable by selecting the accelerator only where it exists.
+    let provider = if cfg!(target_os = "macos") {
+        "coreml"
+    } else {
+        "cpu"
+    };
     let mut command = Command::new(request.executable);
     command
         .arg(format!(
@@ -201,13 +208,13 @@ pub(crate) fn diarisation_command(request: &DiarisationRequest<'_>) -> Command {
             request.segmentation_model.display()
         ))
         .arg(format!("--segmentation.num-threads={threads}"))
-        .arg("--segmentation.provider=coreml")
+        .arg(format!("--segmentation.provider={provider}"))
         .arg(format!(
             "--embedding.model={}",
             request.embedding_model.display()
         ))
         .arg(format!("--embedding.num-threads={threads}"))
-        .arg("--embedding.provider=coreml");
+        .arg(format!("--embedding.provider={provider}"));
     match request.expected_speakers {
         Some(count) if count >= 2 => {
             command.arg(format!("--clustering.num-clusters={count}"));
@@ -231,6 +238,20 @@ fn worker_threads() -> usize {
 
 pub(crate) fn expected_json_path(base: &Path) -> PathBuf {
     base.with_extension("json")
+}
+
+/// whisper.cpp documents `--output-file` as a path without an extension. A few
+/// packaged builds have nevertheless written the JSON directly to that path;
+/// accept that harmless variation while keeping the normal `.json` contract.
+pub(crate) fn json_output_path(base: &Path) -> Option<PathBuf> {
+    let expected = expected_json_path(base);
+    if expected.is_file() {
+        return Some(expected);
+    }
+    if base.is_file() {
+        return Some(base.to_path_buf());
+    }
+    None
 }
 
 /// Parse a whisper.cpp `--print-progress` stderr line into a 0..=100 percentage.
@@ -257,6 +278,18 @@ mod tests {
     #[test]
     fn rejects_invalid_probe_json() {
         assert!(parse_probe("not json").is_err());
+    }
+
+    #[test]
+    fn accepts_documented_json_path_and_extensionless_runtime_variant() {
+        let directory = tempfile::tempdir().unwrap();
+        let base = directory.path().join("transcript");
+        assert!(json_output_path(&base).is_none());
+        std::fs::write(base.with_extension("json"), "{}").unwrap();
+        assert_eq!(json_output_path(&base), Some(base.with_extension("json")));
+        std::fs::remove_file(base.with_extension("json")).unwrap();
+        std::fs::write(&base, "{}").unwrap();
+        assert_eq!(json_output_path(&base), Some(base));
     }
 
     #[test]

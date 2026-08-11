@@ -6,7 +6,15 @@
     TranscriptionCapability,
     TranscriptionPreset,
     TranscriptionRuntimeStatus,
+    SpeakerSeparationStatus,
   } from '../workflow/types';
+  import {
+    GENERATION_MODEL_CATALOG,
+    browserMemoryGb,
+    installedProviderModel,
+    modelStatusLabel,
+    recommendationFor,
+  } from '../models/modelCatalog';
   import Icon from './Icon.svelte';
 
   export let theme: 'light' | 'dark';
@@ -26,6 +34,18 @@
   export let onConfigureRuntime: (executablePath: string) => Promise<void>;
   export let onRefreshProvider: () => Promise<void>;
   export let onConfigureProvider: (model: string | null) => Promise<void>;
+  export let providerError: string | null = null;
+  export let speakerStatus: SpeakerSeparationStatus = {
+    modelsInstalled: false,
+    runtimeConfigured: false,
+    runtimeHealthy: false,
+    runtimeVersion: null,
+    runtimePath: null,
+    downloadBytes: 0,
+  };
+  export let speakerError: string | null = null;
+  export let onRefreshSpeaker: () => Promise<void>;
+  export let onDownloadSpeaker: () => Promise<void>;
 
   let section = 'General';
   const sections = [
@@ -38,10 +58,13 @@
     'Advanced',
   ];
   let executablePath = '';
-  let showAdvanced = false;
   // The synthetic-failure control only affects the browser preview's fake adapter.
   const isNative = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
   let selectedProviderModel = '';
+  const memoryGb = browserMemoryGb();
+  const memoryLabel = memoryGb
+    ? `${memoryGb} GB memory reported`
+    : 'Using the conservative 8 GB baseline';
 
   // Product language first: the user picks an outcome, not a model.
   const presetLabels: Record<TranscriptionPreset, { name: string; detail: string }> = {
@@ -56,13 +79,23 @@
   }
   $: executablePath = runtimeStatus?.executablePath ?? executablePath;
   $: selectedProviderModel = providerStatus?.selectedModel ?? selectedProviderModel;
+  $: modelRecommendation = recommendationFor(providerStatus?.models ?? [], memoryGb);
+  $: recommendedInstalled = modelRecommendation.installed;
+  $: uncataloguedModels = (providerStatus?.models ?? []).filter(
+    (model) => !GENERATION_MODEL_CATALOG.some((entry) => entry.providerNames.includes(model.name)),
+  );
+
+  async function chooseProviderModel(model: string) {
+    selectedProviderModel = model;
+    await onConfigureProvider(model);
+  }
 
   async function chooseExecutable() {
     if (!('__TAURI_INTERNALS__' in window)) return;
     const selected = await open({
       multiple: false,
       directory: false,
-      title: 'Choose whisper.cpp executable',
+      title: 'Choose whisper-cli executable',
     });
     if (typeof selected === 'string') executablePath = selected;
   }
@@ -102,44 +135,120 @@
           <span class="setting-value">Markdown and plain text</span>
         </div>
       {:else if section === 'Models'}
-        <div class="setting-row">
+        <div class="model-setting-intro">
+          <p class="eyebrow">Default for protocols</p>
+          <h3>Choose once, then keep working</h3>
+          <p>
+            LocaLog uses this model for local protocol drafts until you change it. The normal
+            workflow does not ask you to choose a model for every meeting.
+          </p>
+        </div>
+        <article class="model-recommendation">
           <div>
-            <h3>Protocol provider</h3>
-            <p>Phase 0 discovers installed providers only. No model downloads.</p>
+            <p class="model-kicker">Recommended for this machine</p>
+            <h3>{modelRecommendation.entry.name}</h3>
+            <p>{modelRecommendation.entry.description}</p>
+            <div class="model-meta">
+              <span>{modelRecommendation.entry.originLabel}</span>
+              <span>{modelRecommendation.entry.licenseLabel}</span>
+              <span>{memoryLabel}</span>
+            </div>
           </div>
-          <span class:setting-value={providerStatus.serverReachable} class="setting-value">
-            {providerStatus.serverReachable
-              ? providerStatus.selectedModelReady
-                ? 'Ready'
-                : 'Choose a model'
-              : 'Not running'}
-          </span>
+          <div class="model-recommendation-action">
+            {#if recommendedInstalled}
+              <button
+                class="secondary-action"
+                onclick={() => chooseProviderModel(recommendedInstalled.name)}
+                disabled={!providerStatus.serverReachable ||
+                  selectedProviderModel === recommendedInstalled.name}
+              >
+                {selectedProviderModel === recommendedInstalled.name
+                  ? 'Selected'
+                  : 'Use this model'}
+              </button>
+            {:else}
+              <span class="model-status">Not installed yet</span>
+            {/if}
+          </div>
+        </article>
+
+        <div class="model-catalog" aria-label="Curated protocol models">
+          {#each GENERATION_MODEL_CATALOG as entry (entry.id)}
+            {@const installed = installedProviderModel(entry, providerStatus.models)}
+            {@const selected = installed !== null && selectedProviderModel === installed.name}
+            <article class="model-card" class:active={selected}>
+              <div class="model-card-copy">
+                <div class="model-card-heading">
+                  <h3>{entry.name}</h3>
+                  {#if entry.status === 'baseline'}<span class="model-badge">Baseline</span>{/if}
+                  {#if entry.originLabel === 'European model'}<span class="model-badge quiet"
+                      >European</span
+                    >{/if}
+                </div>
+                <p>{entry.description}</p>
+                <div class="model-meta">
+                  <span>{entry.sizeLabel}</span>
+                  <span>{entry.licenseLabel}</span>
+                  <span>{entry.languages.slice(0, 3).join(' · ')}</span>
+                </div>
+                <p class="model-evaluation">
+                  {entry.testedLanguages.length
+                    ? `Evaluated in ${entry.testedLanguages.join(' and ')}`
+                    : 'Quality evaluation still pending'}
+                </p>
+              </div>
+              <div class="model-card-action">
+                <span class="model-status">{modelStatusLabel(entry, installed)}</span>
+                {#if installed}
+                  <button
+                    class="quiet-action"
+                    onclick={() => chooseProviderModel(installed.name)}
+                    disabled={!providerStatus.serverReachable || selected}
+                    >{selected ? 'Selected' : 'Use model'}</button
+                  >
+                {/if}
+              </div>
+            </article>
+          {/each}
         </div>
+        {#if providerError}<p class="setting-error" role="alert">{providerError}</p>{/if}
         <p class="setting-hint">{providerStatus.message}</p>
-        <div class="setting-field">
-          <label for="ollama-model">Installed Ollama model</label>
-          <select
-            id="ollama-model"
-            bind:value={selectedProviderModel}
-            disabled={!providerStatus.serverReachable}
-          >
-            <option value="">No model selected</option>
-            {#each providerStatus.models as model (model.name)}
-              <option value={model.name}>{model.name}</option>
-            {/each}
-          </select>
-        </div>
         <div class="setting-actions">
-          <button class="secondary-action" onclick={onRefreshProvider}>Check again</button>
+          <button class="secondary-action" onclick={onRefreshProvider}
+            >Check installed models</button
+          >
+        </div>
+        <details class="advanced-disclosure model-advanced">
+          <summary>Use another installed model</summary>
+          <p>
+            This is for people who already know which local model they want to try. It is not
+            evaluated or recommended by LocaLog, and it remains subject to the same local runtime
+            and memory limits.
+          </p>
+          <div class="setting-field">
+            <label for="other-ollama-model">Installed model</label>
+            <select
+              id="other-ollama-model"
+              bind:value={selectedProviderModel}
+              disabled={!providerStatus.serverReachable || uncataloguedModels.length === 0}
+            >
+              <option value="">Choose an installed model</option>
+              {#each uncataloguedModels as model (model.name)}
+                <option value={model.name}>{model.name}</option>
+              {/each}
+            </select>
+          </div>
           <button
             class="secondary-action"
             onclick={() => onConfigureProvider(selectedProviderModel || null)}
-            disabled={!providerStatus.serverReachable}>Save selected model</button
+            disabled={!providerStatus.serverReachable || !selectedProviderModel}
+            >Use installed model</button
           >
-        </div>
+        </details>
         <div class="notice-inline">
-          Ollama is a development and technical-preview baseline, not the accepted public
-          distribution model. LocaLog never starts Ollama or downloads models.
+          The catalogue is intentionally curated. LocaLog does not silently download models or
+          present an arbitrary model marketplace. New entries become selectable only after their
+          runtime, licence, memory use and German/English quality have been checked.
         </div>
       {:else if section === 'Transcription'}
         <div class="setting-row">
@@ -165,7 +274,6 @@
                 <span class="preset-name">{presetLabels[preset.preset].name}</span>
                 <span class="preset-detail">
                   {presetLabels[preset.preset].detail}
-                  {#if showAdvanced}<span class="preset-model">· {preset.modelId}</span>{/if}
                 </span>
               </button>
               <div class="preset-state">
@@ -199,20 +307,21 @@
           {/each}
         </div>
         {#if modelError}<p class="setting-error" role="alert">{modelError}</p>{/if}
-        <button class="quiet-action" onclick={() => (showAdvanced = !showAdvanced)}>
-          {showAdvanced ? 'Hide advanced details' : 'Show advanced details'}
-        </button>
-        {#if showAdvanced}
+        <details class="advanced-disclosure">
+          <summary>Advanced details</summary>
           <div class="advanced-block">
             <p class="setting-hint">
               Models are stored in LocaLog’s application data folder and verified before use.
             </p>
             <label class="setting-field"
-              >whisper.cpp executable<input
+              >whisper-cli executable<input
                 bind:value={executablePath}
                 placeholder="/path/to/whisper-cli"
               /><button class="quiet-action" onclick={chooseExecutable}>Choose file</button></label
             >
+            <p class="setting-hint">
+              Choose the command-line transcription binary, not whisper-server.
+            </p>
             <button
               class="secondary-action"
               onclick={() => onConfigureRuntime(executablePath)}
@@ -223,7 +332,71 @@
                 Detected: {runtimeStatus.runtimeVersion}
               </p>{/if}
           </div>
-        {/if}
+        </details>
+        <div class="speaker-setting">
+          <div class="setting-row">
+            <div>
+              <h3>Speaker differentiation</h3>
+              <p>
+                Optional voice-turn separation labels who spoke when. It never blocks a transcript,
+                and labels remain editable during review.
+              </p>
+            </div>
+            {#if speakerStatus.modelsInstalled && speakerStatus.runtimeHealthy}
+              <span class="safe-note"><Icon name="check" size={15} /> Ready</span>
+            {:else if speakerStatus.modelsInstalled}
+              <span class="setting-value">Runtime not available in this installation</span>
+            {:else}<span class="setting-value">Optional</span>{/if}
+          </div>
+          <div class="speaker-controls">
+            {#if downloading['speaker-separation'] !== undefined}
+              <span class="preset-progress-text">{downloading['speaker-separation']}%</span>
+              <div
+                class="preset-progress"
+                role="progressbar"
+                aria-valuenow={downloading['speaker-separation']}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-label="Downloading speaker separation models"
+              >
+                <span style="width:{downloading['speaker-separation']}%"></span>
+              </div>
+            {:else if !speakerStatus.modelsInstalled}
+              <button class="secondary-action" onclick={onDownloadSpeaker}>
+                Prepare speaker separation
+                {#if speakerStatus.downloadBytes > 0}({formatSize(
+                    speakerStatus.downloadBytes,
+                  )}){/if}
+              </button>
+            {:else if speakerStatus.runtimeConfigured}<button
+                class="quiet-action"
+                onclick={onRefreshSpeaker}>Check readiness</button
+              >{:else if speakerStatus.modelsInstalled}<span
+                class="setting-hint speaker-runtime-note"
+                >The models are prepared, but this installation has no compatible speaker runtime.</span
+              >{/if}
+          </div>
+          <details class="advanced-disclosure">
+            <summary>Advanced details</summary>
+            <p>
+              LocaLog discovers the speaker runtime automatically from its bundled resources or the
+              system path. The runtime is optional and never blocks transcription.
+            </p>
+            {#if speakerStatus.runtimePath}<p class="setting-hint">
+                Discovered runtime: {speakerStatus.runtimePath}
+              </p>{:else}<p class="setting-hint">
+                No compatible speaker runtime was found on this machine yet.
+              </p>{/if}
+            {#if speakerStatus.runtimeVersion}<p class="setting-hint">
+                Runtime version: {speakerStatus.runtimeVersion}
+              </p>{/if}
+            <p class="setting-hint">
+              Readiness includes a bounded launch check, so an incompatible or broken executable is
+              not presented as available.
+            </p>
+            {#if speakerError}<p class="setting-error" role="alert">{speakerError}</p>{/if}
+          </details>
+        </div>
       {:else if section === 'Storage'}
         <div class="setting-row">
           <div>

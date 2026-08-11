@@ -77,6 +77,8 @@ Before generation, the user should be able to see what will be used: the selecte
 
 The normal interface talks about outcomes, not runtimes. “Balanced transcription” and “Formal minutes” belong in the main workflow. Exact model names, paths, context limits, and provider diagnostics belong in settings or an advanced area.
 
+Protocol model choice is made once in Settings and then reused. The Settings view presents a short, curated catalogue with a recommendation based on the available machine and installed models. A person can choose a different model there, but the normal meeting and protocol flow does not ask for a model every time. The catalogue marks models that are installed, planned, or still awaiting German and English evaluation.
+
 Generation is a background job. The interface should make it clear that the transcript remains available and that the user can navigate while the draft is being prepared.
 
 ## Protocol editing

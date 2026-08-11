@@ -40,11 +40,16 @@ Supported audio/video files can be copied into managed storage, probed, normalis
 
 The application has a supervised whisper.cpp boundary, structured JSON parsing, timestamps, uncertainty markers, vocabulary prompts, provenance, model presets, and consent-gated verified model downloads.
 
-Real local runs and a long German evaluation exist, but the runtime still has to be supplied manually, the M1/8 GB baseline has not been measured, and no distributable sidecar exists yet.
+Real local runs and a long German evaluation exist. A release-only Tauri configuration and reproducible
+sherpa-onnx sidecar build now define the distribution path; the whisper sidecar, signed artifacts, and
+the M1/8 GB baseline still need validation.
 
 ### Speaker separation — Partial and provisional
 
-The application contains diariser output parsing, time-overlap alignment, editable speaker labels, and managed diarisation models. The normal user path still needs a bundled or otherwise resolved diariser runtime, and the quality evidence is limited to a short synthetic study and one development-machine evaluation.
+The application contains diariser output parsing, time-overlap alignment, editable speaker labels, managed
+diarisation models, a bundled-runtime discovery boundary, and a first-use preparation action in the
+meeting flow. The quality evidence is limited to a short synthetic study and one development-machine
+evaluation.
 
 Speaker labels must remain provisional. They are not confirmed identities.
 
@@ -62,14 +67,31 @@ The editor still needs long-document, accessibility, and real-background-load va
 
 ### Libraries and settings — Partial
 
-Vocabulary is editable and resolved into job provenance. The shipped professional styles are structured and versioned, but the style library is not yet fully editable. Language concepts are kept separate, although the first meeting language control still needs to be wired through completely.
+Vocabulary is editable and resolved into job provenance. The shipped professional styles are structured and versioned, but the style library is not yet fully editable. Language concepts remain separate by design.
+
+The meeting-language flow is now wired through project defaults, per-meeting overrides, transcription
+runtime language codes, and protocol-generation inputs. The normal UI offers common languages while
+still allowing a language name outside the convenience list. Interface-language selection remains a
+separate future setting.
+
+Meeting and transcript review now expose the language as a correction point. A user can change it and
+explicitly rerun transcription; the current result remains in place until the new job commits, while
+the new run receives its own immutable revision and provenance. Automatic language detection is not
+used as a silent replacement for the user's choice. It should first be tested as an advisory preflight,
+because a guess is not a safe reason to change a professional record.
+
+Speaker differentiation is now visible as an optional, progressive-disclosure setting. The existing
+diariser boundary reports model/runtime readiness, accepts an expected speaker count for each
+transcription run, and keeps labels
+editable in transcript review. It remains provisional until a distributable runtime and broader
+multilingual quality evidence exist.
 
 ## What is not yet true
 
 - Recording from the microphone or system audio is not implemented.
 - Project and meeting archive actions are not exposed in the interface.
 - Basic backup and restore are not implemented.
-- The whisper.cpp and diariser runtimes are not bundled.
+- The release config bundles the diariser sidecar once the target-specific artifact has been built; whisper.cpp and FFmpeg still need the same distribution treatment.
 - The final public protocol-generation runtime is undecided; Ollama is for development and early technical previews.
 - Windows and Linux have architectural support, but no packaged release or complete runtime validation.
 - Performance and accessibility have not been accepted on the M1/8 GB target.
@@ -96,11 +118,11 @@ Run the complete path on an M1 Mac with 8 GB RAM. Record elapsed time, peak memo
 
 The current M1 Pro/16 GB measurements are valuable development evidence, not the release baseline.
 
-### 3. Resolve runtime and speaker distribution
+### 3. Validate runtime and speaker distribution
 
-Bundle or otherwise resolve whisper.cpp, FFmpeg, and the diariser without asking a normal user to browse for executables. Before distribution, review licensing, checksums, signing, notarisation, updates, offline behaviour, and model storage.
+Build and validate the target-specific whisper.cpp, FFmpeg, and sherpa-onnx sidecars without asking a normal user to browse for executables. Before distribution, review licensing, checksums, signing, notarisation, updates, offline behaviour, and model storage.
 
-For speaker separation, test a multilingual or German-suited embedding model, long recordings, overlapping speech, and the M1/8 GB machine. Then decide what the review interface needs for renaming, reassignment, and merging labels.
+For speaker separation, test a multilingual or German-suited embedding model, long recordings, overlapping speech, and the M1/8 GB machine. Then decide whether the optional setting should become the default when a verified runtime is available, and what the review interface needs for renaming, reassignment, and merging labels.
 
 ### 4. Harden the product
 
