@@ -62,9 +62,31 @@ did not include eleven, so the meeting that needed a count most could not be giv
 Speaker labels must remain provisional. They are not confirmed identities.
 
 The pass still costs roughly twenty-six minutes for an eighty-one minute recording, which is more
-than transcription and generation together. That is the next thing to answer: whether a different
-embedding model, or reusing the speech regions whisper already found instead of segmenting the audio
-a second time, brings it into proportion.
+than transcription and generation together.
+
+Skipping silence does not fix that. Measured on the reference recording, only ten per cent is silent,
+so working on speech alone saves about a ninth — not worth changing anything for.
+
+The promising direction is sampling rather than skipping. Speaker separation runs after
+transcription, so the segments are already known by then, and identifying a voice needs a couple of
+seconds of it rather than a whole utterance. Embedding two seconds of each of the reference meeting's
+753 segments is roughly twenty-five minutes of audio instead of seventy-three, which would bring the
+pass under ten minutes.
+
+It can be tried without linking a library. A condensed working file can be assembled from short
+samples of each segment separated by brief silence, the existing diariser run over that, and each
+turn mapped back through the sample it fell in — the mapping is exact because we built the
+condensation. What is unknown is whether clustering survives it: the joins are artificial, and a
+sample may be too short to identify a quiet or overlapping speaker. That is a measurement, and the
+reference meeting can answer it.
+
+Whether a different embedding model would do better is a separate and unresearched question. The
+current one is trained on Chinese, which is a poor match for the first audience.
+
+Whether any of this is worth doing at all is the question underneath: speaker separation exists to
+improve attribution in the protocol, and that has never been measured. A protocol generated with
+speakers and one without, from the same meeting, would settle it more cheaply than optimising a pass
+that may not earn its place.
 
 ### Protocol generation — Partial; the main quality work
 
