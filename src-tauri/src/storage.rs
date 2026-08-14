@@ -1,8 +1,8 @@
 use crate::domain::{
     JobErrorSummary, JobState, JobSummary, MeetingLifecycle, MeetingSummary, NewMeetingInput,
-    NewProjectInput, ProjectSummary, ProtocolDensity, ProtocolDocument, ProtocolRevisionSummary,
-    ProtocolStyle, SpeakerResolution, TranscriptDocument, TranscriptSegment, VocabularyDraft,
-    VocabularyEntry, WorkspaceSnapshot,
+    NewProjectInput, ProjectSummary, ProtocolDensity, ProtocolDocument, ProtocolEvidence,
+    ProtocolRevisionSummary, ProtocolStyle, SpeakerResolution, TranscriptDocument,
+    TranscriptSegment, VocabularyDraft, VocabularyEntry, WorkspaceSnapshot,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
@@ -833,6 +833,28 @@ impl WorkspaceRepository {
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
+    /// What the generation run recorded about the draft it produced.
+    ///
+    /// Read from the job that committed this revision, so a draft always carries
+    /// the evidence of its own run rather than of the most recent one. A row that
+    /// cannot be parsed is treated as absent: this informs a reader and must never
+    /// stop them opening their protocol.
+    fn protocol_evidence(&self, revision_id: &str) -> Result<Option<ProtocolEvidence>> {
+        let recorded: Option<Option<String>> = self
+            .connection
+            .query_row(
+                "SELECT outcome_json FROM jobs
+                 WHERE result_revision_id = ?1 AND kind = 'generation'
+                 ORDER BY created_at_ms DESC LIMIT 1",
+                [revision_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(recorded
+            .flatten()
+            .and_then(|value| serde_json::from_str(&value).ok()))
+    }
+
     fn list_protocol_styles(&self) -> Result<Vec<ProtocolStyle>> {
         let mut statement = self.connection.prepare(
             "SELECT id, name, description, language_scope, density
@@ -1295,6 +1317,7 @@ impl WorkspaceRepository {
             let bytes = read_verified_artifact(&self.root, &path, &working_checksum)?;
             let markdown = String::from_utf8(bytes)
                 .map_err(|_| StorageError::InvalidData("The saved protocol is invalid."))?;
+            let revision_for_evidence = base_revision_id.clone();
             let is_dirty = working_checksum != base_checksum;
             let review_state = if reviewed_revision_id.as_deref() == Some(&base_revision_id) {
                 if is_dirty {
@@ -1318,6 +1341,7 @@ impl WorkspaceRepository {
                     save_state: "saved".to_string(),
                     saved_at_ms,
                     revisions: self.protocol_revision_summaries(&meeting_id)?,
+                    evidence: self.protocol_evidence(&revision_for_evidence)?,
                 },
             );
         }
@@ -2332,6 +2356,36 @@ mod tests {
         (project.id, meeting.id)
     }
 
+    /// A completed generation job with an outcome recorded against it, using the
+    /// meeting's own recording so the foreign keys hold.
+    fn record_generation_outcome(
+        repository: &WorkspaceRepository,
+        meeting_id: &str,
+        job_id: &str,
+        revision_id: &str,
+        outcome: &str,
+    ) {
+        let recording_id: String = repository
+            .connection
+            .query_row(
+                "SELECT id FROM recordings WHERE meeting_id = ?1 LIMIT 1",
+                [meeting_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        repository
+            .connection
+            .execute(
+                "INSERT INTO jobs
+                    (id, meeting_id, recording_id, kind, state, stage, progress_bytes, attempt,
+                     duplicate_allowed, result_revision_id, outcome_json, created_at_ms,
+                     updated_at_ms)
+                 VALUES (?1, ?2, ?3, 'generation', 'completed', 'completed', 0, 1, 0, ?4, ?5, 1, 1)",
+                params![job_id, meeting_id, recording_id, revision_id, outcome],
+            )
+            .unwrap();
+    }
+
     fn draft(term: &str, category: &str, project_id: Option<&str>) -> VocabularyDraft {
         VocabularyDraft {
             id: None,
@@ -2471,6 +2525,50 @@ mod tests {
             "the column must survive, not be added twice or lost"
         );
         assert_eq!(repository.workspace_snapshot().unwrap().styles.len(), 3);
+    }
+
+    /// A draft carries the evidence of the run that produced it, not of the most
+    /// recent run, so that reading an older revision does not show numbers taken
+    /// from a newer one.
+    #[test]
+    fn a_protocol_carries_what_its_own_run_found() {
+        let temporary = tempdir().unwrap();
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let (_, meeting_id) = project_with_meeting(&mut repository, temporary.path());
+        record_generation_outcome(
+            &repository,
+            &meeting_id,
+            "job-1",
+            "rev-1",
+            r#"{"quantitiesStated":24,"quantitiesAccounted":15,
+                "quantitiesInvented":["90 cm"],"charactersSpoken":73159,
+                "charactersWritten":23193}"#,
+        );
+
+        let evidence = repository.protocol_evidence("rev-1").unwrap().unwrap();
+        assert_eq!(evidence.quantities_stated, 24);
+        assert_eq!(evidence.quantities_accounted, 15);
+        assert_eq!(evidence.quantities_invented, vec!["90 cm".to_string()]);
+        assert_eq!(evidence.characters_written, 23_193);
+
+        // A revision nothing recorded against is simply without evidence.
+        assert!(repository.protocol_evidence("rev-2").unwrap().is_none());
+    }
+
+    /// Evidence that cannot be read must never stop a person opening their work.
+    #[test]
+    fn unreadable_evidence_is_absent_rather_than_fatal() {
+        let temporary = tempdir().unwrap();
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let (_, meeting_id) = project_with_meeting(&mut repository, temporary.path());
+        record_generation_outcome(
+            &repository,
+            &meeting_id,
+            "job-2",
+            "rev-3",
+            "not json at all",
+        );
+        assert!(repository.protocol_evidence("rev-3").unwrap().is_none());
     }
 
     #[test]

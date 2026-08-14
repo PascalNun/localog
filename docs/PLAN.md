@@ -59,7 +59,13 @@ The Ollama provider is narrow, loopback-only, cancellable, bounded, provenance-a
 
 Generation records what it found about its own result: how many stated quantities the protocol keeps,
 which figures it states that the meeting did not, and its length against the transcript. Those numbers
-are written to the job and are not yet shown to anyone.
+now reach the reader, beside the draft they describe.
+
+They are presented as evidence to look at, never as a verdict. Only one of them is wrong under every
+style — a figure the draft states that the meeting did not — and that is the only one shown as a
+warning. How much a draft keeps is what its style asked for, and a machine judgement placed in front
+of a person asks them to read less carefully, which is the one check in this product that reliably
+works.
 
 Dividing a meeting into subjects is compiled for evaluation only, which is its honest status while the
 first question below is open. Writing subject by subject was measured and rejected — it produced a
@@ -117,7 +123,9 @@ Work in this order:
 
 1. Decide whether the current sectioned approach is enough or whether the structured evidence record should become the production intermediate.
 2. Keep the useful transcript-to-segment links and unclaimed-segment reporting.
-3. Add mechanical checks for quantities, unsupported statements, actions without owners, and missing sections where those checks can be reliable.
+3. Quantities kept, figures invented, and length against the recording are measured and shown.
+   Unsupported statements, actions without owners, and missing sections still need checks that can
+   be relied on.
 4. Retry one failed section or pass rather than discarding the complete run.
 5. Compare the result with the existing human reference on completeness, correctness, attribution, length, and editing effort—not length alone.
 6. Repeat the same workflow with an English meeting or synthetic equivalent.

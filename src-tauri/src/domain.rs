@@ -191,6 +191,29 @@ pub struct ProtocolDocument {
     pub save_state: String,
     pub saved_at_ms: i64,
     pub revisions: Vec<ProtocolRevisionSummary>,
+    /// What the run that produced this draft found out about its own result.
+    /// Absent for drafts written before it was recorded.
+    pub evidence: Option<ProtocolEvidence>,
+}
+
+/// Facts about a draft that can be established without a model and without a
+/// reader: a quantity was either stated in the meeting or it was not, and either
+/// survives into the protocol or does not.
+///
+/// This is evidence for review, never a verdict. A machine opinion placed in front
+/// of a person asks them to read less carefully, and reading carefully is the only
+/// check in this product that reliably works.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProtocolEvidence {
+    pub quantities_stated: u32,
+    pub quantities_accounted: u32,
+    /// Figures the draft states that no part of the meeting did. Wrong under any
+    /// style, unlike how much a draft keeps, which is what its style asked for.
+    #[serde(default)]
+    pub quantities_invented: Vec<String>,
+    pub characters_spoken: u32,
+    pub characters_written: u32,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]

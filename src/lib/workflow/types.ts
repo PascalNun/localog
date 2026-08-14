@@ -74,6 +74,22 @@ export interface ProtocolRevisionSummary {
   createdAtMs: number;
 }
 
+/**
+ * What the run that wrote a draft found out about its own result, established
+ * without a model and without a reader.
+ *
+ * Shown as evidence to look at, never as a verdict. A machine judgement placed in
+ * front of a person asks them to read less carefully, and reading carefully is the
+ * only check in this product that reliably works.
+ */
+export interface ProtocolEvidence {
+  quantitiesStated: number;
+  quantitiesAccounted: number;
+  quantitiesInvented: string[];
+  charactersSpoken: number;
+  charactersWritten: number;
+}
+
 export interface ProtocolDraft {
   meetingId: string;
   revisionId: string;
@@ -85,6 +101,8 @@ export interface ProtocolDraft {
   saveState: 'saved' | 'failed';
   savedAtMs: number;
   revisions: ProtocolRevisionSummary[];
+  /** Absent for drafts written before this was recorded. */
+  evidence?: ProtocolEvidence | null;
 }
 
 export type ProtocolDensity = 'comprehensive' | 'concise' | 'terse';
