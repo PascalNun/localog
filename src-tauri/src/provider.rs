@@ -406,6 +406,7 @@ impl OllamaProvider {
     /// Segments no subject claimed are returned alongside, because a subject this
     /// pass fails to name would otherwise disappear from the protocol with nothing
     /// to show a reader that it ever existed.
+    #[cfg(test)]
     pub fn find_topics(
         &self,
         request: &GenerationRequest,
@@ -450,6 +451,7 @@ impl OllamaProvider {
     /// One reading of a selection of segments, appending whatever subjects it named.
     /// Returns how many segments were claimed, so a round that achieves nothing can
     /// stop the loop rather than repeat itself.
+    #[cfg(test)]
     fn scan(
         &self,
         request: &GenerationRequest,
@@ -526,6 +528,7 @@ impl OllamaProvider {
     /// meeting was. If it fails the topics are returned as they were: a protocol
     /// with the facade discussed under six headings is worse than one with a single
     /// heading, and far better than no protocol at all.
+    #[cfg(test)]
     fn group_topics(
         &self,
         request: &GenerationRequest,
@@ -594,6 +597,7 @@ impl OllamaProvider {
     /// titles happen to be worded. If it fails the batch is returned untouched: a
     /// protocol with the facade under six headings is worse than one heading and
     /// far better than no protocol.
+    #[cfg(test)]
     fn group_batch(
         &self,
         request: &GenerationRequest,
@@ -1158,14 +1162,17 @@ fn with_density(request: &GenerationRequest) -> Vec<String> {
 /// needs a large context, and the pass itself should not reintroduce the problem
 /// it exists to remove — this fits inside the window an eight-gigabyte machine can
 /// afford without argument.
+#[cfg(test)]
 const TOPIC_WINDOW_CHARS: usize = 6_000;
 
 /// Segments each window re-reads from the one before, so a subject that straddles
 /// a boundary is seen whole by at least one of them.
+#[cfg(test)]
 const TOPIC_WINDOW_OVERLAP: usize = 6;
 
 /// Segments a subject needs before it earns a section of its own. Below this it is
 /// a remark inside another discussion, and is folded into the nearest one.
+#[cfg(test)]
 const TOPIC_MINIMUM_SEGMENTS: usize = 4;
 
 /// Asking only for "the subjects" produced one per exchange: fifty titles of two
@@ -1173,25 +1180,30 @@ const TOPIC_MINIMUM_SEGMENTS: usize = 4;
 /// has thirty sections in total. A small model reads "subject" as "thing just
 /// said" unless told the size wanted, so the size is stated, in the terms the
 /// answer is for — a section of a document, not a turn in a conversation.
+#[cfg(test)]
 const TOPIC_SYSTEM: &str = "Divide this passage of a meeting transcript into the few substantial subjects it covers. Each segment is numbered.\n\nGive between one and four subjects for the whole passage. A subject is something a written protocol would give its own section to, gathering many minutes of talk under one heading — not every question, remark or exchange. If the passage is one long discussion of a single thing, return one subject covering it.\n\nFor each subject give a short title in the meeting's language and the numbers of every segment belonging to it. Most segments belong to a subject; a segment of pleasantries or crosstalk may belong to none. Do not summarise, do not write a protocol, and do not name a subject the passage does not discuss. Return only schema-valid JSON.";
 
 /// A meeting that returns to a subject is described afresh by each window that
 /// sees it, so the same thing arrives under several names. The list of names is
 /// short even for a long meeting, which is why this can be settled in one pass
 /// over titles alone rather than by reading the transcript again.
+#[cfg(test)]
 const GROUP_SYSTEM: &str = "Below is a numbered list of subjects taken from one meeting, each with a sentence spoken about it. Several may name the same subject in different words, because the meeting returned to it more than once.\n\nJudge by what was said, not only by the wording of the titles. Group the subjects that a written protocol would gather under a single heading. For each group give one heading of your own in the meeting's language, naming what the group is about -- never two of the old titles joined together -- and the numbers of the titles it covers. Leave a subject out of every group if it stands on its own. Do not group two subjects merely because they were discussed near each other, and do not invent a subject that is not in the list. Return only schema-valid JSON.";
 
 #[derive(Debug, Deserialize)]
+#[cfg(test)]
 struct StructuredGroups {
     groups: Vec<StructuredGroup>,
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg(test)]
 struct StructuredGroup {
     title: String,
     topics: Vec<i64>,
 }
 
+#[cfg(test)]
 fn groups_schema() -> serde_json::Value {
     serde_json::json!({
         "type": "object",
@@ -1213,16 +1225,19 @@ fn groups_schema() -> serde_json::Value {
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg(test)]
 struct StructuredTopics {
     topics: Vec<StructuredTopic>,
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg(test)]
 struct StructuredTopic {
     title: String,
     segments: Vec<i64>,
 }
 
+#[cfg(test)]
 fn topics_schema() -> serde_json::Value {
     serde_json::json!({
         "type": "object",

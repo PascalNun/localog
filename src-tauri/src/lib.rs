@@ -15,6 +15,16 @@ mod processing;
 mod provider;
 mod runtime;
 mod storage;
+/// Dividing a meeting into subjects, kept for evaluation while the decision in
+/// docs/PLAN.md milestone 1 is open: whether sectioning is enough, or whether a
+/// structured record should become the production intermediate.
+///
+/// It is not in the generation path. Writing subject by subject was measured and
+/// rejected — it produced a document longer than the transcript — and running the
+/// pass only to index a protocol would add about seven minutes to a twelve-minute
+/// run for a diagnostic. Compiled for evaluation so the evidence stays runnable
+/// and the shipped library carries nothing it does not call.
+#[cfg(test)]
 mod topics;
 
 use domain::{MeetingSummary, NewMeetingInput, NewProjectInput, ProjectSummary, WorkspaceSnapshot};
