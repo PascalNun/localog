@@ -28,3 +28,22 @@ export const COMMON_MEETING_LANGUAGES = [
 ] as const;
 
 export type CommonMeetingLanguage = (typeof COMMON_MEETING_LANGUAGES)[number];
+
+/**
+ * What an unset meeting language means, and how to say it.
+ *
+ * The default used to be "English", which is a guess made from nothing: a German
+ * recording was transcribed in English because a field nobody had looked at
+ * asserted a language the application had no evidence for. Leaving it unset is
+ * the honest state, and the transcription runtime already reads an empty
+ * language as "work it out from the audio".
+ *
+ * Detection fills a gap; it never overrides a choice. Where somebody has named a
+ * language, that is what runs.
+ */
+export const DETECT_LANGUAGE_LABEL = 'Detect from the recording';
+
+export function meetingLanguageLabel(language: string | null | undefined): string {
+  const named = (language ?? '').trim();
+  return named === '' ? DETECT_LANGUAGE_LABEL : named;
+}

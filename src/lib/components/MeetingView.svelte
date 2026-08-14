@@ -6,7 +6,7 @@
     ProjectSummary,
     SpeakerSeparationStatus,
   } from '../workflow/types';
-  import { COMMON_MEETING_LANGUAGES } from '../workflow/languages';
+  import { COMMON_MEETING_LANGUAGES, meetingLanguageLabel } from '../workflow/languages';
   import Icon from './Icon.svelte';
   import ProgressPanel from './ProgressPanel.svelte';
   import StageRail from './StageRail.svelte';
@@ -119,7 +119,7 @@
               languageDraft = meeting.language;
               editingLanguage = true;
             }}
-            aria-label="Change meeting language">{meeting.language}</button
+            aria-label="Change meeting language">{meetingLanguageLabel(meeting.language)}</button
           >{/if} · {meeting.durationLabel ?? 'Duration pending'}
       </p>
       {#if languageError}<p class="form-error" role="alert">{languageError}</p>{/if}
@@ -174,7 +174,9 @@
           <div>
             <dt>Language</dt>
             <dd>
-              {meeting.language}<small>Meeting setting · change above before transcribing</small>
+              {meetingLanguageLabel(meeting.language)}<small
+                >Meeting setting · change above before transcribing</small
+              >
             </dd>
           </div>
           <div>

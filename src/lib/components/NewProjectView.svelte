@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { NewProjectInput } from '../workflow/types';
-  import { COMMON_MEETING_LANGUAGES } from '../workflow/languages';
+  import { COMMON_MEETING_LANGUAGES, DETECT_LANGUAGE_LABEL } from '../workflow/languages';
   import Icon from './Icon.svelte';
 
   export let returnToImport: boolean;
@@ -9,7 +9,10 @@
 
   let name = '';
   let description = '';
-  let defaultLanguage = 'English';
+  // Unset, not English. A default language is a claim about meetings that have
+  // not happened yet, and the wrong claim is expensive: it transcribed a German
+  // recording in English and was only discovered eleven minutes later.
+  let defaultLanguage = '';
   let submitting = false;
   let submitError = '';
 
@@ -53,7 +56,7 @@
       ><span>Default meeting language</span><input
         bind:value={defaultLanguage}
         list="project-languages"
-        placeholder="Any language"
+        placeholder={DETECT_LANGUAGE_LABEL}
       /><datalist id="project-languages">
         {#each COMMON_MEETING_LANGUAGES as language (language)}<option value={language}
           ></option>{/each}
