@@ -1204,15 +1204,20 @@ fn execute_real_transcription(
                 .and_then(serde_json::Value::as_u64)
         })
         .and_then(|count| u32::try_from(count).ok());
+    let timings: Vec<(u64, u64)> = artifact
+        .segments
+        .iter()
+        .map(|segment| (segment.start_ms, segment.end_ms))
+        .collect();
     match diarise(
         repository,
         &normalized,
+        &timings,
         expected_speakers,
         cancellation,
         report,
     )? {
-        DiarisationOutcome::Resolved(turns) => {
-            let names = diarisation::assign_speakers(&artifact.segments, &turns);
+        DiarisationOutcome::Resolved(names) => {
             for (segment, name) in artifact.segments.iter_mut().zip(names) {
                 segment.speaker = name;
             }
@@ -1231,12 +1236,14 @@ fn execute_real_transcription(
 enum DiarisationOutcome {
     Unavailable,
     Failed,
-    Resolved(Vec<diarisation::SpeakerTurn>),
+    /// One name per transcript segment, in the transcript's own order.
+    Resolved(Vec<String>),
 }
 
 fn diarise(
     repository: &WorkspaceRepository,
     normalized: &Path,
+    timings: &[(u64, u64)],
     expected_speakers: Option<u32>,
     cancellation: &AtomicBool,
     report: &mut dyn FnMut(u64, &'static str) -> Result<(), ProcessingError>,
@@ -1273,25 +1280,77 @@ fn diarise(
         return Ok(DiarisationOutcome::Unavailable);
     };
     report(90, "separating_speakers")?;
+
+    // The diariser listens to a couple of seconds of each segment rather than to
+    // the whole recording. Transcription has already run, so where the speech is
+    // is known, and identifying a voice does not need a whole utterance. On the
+    // reference meeting that is 29.5 minutes of audio instead of 73.5.
+    //
+    // If the condensation cannot be built the pass runs on the full recording
+    // instead: slower, and the answer the product had before.
+    let samples = diarisation::plan_samples(
+        timings,
+        diarisation::SAMPLE_MS,
+        diarisation::GAP_MS,
+        diarisation::SHORTEST_MS,
+    );
+    let working_directory = normalized.parent().unwrap_or(&repository.root);
+    let condensed = working_directory.join("diarisation-condensed.wav");
+    let ffmpeg = find_tool("ffmpeg");
+    let sampled = match (samples.is_empty(), ffmpeg) {
+        (false, Some(ffmpeg)) => media::condense_for_diarisation(
+            &ffmpeg,
+            normalized,
+            &samples,
+            diarisation::GAP_MS,
+            working_directory,
+            &condensed,
+            cancellation,
+        )
+        .is_ok(),
+        _ => false,
+    };
+    // Condensing fails for two different reasons, and they must not be treated
+    // alike: no ffmpeg is a reason to fall back to the whole recording, whereas
+    // somebody pressing cancel is a reason to stop rather than to begin the
+    // longer pass instead.
+    if cancellation.load(Ordering::SeqCst) {
+        let _ = fs::remove_file(&condensed);
+        return Err(ProcessingError::Cancelled);
+    }
+
+    let listen_to = if sampled { &condensed } else { normalized };
     let output = runtime::run_process(
         media::diarisation_command(&media::DiarisationRequest {
             executable: &executable,
             segmentation_model: &segmentation,
             embedding_model: &embedding,
-            normalized,
+            normalized: listen_to,
             expected_speakers: Some(expected_speakers),
         }),
         cancellation,
         runtime::ProcessLimits::with_max_output(2 * 1024 * 1024),
     );
+    if sampled {
+        let _ = fs::remove_file(&condensed);
+    }
     match output {
         Ok(output) => {
             let turns = diarisation::parse_turns(&output.stdout);
             if turns.is_empty() {
-                Ok(DiarisationOutcome::Failed)
-            } else {
-                Ok(DiarisationOutcome::Resolved(turns))
+                return Ok(DiarisationOutcome::Failed);
             }
+            let names = if sampled {
+                // Each turn is read back through the sample it fell in. The mapping
+                // is exact because the condensation is ours.
+                let mut found =
+                    diarisation::speakers_from_condensed(timings.len(), &samples, &turns);
+                diarisation::fill_gaps(&mut found);
+                diarisation::name_in_order(found)
+            } else {
+                diarisation::assign_speakers(timings, &turns)
+            };
+            Ok(DiarisationOutcome::Resolved(names))
         }
         Err(runtime::ProcessFailure::Cancelled) => Err(ProcessingError::Cancelled),
         // Any other diariser problem leaves the transcript intact and unlabelled.

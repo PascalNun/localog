@@ -177,6 +177,149 @@ pub(crate) fn vocabulary_prompt(terms: &[String]) -> Option<String> {
     Some(chosen.join(", "))
 }
 
+/// Build the short working file the diariser listens to.
+///
+/// Rather than replaying the whole recording, this writes a few seconds of each
+/// transcript segment end to end, separated by silence. The diariser then embeds
+/// a fraction of the audio for the same clustering job, and separation stops
+/// costing longer than transcription and generation together.
+///
+/// This uses the concat demuxer, which seeks to each sample, and not a filter
+/// graph, which does not survive the scale. Trimming with `atrim` splits the
+/// decoded stream once per sample and reads it through for each: at the reference
+/// meeting's 753 segments that had not finished after ten minutes, which is worse
+/// than the pass it exists to shorten. The demuxer builds the same file in under
+/// four seconds.
+///
+/// Silence between samples comes from a small generated file listed between them,
+/// so that the diariser's own segmentation breaks where we joined rather than
+/// running two speakers together.
+pub(crate) fn condense_for_diarisation(
+    ffmpeg: &Path,
+    normalized: &Path,
+    samples: &[crate::diarisation::Sample],
+    gap_ms: u64,
+    working_directory: &Path,
+    destination: &Path,
+    cancellation: &AtomicBool,
+) -> Result<(), String> {
+    if samples.is_empty() {
+        return Err("There is nothing for the speaker pass to listen to.".into());
+    }
+    let gap = working_directory.join("diarisation-gap.wav");
+    write_silence(ffmpeg, gap_ms, &gap, cancellation)?;
+
+    // Single quotes are the demuxer's escape, and a path containing one would
+    // otherwise end the filename early and read some other file.
+    let quoted = |path: &Path| {
+        format!(
+            "file '{}'\n",
+            path.display().to_string().replace('\'', "'\\''")
+        )
+    };
+    let source = quoted(normalized);
+    let silence = quoted(&gap);
+    let mut list = String::from("ffconcat version 1.0\n");
+    for (index, sample) in samples.iter().enumerate() {
+        if index > 0 {
+            list.push_str(&silence);
+        }
+        list.push_str(&source);
+        list.push_str(&format!(
+            "inpoint {:.3}\noutpoint {:.3}\n",
+            sample.source_start_ms as f64 / 1000.0,
+            sample.source_end_ms as f64 / 1000.0,
+        ));
+    }
+    let list_path = working_directory.join("diarisation-samples.txt");
+    std::fs::write(&list_path, list)
+        .map_err(|error| format!("The speaker pass could not prepare its audio: {error}"))?;
+
+    let mut command = Command::new(ffmpeg);
+    command
+        .args([
+            "-hide_banner",
+            "-nostdin",
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+        ])
+        .arg(&list_path)
+        .args(["-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "-f", "wav"])
+        .arg(destination);
+    let result = run_process(
+        command,
+        cancellation,
+        ProcessLimits::with_max_output(512 * 1024),
+    )
+    .map(|_| ())
+    .map_err(|error| error.to_string());
+    let _ = std::fs::remove_file(&list_path);
+    let _ = std::fs::remove_file(&gap);
+    result?;
+
+    // Check the file against the plan rather than assuming it was built.
+    //
+    // The concat demuxer wants its entries to share stream parameters, and where
+    // they do not it drops the odd one out and still exits successfully: handed a
+    // recording that was not the 16 kHz mono working audio, every gap disappears
+    // and the samples run together, which is exactly the thing the gaps exist to
+    // prevent. That failure is silent, and it would show up as speakers merged
+    // into one for reasons nobody could see. A length that does not match the plan
+    // catches it, and any other cause of a short file with it.
+    let planned_ms = samples
+        .last()
+        .map(|sample| sample.condensed_end_ms)
+        .unwrap_or_default();
+    let written = std::fs::metadata(destination)
+        .map_err(|error| format!("The speaker pass could not read its own audio: {error}"))?
+        .len();
+    // 16 kHz mono at two bytes a frame, less a WAV header of well under a kilobyte.
+    let actual_ms = written.saturating_sub(1_024) / 32;
+    let shortfall = planned_ms.saturating_sub(actual_ms);
+    if shortfall > (planned_ms / 20).max(1_000) {
+        return Err(format!(
+            "The condensed audio is {actual_ms} ms where {planned_ms} ms was planned."
+        ));
+    }
+    Ok(())
+}
+
+/// The quiet laid between samples, so the joins read as pauses rather than as one
+/// person interrupting another.
+fn write_silence(
+    ffmpeg: &Path,
+    duration_ms: u64,
+    destination: &Path,
+    cancellation: &AtomicBool,
+) -> Result<(), String> {
+    let mut command = Command::new(ffmpeg);
+    command
+        .args([
+            "-hide_banner",
+            "-nostdin",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=r=16000:cl=mono",
+            "-t",
+        ])
+        .arg(format!("{:.3}", duration_ms as f64 / 1000.0))
+        .args(["-c:a", "pcm_s16le", "-f", "wav"])
+        .arg(destination);
+    run_process(
+        command,
+        cancellation,
+        ProcessLimits::with_max_output(512 * 1024),
+    )
+    .map(|_| ())
+    .map_err(|error| error.to_string())
+}
+
 /// How the diariser should be run for one recording.
 pub(crate) struct DiarisationRequest<'a> {
     pub executable: &'a Path,
@@ -265,6 +408,64 @@ pub(crate) fn parse_whisper_progress(line: &str) -> Option<u8> {
 
 #[cfg(test)]
 mod tests {
+    /// Runs the real ffmpeg, because the parts that break here are the ones a
+    /// hermetic test cannot reach: the concat list's escaping, the header, and
+    /// whether the silence lands between the samples rather than around them.
+    ///
+    /// Set LOCALOG_CONDENSE_SOURCE to any audio file of at least a minute.
+    #[test]
+    #[ignore = "requires ffmpeg and a real recording"]
+    fn condensation_produces_the_planned_length() {
+        let Some(source) = std::env::var_os("LOCALOG_CONDENSE_SOURCE").map(PathBuf::from) else {
+            panic!("Set LOCALOG_CONDENSE_SOURCE to an audio file.");
+        };
+        let ffmpeg =
+            PathBuf::from(std::env::var("LOCALOG_FFMPEG").unwrap_or_else(|_| "ffmpeg".to_string()));
+        let directory = std::env::temp_dir().join("localog-condense-test");
+        std::fs::create_dir_all(&directory).expect("working directory");
+        let destination = directory.join("condensed.wav");
+
+        // Ten seconds spread across the first minute.
+        let timings: Vec<(u64, u64)> = (0..5).map(|i| (i * 10_000, i * 10_000 + 4_000)).collect();
+        let samples = crate::diarisation::plan_samples(
+            &timings,
+            crate::diarisation::SAMPLE_MS,
+            crate::diarisation::GAP_MS,
+            crate::diarisation::SHORTEST_MS,
+        );
+        assert_eq!(samples.len(), 5);
+
+        let cancellation = AtomicBool::new(false);
+        condense_for_diarisation(
+            &ffmpeg,
+            &source,
+            &samples,
+            crate::diarisation::GAP_MS,
+            &directory,
+            &destination,
+            &cancellation,
+        )
+        .expect("condensation");
+
+        // Five two-second samples with four gaps between them.
+        let expected = samples.last().expect("a sample").condensed_end_ms;
+        assert_eq!(expected, 5 * 2_000 + 4 * 300);
+        let written = std::fs::metadata(&destination).expect("output").len();
+        // 16 kHz mono 16-bit, so two bytes a frame, and a header under a kilobyte.
+        // A little over the plan is the silence generator rounding up to whole
+        // frames; short is the failure that matters, and the function rejects it.
+        let seconds = (written.saturating_sub(1_024)) as f64 / 32_000.0;
+        assert!(
+            seconds > expected as f64 / 1000.0 - 0.3 && seconds < expected as f64 / 1000.0 + 0.5,
+            "condensed to {seconds:.2}s, planned {:.2}s",
+            expected as f64 / 1000.0
+        );
+        // The working files are the pass's own business and must not be left behind.
+        assert!(!directory.join("diarisation-samples.txt").exists());
+        assert!(!directory.join("diarisation-gap.wav").exists());
+        let _ = std::fs::remove_dir_all(&directory);
+    }
+
     use super::*;
 
     #[test]
