@@ -121,23 +121,13 @@ pub(crate) fn validate_config(executable: &Path, model: &Path) -> Result<Runtime
 /// app to browse for an executable. The explicit setting still wins, which is
 /// useful for development and for a future signed sidecar override.
 pub(crate) fn discover_executable(names: &[&str]) -> Option<PathBuf> {
-    let mut locations = std::env::var_os("PATH")
+    let beside_the_app = std::env::current_exe()
+        .ok()
+        .and_then(|current| current.parent().map(Path::to_path_buf));
+    let on_path = std::env::var_os("PATH")
         .map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
         .unwrap_or_default();
-    if let Ok(current) = std::env::current_exe()
-        && let Some(parent) = current.parent()
-    {
-        // Tauri places external binaries next to the application executable in
-        // development and in the packaged app bundle. Keep these locations
-        // ahead of PATH so a release cannot accidentally pick up a different
-        // system installation.
-        locations.push(parent.to_path_buf());
-        locations.push(parent.join("Resources"));
-        locations.push(parent.join("..").join("Resources"));
-        locations.push(parent.join("binaries"));
-    }
-    #[cfg(debug_assertions)]
-    locations.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("binaries"));
+    let locations = search_locations(beside_the_app.as_deref(), on_path);
     names.iter().find_map(|name| {
         locations.iter().find_map(|directory| {
             let candidate = directory.join(name);
@@ -162,6 +152,32 @@ pub(crate) fn discover_executable(names: &[&str]) -> Option<PathBuf> {
                 })
         })
     })
+}
+
+/// Where a runtime is looked for, in the order it is looked for.
+///
+/// What ships with the application comes first. A packaged release that found a
+/// system installation before its own signed sidecar would be running something
+/// nobody reviewed, on a machine whose owner was told the application brings its
+/// own runtimes — so this order is the distribution promise, not a preference.
+///
+/// It is a separate function because the order was wrong for as long as it was
+/// only a comment: the locations were appended to the PATH entries and therefore
+/// searched last, directly against what the comment beside them claimed.
+fn search_locations(beside_the_app: Option<&Path>, on_path: Vec<PathBuf>) -> Vec<PathBuf> {
+    let mut locations = Vec::new();
+    if let Some(parent) = beside_the_app {
+        // Tauri puts external binaries beside the executable in development and
+        // inside the bundle in a release.
+        locations.push(parent.to_path_buf());
+        locations.push(parent.join("Resources"));
+        locations.push(parent.join("..").join("Resources"));
+        locations.push(parent.join("binaries"));
+    }
+    #[cfg(debug_assertions)]
+    locations.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("binaries"));
+    locations.extend(on_path);
+    locations
 }
 
 /// A cheap launch probe used for optional runtimes. The probe is deliberately
@@ -468,6 +484,43 @@ fn first_non_empty_line(output: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    /// The order is the distribution promise: a release must run the runtime it
+    /// shipped with, not one it happened to find on the machine. This was wrong
+    /// while it was only a comment -- the bundle locations were appended to the
+    /// PATH entries and so were searched last.
+    #[test]
+    fn what_ships_with_the_application_is_searched_before_the_machine() {
+        let app = PathBuf::from("/Applications/LocaLog.app/Contents/MacOS");
+        let on_path = vec![
+            PathBuf::from("/usr/local/bin"),
+            PathBuf::from("/opt/homebrew/bin"),
+        ];
+        let locations = search_locations(Some(&app), on_path.clone());
+
+        let first_system = locations
+            .iter()
+            .position(|location| on_path.contains(location))
+            .expect("the machine's own locations are still searched");
+        let last_bundled = locations
+            .iter()
+            .rposition(|location| location.starts_with(&app))
+            .expect("the bundle is searched");
+        assert!(
+            last_bundled < first_system,
+            "every bundled location must come before any system one, got {locations:?}"
+        );
+    }
+
+    /// Without a known application directory there is nothing to prefer, and the
+    /// machine's own locations must still be used rather than nothing at all.
+    #[test]
+    fn the_machine_is_still_searched_when_the_bundle_is_unknown() {
+        let on_path = vec![PathBuf::from("/usr/bin")];
+        assert!(search_locations(None, on_path.clone()).ends_with(&on_path));
+    }
+
     use super::*;
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
