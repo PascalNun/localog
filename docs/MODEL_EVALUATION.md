@@ -61,7 +61,57 @@ Coverage alone is not enough. One topic-by-topic run covered 23 of 24 figures bu
 
 ## Speaker separation
 
-The real-meeting diarisation run produced 753 segments across eight clusters when a known speaker count was used. Without that constraint, the same recording produced 86 clusters. The number is encouraging but not proof that the labels correspond to real people.
+The reference meeting has **no known speaker count**. The owner attended, believes they were not
+recorded, and spoke little; the true number is ten or eleven and nobody can settle which. Earlier
+notes here treated eleven as fact. It was an estimate. Nothing below should be read as an accuracy
+figure against ground truth.
+
+Asked for eleven speakers, the whole recording produced 291 turns under eleven labels, of which only
+eight are the majority speaker of any transcript segment.
+
+Without a count, the same recording produced 86 clusters — one voice drifting across eighty minutes
+of videoconference becomes many.
+
+### Sampling instead of replaying the whole recording
+
+Separation runs after transcription, so the segments are known, and placing a voice needs a couple of
+seconds rather than a whole utterance. Two seconds from the middle of each of the 675 segments,
+joined by 300 ms of silence, is 25.6 minutes of audio in place of 81.8.
+
+Both runs asked for eleven speakers, on an M1 Pro with 16 GB:
+
+|                                     | Whole recording |      Sampled |
+| ----------------------------------- | --------------: | -----------: |
+| Audio embedded                      |        81.8 min |     25.6 min |
+| Time                                |          1810 s |        498 s |
+| Turns                               |             291 |          128 |
+| Speakers landing on segments        |               8 |           10 |
+| Largest speaker's share of segments |            58 % |         56 % |
+| Largest speaker's share of time     |            62 % |            — |
+| Longest unbroken run                |    126 segments | 126 segments |
+
+The two agree on 596 of 673 comparable segments, 88.6 %, after matching labels between the runs —
+numbering differs because it follows whoever speaks first.
+
+Since neither is ground truth, agreement is what can be measured, and the shapes match closely: the
+same dominant speaker at 56-58 %, the same 126-segment unbroken run. That run and that dominance are
+therefore properties of the diariser on this audio, not artifacts of condensing it. Sampling
+resolves a slightly longer tail, not a shorter one.
+
+### How the samples are cut
+
+By copying byte ranges out of the 16 kHz mono working audio, not by asking ffmpeg. Two ffmpeg routes
+were measured and rejected:
+
+- a filter graph of one `atrim` per sample splits the decoded stream once per sample and reads it
+  through for each; at 753 samples it had not finished after ten minutes;
+- the concat demuxer builds the file in under four seconds but rounds each out point up to a packet
+  boundary, measuring 1767.7 s where 1731.6 s was planned — about 48 ms per sample and accumulating,
+  which would have read the meeting's last turns back against audio 36 seconds away.
+
+Byte copying is exact by construction and takes under a second. A test condenses a recording whose
+every frame records its own millisecond and checks each sample begins and ends where planned; both
+ffmpeg routes fail it.
 
 The isolated synthetic diarisation study found 88.2% frame accuracy on a 23.5-second three-speaker fixture, with 259 MB peak memory and 46 MB of model files. The fixture was clean, short, and non-overlapping; the embedding model was trained on Chinese. Long, noisy, overlapping, multilingual, and M1/8 GB tests remain necessary.
 

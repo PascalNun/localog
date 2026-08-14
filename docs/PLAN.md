@@ -4,7 +4,7 @@ This is the short answer to “where is LocaLog now, and what should happen next
 
 The product and architecture documents describe the destination. The decision log records choices. This document describes what the code can honestly claim today.
 
-Last reviewed: 13 August 2026.
+Last reviewed: 14 August 2026.
 
 ## The direction
 
@@ -53,40 +53,71 @@ diarisation models, a bundled-runtime discovery boundary, and a first-use prepar
 meeting flow. The quality evidence is limited to a short synthetic study and one development-machine
 evaluation.
 
-Separation runs only when somebody says how many people spoke. Clustering by similarity alone was
-measured at eighty-six speakers on a meeting where eleven did, because a voice drifts across eighty
+Separation runs only when somebody offers a number of people. Clustering by similarity alone was
+measured at eighty-six speakers on a meeting of about eleven, because a voice drifts across eighty
 minutes of videoconference, and the models stay installed after the first use — so the pass would
-otherwise keep running unasked and keep producing that. The chooser offered two to ten people, which
-did not include eleven, so the meeting that needed a count most could not be given one.
+otherwise keep running unasked and keep producing that.
 
 Speaker labels must remain provisional. They are not confirmed identities.
 
-The pass still costs roughly twenty-six minutes for an eighty-one minute recording, which is more
-than transcription and generation together.
+#### The pass now listens to samples rather than the whole recording — measured, kept
 
-Skipping silence does not fix that. Measured on the reference recording, only ten per cent is silent,
-so working on speech alone saves about a ninth — not worth changing anything for.
+It ran for about half an hour on an eighty-one minute meeting, which is longer than transcription
+and generation together.
 
-The promising direction is sampling rather than skipping. Speaker separation runs after
-transcription, so the segments are already known by then, and identifying a voice needs a couple of
-seconds of it rather than a whole utterance. Embedding two seconds of each of the reference meeting's
-753 segments is roughly twenty-five minutes of audio instead of seventy-three, which would bring the
-pass under ten minutes.
+Skipping silence does not fix that: only ten per cent of the reference recording is silent, so
+working on speech alone saves about a ninth.
 
-It can be tried without linking a library. A condensed working file can be assembled from short
-samples of each segment separated by brief silence, the existing diariser run over that, and each
-turn mapped back through the sample it fell in — the mapping is exact because we built the
-condensation. What is unknown is whether clustering survives it: the joins are artificial, and a
-sample may be too short to identify a quiet or overlapping speaker. That is a measurement, and the
-reference meeting can answer it.
+Sampling does. Separation runs after transcription, so the segments are already known, and placing a
+voice needs a couple of seconds of it rather than a whole utterance. Two seconds from the middle of
+each of the reference meeting's 675 segments, joined by silence, is 25.6 minutes of audio in place of
+81.8.
 
-Whether a different embedding model would do better is a separate and unresearched question. The
-current one is trained on Chinese, which is a poor match for the first audience.
+Measured on the reference meeting, both runs asking for eleven speakers:
 
-Whether any of this is worth doing at all is the question underneath: speaker separation exists to
-improve attribution in the protocol, and that has never been measured. A protocol generated with
-speakers and one without, from the same meeting, would settle it more cheaply than optimising a pass
-that may not earn its place.
+|                              | Whole recording |      Sampled |
+| ---------------------------- | --------------: | -----------: |
+| Time                         |          1810 s |    **498 s** |
+| Turns                        |             291 |          128 |
+| Speakers landing on segments |               8 |           10 |
+| Largest speaker's share      |            58 % |         56 % |
+| Longest unbroken run         |    126 segments | 126 segments |
+
+The two agree on 88.6 % of segments. Neither is ground truth — see below — so agreement is the
+question, and the shapes match: the same dominant speaker, the same 126-segment run. Sampling
+resolves a slightly longer tail rather than a shorter one. It is three and a half times faster and
+is now the path, with the whole recording kept as the fallback when the condensation cannot be built.
+
+The condensation is byte arithmetic over the working audio, not an ffmpeg call. Both ffmpeg routes
+were tried and rejected: a filter graph of one `atrim` per sample had not finished after ten
+minutes, and the concat demuxer rounds each out point up to a packet boundary, which drifted 36
+seconds across the meeting and would have read the last turns back against the wrong audio.
+
+#### What the number of speakers means — open
+
+The count is treated as a fact and is structurally a guess. Thirty people are invited and fifteen
+speak; somebody unexpected joins; two people share one microphone. The owner of this project
+attended the reference meeting and cannot say whether ten spoke or eleven.
+
+There is evidence the setting is softer than it looks: asked for eleven, the sampled run produced ten
+distinct labels and the whole-recording run landed only eight on segments. Whether asking too high
+fragments people proportionally or is absorbed is being measured across counts of 6, 10, 14 and 20.
+If it is absorbed, the number is a ceiling rather than a target and the interface should ask people
+to guess generously, which is a question they can answer.
+
+#### Still unanswered
+
+The embedding model is trained on Chinese, which is a poor match for the first audience. Whether a
+different one does better is unresearched.
+
+Underneath all of it: speaker separation exists to improve attribution in the protocol, and that has
+never been measured. A protocol generated with speakers and one without, from the same meeting, would
+settle whether the pass earns its place at all.
+
+Neither run above can be scored for accuracy, because the reference meeting has no known speaker
+count. If a wrong count degrades the result badly and nobody can supply a right one, the honest
+conclusion is that automatic separation is not ready to be trusted for attribution, and the useful
+feature is one that helps a person label speakers rather than one that claims to know.
 
 ### Protocol generation — Partial; the main quality work
 
