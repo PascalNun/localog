@@ -1,0 +1,15 @@
+[package]
+name = "localog-speaker-embedding-spike"
+version = "0.0.0"
+publish = false
+license = "GPL-3.0-or-later"
+edition = "2024"
+
+# No dependencies. The point of the study is whether one embedding per known
+# transcript segment is enough, and that needs the sherpa-onnx C API and
+# arithmetic, not a crate.
+[dependencies]
+
+[[bin]]
+name = "embed-segments"
+path = "src/main.rs"
