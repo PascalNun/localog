@@ -1284,7 +1284,8 @@ fn diarise(
     // The diariser listens to a couple of seconds of each segment rather than to
     // the whole recording. Transcription has already run, so where the speech is
     // is known, and identifying a voice does not need a whole utterance. On the
-    // reference meeting that is 29.5 minutes of audio instead of 73.5.
+    // reference meeting's 675 segments that is 25.6 minutes of audio in place of
+    // 81.8.
     //
     // If the condensation cannot be built the pass runs on the full recording
     // instead: slower, and the answer the product had before.
