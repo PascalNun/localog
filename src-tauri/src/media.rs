@@ -3,6 +3,7 @@
 use crate::runtime::{ProcessLimits, RuntimeConfig, run_process};
 use serde::Deserialize;
 use std::fs;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
@@ -179,145 +180,153 @@ pub(crate) fn vocabulary_prompt(terms: &[String]) -> Option<String> {
 
 /// Build the short working file the diariser listens to.
 ///
-/// Rather than replaying the whole recording, this writes a few seconds of each
-/// transcript segment end to end, separated by silence. The diariser then embeds
-/// a fraction of the audio for the same clustering job, and separation stops
-/// costing longer than transcription and generation together.
-///
-/// This uses the concat demuxer, which seeks to each sample, and not a filter
-/// graph, which does not survive the scale. Trimming with `atrim` splits the
-/// decoded stream once per sample and reads it through for each: at the reference
-/// meeting's 753 segments that had not finished after ten minutes, which is worse
-/// than the pass it exists to shorten. The demuxer builds the same file in under
-/// four seconds.
-///
-/// Silence between samples comes from a small generated file listed between them,
-/// so that the diariser's own segmentation breaks where we joined rather than
+/// Rather than replaying the whole recording, this writes a couple of seconds of
+/// each transcript segment end to end, separated by silence. The diariser then
+/// embeds a fraction of the audio for the same clustering job, and separation
+/// stops costing longer than transcription and generation together. The silence
+/// is there so the diariser's own segmentation breaks where we joined rather than
 /// running two speakers together.
+///
+/// The working audio is already 16 kHz mono 16-bit PCM that this module wrote, so
+/// the samples are copied out of it by arithmetic rather than by asking a tool to
+/// cut them. That is the whole reason the mapping back can be trusted.
+///
+/// Both tools were tried first and neither is exact. A filter graph of 753 `atrim`
+/// filters splits the decoded stream once per sample and reads it through for
+/// each; it had not finished after ten minutes, which is worse than the pass it
+/// exists to shorten. The concat demuxer builds the file in under four seconds but
+/// rounds each out point up to a packet boundary, which measured 1767.7 seconds
+/// where 1731.6 was planned - about 48 ms of drift per sample, accumulating, so
+/// the last of an eighty-minute meeting's turns would be read back against audio
+/// thirty-six seconds away from where they actually are. A speaker pass that is
+/// confidently wrong about the end of a meeting is worse than one that is slow.
+///
+/// Copying bytes has neither problem: every sample lands exactly where the plan
+/// says, and a sample running past the end of the recording is padded rather than
+/// shortened, so one short read cannot shift everything after it.
 pub(crate) fn condense_for_diarisation(
-    ffmpeg: &Path,
     normalized: &Path,
     samples: &[crate::diarisation::Sample],
-    gap_ms: u64,
-    working_directory: &Path,
     destination: &Path,
-    cancellation: &AtomicBool,
 ) -> Result<(), String> {
-    if samples.is_empty() {
+    let Some(last) = samples.last() else {
         return Err("There is nothing for the speaker pass to listen to.".into());
-    }
-    let gap = working_directory.join("diarisation-gap.wav");
-    write_silence(ffmpeg, gap_ms, &gap, cancellation)?;
-
-    // Single quotes are the demuxer's escape, and a path containing one would
-    // otherwise end the filename early and read some other file.
-    let quoted = |path: &Path| {
-        format!(
-            "file '{}'\n",
-            path.display().to_string().replace('\'', "'\\''")
-        )
     };
-    let source = quoted(normalized);
-    let silence = quoted(&gap);
-    let mut list = String::from("ffconcat version 1.0\n");
-    for (index, sample) in samples.iter().enumerate() {
-        if index > 0 {
-            list.push_str(&silence);
+    let (data_offset, data_length) = pcm16_mono_16k_data(normalized)?;
+
+    let mut source = fs::File::open(normalized)
+        .map_err(|error| format!("The speaker pass could not read the working audio: {error}"))?;
+    let planned_bytes = usize::try_from(last.condensed_end_ms * BYTES_PER_MS)
+        .map_err(|_| "The speaker pass planned more audio than can be held.".to_string())?;
+    // Everything not written to is silence, which is what the gaps between the
+    // samples are made of.
+    let mut condensed = vec![0u8; planned_bytes];
+
+    for sample in samples {
+        let at = usize::try_from(sample.condensed_start_ms * BYTES_PER_MS)
+            .map_err(|_| "The speaker pass planned more audio than can be held.".to_string())?;
+        let wanted = ((sample.source_end_ms - sample.source_start_ms) * BYTES_PER_MS) as usize;
+        let from = sample.source_start_ms * BYTES_PER_MS;
+        // A sample reaching past the end of the recording is read as far as it
+        // goes and the rest of its room stays silent. Shortening it instead would
+        // move every later sample and undo the exactness this exists for.
+        let available = data_length.saturating_sub(from).min(wanted as u64) as usize;
+        if available == 0 {
+            continue;
         }
-        list.push_str(&source);
-        list.push_str(&format!(
-            "inpoint {:.3}\noutpoint {:.3}\n",
-            sample.source_start_ms as f64 / 1000.0,
-            sample.source_end_ms as f64 / 1000.0,
-        ));
+        source
+            .seek(SeekFrom::Start(data_offset + from))
+            .map_err(|error| {
+                format!("The speaker pass could not read the working audio: {error}")
+            })?;
+        source
+            .read_exact(&mut condensed[at..at + available])
+            .map_err(|error| {
+                format!("The speaker pass could not read the working audio: {error}")
+            })?;
     }
-    let list_path = working_directory.join("diarisation-samples.txt");
-    std::fs::write(&list_path, list)
-        .map_err(|error| format!("The speaker pass could not prepare its audio: {error}"))?;
 
-    let mut command = Command::new(ffmpeg);
-    command
-        .args([
-            "-hide_banner",
-            "-nostdin",
-            "-y",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-        ])
-        .arg(&list_path)
-        .args(["-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "-f", "wav"])
-        .arg(destination);
-    let result = run_process(
-        command,
-        cancellation,
-        ProcessLimits::with_max_output(512 * 1024),
-    )
-    .map(|_| ())
-    .map_err(|error| error.to_string());
-    let _ = std::fs::remove_file(&list_path);
-    let _ = std::fs::remove_file(&gap);
-    result?;
-
-    // Check the file against the plan rather than assuming it was built.
-    //
-    // The concat demuxer wants its entries to share stream parameters, and where
-    // they do not it drops the odd one out and still exits successfully: handed a
-    // recording that was not the 16 kHz mono working audio, every gap disappears
-    // and the samples run together, which is exactly the thing the gaps exist to
-    // prevent. That failure is silent, and it would show up as speakers merged
-    // into one for reasons nobody could see. A length that does not match the plan
-    // catches it, and any other cause of a short file with it.
-    let planned_ms = samples
-        .last()
-        .map(|sample| sample.condensed_end_ms)
-        .unwrap_or_default();
-    let written = std::fs::metadata(destination)
-        .map_err(|error| format!("The speaker pass could not read its own audio: {error}"))?
-        .len();
-    // 16 kHz mono at two bytes a frame, less a WAV header of well under a kilobyte.
-    let actual_ms = written.saturating_sub(1_024) / 32;
-    let shortfall = planned_ms.saturating_sub(actual_ms);
-    if shortfall > (planned_ms / 20).max(1_000) {
-        return Err(format!(
-            "The condensed audio is {actual_ms} ms where {planned_ms} ms was planned."
-        ));
-    }
-    Ok(())
+    write_pcm16_mono_16k(destination, &condensed)
 }
 
-/// The quiet laid between samples, so the joins read as pauses rather than as one
-/// person interrupting another.
-fn write_silence(
-    ffmpeg: &Path,
-    duration_ms: u64,
-    destination: &Path,
-    cancellation: &AtomicBool,
-) -> Result<(), String> {
-    let mut command = Command::new(ffmpeg);
-    command
-        .args([
-            "-hide_banner",
-            "-nostdin",
-            "-y",
-            "-f",
-            "lavfi",
-            "-i",
-            "anullsrc=r=16000:cl=mono",
-            "-t",
-        ])
-        .arg(format!("{:.3}", duration_ms as f64 / 1000.0))
-        .args(["-c:a", "pcm_s16le", "-f", "wav"])
-        .arg(destination);
-    run_process(
-        command,
-        cancellation,
-        ProcessLimits::with_max_output(512 * 1024),
-    )
-    .map(|_| ())
-    .map_err(|error| error.to_string())
+/// Bytes of working audio per millisecond: 16 kHz, one channel, two bytes a frame.
+const BYTES_PER_MS: u64 = 32;
+
+/// Locate the audio inside a WAV file, and refuse anything that is not the
+/// working format.
+///
+/// The format is checked rather than assumed because the arithmetic above is only
+/// correct for it, and reading a stereo or 44.1 kHz file as though it were this
+/// one would produce noise that the diariser would dutifully cluster.
+fn pcm16_mono_16k_data(path: &Path) -> Result<(u64, u64), String> {
+    let mut file = fs::File::open(path)
+        .map_err(|error| format!("The speaker pass could not read the working audio: {error}"))?;
+    let mut header = [0u8; 12];
+    file.read_exact(&mut header)
+        .map_err(|_| "The working audio is not a readable WAV file.".to_string())?;
+    if &header[0..4] != b"RIFF" || &header[8..12] != b"WAVE" {
+        return Err("The working audio is not a WAV file.".into());
+    }
+    let mut position = 12u64;
+    let mut format_seen = false;
+    loop {
+        let mut chunk = [0u8; 8];
+        if file.read_exact(&mut chunk).is_err() {
+            return Err("The working audio has no audio in it.".into());
+        }
+        let id = [chunk[0], chunk[1], chunk[2], chunk[3]];
+        let length = u32::from_le_bytes([chunk[4], chunk[5], chunk[6], chunk[7]]) as u64;
+        position += 8;
+        if &id == b"fmt " {
+            let mut format = [0u8; 16];
+            file.read_exact(&mut format)
+                .map_err(|_| "The working audio has an unreadable format.".to_string())?;
+            let encoding = u16::from_le_bytes([format[0], format[1]]);
+            let channels = u16::from_le_bytes([format[2], format[3]]);
+            let rate = u32::from_le_bytes([format[4], format[5], format[6], format[7]]);
+            let bits = u16::from_le_bytes([format[14], format[15]]);
+            if encoding != 1 || channels != 1 || rate != 16_000 || bits != 16 {
+                return Err(format!(
+                    "The speaker pass needs 16 kHz mono 16-bit audio, and this is {rate} Hz, {channels} channel(s), {bits}-bit."
+                ));
+            }
+            format_seen = true;
+        } else if &id == b"data" {
+            if !format_seen {
+                return Err("The working audio describes no format.".into());
+            }
+            return Ok((position, length));
+        }
+        // Chunks are padded to an even length.
+        position += length + (length % 2);
+        file.seek(SeekFrom::Start(position))
+            .map_err(|error| error.to_string())?;
+    }
+}
+
+/// Write 16 kHz mono 16-bit PCM as a plain WAV, which is what the diariser reads.
+fn write_pcm16_mono_16k(destination: &Path, audio: &[u8]) -> Result<(), String> {
+    let length = u32::try_from(audio.len())
+        .map_err(|_| "The condensed audio is too large to write.".to_string())?;
+    let mut file = fs::File::create(destination)
+        .map_err(|error| format!("The speaker pass could not write its audio: {error}"))?;
+    let mut header = Vec::with_capacity(44);
+    header.extend_from_slice(b"RIFF");
+    header.extend_from_slice(&(36 + length).to_le_bytes());
+    header.extend_from_slice(b"WAVEfmt ");
+    header.extend_from_slice(&16u32.to_le_bytes()); // chunk length
+    header.extend_from_slice(&1u16.to_le_bytes()); // uncompressed PCM
+    header.extend_from_slice(&1u16.to_le_bytes()); // one channel
+    header.extend_from_slice(&16_000u32.to_le_bytes());
+    header.extend_from_slice(&32_000u32.to_le_bytes()); // bytes a second
+    header.extend_from_slice(&2u16.to_le_bytes()); // bytes a frame
+    header.extend_from_slice(&16u16.to_le_bytes()); // bits a sample
+    header.extend_from_slice(b"data");
+    header.extend_from_slice(&length.to_le_bytes());
+    file.write_all(&header)
+        .and_then(|_| file.write_all(audio))
+        .and_then(|_| file.sync_all())
+        .map_err(|error| format!("The speaker pass could not write its audio: {error}"))
 }
 
 /// How the diariser should be run for one recording.
@@ -408,61 +417,182 @@ pub(crate) fn parse_whisper_progress(line: &str) -> Option<u8> {
 
 #[cfg(test)]
 mod tests {
-    /// Runs the real ffmpeg, because the parts that break here are the ones a
-    /// hermetic test cannot reach: the concat list's escaping, the header, and
-    /// whether the silence lands between the samples rather than around them.
-    ///
-    /// Set LOCALOG_CONDENSE_SOURCE to any audio file of at least a minute.
-    #[test]
-    #[ignore = "requires ffmpeg and a real recording"]
-    fn condensation_produces_the_planned_length() {
-        let Some(source) = std::env::var_os("LOCALOG_CONDENSE_SOURCE").map(PathBuf::from) else {
-            panic!("Set LOCALOG_CONDENSE_SOURCE to an audio file.");
-        };
-        let ffmpeg =
-            PathBuf::from(std::env::var("LOCALOG_FFMPEG").unwrap_or_else(|_| "ffmpeg".to_string()));
-        let directory = std::env::temp_dir().join("localog-condense-test");
-        std::fs::create_dir_all(&directory).expect("working directory");
-        let destination = directory.join("condensed.wav");
+    /// Write a WAV where every frame's value is the millisecond it belongs to, so
+    /// that a byte in the condensed file says exactly where it came from.
+    fn recognisable_recording(path: &Path, milliseconds: u64) {
+        let mut audio = Vec::with_capacity((milliseconds * BYTES_PER_MS) as usize);
+        for ms in 0..milliseconds {
+            for _ in 0..16 {
+                audio.extend_from_slice(&(ms as i16).to_le_bytes());
+            }
+        }
+        write_pcm16_mono_16k(path, &audio).expect("a source recording");
+    }
 
-        // Ten seconds spread across the first minute.
-        let timings: Vec<(u64, u64)> = (0..5).map(|i| (i * 10_000, i * 10_000 + 4_000)).collect();
+    fn millisecond_at(audio: &[u8], ms: u64) -> i16 {
+        let at = (ms * BYTES_PER_MS) as usize;
+        i16::from_le_bytes([audio[at], audio[at + 1]])
+    }
+
+    /// The claim this whole scheme rests on: a turn found at a given moment in the
+    /// condensed file came from exactly the segment the plan says it did. Both
+    /// ffmpeg routes tried before this one drifted, so it is checked rather than
+    /// asserted in a comment.
+    #[test]
+    fn every_sample_lands_exactly_where_the_plan_says() {
+        let directory = std::env::temp_dir().join("localog-condense-exact");
+        std::fs::create_dir_all(&directory).expect("working directory");
+        let source = directory.join("normalized.wav");
+        let destination = directory.join("condensed.wav");
+        recognisable_recording(&source, 60_000);
+
+        // Sixty segments across the minute, so any per-sample drift accumulates
+        // into something a test can see.
+        let timings: Vec<(u64, u64)> = (0..60).map(|i| (i * 1_000, i * 1_000 + 900)).collect();
         let samples = crate::diarisation::plan_samples(
             &timings,
             crate::diarisation::SAMPLE_MS,
             crate::diarisation::GAP_MS,
             crate::diarisation::SHORTEST_MS,
         );
-        assert_eq!(samples.len(), 5);
+        assert_eq!(samples.len(), 60);
 
-        let cancellation = AtomicBool::new(false);
-        condense_for_diarisation(
-            &ffmpeg,
-            &source,
-            &samples,
-            crate::diarisation::GAP_MS,
-            &directory,
-            &destination,
-            &cancellation,
-        )
-        .expect("condensation");
+        condense_for_diarisation(&source, &samples, &destination).expect("condensation");
+        let written = std::fs::read(&destination).expect("output");
+        let (offset, length) = pcm16_mono_16k_data(&destination).expect("a readable result");
+        let audio = &written[offset as usize..(offset + length) as usize];
 
-        // Five two-second samples with four gaps between them.
-        let expected = samples.last().expect("a sample").condensed_end_ms;
-        assert_eq!(expected, 5 * 2_000 + 4 * 300);
-        let written = std::fs::metadata(&destination).expect("output").len();
-        // 16 kHz mono 16-bit, so two bytes a frame, and a header under a kilobyte.
-        // A little over the plan is the silence generator rounding up to whole
-        // frames; short is the failure that matters, and the function rejects it.
-        let seconds = (written.saturating_sub(1_024)) as f64 / 32_000.0;
-        assert!(
-            seconds > expected as f64 / 1000.0 - 0.3 && seconds < expected as f64 / 1000.0 + 0.5,
-            "condensed to {seconds:.2}s, planned {:.2}s",
-            expected as f64 / 1000.0
+        let planned = samples.last().expect("a sample").condensed_end_ms;
+        assert_eq!(
+            length,
+            planned * BYTES_PER_MS,
+            "the file is not the length that was planned"
         );
-        // The working files are the pass's own business and must not be left behind.
-        assert!(!directory.join("diarisation-samples.txt").exists());
-        assert!(!directory.join("diarisation-gap.wav").exists());
+
+        for sample in &samples {
+            // The first and last millisecond of each sample, so a sample that is
+            // in the right place but the wrong length is caught too.
+            assert_eq!(
+                millisecond_at(audio, sample.condensed_start_ms),
+                sample.source_start_ms as i16,
+                "sample from segment {} starts in the wrong place",
+                sample.segment
+            );
+            assert_eq!(
+                millisecond_at(audio, sample.condensed_end_ms - 1),
+                (sample.source_end_ms - 1) as i16,
+                "sample from segment {} ends in the wrong place",
+                sample.segment
+            );
+            // And the gap after it really is silent, or the diariser's
+            // segmentation would not break where we joined.
+            if sample.condensed_end_ms * BYTES_PER_MS < length {
+                assert_eq!(millisecond_at(audio, sample.condensed_end_ms), 0);
+            }
+        }
+        let _ = std::fs::remove_dir_all(&directory);
+    }
+
+    /// A sample running past the end of the recording keeps its room, because
+    /// shortening it would move every sample after it.
+    #[test]
+    fn a_sample_past_the_end_is_padded_rather_than_shortened() {
+        let directory = std::env::temp_dir().join("localog-condense-short");
+        std::fs::create_dir_all(&directory).expect("working directory");
+        let source = directory.join("normalized.wav");
+        let destination = directory.join("condensed.wav");
+        recognisable_recording(&source, 3_000);
+
+        // The second segment is beyond the recording entirely.
+        let timings = [(0, 2_000), (10_000, 12_000)];
+        let samples = crate::diarisation::plan_samples(
+            &timings,
+            crate::diarisation::SAMPLE_MS,
+            crate::diarisation::GAP_MS,
+            crate::diarisation::SHORTEST_MS,
+        );
+        condense_for_diarisation(&source, &samples, &destination).expect("condensation");
+
+        let (_, length) = pcm16_mono_16k_data(&destination).expect("a readable result");
+        let planned = samples.last().expect("a sample").condensed_end_ms;
+        assert_eq!(length, planned * BYTES_PER_MS);
+    }
+
+    /// Build the condensed file from a real transcript and a real recording, so
+    /// the speaker pass can be measured against audio it will actually meet.
+    ///
+    /// Set LOCALOG_CONDENSE_TRANSCRIPT to a committed transcript JSON,
+    /// LOCALOG_CONDENSE_SOURCE to its 16 kHz mono working audio, and
+    /// LOCALOG_CONDENSE_OUT to where the result should go. The file is left behind
+    /// on purpose: running the diariser over it is the measurement.
+    #[test]
+    #[ignore = "requires a real transcript and its working audio"]
+    fn condense_a_real_meeting() {
+        let transcript = std::env::var("LOCALOG_CONDENSE_TRANSCRIPT").expect("a transcript");
+        let source = PathBuf::from(std::env::var("LOCALOG_CONDENSE_SOURCE").expect("audio"));
+        let destination = PathBuf::from(std::env::var("LOCALOG_CONDENSE_OUT").expect("a result"));
+
+        // Only the timings are wanted, and a committed artifact carries the durable
+        // fields rather than the whole in-memory document.
+        let document: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&transcript).expect("readable"))
+                .expect("a transcript document");
+        let timings: Vec<(u64, u64)> = document["segments"]
+            .as_array()
+            .expect("segments")
+            .iter()
+            .map(|segment| {
+                (
+                    segment["startMs"].as_u64().expect("a start"),
+                    segment["endMs"].as_u64().expect("an end"),
+                )
+            })
+            .collect();
+        let spoken: u64 = timings.iter().map(|(from, to)| to - from).sum();
+
+        let samples = crate::diarisation::plan_samples(
+            &timings,
+            crate::diarisation::SAMPLE_MS,
+            crate::diarisation::GAP_MS,
+            crate::diarisation::SHORTEST_MS,
+        );
+        condense_for_diarisation(&source, &samples, &destination).expect("condensation");
+        let condensed = samples.last().expect("a sample").condensed_end_ms;
+        println!(
+            "{} segments, {} sampled; {:.1} min of speech in a {:.1} min recording condensed to {:.1} min",
+            timings.len(),
+            samples.len(),
+            spoken as f64 / 60_000.0,
+            timings.last().expect("a segment").1 as f64 / 60_000.0,
+            condensed as f64 / 60_000.0,
+        );
+    }
+
+    /// The arithmetic is only right for the working format, so anything else is
+    /// refused rather than read as noise the diariser would cluster anyway.
+    #[test]
+    fn audio_that_is_not_the_working_format_is_refused() {
+        let directory = std::env::temp_dir().join("localog-condense-format");
+        std::fs::create_dir_all(&directory).expect("working directory");
+        let path = directory.join("stereo.wav");
+        // The same header, with two channels at 44.1 kHz.
+        let mut header: Vec<u8> = Vec::new();
+        header.extend_from_slice(b"RIFF");
+        header.extend_from_slice(&36u32.to_le_bytes());
+        header.extend_from_slice(b"WAVEfmt ");
+        header.extend_from_slice(&16u32.to_le_bytes());
+        header.extend_from_slice(&1u16.to_le_bytes());
+        header.extend_from_slice(&2u16.to_le_bytes());
+        header.extend_from_slice(&44_100u32.to_le_bytes());
+        header.extend_from_slice(&176_400u32.to_le_bytes());
+        header.extend_from_slice(&4u16.to_le_bytes());
+        header.extend_from_slice(&16u16.to_le_bytes());
+        header.extend_from_slice(b"data");
+        header.extend_from_slice(&0u32.to_le_bytes());
+        std::fs::write(&path, &header).expect("a stereo file");
+
+        let error = pcm16_mono_16k_data(&path).expect_err("refusal");
+        assert!(error.contains("44100"), "{error}");
         let _ = std::fs::remove_dir_all(&directory);
     }
 

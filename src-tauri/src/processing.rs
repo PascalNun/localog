@@ -1294,30 +1294,12 @@ fn diarise(
         diarisation::GAP_MS,
         diarisation::SHORTEST_MS,
     );
-    let working_directory = normalized.parent().unwrap_or(&repository.root);
-    let condensed = working_directory.join("diarisation-condensed.wav");
-    let ffmpeg = find_tool("ffmpeg");
-    let sampled = match (samples.is_empty(), ffmpeg) {
-        (false, Some(ffmpeg)) => media::condense_for_diarisation(
-            &ffmpeg,
-            normalized,
-            &samples,
-            diarisation::GAP_MS,
-            working_directory,
-            &condensed,
-            cancellation,
-        )
-        .is_ok(),
-        _ => false,
-    };
-    // Condensing fails for two different reasons, and they must not be treated
-    // alike: no ffmpeg is a reason to fall back to the whole recording, whereas
-    // somebody pressing cancel is a reason to stop rather than to begin the
-    // longer pass instead.
-    if cancellation.load(Ordering::SeqCst) {
-        let _ = fs::remove_file(&condensed);
-        return Err(ProcessingError::Cancelled);
-    }
+    let condensed = normalized
+        .parent()
+        .unwrap_or(&repository.root)
+        .join("diarisation-condensed.wav");
+    let sampled = !samples.is_empty()
+        && media::condense_for_diarisation(normalized, &samples, &condensed).is_ok();
 
     let listen_to = if sampled { &condensed } else { normalized };
     let output = runtime::run_process(
