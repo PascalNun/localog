@@ -415,7 +415,7 @@ fn missing_runtime_message(repository: &WorkspaceRepository) -> String {
         .flatten()
         .map(PathBuf::from)
         .is_some_and(|path| path.is_file())
-        || runtime::discover_executable(&["whisper-cli", "whisper-cpp"]).is_some();
+        || runtime::discover_executable(runtime::WHISPER_NAMES).is_some();
     match (model_ready, executable_ready) {
         (false, _) => format!(
             "Download the {preset} transcription quality in Settings → Transcription, then try again."
@@ -450,7 +450,7 @@ fn transcription_metadata(
         .read_setting("transcription.whisperExecutable")?
         .map(PathBuf::from)
         .filter(|path| path.is_file())
-        .or_else(|| runtime::discover_executable(&["whisper-cli", "whisper-cpp"]));
+        .or_else(|| runtime::discover_executable(runtime::WHISPER_NAMES));
     // The user chooses a quality preset; the model is resolved from what is
     // installed for it, never from a user-entered path.
     let preset = repository
@@ -1245,13 +1245,7 @@ fn diarise(
         .read_setting("diarisation.executable")?
         .map(PathBuf::from)
         .filter(|path| path.is_file())
-        .or_else(|| {
-            runtime::discover_executable(&[
-                "localog-speaker-diarization",
-                "sherpa-onnx-offline-speaker-diarization",
-                "sherpa-onnx-speaker-diarization",
-            ])
-        })
+        .or_else(|| runtime::discover_executable(runtime::DIARISER_NAMES))
     else {
         return Ok(DiarisationOutcome::Unavailable);
     };

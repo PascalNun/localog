@@ -154,6 +154,25 @@ pub(crate) fn discover_executable(names: &[&str]) -> Option<PathBuf> {
     })
 }
 
+/// What the transcription runtime is called, most preferred first.
+///
+/// The name the application ships under comes first, so a packaged build uses
+/// the reviewed sidecar rather than a developer's own checkout. The upstream
+/// names follow, because a contributor with whisper.cpp on their PATH should not
+/// have to build a sidecar to run the application.
+///
+/// Named here so the three places that look for it cannot drift apart. They did:
+/// the diariser was already found by its shipped name while whisper was not, so
+/// a bundled transcription runtime would have been packaged and never used.
+pub(crate) const WHISPER_NAMES: &[&str] = &["localog-whisper", "whisper-cli", "whisper-cpp"];
+
+/// What the speaker-separation runtime is called, most preferred first.
+pub(crate) const DIARISER_NAMES: &[&str] = &[
+    "localog-speaker-diarization",
+    "sherpa-onnx-offline-speaker-diarization",
+    "sherpa-onnx-speaker-diarization",
+];
+
 /// Where a runtime is looked for, in the order it is looked for.
 ///
 /// What ships with the application comes first. A packaged release that found a
@@ -511,6 +530,19 @@ mod tests {
             last_bundled < first_system,
             "every bundled location must come before any system one, got {locations:?}"
         );
+    }
+
+    /// A packaged build must reach its own runtime first. Both were declared as
+    /// sidecars, but only one was looked for by the name it ships under, so the
+    /// transcription runtime would have been bundled, signed and never used.
+    #[test]
+    fn each_runtime_is_looked_for_by_the_name_it_ships_under() {
+        assert_eq!(WHISPER_NAMES.first(), Some(&"localog-whisper"));
+        assert_eq!(DIARISER_NAMES.first(), Some(&"localog-speaker-diarization"));
+        // A contributor with the upstream build on their PATH still needs it to
+        // be found, so the shipped name is a preference and not the only option.
+        assert!(WHISPER_NAMES.contains(&"whisper-cli"));
+        assert!(DIARISER_NAMES.contains(&"sherpa-onnx-offline-speaker-diarization"));
     }
 
     /// Without a known application directory there is nothing to prefer, and the
