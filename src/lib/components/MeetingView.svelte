@@ -193,8 +193,9 @@
             {/each}
           </select>
           <small
-            >Separating speakers needs the number. Left unset, the transcript keeps one speaker
-            label.</small
+            >Your best estimate is enough — it is the number of voices LocaLog looks for. Too many
+            can split one person in two, too few can put two people together. Left unset, the
+            transcript keeps one speaker label.</small
           >
         </label>
         {#if speakerNeedsPreparation}
