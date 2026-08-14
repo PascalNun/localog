@@ -30,6 +30,19 @@
   let findOpen = false;
   let textScale = 1;
 
+  // Evidence for the reader, not a verdict on the draft. A protocol longer than
+  // the meeting it records is the failure a figure count cannot see, so length is
+  // stated beside the figures rather than left to be noticed.
+  $: evidence = protocol.evidence ?? null;
+  $: lengthAgainstRecording = evidence
+    ? `${Math.round(evidence.charactersWritten / 1000)}k characters written from ${Math.round(
+        evidence.charactersSpoken / 1000,
+      )}k spoken.` +
+      (evidence.charactersWritten > evidence.charactersSpoken / 2
+        ? ' That is long for a record of a meeting.'
+        : '')
+    : '';
+
   $: statusLabel =
     protocol.reviewState === 'changed_since_review'
       ? 'Changed since review'
@@ -195,6 +208,31 @@
               onclick={markReviewed}><Icon name="check" size={16} /> Mark reviewed</button
             >{/if}
         </div>
+        {#if evidence}
+          <div class="inspector-section">
+            <p class="eyebrow">What to check</p>
+            <h3>{evidence.quantitiesAccounted} of {evidence.quantitiesStated} figures kept</h3>
+            <p>
+              The meeting stated {evidence.quantitiesStated} figures and this draft repeats {evidence.quantitiesAccounted}
+              of them. How many belong here is a matter of the style you chose, so this is something to
+              look at rather than a score.
+            </p>
+            {#if evidence.quantitiesInvented.length > 0}
+              <p class="evidence-warning">
+                <Icon name="warning" size={15} />
+                <span
+                  >{evidence.quantitiesInvented.length === 1
+                    ? 'One figure appears here that the meeting did not state'
+                    : `${evidence.quantitiesInvented.length} figures appear here that the meeting did not state`}:
+                  {evidence.quantitiesInvented.join(', ')}. Worth confirming against the recording.</span
+                >
+              </p>
+            {/if}
+            <p class="evidence-length">
+              {lengthAgainstRecording}
+            </p>
+          </div>
+        {/if}
         <div class="inspector-section">
           <p class="eyebrow">Revision history</p>
           <div class="revision-list">

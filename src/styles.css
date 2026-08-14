@@ -2507,3 +2507,25 @@ button.review-summary[aria-pressed='true'] {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Evidence beside a protocol: a figure the meeting never stated is the one thing
+   here that is wrong under any style, so it is the only part that carries the
+   warning colour. The rest is something to look at, not something to fix. */
+.evidence-warning {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 12px;
+  color: var(--warning);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+.evidence-warning :global(svg) {
+  flex: none;
+  margin-top: 2px;
+}
+.evidence-length {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
