@@ -35,10 +35,9 @@ pub(crate) const SHORTEST_MS: u64 = 700;
 /// Choose what to play the diariser, and work out where each piece will land.
 ///
 /// Identifying a voice needs a couple of seconds of it, not a whole utterance,
-/// and separation runs after transcription so the segments are already known. On
-/// the reference meeting the diariser embeds seventy-three minutes of speech and
-/// takes twenty-six minutes doing it; two seconds of each of its 753 segments is
-/// about twenty-five minutes of audio.
+/// and separation runs after transcription so the segments are already known. The
+/// reference meeting is 81.8 minutes and the diariser takes about twenty-six of
+/// them; two seconds of each of its 675 segments is 25.6 minutes of audio.
 ///
 /// A sample is taken from the middle of a segment, where a voice is steadiest —
 /// the edges hold the breath before a sentence and the fade after it. Segments too
