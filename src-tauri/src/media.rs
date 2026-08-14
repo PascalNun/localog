@@ -215,14 +215,13 @@ pub(crate) fn diarisation_command(request: &DiarisationRequest<'_>) -> Command {
         ))
         .arg(format!("--embedding.num-threads={threads}"))
         .arg(format!("--embedding.provider={provider}"));
-    match request.expected_speakers {
-        Some(count) if count >= 2 => {
-            command.arg(format!("--clustering.num-clusters={count}"));
-        }
-        // Without a count, similarity is all there is to go on.
-        _ => {
-            command.arg("--clustering.cluster-threshold=0.6");
-        }
+    // Always a count, never a threshold. Clustering by similarity alone was
+    // measured on the reference meeting at eighty-six speakers where eleven spoke,
+    // because one voice drifts over eighty minutes of videoconference. The
+    // pipeline now declines to run without a count rather than spending half an
+    // hour reaching that answer.
+    if let Some(count) = request.expected_speakers.filter(|count| *count >= 2) {
+        command.arg(format!("--clustering.num-clusters={count}"));
     }
     command.arg(request.normalized);
     command
@@ -400,8 +399,13 @@ mod tests {
         assert_eq!(args.last().map(String::as_str), Some("/tmp/a.wav"));
     }
 
+    /// Clustering by similarity alone was measured at eighty-six speakers on a
+    /// meeting where eleven spoke, because a voice drifts across eighty minutes of
+    /// videoconference. There is therefore no threshold fallback: without a count
+    /// the pipeline declines to run the pass at all rather than spend half an hour
+    /// producing an answer already known to be wrong.
     #[test]
-    fn diarisation_falls_back_to_similarity_without_a_usable_count() {
+    fn diarisation_never_guesses_how_many_people_spoke() {
         for count in [None, Some(0), Some(1)] {
             let request = DiarisationRequest {
                 executable: Path::new("/bin/echo"),
@@ -415,16 +419,26 @@ mod tests {
                 .map(|a| a.to_string_lossy().into_owned())
                 .collect();
             assert!(
-                args.iter()
-                    .any(|a| a.starts_with("--clustering.cluster-threshold")),
-                "count {count:?} should fall back to a threshold"
-            );
-            assert!(
-                !args
-                    .iter()
-                    .any(|a| a.starts_with("--clustering.num-clusters"))
+                !args.iter().any(|a| a.starts_with("--clustering.")),
+                "count {count:?} must not produce a clustering instruction"
             );
         }
+    }
+
+    #[test]
+    fn a_known_speaker_count_is_given_to_the_clustering() {
+        let request = DiarisationRequest {
+            executable: Path::new("/bin/echo"),
+            segmentation_model: Path::new("/tmp/seg.onnx"),
+            embedding_model: Path::new("/tmp/emb.onnx"),
+            normalized: Path::new("/tmp/a.wav"),
+            expected_speakers: Some(11),
+        };
+        let args: Vec<String> = diarisation_command(&request)
+            .get_args()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        assert!(args.iter().any(|a| a == "--clustering.num-clusters=11"));
     }
 
     #[test]

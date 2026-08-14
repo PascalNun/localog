@@ -53,7 +53,18 @@ diarisation models, a bundled-runtime discovery boundary, and a first-use prepar
 meeting flow. The quality evidence is limited to a short synthetic study and one development-machine
 evaluation.
 
+Separation runs only when somebody says how many people spoke. Clustering by similarity alone was
+measured at eighty-six speakers on a meeting where eleven did, because a voice drifts across eighty
+minutes of videoconference, and the models stay installed after the first use — so the pass would
+otherwise keep running unasked and keep producing that. The chooser offered two to ten people, which
+did not include eleven, so the meeting that needed a count most could not be given one.
+
 Speaker labels must remain provisional. They are not confirmed identities.
+
+The pass still costs roughly twenty-six minutes for an eighty-one minute recording, which is more
+than transcription and generation together. That is the next thing to answer: whether a different
+embedding model, or reusing the speech regions whisper already found instead of segmenting the audio
+a second time, brings it into proportion.
 
 ### Protocol generation — Partial; the main quality work
 

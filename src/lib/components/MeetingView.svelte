@@ -187,12 +187,15 @@
         <label class="transcription-option">
           <span>People speaking</span>
           <select bind:value={expectedSpeakers}>
-            <option value="">Let LocaLog estimate</option>
-            {#each Array.from({ length: 9 }, (_, index) => index + 2) as count (count)}
-              <option value={count}>{count} speakers</option>
+            <option value="">Do not separate speakers</option>
+            {#each Array.from({ length: 29 }, (_, index) => index + 2) as count (count)}
+              <option value={count}>{count} people</option>
             {/each}
           </select>
-          <small>Optional hint for this transcription</small>
+          <small
+            >Separating speakers needs the number. Left unset, the transcript keeps one speaker
+            label.</small
+          >
         </label>
         {#if speakerNeedsPreparation}
           <div class="speaker-preparation" role="status">

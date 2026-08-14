@@ -1241,6 +1241,23 @@ fn diarise(
     cancellation: &AtomicBool,
     report: &mut dyn FnMut(u64, &'static str) -> Result<(), ProcessingError>,
 ) -> Result<DiarisationOutcome, ProcessingError> {
+    // Speaker separation runs when somebody says how many people were speaking,
+    // and not otherwise.
+    //
+    // Without a count the clustering has only similarity to go on, and a voice
+    // drifts across a long recording — different microphones, connection quality,
+    // compression — so one person becomes many. Measured on the reference meeting:
+    // eight speakers when the count was supplied, eighty-six when it was not, and
+    // twelve from a ten-minute excerpt of the same audio.
+    //
+    // The models stay installed after the first run, so this pass would otherwise
+    // keep running on later transcriptions whether or not anybody asked for it,
+    // producing a result already known to be unusable. Declining is not a
+    // limitation: it is refusing to spend half an hour on an answer that would be
+    // wrong.
+    let Some(expected_speakers) = expected_speakers.filter(|count| *count >= 2) else {
+        return Ok(DiarisationOutcome::Unavailable);
+    };
     let Some(executable) = repository
         .read_setting("diarisation.executable")?
         .map(PathBuf::from)
@@ -1262,7 +1279,7 @@ fn diarise(
             segmentation_model: &segmentation,
             embedding_model: &embedding,
             normalized,
-            expected_speakers,
+            expected_speakers: Some(expected_speakers),
         }),
         cancellation,
         runtime::ProcessLimits::with_max_output(2 * 1024 * 1024),
