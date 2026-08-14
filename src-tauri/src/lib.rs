@@ -131,7 +131,7 @@ fn runtime_status(repository: &WorkspaceRepository) -> TranscriptionRuntimeStatu
         .flatten()
         .filter(|path| Path::new(path).is_file())
         .or_else(|| {
-            runtime::discover_executable(&["whisper-cli", "whisper-cpp"])
+            runtime::discover_executable(runtime::WHISPER_NAMES)
                 .map(|path| path.to_string_lossy().into_owned())
         });
     // The model follows the selected quality preset; it is never a user-entered path.
@@ -409,13 +409,7 @@ fn speaker_status(repository: &WorkspaceRepository) -> SpeakerSeparationStatus {
         .flatten()
         .map(PathBuf::from)
         .filter(|path| path.is_file())
-        .or_else(|| {
-            runtime::discover_executable(&[
-                "localog-speaker-diarization",
-                "sherpa-onnx-offline-speaker-diarization",
-                "sherpa-onnx-speaker-diarization",
-            ])
-        });
+        .or_else(|| runtime::discover_executable(runtime::DIARISER_NAMES));
     let runtime_healthy = runtime_path
         .as_deref()
         .is_some_and(runtime::executable_health);

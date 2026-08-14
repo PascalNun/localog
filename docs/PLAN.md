@@ -41,8 +41,10 @@ Supported audio/video files can be copied into managed storage, probed, normalis
 The application has a supervised whisper.cpp boundary, structured JSON parsing, timestamps, uncertainty markers, vocabulary prompts, provenance, model presets, and consent-gated verified model downloads.
 
 Real local runs and a long German evaluation exist. A release-only Tauri configuration and reproducible
-sherpa-onnx sidecar build now define the distribution path; the whisper sidecar, signed artifacts, and
-the M1/8 GB baseline still need validation.
+sidecar builds now define the distribution path for both whisper.cpp and sherpa-onnx, each pinned to
+the revision its behaviour was validated against, and the resolver prefers the shipped runtime over
+anything on the machine. The sidecars have not yet been built and run on a clean machine, and signed
+artifacts and the M1/8 GB baseline still need validation.
 
 ### Speaker separation — Partial and provisional
 
@@ -107,7 +109,7 @@ multilingual quality evidence exist.
 - Recording from the microphone or system audio is not implemented.
 - Project and meeting archive actions are not exposed in the interface.
 - Basic backup and restore are not implemented.
-- The release config bundles the diariser sidecar once the target-specific artifact has been built; whisper.cpp and FFmpeg still need the same distribution treatment.
+- The release config bundles the whisper.cpp and diariser sidecars once the target-specific artifacts have been built. Neither has been produced by the release command and run end to end yet, and FFmpeg still needs the same treatment.
 - The final public protocol-generation runtime is undecided; Ollama is for development and early technical previews.
 - Windows and Linux have architectural support, but no packaged release or complete runtime validation.
 - Performance and accessibility have not been accepted on the M1/8 GB target.
