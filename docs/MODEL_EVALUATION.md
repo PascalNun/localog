@@ -98,6 +98,35 @@ same dominant speaker at 56-58 %, the same 126-segment unbroken run. That run an
 therefore properties of the diariser on this audio, not artifacts of condensing it. Sampling
 resolves a slightly longer tail, not a shorter one.
 
+### What the speaker count is worth
+
+Swept on the sampled audio, each run compared against the eleven-speaker one after matching labels
+between them:
+
+| Asked for | Labels used | Segments per label, largest first       | Agreement |
+| --------: | ----------: | --------------------------------------- | --------: |
+|         6 |           6 | `385 121 100 43 19 7`                   |      96 % |
+|        10 |           9 | `385 121 100 25 16 11 8 7 2`            |      99 % |
+|        11 |          10 | `381 121 100 25 16 11 8 7 4 2`          |         — |
+|        14 |          10 | `381 121 100 25 16 11 8 7 4 2`          |     100 % |
+|        20 |          14 | `378 108 69 31 25 16 13 11 7 4 4 4 3 2` |      92 % |
+
+Eleven and fourteen produce identical output. Between 6 and 14 the answer barely moves, so a wrong
+count in that range costs almost nothing. At twenty the top speaker is untouched while the second
+and third are split — 121 to 108, 100 to 69 — which is the shape of damage nobody would notice.
+
+Three ways of not asking were measured, and none of them works:
+
+| Method                                                  | Result                               |
+| ------------------------------------------------------- | ------------------------------------ |
+| Distance threshold, whole recording                     | 86 labels                            |
+| Distance threshold, condensed                           | 67 labels                            |
+| Sparse precheck, every 4th segment, 6.4 min, swept 4-18 | no plateau; labels track the request |
+| Plateau on the full condensation                        | holds 11 to 14, breaks at 20         |
+
+The precheck measures its sample rather than the meeting. The plateau is two agreeing points in a
+narrow window, not an estimator: a real one would keep answering ten for any request above ten.
+
 ### How the samples are cut
 
 By copying byte ranges out of the 16 kHz mono working audio, not by asking ffmpeg. Two ffmpeg routes

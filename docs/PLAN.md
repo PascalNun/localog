@@ -99,11 +99,65 @@ The count is treated as a fact and is structurally a guess. Thirty people are in
 speak; somebody unexpected joins; two people share one microphone. The owner of this project
 attended the reference meeting and cannot say whether ten spoke or eleven.
 
-There is evidence the setting is softer than it looks: asked for eleven, the sampled run produced ten
-distinct labels and the whole-recording run landed only eight on segments. Whether asking too high
-fragments people proportionally or is absorbed is being measured across counts of 6, 10, 14 and 20.
-If it is absorbed, the number is a ceiling rather than a target and the interface should ask people
-to guess generously, which is a question they can answer.
+Asking for a count is also the wrong shape of question for the case that needs it. Four people around
+a table and the user knows; twenty on a site call with subcontractors dialling in and they do not,
+and that is where separation would earn its place.
+
+What the count is worth was measured by sweeping it on the sampled audio, comparing each run against
+the eleven-speaker one:
+
+| Asked for | Labels used | Segments per label, largest first       | Agreement |
+| --------: | ----------: | --------------------------------------- | --------: |
+|         6 |           6 | `385 121 100 43 19 7`                   |      96 % |
+|        10 |           9 | `385 121 100 25 16 11 8 7 2`            |      99 % |
+|        11 |          10 | `381 121 100 25 16 11 8 7 4 2`          |         — |
+|        14 |          10 | `381 121 100 25 16 11 8 7 4 2`          |     100 % |
+|        20 |          14 | `378 108 69 31 25 16 13 11 7 4 4 4 3 2` |      92 % |
+
+**The answer barely moves between 6 and 14.** The count a user agonises over mostly does not matter,
+and where it does — asking twenty when about ten spoke — the damage is invisible: the top speaker
+holds, while the second and third are carved up, 121 to 108 and 100 to 69.
+
+Three ways to avoid asking were measured and none works:
+
+- **The diariser's own automatic mode.** Clustering by distance threshold gives 67 labels on the
+  condensed audio and 86 on the whole recording.
+- **A quick precheck.** A sparse condensation of every fourth segment — 6.4 minutes, about two
+  minutes a run — was swept from 4 to 18. The number of labels simply tracks what is asked for, with
+  no plateau anywhere. It measures the sample, not the meeting.
+- **Plateau detection on the full condensation.** Eleven and fourteen return identical output, which
+  looked like a signal, but twenty returns fifteen. A real estimator would keep answering ten for
+  anything above ten. Two agreeing points inside a narrow window are a coincidence, not a method.
+
+#### The pipeline is the wrong shape, and the fix is known — not started, needs a decision
+
+Every problem above traces to one thing: the pass runs pyannote **segmentation** to find where
+speakers change, over audio whose boundaries transcription already established. The condensation, the
+silence between samples, the 300 ms that turned out to be shorter than the diariser's own
+`min_duration_off`, the merged runs of 126 segments, and the eight minutes each count costs are all
+consequences of rediscovering what was already known.
+
+sherpa-onnx's C API exposes a speaker embedding extractor that takes the **embedding model alone**:
+give it audio, it returns a vector. So the pass should be — two seconds of each transcript segment,
+one embedding per segment, cluster the vectors. That removes the segmentation model, removes the
+condensation and everything built around it, and makes clustering free, because grouping a few
+hundred vectors takes milliseconds rather than minutes.
+
+Free clustering dissolves the count question rather than answering it. Every k can be tried at once
+and the affinity matrix's eigengap read directly, which is the actual method for estimating how many
+speakers there are; counting non-empty clusters, which is all the CLI permits, is a crude proxy for
+it. The user can be shown what was found instead of asked for what they do not know.
+
+What survives from the sampling work is its central finding — two seconds of a segment is enough to
+place a voice — which is exactly what makes per-segment embedding cheap. What becomes unnecessary is
+the plumbing around it.
+
+The cost is real and unpaid: today the diariser is a supervised sidecar binary. This means linking
+`libsherpa-onnx-c-api` or writing a small sidecar that uses it, which changes the distribution work
+already pinned down. There is one genuine loss — pyannote can in principle catch a speaker change
+inside a single transcript segment, and one embedding per segment cannot. Segments average 7.3
+seconds here and the sample is taken from the middle, and the 126-segment merged runs suggest the
+current pipeline is not catching them in practice either.
 
 #### Still unanswered
 
