@@ -4,7 +4,7 @@ This is the short answer to “where is LocaLog now, and what should happen next
 
 The product and architecture documents describe the destination. The decision log records choices. This document describes what the code can honestly claim today.
 
-Last reviewed: 10 August 2026.
+Last reviewed: 13 August 2026.
 
 ## The direction
 
@@ -57,7 +57,17 @@ Speaker labels must remain provisional. They are not confirmed identities.
 
 The Ollama provider is narrow, loopback-only, cancellable, bounded, provenance-aware, and restricted to already available models. Generation is sectioned for long transcripts and has style and vocabulary inputs.
 
-Experiments now also scan facts and group transcript subjects. Those experiments are useful evidence, but parts of that code are not yet connected to the production generation path. The generated protocol is not yet proven complete or reliable enough for professional use.
+Generation records what it found about its own result: how many stated quantities the protocol keeps,
+which figures it states that the meeting did not, and its length against the transcript. Those numbers
+are written to the job and are not yet shown to anyone.
+
+Dividing a meeting into subjects is compiled for evaluation only, which is its honest status while the
+first question below is open. Writing subject by subject was measured and rejected — it produced a
+document longer than the transcript — and running the pass merely to index a finished protocol would
+add about seven minutes to a twelve-minute run for a diagnostic. The evidence stays runnable through
+the evaluation harness; the shipped library carries nothing it does not call.
+
+The generated protocol is not yet proven complete or reliable enough for professional use.
 
 ### Editing and export — Done for the current vertical slice
 

@@ -286,6 +286,12 @@ fn provider_processing_error(error: provider::ProviderError) -> ProcessingError 
     }
 }
 
+/// Queue transcription without naming a speaker count.
+///
+/// Used by the tests, which are about the pipeline rather than about speakers.
+/// Marked for test builds because the application always has a count to pass,
+/// even when that count is nothing.
+#[cfg(test)]
 pub(crate) fn queue_transcription(
     root: &Path,
     meeting_id: &str,
