@@ -5,7 +5,7 @@
     ProtocolStyle,
     SourceSelection,
   } from '../workflow/types';
-  import { COMMON_MEETING_LANGUAGES } from '../workflow/languages';
+  import { COMMON_MEETING_LANGUAGES, DETECT_LANGUAGE_LABEL } from '../workflow/languages';
   import Icon from './Icon.svelte';
 
   export let projects: ProjectSummary[];
@@ -27,7 +27,7 @@
   let occurredAt = new Date().toISOString().slice(0, 10);
   let sourceName = '';
   let sourcePath: string | null = null;
-  let language = projects.find((project) => project.id === projectId)?.defaultLanguage ?? 'English';
+  let language = projects.find((project) => project.id === projectId)?.defaultLanguage ?? '';
   let styleId =
     projects.find((project) => project.id === projectId)?.defaultStyleId ?? styles[0]?.id ?? '';
   let submitting = false;
@@ -191,7 +191,7 @@
             ><span>Meeting language</span><input
               bind:value={language}
               list="meeting-languages"
-              placeholder="Any language"
+              placeholder={DETECT_LANGUAGE_LABEL}
             /><datalist id="meeting-languages">
               {#each COMMON_MEETING_LANGUAGES as language (language)}<option value={language}
                 ></option>{/each}
