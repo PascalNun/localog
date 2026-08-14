@@ -521,7 +521,6 @@ mod tests {
         assert!(search_locations(None, on_path.clone()).ends_with(&on_path));
     }
 
-    use super::*;
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
     use std::process::Command;
