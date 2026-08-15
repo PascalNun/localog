@@ -259,6 +259,9 @@ pub(crate) fn condense_for_diarisation(
 /// The recording this reads is never modified. That is the whole point of holding
 /// the edits as a description: somebody who trims two minutes and then finds the
 /// decision was inside them has lost nothing.
+// Reachable once the review screen exists; the cutting is proven first because a
+// screen built on unchecked arithmetic loses minutes of a meeting quietly.
+#[allow(dead_code)]
 pub(crate) fn apply_edits(
     source: &Path,
     duration_ms: u64,
