@@ -72,7 +72,7 @@ afterwards. The headers declared 235.168 s and 234.900 s while the files held
 audio at all — within the one-second checkpoint, as intended. Being killed is the
 normal case this has to survive, and it does.
 
-### System audio needs a permission, and says nothing when it does not have one
+### System audio works — once permitted. It says nothing when it is not
 
 This is the finding that matters, and it is a permission rather than a bug.
 
@@ -132,13 +132,23 @@ by inheriting the terminal's grant. Both tracks came back as forty-four bytes of
 WAV header and no audio. No permission dialog appeared and `tccd` logged nothing
 naming the application.
 
-That is consistent — an identity of its own means permissions of its own, and it
-has none — but it means the remaining step needs a person at the keyboard, and
-possibly a notarised application rather than an ad-hoc signed one. **The capture
-code has still never been observed to capture anything.** Whoever picks this up
-should treat that as an open question rather than a working feature, and should
-plan to answer it by granting the packaged application permission in System
-Settings and watching the level display, which is the same thing a user will do.
+**The owner then granted the permission, and it captures.** `systemPeak` rises to
+0.256 exactly while a sound plays and returns to zero between, and 1.13 MB of real
+audio lands in the file. The tap, the aggregate device, the clock source and the
+mono conversion were all correct throughout; none of the five attempts failed for
+any reason other than not being allowed.
+
+Which is the finding worth keeping. **A tap that is not permitted is
+indistinguishable from a tap that is broken**, and three plausible explanations
+were investigated and dismissed before the real one — an unauthorised capture
+looks exactly like a meeting where nobody spoke. Any recorder built on this must
+establish that sound is arriving before a meeting starts rather than after it
+ends, which is what the per-source level display in the reference design is
+actually for.
+
+The drift between the two tracks over eleven seconds was 0.6 s of start offset,
+which is a fixed cost of starting two capture paths and not yet distinguished from
+an accumulating clock difference. That still needs a long run to settle.
 
 **This is the requirement the study exists to have found.** A recorder that silently
 captures nothing is the one failure this product cannot ship, and macOS will do
