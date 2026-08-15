@@ -4,7 +4,7 @@ This is the short answer to “where is LocaLog now, and what should happen next
 
 The product and architecture documents describe the destination. The decision log records choices. This document describes what the code can honestly claim today.
 
-Last reviewed: 14 August 2026.
+Last reviewed: 15 August 2026.
 
 ## The direction
 
@@ -305,11 +305,43 @@ Run the complete path on an M1 Mac with 8 GB RAM. Record elapsed time, peak memo
 
 The current M1 Pro/16 GB measurements are valuable development evidence, not the release baseline.
 
-### 3. Validate runtime and speaker distribution
+### 3. Validate runtime and speaker distribution — the next thing to do
 
-Build and validate the target-specific whisper.cpp, FFmpeg, and sherpa-onnx sidecars without asking a normal user to browse for executables. Before distribution, review licensing, checksums, signing, notarisation, updates, offline behaviour, and model storage.
+**Three of four sidecars now build and are self-contained.** On an Apple Silicon machine,
+`localog-whisper` (3.3 MB), `localog-speaker-diarization` (23.4 MB) and `localog-speaker-embedding`
+(14.5 MB) each link nothing outside `/usr/lib` and `/System/Library`, so there is no library to place
+beside them. `npm run build:sidecar` builds all three from pinned revisions. Whisper transcribes real
+audio with Metal; the embedding sidecar reproduces the reference meeting's grouping exactly.
 
-For speaker separation, test a multilingual or German-suited embedding model, long recordings, overlapping speech, and the M1/8 GB machine. Then decide whether the optional setting should become the default when a verified runtime is available, and what the review interface needs for renaming, reassignment, and merging labels.
+What to do next, in this order, because each unblocks what follows:
+
+1. **Package the application** — `npm run tauri:build`. Nothing has ever been bundled. This is the
+   highest-value step because it settles several questions at once: whether the release config
+   places all three sidecars, whether the resolver finds them inside the bundle, and whether the
+   whole path runs against shipped runtimes rather than a developer's machine.
+
+2. **Answer the system-audio question inside that package.** macOS gates capture behind Screen &
+   System Audio Recording and hands an unauthorised tap silence rather than an error, and it will
+   not attribute a permission request from a process below a terminal. So the capture code has never
+   been observed to work, which is a different claim from it being broken. A packaged application
+   has its own signed identity, shows its own dialog naming itself, and is where a user meets this
+   anyway. Until it is answered, nothing more should be built on the assumption that the tap works.
+
+3. **FFmpeg.** The only runtime with no sidecar at all: the application still requires it on the
+   machine. It needs the same treatment as the others _and_ a licensing review before anything ships,
+   which is a decision rather than a build — the obvious builds are GPL, and what that means for
+   distributing them alongside this application has not been worked out.
+
+4. **The M1 / 8 GB baseline**, which needs that hardware and has never been measured.
+
+Then, for speaker separation: a multilingual or German-suited embedding model, long recordings,
+overlapping speech. Decide whether the optional setting becomes the default once a verified runtime
+exists, and what the review interface needs for renaming, reassignment and merging labels.
+
+Underneath all of it, still unmeasured: **whether speaker labels improve the protocol at all.** A
+protocol generated with speakers and one without, from the same meeting, would settle whether any of
+this earns its place. It is the cheapest experiment on this list and the one that could remove the
+most work.
 
 ### 4. Harden the product
 
