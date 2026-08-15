@@ -1662,10 +1662,20 @@ fn trim_word_punctuation(word: &str) -> String {
         .to_string()
 }
 
+/// Locate one of the media tools, preferring what the application ships.
+///
+/// This used to search PATH alone, which meant a bundled FFmpeg would have been
+/// built, signed and never used, while the transcription and speaker runtimes
+/// beside it were found correctly. That is the same fault runtime.rs already
+/// carries a comment about, made a second time in a different function - which is
+/// why both now go through the one resolver.
 fn find_tool(name: &str) -> Option<PathBuf> {
-    std::env::split_paths(&std::env::var_os("PATH")?)
-        .map(|directory| directory.join(name))
-        .find(|candidate| candidate.is_file())
+    let names = match name {
+        "ffmpeg" => runtime::FFMPEG_NAMES,
+        "ffprobe" => runtime::FFPROBE_NAMES,
+        _ => return None,
+    };
+    runtime::discover_executable(names)
 }
 
 fn fake_step(job: &ProcessingJobRecord, cancellation: &AtomicBool) -> Result<(), ProcessingError> {

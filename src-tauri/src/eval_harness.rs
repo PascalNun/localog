@@ -14,6 +14,186 @@ use crate::provider::*;
 use std::sync::atomic::AtomicBool;
 use std::time::Instant;
 
+/// Does attributing speech to speakers make the protocol better?
+///
+/// The question underneath every hour spent on speaker separation, and it has never
+/// been asked. If the answer is no, the whole capability is optional rather than
+/// core and a great deal of work is not worth doing.
+///
+/// Three protocols from one meeting, one model, one style, differing only in the
+/// speaker labels the generator is given:
+///
+/// - **none** — every segment is `Speaker 1`, which is what the product does today
+///   when nobody asks for separation;
+/// - **grouped** — the labels the embedding pass produces, read from the vectors
+///   the sidecar wrote;
+/// - **scattered** — the labels a diarisation run without a speaker count produced
+///   on this same meeting: fifty-four of them. Included deliberately, because
+///   "bad labels are worse than none" is a different and more useful finding than
+///   "good labels help".
+///
+/// ```text
+/// LOCALOG_ATTRIBUTION_TRANSCRIPT=<committed transcript json> \
+/// LOCALOG_ATTRIBUTION_VECTORS=<vectors.bin from the embedding sidecar> \
+/// LOCALOG_ATTRIBUTION_OUT=<a directory outside the repository> \
+/// LOCALOG_EVAL_MODEL=qwen3.5:4b \
+///   cargo test --lib -- --ignored --nocapture does_attribution_improve_the_protocol
+/// ```
+///
+/// The drafts are written where they are asked for and never into the repository:
+/// they are the contents of somebody's meeting.
+#[test]
+#[ignore = "requires a real transcript, its embeddings and a running Ollama"]
+fn does_attribution_improve_the_protocol() {
+    let transcript_path = std::env::var("LOCALOG_ATTRIBUTION_TRANSCRIPT").expect("a transcript");
+    let vectors_path = std::env::var("LOCALOG_ATTRIBUTION_VECTORS").expect("embeddings");
+    let out = std::path::PathBuf::from(std::env::var("LOCALOG_ATTRIBUTION_OUT").expect("a folder"));
+    let model_name = std::env::var("LOCALOG_EVAL_MODEL").unwrap_or("qwen3.5:4b".into());
+    let language = std::env::var("LOCALOG_EVAL_LANGUAGE").unwrap_or("German".into());
+    std::fs::create_dir_all(&out).expect("an output folder");
+
+    let document: crate::domain::TranscriptDocument =
+        serde_json::from_str(&std::fs::read_to_string(&transcript_path).expect("readable"))
+            .or_else(|_| {
+                // A committed artifact carries the durable fields only.
+                let value: serde_json::Value =
+                    serde_json::from_str(&std::fs::read_to_string(&transcript_path).unwrap())
+                        .unwrap();
+                serde_json::from_value::<Vec<crate::domain::TranscriptSegment>>(
+                    value["segments"].clone(),
+                )
+                .map(|segments| crate::domain::TranscriptDocument {
+                    schema_version: 1,
+                    meeting_id: String::new(),
+                    revision_id: String::new(),
+                    language: language.clone(),
+                    speaker_resolution: crate::domain::SpeakerResolution::Unknown,
+                    segments,
+                    base_revision_id: String::new(),
+                    is_dirty: false,
+                    save_state: String::new(),
+                    saved_at_ms: 0,
+                })
+            })
+            .expect("a transcript document");
+    let segments = document.segments;
+
+    // The grouping the embedding pass gives, at whatever count it estimates.
+    let (owners, vectors) =
+        crate::clustering::read_vectors(std::path::Path::new(&vectors_path)).expect("embeddings");
+    let merged = crate::clustering::merge(&vectors);
+    let estimated = merged.voices_above(crate::clustering::SAME_VOICE_FLOOR);
+    let voices = merged.voices(estimated);
+    let mut grouped: Vec<String> = vec!["Speaker 1".into(); segments.len()];
+    for (segment, voice) in owners.iter().zip(voices) {
+        if let Some(slot) = grouped.get_mut(*segment as usize) {
+            *slot = format!("Speaker {}", voice + 1);
+        }
+    }
+    println!("the embedding pass estimates {estimated} voices");
+
+    let build = |speakers: &dyn Fn(usize) -> String| -> Vec<GenerationSegment> {
+        segments
+            .iter()
+            .enumerate()
+            .map(|(index, segment)| GenerationSegment {
+                start_ms: segment.start_ms,
+                speaker: speakers(index),
+                text: segment.text.clone(),
+            })
+            .collect()
+    };
+    let runs: Vec<(&str, Vec<GenerationSegment>)> = vec![
+        ("none", build(&|_| "Speaker 1".to_string())),
+        ("grouped", build(&|index| grouped[index].clone())),
+        ("scattered", build(&|index| segments[index].speaker.clone())),
+    ];
+
+    let provider = OllamaProvider::loopback();
+    let runtime_version = provider.version().expect("ollama must be running");
+    let model = provider
+        .installed_models()
+        .unwrap()
+        .into_iter()
+        .find(|candidate| candidate.name == model_name)
+        .expect("the requested model is not installed");
+
+    let stated = crate::facts::quantities(&segments);
+    let spoken: usize = segments.iter().map(|segment| segment.text.len()).sum();
+    println!(
+        "{} segments, {} quantities stated\n",
+        segments.len(),
+        stated.len()
+    );
+
+    let mut summary = String::from(
+        "| labels | distinct | seconds | characters | figures kept | invented | unowned tasks |\\n\
+         | --- | ---: | ---: | ---: | ---: | ---: | ---: |\\n",
+    );
+    for (name, transcript) in runs {
+        let distinct = {
+            let mut seen: Vec<&str> = Vec::new();
+            for segment in &transcript {
+                if !seen.contains(&segment.speaker.as_str()) {
+                    seen.push(&segment.speaker);
+                }
+            }
+            seen.len()
+        };
+        let request = GenerationRequest {
+            model: model.name.clone(),
+            model_digest: model.digest.clone(),
+            runtime_version: runtime_version.clone(),
+            meeting_language: language.clone(),
+            style: formal_minutes_style(),
+            vocabulary_revision: "attribution".into(),
+            vocabulary: Vec::new(),
+            transcript,
+            // Fixed, so the only thing differing between runs is the labels.
+            seed: 7,
+            temperature_milli: 200,
+            context_tokens: std::env::var("LOCALOG_EVAL_CONTEXT")
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(40_960),
+            maximum_output_tokens: std::env::var("LOCALOG_EVAL_OUTPUT")
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(8_192),
+        };
+        let started = Instant::now();
+        let markdown = provider
+            .generate(&request, &AtomicBool::new(false), &mut |_, _| Ok(()))
+            .unwrap_or_else(|error| panic!("generation with {name} labels failed: {error:?}"));
+        let seconds = started.elapsed().as_secs();
+
+        let kept = stated
+            .iter()
+            .filter(|fact| crate::facts::is_accounted_for(fact, &markdown))
+            .count();
+        let invented = crate::facts::invented(&segments, &markdown);
+        let unowned = crate::facts::unowned_tasks(&markdown);
+        std::fs::write(out.join(format!("protocol-{name}.md")), &markdown).expect("written");
+        println!(
+            "{name:>10}: {distinct:>3} labels, {seconds:>4}s, {:>6} chars, {kept}/{} figures, {} invented, {} unowned",
+            markdown.len(),
+            stated.len(),
+            invented.len(),
+            unowned.len(),
+        );
+        summary.push_str(&format!(
+            "| {name} | {distinct} | {seconds} | {} | {kept}/{} | {} | {} |\\n",
+            markdown.len(),
+            stated.len(),
+            invented.len(),
+            unowned.len()
+        ));
+    }
+    println!("\\n{spoken} characters spoken\\n\\n{summary}");
+    std::fs::write(out.join("summary.md"), &summary).expect("written");
+    println!("drafts written to {}", out.display());
+}
+
 /// Ignored by default: needs a running Ollama and a real transcript, and writes
 /// its result outside the repository. Run with
 /// `LOCALOG_EVAL_TRANSCRIPT=... LOCALOG_EVAL_MODEL=... LOCALOG_EVAL_OUT=... \
