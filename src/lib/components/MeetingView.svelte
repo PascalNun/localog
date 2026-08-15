@@ -250,6 +250,14 @@
         {#if transcriptionStartError}<p class="form-error" role="alert">
             {transcriptionStartError}
           </p>{/if}
+        <p class="setting-hint">
+          <button
+            class="text-action"
+            onclick={() => onNavigate({ name: 'recording-review', meetingId: meeting.id })}
+            >Review and trim the recording first</button
+          > — cut the wait before the meeting starts and anything it does not need. Your recording is
+          never changed.
+        </p>
       </div>
     {:else if meeting.lifecycle === 'transcript_ready'}
       <div class="stage-message">

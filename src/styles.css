@@ -2540,3 +2540,124 @@ button.review-summary[aria-pressed='true'] {
   color: var(--muted);
   font-size: 0.78rem;
 }
+
+/* Reviewing a recording before it is transcribed.
+
+   The shape of the recording is drawn once and never redrawn as edits are made:
+   what a person cuts is covered over rather than taken away, so they can see what
+   they removed and put it back. A waveform that rearranged itself after every cut
+   would hide the thing they are deciding about. */
+.review-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--inspector-width);
+  gap: 28px;
+  align-items: start;
+  padding: 0 32px 40px;
+}
+@media (max-width: 1080px) {
+  .review-stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.review-times {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin-bottom: 8px;
+}
+.review-kept {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.review-track {
+  position: relative;
+  height: 160px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--raised);
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: none;
+}
+.review-waveform {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 0 1px;
+}
+/* The same thin-stroke rhythm as the sound mark and the transcript's scrubber, so
+   audio reads as one idea wherever it appears. */
+.review-waveform span {
+  flex: 1 1 0;
+  min-width: 1px;
+  background: var(--line-strong);
+  border-radius: 1px;
+}
+/* Dropped stretches are veiled rather than coloured: this is a description of what
+   will be used, not an error. */
+.review-dropped {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--canvas) 82%, transparent);
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+}
+.review-selection {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--action) 12%, transparent);
+  border-left: 1px solid var(--action);
+  border-right: 1px solid var(--action);
+}
+.review-hint {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.review-actions {
+  display: flex;
+  gap: 18px;
+  margin-top: 6px;
+}
+.review-edits {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.review-edits li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 0.82rem;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.review-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.review-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+.review-note :global(svg) {
+  flex: none;
+  margin-top: 2px;
+}

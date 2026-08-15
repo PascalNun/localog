@@ -15,6 +15,8 @@ import type {
   SpeakerRequest,
   TranscriptDocument,
   MeetingAudio,
+  RecordingEdits,
+  RecordingReview,
   TranscriptionCapability,
   TranscriptionPreset,
   TranscriptionRuntimeStatus,
@@ -317,6 +319,14 @@ class TauriWorkspaceStore implements WorkspaceStore {
       cancelled = true;
       stop?.();
     };
+  }
+
+  async getRecordingReview(meetingId: string): Promise<RecordingReview | null> {
+    return invoke('recording_review', { meetingId, buckets: 2000 });
+  }
+
+  async setRecordingEdits(meetingId: string, edits: RecordingEdits): Promise<void> {
+    return invoke('set_recording_edits', { meetingId, edits });
   }
 
   async getMeetingAudio(meetingId: string): Promise<MeetingAudio | null> {

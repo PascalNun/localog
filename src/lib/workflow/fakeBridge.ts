@@ -17,6 +17,8 @@ import type {
   VocabularyDraft,
   FileDropEvent,
   SpeakerRequest,
+  RecordingEdits,
+  RecordingReview,
 } from './types';
 import type { WorkspaceStore } from './workspaceStore';
 
@@ -185,6 +187,8 @@ function cloneSnapshot(snapshot: WorkflowSnapshot): WorkflowSnapshot {
  * It exercises UI states without touching files, models, or confidential meeting data.
  */
 export class FakeWorkflowBridge implements WorkflowBridge {
+  /** Edits made in the preview, which last as long as the page does. */
+  private recordingEdits = new Map<string, RecordingEdits>();
   private snapshot: WorkflowSnapshot = {
     projects: [
       {
@@ -693,6 +697,32 @@ export class FakeWorkflowBridge implements WorkflowBridge {
 
   subscribeSpeakerEvents(handler: (status: SpeakerSeparationStatus) => void): () => void {
     return this.workspaceStore?.subscribeSpeakerEvents?.(handler) ?? (() => {});
+  }
+
+  // A recording's shape, invented for the preview: a quiet start, speech in the
+  // middle with the pauses a meeting really has, and a quiet end.
+  async getRecordingReview(meetingId: string): Promise<RecordingReview | null> {
+    const durationMs = 74 * 60 * 1000;
+    const buckets = 1200;
+    const waveform = Array.from({ length: buckets }, (_, index) => {
+      const through = index / buckets;
+      if (through < 0.03 || through > 0.96) return 0.01;
+      // Speech, with the gaps between turns and a quieter passage two thirds in.
+      const turn = 0.55 + 0.35 * Math.abs(Math.sin(index * 0.7));
+      const gap = Math.sin(index * 0.21) > 0.82 ? 0.08 : 1;
+      const quieter = through > 0.62 && through < 0.68 ? 0.35 : 1;
+      return Math.min(1, turn * gap * quieter);
+    });
+    return {
+      durationMs,
+      waveform,
+      edits: this.recordingEdits.get(meetingId) ?? { startMs: 0 },
+      keptDurationMs: durationMs,
+    };
+  }
+
+  async setRecordingEdits(meetingId: string, edits: RecordingEdits): Promise<void> {
+    this.recordingEdits.set(meetingId, edits);
   }
 
   async getMeetingAudio(meetingId: string): Promise<import('./types').MeetingAudio | null> {

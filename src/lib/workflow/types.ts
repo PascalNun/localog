@@ -14,6 +14,7 @@ export type AppRoute =
   | { name: 'new-project'; returnToImport: boolean }
   | { name: 'new-meeting'; projectId: string | null }
   | { name: 'meeting'; meetingId: string }
+  | { name: 'recording-review'; meetingId: string }
   | { name: 'transcript'; meetingId: string }
   | { name: 'protocol'; meetingId: string }
   | { name: 'styles' }
@@ -246,6 +247,32 @@ export interface ModelDownloadError {
   message: string;
 }
 
+/** A stretch of a recording, in milliseconds from its start. */
+export interface RecordingSpan {
+  fromMs: number;
+  toMs: number;
+}
+
+/**
+ * What somebody decided to leave out of a recording. Held as trims plus removals
+ * because that is how a person describes it, and because the review screen shows
+ * them back as separate, undoable decisions.
+ */
+export interface RecordingEdits {
+  startMs: number;
+  endMs?: number | null;
+  removed?: RecordingSpan[];
+}
+
+/** Everything the review screen needs before a recording is transcribed. */
+export interface RecordingReview {
+  durationMs: number;
+  /** Peaks from zero to one, for drawing. */
+  waveform: number[];
+  edits: RecordingEdits;
+  keptDurationMs: number;
+}
+
 export interface MeetingAudio {
   /** A webview-playable URL for the meeting's working audio. */
   source: string;
@@ -310,6 +337,8 @@ export interface WorkflowBridge {
   subscribeSpeakerEvents(handler: (status: SpeakerSeparationStatus) => void): () => void;
   /** Working audio for transcript review, or null until it exists. */
   getMeetingAudio(meetingId: string): Promise<MeetingAudio | null>;
+  getRecordingReview(meetingId: string): Promise<RecordingReview | null>;
+  setRecordingEdits(meetingId: string, edits: RecordingEdits): Promise<void>;
   getTranscriptionCapability(): Promise<TranscriptionCapability>;
   setTranscriptionPreset(preset: TranscriptionPreset): Promise<TranscriptionCapability>;
   downloadTranscriptionModel(modelId: string): Promise<void>;

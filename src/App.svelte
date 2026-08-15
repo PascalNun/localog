@@ -9,6 +9,7 @@
   import SettingsView from './lib/components/SettingsView.svelte';
   import Sidebar from './lib/components/Sidebar.svelte';
   import StartView from './lib/components/StartView.svelte';
+  import RecordingReviewView from './lib/components/RecordingReviewView.svelte';
   import TranscriptView from './lib/components/TranscriptView.svelte';
   import Icon from './lib/components/Icon.svelte';
   import {
@@ -26,6 +27,7 @@
     NewMeetingInput,
     NewProjectInput,
     ProtocolProviderStatus,
+    RecordingReview,
     SpeakerSeparationStatus,
     WorkflowSnapshot,
     TranscriptionCapability,
@@ -290,11 +292,28 @@
     return RECORDING_TYPES.includes(extensionOf(path));
   }
 
+  let recordingReview: RecordingReview | null = null;
+  let reviewedMeeting = '';
+  // Fetched when the screen is opened rather than kept in the workspace snapshot:
+  // a waveform is a few thousand numbers and only this screen wants them.
+  $: if (route.name === 'recording-review' && route.meetingId !== reviewedMeeting) {
+    reviewedMeeting = route.meetingId;
+    recordingReview = null;
+    const wanted = route.meetingId;
+    void bridge.getRecordingReview(wanted).then((found) => {
+      if (reviewedMeeting === wanted) recordingReview = found;
+    });
+  }
+
   function navigate(nextRoute: AppRoute) {
     route = nextRoute;
+    // Reviewing a recording is a step somebody is in the middle of, not a place
+    // to be returned to on the next launch: they would land in an editor for a
+    // meeting they had finished editing.
     if (
-      'meetingId' in nextRoute &&
-      ['meeting', 'transcript', 'protocol'].includes(nextRoute.name)
+      nextRoute.name === 'meeting' ||
+      nextRoute.name === 'transcript' ||
+      nextRoute.name === 'protocol'
     ) {
       void bridge.saveWorkspaceLocation(nextRoute.meetingId, nextRoute.name);
     }
@@ -479,6 +498,14 @@
           onConfirmDuplicate={() => bridge.confirmDuplicateImport(meeting.id)}
           onReselectSource={() => bridge.reselectImportSource(meeting.id)}
           onRename={(title) => bridge.updateMeetingTitle(meeting.id, title)}
+        />
+      {:else if route.name === 'recording-review' && meeting}
+        <RecordingReviewView
+          {meeting}
+          review={recordingReview}
+          onNavigate={navigate}
+          onSave={(edits) => bridge.setRecordingEdits(meeting.id, edits)}
+          onContinue={() => navigate({ name: 'meeting', meetingId: meeting.id })}
         />
       {:else if route.name === 'transcript' && project && meeting}
         <TranscriptView
