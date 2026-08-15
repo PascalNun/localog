@@ -61,13 +61,26 @@ encoders="pcm_s16le,libopus"
 muxers="wav,opus,ogg"
 
 # Statically, so the result carries no dependency on the machine that built it.
-# libopus usually arrives from a package manager as both a dylib and an archive,
-# and without this FFmpeg links the dylib and the sidecar runs here and fails on
-# somebody else's computer - which is the failure the otool check at the end of
-# every one of these scripts exists to catch.
+#
+# `--pkg-config-flags=--static` is not enough on its own and was measured not to
+# be: a package manager ships libopus as both a dylib and an archive in one
+# directory, and the linker takes the dylib every time. The reliable fix is to put
+# a directory holding only the archive first on the search path, because the
+# linker walks -L directories in order and takes the first match it finds.
+opus_archive="$(pkg-config --variable=libdir opus)/libopus.a"
+if [[ ! -f "$opus_archive" ]]; then
+  echo "No static libopus at $opus_archive." >&2
+  echo "Install one, or the sidecar will depend on a library the target may not have." >&2
+  exit 1
+fi
+static_first="$build_dir/static-first"
+mkdir -p "$static_first"
+cp "$opus_archive" "$static_first/"
+
 ../configure \
   --prefix="$build_dir/out" \
   --pkg-config-flags=--static \
+  --extra-ldflags="-L$static_first" \
   --disable-everything \
   --disable-doc \
   --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages \

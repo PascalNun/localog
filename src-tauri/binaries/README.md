@@ -11,7 +11,13 @@ The expected file names are:
 localog-whisper-<rust-target-triple>
 localog-speaker-diarization-<rust-target-triple>
 localog-speaker-embedding-<rust-target-triple>
+localog-ffmpeg-<rust-target-triple>
+localog-ffprobe-<rust-target-triple>
 ```
+
+`licences/` holds the texts that must travel with FFmpeg, and a note describing the
+exact configuration it was built with. Like the binaries it is generated rather than
+committed.
 
 For example, an Apple Silicon build uses
 `localog-speaker-diarization-aarch64-apple-darwin`. Tauri strips the target
