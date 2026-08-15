@@ -381,6 +381,80 @@ async fn meeting_audio(
     .await
 }
 
+/// Everything the review screen needs to show a recording before it is transcribed.
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RecordingReview {
+    duration_ms: u64,
+    /// Peaks from zero to one, for drawing. Coarse on purpose: this crosses to the
+    /// interface on every open, and a person cannot see more than a few thousand
+    /// bars on a screen.
+    waveform: Vec<f32>,
+    edits: edits::Edits,
+    /// How long what survives the edits runs, so the screen can say what the
+    /// meeting will actually be without recomputing it.
+    kept_duration_ms: u64,
+}
+
+/// The recording, its shape, and what somebody has decided to leave out of it.
+#[tauri::command]
+async fn recording_review(
+    storage: State<'_, StorageState>,
+    meeting_id: String,
+    buckets: Option<u32>,
+) -> Result<Option<RecordingReview>, String> {
+    with_repository(storage.root.clone(), move |repository| {
+        let found: Option<(String, Option<i64>)> = repository
+            .connection
+            .query_row(
+                "SELECT nm.normalized_path, nm.duration_ms
+                 FROM normalized_media nm
+                 JOIN recordings r ON r.id = nm.recording_id
+                 WHERE r.meeting_id = ?1
+                 ORDER BY r.created_at_ms, r.id LIMIT 1",
+                [&meeting_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        let Some((relative, duration_ms)) = found else {
+            return Ok(None);
+        };
+        let absolute = repository.root.join(&relative);
+        if !absolute.is_file() {
+            return Ok(None);
+        }
+        let stored = repository.recording_edits(&meeting_id)?;
+        // The probe's duration is the meeting's; the waveform's length is what is
+        // really in the file. Where they disagree the file wins, because the edits
+        // are applied to the file.
+        let duration_ms = duration_ms.unwrap_or_default().max(0) as u64;
+        let waveform = media::waveform(&absolute, buckets.unwrap_or(2_000) as usize)
+            .map_err(|_| storage::StorageError::InvalidData("That recording could not be read."))?;
+        Ok(Some(RecordingReview {
+            kept_duration_ms: edits::kept_duration_ms(duration_ms, &stored),
+            duration_ms,
+            waveform,
+            edits: stored,
+        }))
+    })
+    .await
+}
+
+/// Record what to leave out of a recording. Nothing is cut here: the edits are a
+/// description, applied when the working audio for transcription is built, so any
+/// of this is undoable until then and the recording is never modified at all.
+#[tauri::command]
+async fn set_recording_edits(
+    storage: State<'_, StorageState>,
+    meeting_id: String,
+    edits: edits::Edits,
+) -> Result<(), String> {
+    with_repository(storage.root.clone(), move |repository| {
+        repository.set_recording_edits(&meeting_id, &edits)
+    })
+    .await
+}
+
 /// Whether speaker separation can run, and what it would cost to make it possible.
 #[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1075,6 +1149,8 @@ pub fn run() {
             configure_speaker_runtime,
             download_speaker_models,
             meeting_audio,
+            recording_review,
+            set_recording_edits,
             protocol_provider_status,
             configure_protocol_provider,
             load_workspace,

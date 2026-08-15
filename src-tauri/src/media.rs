@@ -259,6 +259,61 @@ pub(crate) fn condense_for_diarisation(
 /// The recording this reads is never modified. That is the whole point of holding
 /// the edits as a description: somebody who trims two minutes and then finds the
 /// decision was inside them has lost nothing.
+/// The shape of a recording, as peaks, for drawing.
+///
+/// One value per bucket, from zero to one, taken as the loudest sample in that
+/// stretch rather than the average. A meeting is mostly quiet with speech on top of
+/// it, and averaging turns that into a flat band that shows a person nothing. The
+/// peak is what makes silence look like silence, which is the thing somebody is
+/// looking for when they trim the start of a recording.
+///
+/// Read straight from the working file, in one pass, without holding it all in
+/// memory: an eighty-minute meeting is 150 MB and a person waiting to trim it
+/// should not wait for that.
+pub(crate) fn waveform(source: &Path, buckets: usize) -> Result<Vec<f32>, String> {
+    let buckets = buckets.clamp(1, 100_000);
+    let (data_offset, data_length) = pcm16_mono_16k_data(source)?;
+    let frames = data_length / 2;
+    if frames == 0 {
+        return Ok(vec![0.0; buckets]);
+    }
+    let mut file = fs::File::open(source)
+        .map_err(|error| format!("The recording could not be read: {error}"))?;
+    file.seek(SeekFrom::Start(data_offset))
+        .map_err(|error| format!("The recording could not be read: {error}"))?;
+
+    let mut peaks = vec![0.0f32; buckets];
+    let mut buffer = vec![0u8; 1 << 16];
+    let mut frame = 0u64;
+    let mut left = data_length;
+    while left > 0 {
+        let wanted = buffer.len().min(left as usize) & !1;
+        if wanted == 0 {
+            break;
+        }
+        let read = match file.read(&mut buffer[..wanted]) {
+            Ok(0) => break,
+            Ok(read) => read & !1,
+            Err(error) => return Err(format!("The recording could not be read: {error}")),
+        };
+        for pair in buffer[..read].chunks_exact(2) {
+            // Which bucket this frame falls in, by position rather than by
+            // counting, so rounding cannot drift over a long recording.
+            let bucket = ((frame * buckets as u64) / frames) as usize;
+            let sample = i16::from_le_bytes([pair[0], pair[1]]);
+            let level = (sample as f32 / 32768.0).abs();
+            if let Some(peak) = peaks.get_mut(bucket)
+                && level > *peak
+            {
+                *peak = level;
+            }
+            frame += 1;
+        }
+        left -= read as u64;
+    }
+    Ok(peaks)
+}
+
 // Reachable once the review screen exists; the cutting is proven first because a
 // screen built on unchecked arithmetic loses minutes of a meeting quietly.
 #[allow(dead_code)]
@@ -617,6 +672,64 @@ mod tests {
             timings.last().expect("a segment").1 as f64 / 60_000.0,
             condensed as f64 / 60_000.0,
         );
+    }
+
+    /// A waveform has to show where the sound is, or trimming the quiet start of a
+    /// recording is guesswork. Built from a fixture that is silent, then loud, then
+    /// silent again.
+    #[test]
+    fn a_waveform_shows_where_the_sound_is() {
+        let directory = std::env::temp_dir().join("localog-waveform");
+        std::fs::create_dir_all(&directory).expect("working directory");
+        let source = directory.join("recording.wav");
+        let mut audio = Vec::new();
+        for ms in 0..30_000u64 {
+            // Loud only in the middle third.
+            let value: i16 = if (10_000..20_000).contains(&ms) {
+                30_000
+            } else {
+                0
+            };
+            for _ in 0..16 {
+                audio.extend_from_slice(&value.to_le_bytes());
+            }
+        }
+        write_pcm16_mono_16k(&source, &audio).expect("a recording");
+
+        let peaks = waveform(&source, 30).expect("a waveform");
+        assert_eq!(peaks.len(), 30);
+        assert!(
+            peaks[..10].iter().all(|peak| *peak == 0.0),
+            "the quiet start"
+        );
+        assert!(
+            peaks[10..20].iter().all(|peak| *peak > 0.9),
+            "the loud middle: {:?}",
+            &peaks[10..20]
+        );
+        assert!(peaks[20..].iter().all(|peak| *peak == 0.0), "the quiet end");
+        let _ = std::fs::remove_dir_all(&directory);
+    }
+
+    /// The peak and not the average: a meeting is mostly quiet with speech on top,
+    /// and averaging flattens exactly the thing somebody is looking at.
+    #[test]
+    fn a_lone_loud_moment_survives_into_the_waveform() {
+        let directory = std::env::temp_dir().join("localog-waveform-peak");
+        std::fs::create_dir_all(&directory).expect("working directory");
+        let source = directory.join("recording.wav");
+        // Ten seconds of quiet with a single loud millisecond in the middle.
+        let mut audio = Vec::new();
+        for ms in 0..10_000u64 {
+            let value: i16 = if ms == 5_000 { 32_000 } else { 0 };
+            for _ in 0..16 {
+                audio.extend_from_slice(&value.to_le_bytes());
+            }
+        }
+        write_pcm16_mono_16k(&source, &audio).expect("a recording");
+        let peaks = waveform(&source, 10).expect("a waveform");
+        assert!(peaks[5] > 0.9, "the loud moment should still be visible");
+        let _ = std::fs::remove_dir_all(&directory);
     }
 
     /// Cutting must take exactly the audio the edits describe, and must leave the

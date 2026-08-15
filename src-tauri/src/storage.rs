@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 11;
+const CURRENT_SCHEMA_VERSION: i64 = 12;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -853,6 +853,55 @@ impl WorkspaceRepository {
         Ok(recorded
             .flatten()
             .and_then(|value| serde_json::from_str(&value).ok()))
+    }
+
+    /// What somebody trimmed from this meeting's recording.
+    ///
+    /// An unreadable or absent record is an untouched recording. Losing the edits
+    /// costs somebody their trims; refusing to open the meeting because of them
+    /// would cost them the meeting.
+    pub(crate) fn recording_edits(&self, meeting_id: &str) -> Result<crate::edits::Edits> {
+        let stored: Option<Option<String>> = self
+            .connection
+            .query_row(
+                "SELECT recording_edits_json FROM meetings WHERE id = ?1",
+                [meeting_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(stored
+            .flatten()
+            .and_then(|value| serde_json::from_str(&value).ok())
+            .unwrap_or_default())
+    }
+
+    /// Record what to leave out. The recording itself is never touched, here or
+    /// anywhere: these are read when the working audio is built and at no other
+    /// time, so changing them is always reversible.
+    pub(crate) fn set_recording_edits(
+        &self,
+        meeting_id: &str,
+        edits: &crate::edits::Edits,
+    ) -> Result<()> {
+        // An untouched recording stores nothing rather than an empty document, so
+        // a meeting nobody edited is indistinguishable from one made before this
+        // existed.
+        let value = if edits.is_untouched() {
+            None
+        } else {
+            Some(
+                serde_json::to_string(edits)
+                    .map_err(|_| StorageError::InvalidData("Those edits cannot be recorded."))?,
+            )
+        };
+        let changed = self.connection.execute(
+            "UPDATE meetings SET recording_edits_json = ?2, updated_at_ms = ?3 WHERE id = ?1",
+            params![meeting_id, value, unix_time_millis()],
+        )?;
+        if changed == 0 {
+            return Err(StorageError::MissingMeeting);
+        }
+        Ok(())
     }
 
     fn list_protocol_styles(&self) -> Result<Vec<ProtocolStyle>> {
@@ -1783,6 +1832,20 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             )?;
         }
         connection.pragma_update(None, "user_version", 11)?;
+        version = 11;
+    }
+    if version == 11 {
+        // What somebody trimmed from a recording, kept beside the meeting rather
+        // than applied to the file. One small document per meeting, because the
+        // trims and the removals are read and written together and never queried
+        // apart, and because the recording they describe must stay whole.
+        if !has_column(connection, "meetings", "recording_edits_json")? {
+            connection.execute(
+                "ALTER TABLE meetings ADD COLUMN recording_edits_json TEXT",
+                [],
+            )?;
+        }
+        connection.pragma_update(None, "user_version", 12)?;
     }
     Ok(())
 }
