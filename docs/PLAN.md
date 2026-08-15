@@ -327,15 +327,38 @@ What to do next, in this order, because each unblocks what follows:
    has its own signed identity, shows its own dialog naming itself, and is where a user meets this
    anyway. Until it is answered, nothing more should be built on the assumption that the tap works.
 
-3. **FFmpeg.** The only runtime with no sidecar at all: the application still requires it on the
-   machine. It needs the same treatment as the others _and_ a licensing review before anything ships,
-   which is a decision rather than a build — the obvious builds are GPL, and what that means for
-   distributing them alongside this application has not been worked out.
+3. **FFmpeg**, the only runtime with no sidecar at all: the application still requires it on the
+   machine. It is the most predictable item left, because the licensing turns out to be the easy part
+   and the build is the work.
+
+   Licensing is straightforward here for one reason: FFmpeg is invoked as a separate executable
+   rather than linked, so this is two programs talking and not one derived work. LocaLog is
+   GPL-3.0-or-later and FFmpeg's GPL components are GPL-2.0-**or-later**, which is compatible; built
+   without the GPL-only components it is LGPL and simpler again. What is still owed is the ordinary
+   obligation — ship the licence texts, and be able to supply the source for the exact build.
+
+   The build should be small rather than stock. The application uses FFmpeg to probe a file, turn
+   anything into 16 kHz mono PCM, and encode Opus. A stock build is tens of megabytes of encoders,
+   filters and network protocols that are never called; configured with `--disable-everything` and
+   only the demuxers, decoders and encoders in use it is a few megabytes — less to ship, far less to
+   audit, fewer advisories arriving for code that is never reached, and it avoids the GPL-only pieces
+   by construction rather than by argument.
+
+   Two alternatives were considered and rejected. Writing the decoding is not sensible: reading MP3,
+   AAC and MP4 correctly is decades of accumulated edge cases, and it is the one dependency worth
+   having. Using each platform's own decoders — AVFoundation, Media Foundation — removes the binary
+   but costs three implementations with different format support, and worse, the same recording would
+   produce different working audio and therefore different transcripts depending on the machine. For
+   a tool whose output people rely on as a record, one decoder everywhere is worth more than the
+   binary it would save.
 
 4. **The M1 / 8 GB baseline**, which needs that hardware and has never been measured.
 
-Then, for speaker separation: a multilingual or German-suited embedding model, long recordings,
-overlapping speech. Decide whether the optional setting becomes the default once a verified runtime
+Then, for speaker separation: **replace the embedding model**, which is trained on Chinese and has
+never been revisited. sherpa-onnx publishes several, and swapping one is a file change. This used to
+cost eight minutes an attempt and now costs thirty-nine seconds, so trying two or three is an
+afternoon — a question that was too expensive to ask casually is now cheap, which is the clearest
+dividend of moving to embeddings. Also long recordings and overlapping speech. Decide whether the optional setting becomes the default once a verified runtime
 exists, and what the review interface needs for renaming, reassignment and merging labels.
 
 Underneath all of it, still unmeasured: **whether speaker labels improve the protocol at all.** A
