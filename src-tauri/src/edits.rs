@@ -14,12 +14,6 @@
 //! transcript exists yet whose timestamps would have to be reconciled with a
 //! timeline that just got shorter.
 
-// Not yet reachable from the interface: nothing stores edits or offers a place to
-// make them. The model and the cutting land first because they are the part that
-// can be proven exactly, and a review screen built on arithmetic nobody checked
-// would be a review screen that quietly loses minutes of a meeting.
-#![allow(dead_code)]
-
 use serde::{Deserialize, Serialize};
 
 /// A stretch of a recording, in milliseconds from its start.
@@ -137,6 +131,12 @@ pub(crate) fn kept_duration_ms(duration_ms: u64, edits: &Edits) -> u64 {
 /// Needed to play the original at a point somebody clicked in the edited timeline,
 /// and to say honestly which part of the recording a passage came from once the
 /// middle of it has been dropped.
+///
+/// The review screen has no playback yet, so nothing calls this. It is kept rather
+/// than deleted because the mapping is the awkward part of adding playback and it
+/// is proven here, where a wrong answer is a failing test rather than a recording
+/// that plays the wrong minute.
+#[allow(dead_code)]
 pub(crate) fn in_original(kept: &[Span], edited_ms: u64) -> Option<u64> {
     let mut passed = 0u64;
     for span in kept {
