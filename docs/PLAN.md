@@ -218,6 +218,21 @@ The generated protocol is not yet proven complete or reliable enough for profess
 
 The protocol editor supports Markdown editing, autosave, undo/redo, find, text scaling, review state, immutable revisions, restoration, and explicit Markdown/plain-text export.
 
+A transcript line can now be removed as well as rewritten — for the throat clearing, the crosstalk
+and the thirty seconds of somebody's dog. Without a confirmation, deliberately: rewriting a line is
+exactly as permanent as removing one and asks nobody's permission, and the committed revision is the
+way back from both. The last line cannot be removed, in the application and in the interface.
+
+A recording can be trimmed before it is transcribed. Drag across the timeline to select a stretch,
+then start there, end there, or remove it; every cut is listed and undoable one at a time or all at
+once. The cuts are held as a description of what to keep and applied when the working audio is
+built, so the recording is never modified and none of it is final until then. What is removed is
+veiled on the timeline rather than taken off it, because seeing what you cut is what makes putting
+it back feel possible.
+
+Editing before transcription is what keeps that simple: no transcript exists yet whose timestamps
+would have to be reconciled with a timeline that just got shorter.
+
 The editor still needs long-document, accessibility, and real-background-load validation.
 
 ### Libraries and settings — Partial
@@ -243,7 +258,14 @@ multilingual quality evidence exist.
 
 ## What is not yet true
 
-- Recording from the microphone or system audio is not implemented.
+- Recording from the microphone or system audio is not implemented. The study in
+  `spikes/meeting-recording/` defines the platform-neutral recorder contract and has the microphone
+  and the survive-a-kill mechanism working. System audio is written but **has never been observed to
+  capture anything**: macOS gates it behind Screen & System Audio Recording, hands an unauthorised
+  tap silence rather than an error, and will not attribute a permission request from a process
+  running below a terminal. Not permitted and not working are indistinguishable from there, so that
+  has to be answered from inside the packaged application, which has its own signed identity.
+  Storing a recording as Opus is built and measured; nothing writes into it yet.
 - Project and meeting archive actions are not exposed in the interface.
 - Basic backup and restore are not implemented.
 - The release config bundles the whisper.cpp and diariser sidecars once the target-specific artifacts have been built. Neither has been produced by the release command and run end to end yet, and FFmpeg still needs the same treatment.
