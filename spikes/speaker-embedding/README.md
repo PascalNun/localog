@@ -67,15 +67,23 @@ merging until the similarity drops through a floor:
 
 | Floor | Speakers found |
 | ----: | -------------: |
-|  0.20 |         **11** |
-|  0.25 |             14 |
-|  0.30 |             19 |
-|  0.35 |             31 |
-|  0.40 |             53 |
+|  0.14 |              6 |
+|  0.16 |              7 |
+|  0.18 |              9 |
+|  0.20 |         **12** |
+|  0.25 |             15 |
+
+An earlier version of this table was off by one at every row. The Python counted
+the groups remaining _after_ the merge it had just refused for being below the
+floor, rather than before it; porting the same algorithm to Rust found it. The
+figures above come from the Rust, whose grouping reproduces the Python's exactly —
+`388 120 102 17 17 11 10 7 1 1 1` at eleven voices.
 
 The diariser's own automatic mode gives 67 on the same audio, and 86 on the whole
-recording. A floor of 0.20 gives eleven, which is the range the owner believes is
-right.
+recording, so reading the count off the merge similarity is a different order of
+answer. Whether it is the _right_ answer is not established: this recording's true
+count is unknown, and the floor that produces a plausible number here is a constant
+fitted to one meeting.
 
 ## What this does not establish
 
