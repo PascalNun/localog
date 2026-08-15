@@ -45,10 +45,14 @@ wrapper that emits the same lines. That is a claim from the format list rather t
 a measurement, and it needs testing on an actual Linux machine before anybody
 relies on it.
 
-The macOS route is `AudioHardwareCreateProcessTap`, available since macOS 14.2. It
-asks for audio capture rather than screen recording, which is the honest permission
-for an audio product to request. ScreenCaptureKit would also work and reaches back
-to macOS 13, at the cost of asking to record the screen.
+The macOS route is `AudioHardwareCreateProcessTap`, available since macOS 14.2.
+
+It was chosen on the belief that it asks for audio capture rather than screen
+recording, which would be the honest permission for an audio product to request.
+**That belief was wrong.** macOS gates system-audio capture behind the same
+_Screen & System Audio Recording_ permission either way, so a tap has no advantage
+over ScreenCaptureKit on that count — and ScreenCaptureKit is better documented and
+reaches back to macOS 13.
 
 ## What was measured
 
@@ -68,31 +72,33 @@ afterwards. The headers declared 235.168 s and 234.900 s while the files held
 audio at all — within the one-second checkpoint, as intended. Being killed is the
 normal case this has to survive, and it does.
 
-### System audio does not work, and fails silently
+### System audio needs a permission, and says nothing when it does not have one
 
-This is the finding that matters.
+This is the finding that matters, and it is a permission rather than a bug.
 
 `AudioHardwareCreateProcessTap` returns no error. The tap and its private aggregate
 device are both created. The IO proc is called at the right rate with correctly
 shaped buffers — one buffer, two channels, 512 frames. **Every sample is zero**, for
-every second of every run, while audio is demonstrably playing.
+every second of every run, while audio is demonstrably playing. There is no TCC
+denial in the system log, no complaint from `coreaudiod`, and no permission dialog.
 
-Tried, and none of it changed the result:
+`CGPreflightScreenCaptureAccess()` answers it: **false**. macOS gates system-audio
+capture behind _Screen & System Audio Recording_, and an application that has not
+been granted it is handed silence rather than refused.
 
-- a main sub-device on the aggregate, so the tap has a clock;
-- `NSAudioCaptureUsageDescription` and `NSMicrophoneUsageDescription` linked into
-  the binary's `__info_plist` section;
-- ad-hoc code signing with a stable identifier;
-- running from inside a signed `.app` bundle rather than as a bare executable.
+Several things were tried first and none of them was the cause: a main sub-device
+to give the aggregate a clock, `NSAudioCaptureUsageDescription` linked into the
+binary's `__info_plist`, ad-hoc code signing, and running from inside a signed
+`.app` bundle. Worth recording, so nobody spends the afternoon on them again.
 
-There is no TCC denial in the system log and no complaint from `coreaudiod`. No
-permission dialog ever appears. The tap simply produces silence.
+The recorder now asks before it creates anything and refuses with that explanation
+rather than producing a file of nothing.
 
-That is the shape of an unauthorised capture rather than a broken one, but it has
-not been proven, and the next things to try are a real signing identity with the
-audio-input entitlement, or ScreenCaptureKit — which is far better documented, works
-back to macOS 13, and costs asking for permission to record the screen in a product
-that only wants the sound.
+**This is the requirement the study exists to have found.** A recorder that silently
+captures nothing is the one failure this product cannot ship, and macOS will do
+exactly that by default. Whatever gets built has to establish that sound is arriving
+before the meeting starts — which is the same live level display the interface
+already wants, promoted from a nicety to a correctness requirement.
 
 ### Drift between the tracks is real and unexplained
 
@@ -107,10 +113,13 @@ recording is built, not after.
 
 macOS system audio was called the expensive platform on the strength of reading an
 API header. That was right, and for a better reason than the one given: the API is
-approachable and the permission model around it is not, and it fails without saying
-so. A recorder that silently captures nothing is precisely the failure this product
-cannot ship, so whatever route is chosen has to prove it captures sound before a
-meeting starts, not after it ends.
+approachable and its permission model is not.
+
+The remaining macOS work is a permission flow rather than an audio problem — asking
+for it, explaining why a product that only wants sound must ask to record the
+screen, and handling a refusal without pretending to record. Since the permission is
+the same either way, ScreenCaptureKit is now the better-supported route rather than
+the compromise it looked like.
 
 The microphone and the crash-survival mechanism are done and are the reusable parts.
 

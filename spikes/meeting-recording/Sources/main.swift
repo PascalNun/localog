@@ -9,6 +9,7 @@
 
 import AVFoundation
 import CoreAudio
+import CoreGraphics
 import Darwin
 import Foundation
 
@@ -94,6 +95,7 @@ final class GrowingWave {
 
 enum RecorderError: Error {
     case cannotWrite(String)
+    case notPermitted
     case coreAudio(String, OSStatus)
     case noMicrophone
 }
@@ -182,6 +184,16 @@ final class SystemAudio {
 
     init(wave: GrowingWave) throws {
         self.wave = wave
+
+        // macOS gates system-audio capture behind the same permission as screen
+        // recording, and a process tap that has not been granted it returns
+        // silence rather than an error - no failure, no prompt, just a recording
+        // of nothing. So it is asked before anything is created. A recorder that
+        // cannot capture must say so while somebody can still do something about
+        // it, never after the meeting.
+        guard CGPreflightScreenCaptureAccess() else {
+            throw RecorderError.notPermitted
+        }
 
         let description = CATapDescription(stereoGlobalTapButExcludeProcesses: [])
         description.uuid = UUID()
@@ -398,6 +410,11 @@ do {
     let audio = try SystemAudio(wave: systemWave)
     try audio.start()
     systemAudio = audio
+} catch RecorderError.notPermitted {
+    systemNote =
+        "system audio unavailable: this machine has not granted Screen & System Audio "
+        + "Recording. Without it macOS hands a process tap silence rather than refusing "
+        + "it, so the call would have been recorded as nothing."
 } catch RecorderError.coreAudio(let what, let status) {
     // A refused tap is a permission answer, not a crash. The microphone alone is
     // still a recording, and losing the room to a failure of the call audio would
