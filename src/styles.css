@@ -2524,6 +2524,17 @@ button.review-summary[aria-pressed='true'] {
   flex: none;
   margin-top: 2px;
 }
+/* A task with nobody against it is a prompt, not a defect: the styles tell the
+   model never to invent an owner, so an empty one may be the truth. Quiet
+   treatment, set apart by a rule rather than by colour. */
+.evidence-unowned {
+  margin-top: 12px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
 .evidence-length {
   margin-top: 10px;
   color: var(--muted);

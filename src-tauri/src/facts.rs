@@ -224,8 +224,181 @@ fn leading_number(text: &str) -> Option<&str> {
     (end > 0).then(|| text[..end].trim_end_matches(['.', ',']))
 }
 
+/// Tasks the protocol records with nobody against them.
+///
+/// A style that asks for a table of next steps asks for two columns, the task and
+/// who carries it. Where the second is empty the protocol is saying that something
+/// was agreed and nobody was put on the hook — which is worth a person's attention
+/// before the meeting is over, because it is the cheapest thing in the world to fix
+/// then and an argument at the next meeting otherwise.
+///
+/// This is evidence, not a fault. The formal style tells the model plainly never to
+/// invent an owner, and to leave a task unattributed where the meeting did not say
+/// who was responsible. An empty owner can therefore be an accurate record. What it
+/// cannot be is invisible.
+///
+/// The reading is structural rather than linguistic: a row of a table with a hole in
+/// it, wherever the table sits and whatever language it is written in. Matching on
+/// words like "Aufgaben" or "Actions" would work in German and English and quietly
+/// stop working in Dutch, and this project has already paid once for a check that
+/// assumed the protocol's language.
+pub(crate) fn unowned_tasks(protocol: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    let lines: Vec<&str> = protocol.lines().collect();
+    let mut index = 0;
+    while index < lines.len() {
+        // A markdown table is a header row, a row of dashes, then its contents.
+        // Requiring the dashes is what stops a sentence containing a pipe from
+        // being read as a table.
+        if is_row(lines[index]) && index + 1 < lines.len() && is_divider(lines[index + 1]) {
+            let mut at = index + 2;
+            while at < lines.len() && is_row(lines[at]) {
+                let cells = cells_of(lines[at]);
+                // A single-column table has nowhere to put an owner, so it is not
+                // a table of tasks and nothing here applies to it.
+                if cells.len() >= 2 {
+                    let task = cells[0].trim();
+                    let unowned = cells[1..].iter().any(|cell| is_blank(cell));
+                    if unowned && !task.is_empty() {
+                        found.push(task.to_string());
+                    }
+                }
+                at += 1;
+            }
+            index = at;
+            continue;
+        }
+        index += 1;
+    }
+    found
+}
+
+fn is_row(line: &str) -> bool {
+    let line = line.trim();
+    line.starts_with('|') && line.len() > 1
+}
+
+/// The `|---|:--:|` line under a table's headings.
+fn is_divider(line: &str) -> bool {
+    let line = line.trim();
+    is_row(line)
+        && line.contains('-')
+        && line
+            .chars()
+            .all(|character| matches!(character, '|' | '-' | ':' | ' '))
+}
+
+fn cells_of(line: &str) -> Vec<&str> {
+    let line = line.trim();
+    let inner = line
+        .strip_prefix('|')
+        .unwrap_or(line)
+        .strip_suffix('|')
+        .unwrap_or(line);
+    inner.split('|').collect()
+}
+
+/// Empty, or one of the marks people write to mean empty. A dash in a cell is a
+/// person saying "nobody", not a person naming somebody called "-".
+fn is_blank(cell: &str) -> bool {
+    let cell = cell.trim();
+    cell.is_empty()
+        || cell.chars().all(|character| {
+            matches!(
+                character,
+                '-' | '\u{2013}' | '\u{2014}' | '.' | '?' | '/' | '\u{a0}'
+            )
+        })
+}
+
 #[cfg(test)]
 mod tests {
+
+    /// The case this exists for: a table of next steps where somebody was named
+    /// and somebody was not.
+    #[test]
+    fn a_task_with_an_empty_owner_is_reported() {
+        let protocol = "\
+## Nächste Schritte
+
+| Aufgabe | Verantwortlich |
+| --- | --- |
+| Brandschutzklappen abstimmen | Herr Seidel |
+| Heizlastberechnung nachreichen |  |
+| Angebot einholen | - |
+";
+        assert_eq!(
+            unowned_tasks(protocol),
+            vec![
+                "Heizlastberechnung nachreichen".to_string(),
+                "Angebot einholen".to_string()
+            ]
+        );
+    }
+
+    /// Nothing is read from the words, so a protocol in a language nobody
+    /// anticipated is read the same way.
+    #[test]
+    fn the_language_of_the_table_does_not_matter() {
+        let protocol = "\
+| Task | Owner | Due |
+| --- | --- | --- |
+| Send the drawings | Mira | Friday |
+| Confirm the survey | | Friday |
+";
+        assert_eq!(
+            unowned_tasks(protocol),
+            vec!["Confirm the survey".to_string()]
+        );
+    }
+
+    /// A sentence with a pipe in it is not a table, and a table needs its rule.
+    #[test]
+    fn prose_containing_a_pipe_is_not_read_as_a_table() {
+        let protocol = "Die Wand | die Decke wurde besprochen, ohne Ergebnis.\n";
+        assert!(unowned_tasks(protocol).is_empty());
+    }
+
+    /// A table of one column has nowhere to name anybody, so it says nothing about
+    /// ownership and must not be reported as though it did.
+    #[test]
+    fn a_single_column_table_reports_nothing() {
+        let protocol = "| Punkt |\n| --- |\n| Lüftung |\n";
+        assert!(unowned_tasks(protocol).is_empty());
+    }
+
+    /// Every task carrying a name is the good case, and it must be quiet.
+    #[test]
+    fn a_fully_attributed_table_reports_nothing() {
+        let protocol = "\
+| Aufgabe | Verantwortlich |
+| --- | --- |
+| Termin bestätigen | Frau Netzel |
+| Unterlagen prüfen | Herr Balk |
+";
+        assert!(unowned_tasks(protocol).is_empty());
+    }
+
+    /// More than one table in a document, which a long protocol will have.
+    #[test]
+    fn tables_after_the_first_are_read_too() {
+        let protocol = "\
+| Thema | Stand |
+| --- | --- |
+| Lüftung | offen |
+
+Zwischentext.
+
+| Aufgabe | Verantwortlich |
+| --- | --- |
+| Protokoll versenden | |
+";
+        assert_eq!(
+            unowned_tasks(protocol),
+            vec!["Protokoll versenden".to_string()]
+        );
+    }
+
     use super::*;
 
     fn segment(id: &str, text: &str) -> TranscriptSegment {

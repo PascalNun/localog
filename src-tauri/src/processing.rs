@@ -1747,10 +1747,16 @@ fn record_quantity_coverage(
         .iter()
         .map(|segment| segment.text.len())
         .sum();
+    // Something agreed with nobody against it costs nothing to fix now and an
+    // argument at the next meeting otherwise. Read from the shape of the table
+    // rather than from its words, so it holds in whatever language the meeting
+    // was held in.
+    let unowned = crate::facts::unowned_tasks(markdown);
     let coverage = serde_json::json!({
         "quantitiesStated": stated.len(),
         "quantitiesAccounted": accounted,
         "quantitiesInvented": invented,
+        "tasksUnowned": unowned,
         "charactersSpoken": spoken,
         "charactersWritten": markdown.len(),
     });

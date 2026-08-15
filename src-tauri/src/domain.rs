@@ -212,6 +212,12 @@ pub struct ProtocolEvidence {
     /// style, unlike how much a draft keeps, which is what its style asked for.
     #[serde(default)]
     pub quantities_invented: Vec<String>,
+    /// Tasks the draft records with nobody against them, so a person can put a
+    /// name to them while the meeting is still fresh. Not a fault: the styles tell
+    /// the model never to invent an owner, so an empty one can be an accurate
+    /// record of a meeting that agreed something and assigned it to nobody.
+    #[serde(default)]
+    pub tasks_unowned: Vec<String>,
     pub characters_spoken: u32,
     pub characters_written: u32,
 }

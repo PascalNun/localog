@@ -86,6 +86,9 @@ export interface ProtocolEvidence {
   quantitiesStated: number;
   quantitiesAccounted: number;
   quantitiesInvented: string[];
+  /** Tasks recorded with nobody against them. Absent from drafts written before
+   * this was measured, so treat an undefined value as "not looked at". */
+  tasksUnowned?: string[];
   charactersSpoken: number;
   charactersWritten: number;
 }
