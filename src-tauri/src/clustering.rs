@@ -10,13 +10,6 @@
 //! Here the merging is done once and every answer read off it afterwards. Asking
 //! for eight voices, or eleven, or "however many there are" costs nothing more.
 
-// Not yet on the generation path: nothing produces the vectors inside the
-// application, because the embedding runtime is still the study in
-// spikes/speaker-embedding/. The arithmetic is landed first and separately
-// because it is the part that can be proven without a runtime, and it is proven
-// against that study's measurements on a real meeting.
-#![allow(dead_code)]
-
 /// Above this, a merge is judged to be joining a person to themselves rather than
 /// to somebody else, so the count is read as the number of groups left when the
 /// merging first falls below it.
@@ -164,10 +157,17 @@ impl Merged {
 
     /// The similarity of each merge, from the most alike downwards. Evidence for a
     /// person deciding whether the estimate is believable, not a number to act on.
+    ///
+    /// Nothing shows it yet. Kept because the estimate is offered as an estimate,
+    /// and a person asked to accept or replace it deserves to see what it rests on.
+    #[allow(dead_code)]
     pub(crate) fn similarities(&self) -> Vec<f32> {
         self.steps.iter().map(|step| step.similarity).collect()
     }
 
+    /// How many segments were grouped. Used by the study that checks this against
+    /// its measurements, and by nothing in the application.
+    #[allow(dead_code)]
     pub(crate) fn len(&self) -> usize {
         self.count
     }
