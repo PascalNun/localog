@@ -29,13 +29,33 @@ Vocabulary made the important difference in this domain. Proper names and unusua
 
 ## Protocol generation
 
-Several local models were tested with different context limits:
+### The first pass, and why its verdicts have expired
+
+Several local models were tried early, against the generation path as it then was:
 
 - `qwen2.5-coder` produced short drafts and could not hold the full meeting comfortably;
 - `gemma2:9b` failed with a small context window;
 - `gemma4:12b` was too slow or memory-heavy for the available machine;
 - `qwen3.5:4b` with a long context produced a full-length German draft in about 10 minutes 51 seconds;
 - the same model with project vocabulary produced a shorter, more useful draft in about 6 minutes 03 seconds, with improved proper names.
+
+**Those verdicts describe a pipeline that no longer exists, and should not be read as
+current.** They were measured before the generation path acquired sectioning for long
+transcripts, before context limits were discovered from the provider rather than
+assumed, and before the output ceiling and request deadline were corrected — the
+faults listed under "What went wrong in early runs" below. A model judged too slow or
+too heavy was being asked to hold a whole meeting in one request against limits that
+were wrong.
+
+`gemma4:12b` is the clear case. It was set aside here as too slow or memory-heavy;
+measured against the current path it is the most accurate and by far the most stable
+of the installed models, and the owner's own experience of using it agreed before any
+of this was measured. The rejection was not a mistake at the time. It expired, and
+nothing in this document said so until it was measured again.
+
+That is worth generalising: a model verdict is only true of the pipeline that produced
+it, and every entry in the list above predates three separate corrections to that
+pipeline.
 
 The exact output is not the acceptance criterion. The important questions are whether the protocol keeps decisions, actions, figures, and attribution, and whether a person can correct it without rewriting the meeting from scratch.
 
