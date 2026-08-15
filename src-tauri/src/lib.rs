@@ -587,8 +587,21 @@ async fn start_transcription(
     coordinator: State<'_, JobCoordinatorState>,
     meeting_id: String,
     fail_requested: bool,
+    // Whether separation was asked for at all, kept distinct from the count
+    // because asking without knowing how many is now a usable answer.
+    separate_speakers: Option<bool>,
     expected_speakers: Option<u32>,
 ) -> Result<(), String> {
+    // An older caller that sends only a count still means "separate into this
+    // many", so the flag defaults to whether one was given.
+    let speakers = match (
+        separate_speakers.unwrap_or(expected_speakers.is_some()),
+        expected_speakers,
+    ) {
+        (false, _) => processing::Speakers::Together,
+        (true, Some(count)) => processing::Speakers::SeparateInto(count),
+        (true, None) => processing::Speakers::Separate,
+    };
     let root = storage.root.clone();
     let (job, snapshot) = with_repository_root(root.clone(), {
         let meeting_id = meeting_id.clone();
@@ -597,7 +610,7 @@ async fn start_transcription(
                 root,
                 &meeting_id,
                 fail_requested,
-                expected_speakers,
+                speakers,
             )
         }
     })

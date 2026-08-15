@@ -173,6 +173,13 @@ pub(crate) const DIARISER_NAMES: &[&str] = &[
     "sherpa-onnx-speaker-diarization",
 ];
 
+/// What the speaker-embedding runtime is called.
+///
+/// Only the shipped name: unlike whisper and the diariser, this executable is
+/// ours rather than an upstream tool somebody might already have, so there is no
+/// second name that could mean the same thing.
+pub(crate) const EMBEDDING_NAMES: &[&str] = &["localog-speaker-embedding"];
+
 /// Where a runtime is looked for, in the order it is looked for.
 ///
 /// What ships with the application comes first. A packaged release that found a
@@ -543,6 +550,9 @@ mod tests {
         // be found, so the shipped name is a preference and not the only option.
         assert!(WHISPER_NAMES.contains(&"whisper-cli"));
         assert!(DIARISER_NAMES.contains(&"sherpa-onnx-offline-speaker-diarization"));
+        // The embedding sidecar is ours, so it has exactly one name and no
+        // upstream alternative that could mean the same thing.
+        assert_eq!(EMBEDDING_NAMES, &["localog-speaker-embedding"]);
     }
 
     /// Without a known application directory there is nothing to prefer, and the

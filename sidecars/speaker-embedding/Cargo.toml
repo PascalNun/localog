@@ -1,0 +1,18 @@
+[package]
+name = "localog-speaker-embedding"
+version = "0.0.0"
+publish = false
+license = "GPL-3.0-or-later"
+edition = "2024"
+
+# No dependencies. The sidecar reads a WAV, calls nine C functions and writes a
+# binary file; every one of those is smaller than the crate that would do it.
+[dependencies]
+
+[[bin]]
+name = "localog-speaker-embedding"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+strip = true

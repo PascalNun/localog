@@ -17,6 +17,20 @@
 // against that study's measurements on a real meeting.
 #![allow(dead_code)]
 
+/// Above this, a merge is judged to be joining a person to themselves rather than
+/// to somebody else, so the count is read as the number of groups left when the
+/// merging first falls below it.
+///
+/// Fitted to what has been measured and not to a principle. On a fixture with
+/// recorded ground truth the merge similarities fall 0.810, 0.790, 0.777, then
+/// 0.255, so anything between those two is right there. On the reference meeting,
+/// which is real videoconference audio and has no known speaker count, this finds
+/// twelve voices where the diariser's own automatic mode finds sixty-seven.
+///
+/// One fixture and one unlabelled meeting is not enough to fix a constant. It is
+/// used to offer an estimate the user can change, never to assert a number.
+pub(crate) const SAME_VOICE_FLOOR: f32 = 0.20;
+
 /// The order in which segments merged into voices, and how alike each pair was.
 ///
 /// Built once. Any number of speakers can then be read from it, which is what
@@ -159,6 +173,55 @@ impl Merged {
     }
 }
 
+/// Read the vectors the embedding sidecar wrote.
+///
+/// Returns the segment each vector belongs to alongside it. Segments too short to
+/// place a voice from are absent rather than zeroed, so a gap here means "nothing
+/// was heard" rather than "a voice of silence", and the caller can leave those
+/// segments unattributed instead of grouping them with whoever else happens to be
+/// quiet.
+pub(crate) fn read_vectors(path: &std::path::Path) -> Result<(Vec<u32>, Vec<Vec<f32>>), String> {
+    let bytes = std::fs::read(path).map_err(|error| format!("{}: {error}", path.display()))?;
+    if bytes.len() < 16 || &bytes[0..4] != b"LLEM" {
+        return Err("The speaker pass did not write recognisable embeddings.".into());
+    }
+    let word =
+        |at: usize| u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]]);
+    let version = word(4);
+    if version != 1 {
+        return Err(format!(
+            "These embeddings are version {version}, which this build does not read."
+        ));
+    }
+    let count = word(8) as usize;
+    let dimensions = word(12) as usize;
+    if dimensions == 0 {
+        return Err("The embeddings describe no dimensions.".into());
+    }
+    let stride = 4 + dimensions * 4;
+    if bytes.len() < 16 + count * stride {
+        return Err("The embeddings are shorter than they claim to be.".into());
+    }
+    let mut segments = Vec::with_capacity(count);
+    let mut vectors = Vec::with_capacity(count);
+    for row in 0..count {
+        let at = 16 + row * stride;
+        segments.push(word(at));
+        let mut vector = Vec::with_capacity(dimensions);
+        for value in 0..dimensions {
+            let of = at + 4 + value * 4;
+            vector.push(f32::from_le_bytes([
+                bytes[of],
+                bytes[of + 1],
+                bytes[of + 2],
+                bytes[of + 3],
+            ]));
+        }
+        vectors.push(vector);
+    }
+    Ok((segments, vectors))
+}
+
 fn normalize(vector: &[f32]) -> Vec<f32> {
     let length = vector.iter().map(|value| value * value).sum::<f32>().sqrt();
     if length <= f32::EPSILON {
@@ -259,6 +322,23 @@ mod tests {
         assert!(merged.similarities().iter().all(|value| value.is_finite()));
     }
 
+    /// A file that is not what it claims must be refused rather than read as
+    /// whatever the bytes happen to mean.
+    #[test]
+    fn embeddings_that_are_not_embeddings_are_refused() {
+        let path = std::env::temp_dir().join("localog-not-embeddings.bin");
+        std::fs::write(&path, b"not a vector file at all").expect("a file");
+        assert!(read_vectors(&path).is_err());
+        std::fs::write(
+            &path,
+            b"LLEM\x09\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x00",
+        )
+        .expect("a file");
+        let error = read_vectors(&path).expect_err("a version refusal");
+        assert!(error.contains("version 9"), "{error}");
+        let _ = std::fs::remove_file(&path);
+    }
+
     /// Check the grouping against the study that justified building it.
     ///
     /// The spike in `spikes/speaker-embedding/` measured the same vectors in
@@ -271,22 +351,9 @@ mod tests {
     #[ignore = "requires embeddings from the speaker-embedding study"]
     fn matches_the_study_that_justified_it() {
         let path = std::env::var("LOCALOG_VECTORS").expect("a vectors file");
-        let document: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(path).expect("readable"))
-                .expect("valid JSON");
-        let vectors: Vec<Vec<f32>> = document["vectors"]
-            .as_array()
-            .expect("vectors")
-            .iter()
-            .map(|row| {
-                row["embedding"]
-                    .as_array()
-                    .expect("an embedding")
-                    .iter()
-                    .map(|value| value.as_f64().expect("a number") as f32)
-                    .collect()
-            })
-            .collect();
+        let (segments, vectors) =
+            read_vectors(std::path::Path::new(&path)).expect("readable embeddings");
+        assert_eq!(segments.len(), vectors.len());
 
         let merged = merge(&vectors);
         let voices = merged.voices(11);

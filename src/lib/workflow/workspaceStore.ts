@@ -12,6 +12,7 @@ import type {
   ProtocolProviderStatus,
   ProtocolStyle,
   SourceSelection,
+  SpeakerRequest,
   TranscriptDocument,
   MeetingAudio,
   TranscriptionCapability,
@@ -55,7 +56,7 @@ export interface WorkspaceStore {
   startTranscription(
     meetingId: string,
     failRequested: boolean,
-    expectedSpeakers?: number | null,
+    speakers?: SpeakerRequest,
   ): Promise<void>;
   startGeneration(meetingId: string, failRequested: boolean): Promise<void>;
   cancelProcessing(meetingId: string): Promise<void>;
@@ -181,9 +182,14 @@ class TauriWorkspaceStore implements WorkspaceStore {
   startTranscription(
     meetingId: string,
     failRequested: boolean,
-    expectedSpeakers: number | null = null,
+    speakers: SpeakerRequest = 'together',
   ): Promise<void> {
-    return invoke('start_transcription', { meetingId, failRequested, expectedSpeakers });
+    return invoke('start_transcription', {
+      meetingId,
+      failRequested,
+      separateSpeakers: speakers !== 'together',
+      expectedSpeakers: typeof speakers === 'number' ? speakers : null,
+    });
   }
 
   startGeneration(meetingId: string, failRequested: boolean): Promise<void> {

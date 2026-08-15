@@ -459,8 +459,7 @@
           presetLabel={presetDisplayName(capability.selectedPreset)}
           job={snapshot.jobs.find((job) => job.meetingId === meeting.id) ?? snapshot.activeJob}
           onNavigate={navigate}
-          onTranscribe={(expectedSpeakers) =>
-            bridge.startTranscription(meeting.id, expectedSpeakers)}
+          onTranscribe={(speakers) => bridge.startTranscription(meeting.id, speakers)}
           {speakerStatus}
           speakerPreparing={downloading['speaker-separation'] !== undefined}
           speakerDownloadPercent={downloading['speaker-separation'] ?? 0}

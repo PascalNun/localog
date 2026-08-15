@@ -286,6 +286,34 @@ fn provider_processing_error(error: provider::ProviderError) -> ProcessingError 
     }
 }
 
+/// What somebody asked for about speakers when they started a transcription.
+///
+/// Three answers rather than a number that might be missing. Leaving them together
+/// is a choice somebody made, not an absence of one, and the pass must not run
+/// because the models happen to be installed.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Speakers {
+    /// Leave the transcript with one label.
+    Together,
+    /// Separate them, and work out how many there were.
+    Separate,
+    /// Separate them; this many people spoke.
+    SeparateInto(u32),
+}
+
+impl Speakers {
+    fn count(self) -> Option<u32> {
+        match self {
+            Self::SeparateInto(count) => Some(count),
+            _ => None,
+        }
+    }
+
+    fn wanted(self) -> bool {
+        !matches!(self, Self::Together)
+    }
+}
+
 /// Queue transcription without naming a speaker count.
 ///
 /// Used by the tests, which are about the pipeline rather than about speakers.
@@ -297,16 +325,16 @@ pub(crate) fn queue_transcription(
     meeting_id: &str,
     fail_requested: bool,
 ) -> StorageResult<(ProcessingJobRecord, WorkspaceSnapshot)> {
-    queue_transcription_with_expected(root, meeting_id, fail_requested, None)
+    queue_transcription_with_expected(root, meeting_id, fail_requested, Speakers::Together)
 }
 
 pub(crate) fn queue_transcription_with_expected(
     root: &Path,
     meeting_id: &str,
     fail_requested: bool,
-    expected_speakers: Option<u32>,
+    speakers: Speakers,
 ) -> StorageResult<(ProcessingJobRecord, WorkspaceSnapshot)> {
-    if let Some(count) = expected_speakers
+    if let Some(count) = speakers.count()
         && !(2..=64).contains(&count)
     {
         return Err(StorageError::InvalidData(
@@ -344,7 +372,7 @@ pub(crate) fn queue_transcription_with_expected(
         .join(format!("{revision_id}.json"));
     let (provider, runtime_version, model_digest, settings_json, runtime_config_json) =
         transcription_metadata(&repository, &language, use_synthetic_adapters())?;
-    let settings_json = transcription_settings_with_speakers(&settings_json, expected_speakers);
+    let settings_json = transcription_settings_with_speakers(&settings_json, speakers);
     let now = unix_time_millis();
     let transaction = repository
         .connection
@@ -381,21 +409,25 @@ pub(crate) fn queue_transcription_with_expected(
     Ok((job, repository.workspace_snapshot()?))
 }
 
-fn transcription_settings_with_speakers(
-    settings_json: &str,
-    expected_speakers: Option<u32>,
-) -> String {
+fn transcription_settings_with_speakers(settings_json: &str, speakers: Speakers) -> String {
     let mut settings = serde_json::from_str::<serde_json::Value>(settings_json)
         .unwrap_or_else(|_| serde_json::json!({}));
     if let Some(object) = settings.as_object_mut() {
-        match expected_speakers {
-            Some(count) => {
-                object.insert("expectedSpeakers".to_string(), serde_json::json!(count));
-            }
-            None => {
-                object.insert("expectedSpeakers".to_string(), serde_json::Value::Null);
-            }
-        }
+        // Both are written. Whether separation was wanted and how many people
+        // there were are different questions, and a job recorded before the
+        // second could be answered without the first is a job nobody can read
+        // back correctly.
+        object.insert(
+            "separateSpeakers".to_string(),
+            serde_json::json!(speakers.wanted()),
+        );
+        object.insert(
+            "expectedSpeakers".to_string(),
+            match speakers.count() {
+                Some(count) => serde_json::json!(count),
+                None => serde_json::Value::Null,
+            },
+        );
     }
     serde_json::to_string(&settings).unwrap_or_else(|_| settings_json.to_string())
 }
@@ -1194,16 +1226,22 @@ fn execute_real_transcription(
 
     // Speakers are a separate capability. When it is unavailable the transcript is
     // still committed with the neutral label rather than the job failing.
-    let expected_speakers = job
+    let settings = job
         .settings_json
         .as_deref()
         .and_then(|settings| serde_json::from_str::<serde_json::Value>(settings).ok())
-        .and_then(|settings| {
-            settings
-                .get("expectedSpeakers")
-                .and_then(serde_json::Value::as_u64)
-        })
+        .unwrap_or_else(|| serde_json::json!({}));
+    let expected_speakers = settings
+        .get("expectedSpeakers")
+        .and_then(serde_json::Value::as_u64)
         .and_then(|count| u32::try_from(count).ok());
+    // Three answers, not two. A count means separate and this is how many; asking
+    // for separation without one means separate and work it out; neither means
+    // leave it alone, which is a choice somebody made and not an absence.
+    let separate = settings
+        .get("separateSpeakers")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(expected_speakers.is_some());
     let timings: Vec<(u64, u64)> = artifact
         .segments
         .iter()
@@ -1213,7 +1251,7 @@ fn execute_real_transcription(
         repository,
         &normalized,
         &timings,
-        expected_speakers,
+        separate.then_some(expected_speakers),
         cancellation,
         report,
     )? {
@@ -1240,14 +1278,125 @@ enum DiarisationOutcome {
     Resolved(Vec<String>),
 }
 
-fn diarise(
+/// Separate speakers by embedding each segment and grouping the vectors.
+///
+/// `Ok(None)` means the runtime or its model is not installed and the older
+/// diariser should be tried; every other outcome is this pass's answer.
+///
+/// The count is used when somebody offered one and estimated otherwise. Estimating
+/// is possible here and was not before: the diariser answered by re-reading the
+/// audio, so a different number cost another eight minutes and had to be settled
+/// in advance by somebody who often does not know it. Here the merging happens once
+/// and any number is read off it.
+fn embed_and_group(
     repository: &WorkspaceRepository,
     normalized: &Path,
     timings: &[(u64, u64)],
     expected_speakers: Option<u32>,
     cancellation: &AtomicBool,
     report: &mut dyn FnMut(u64, &'static str) -> Result<(), ProcessingError>,
+) -> Result<Option<DiarisationOutcome>, ProcessingError> {
+    let Some(executable) = runtime::discover_executable(runtime::EMBEDDING_NAMES) else {
+        return Ok(None);
+    };
+    // The embedding model is the one the diarisation pass already manages; this
+    // pass simply does not need the segmentation model beside it.
+    let Some((_, embedding_model)) = models::diarisation_model_paths(&repository.root) else {
+        return Ok(None);
+    };
+    if timings.is_empty() {
+        return Ok(Some(DiarisationOutcome::Unavailable));
+    }
+    report(90, "separating_speakers")?;
+
+    let working = normalized.parent().unwrap_or(&repository.root);
+    let segments_path = working.join("speaker-segments.json");
+    let vectors_path = working.join("speaker-vectors.bin");
+    let segments_json = serde_json::to_string(
+        &timings
+            .iter()
+            .map(|(start, end)| serde_json::json!({"startMs": start, "endMs": end}))
+            .collect::<Vec<_>>(),
+    )
+    .map_err(|error| ProcessingError::Runtime {
+        code: "speaker_segments_unwritable",
+        message: error.to_string(),
+    })?;
+    if std::fs::write(&segments_path, segments_json).is_err() {
+        return Ok(None);
+    }
+
+    let mut command = std::process::Command::new(&executable);
+    command
+        .arg("--model")
+        .arg(&embedding_model)
+        .arg("--audio")
+        .arg(normalized)
+        .arg("--segments")
+        .arg(&segments_path)
+        .arg("--out")
+        .arg(&vectors_path)
+        .arg("--threads")
+        .arg(media::worker_threads().to_string());
+    let outcome = runtime::run_process(
+        command,
+        cancellation,
+        runtime::ProcessLimits::with_max_output(64 * 1024),
+    );
+    let _ = std::fs::remove_file(&segments_path);
+
+    let result = match outcome {
+        Ok(_) => match crate::clustering::read_vectors(&vectors_path) {
+            Ok((segments, vectors)) if !vectors.is_empty() => {
+                let merged = crate::clustering::merge(&vectors);
+                let voices = match expected_speakers.filter(|count| *count >= 2) {
+                    Some(count) => merged.voices(count as usize),
+                    // Nobody said, so the merging is asked where it stopped
+                    // joining a person to themselves. An estimate, offered as one.
+                    None => merged.voices(merged.voices_above(crate::clustering::SAME_VOICE_FLOOR)),
+                };
+                // A segment too short to embed has no vector and keeps the neutral
+                // label rather than being given somebody else's.
+                let mut named: Vec<Option<usize>> = vec![None; timings.len()];
+                for (segment, voice) in segments.iter().zip(voices) {
+                    if let Some(slot) = named.get_mut(*segment as usize) {
+                        *slot = Some(voice);
+                    }
+                }
+                Some(DiarisationOutcome::Resolved(
+                    named
+                        .into_iter()
+                        .map(|voice| format!("Speaker {}", voice.unwrap_or(0) + 1))
+                        .collect(),
+                ))
+            }
+            // The runtime ran and produced nothing usable, which is a failure of
+            // this pass rather than a reason to spend half an hour on the other.
+            _ => Some(DiarisationOutcome::Failed),
+        },
+        Err(runtime::ProcessFailure::Cancelled) => return Err(ProcessingError::Cancelled),
+        Err(_) => Some(DiarisationOutcome::Failed),
+    };
+    let _ = std::fs::remove_file(&vectors_path);
+    Ok(result)
+}
+
+/// `asked` is `None` when nobody wanted speakers separated, and `Some(count)` when
+/// they did — where the count inside is `None` if they asked LocaLog to work out
+/// how many people spoke.
+fn diarise(
+    repository: &WorkspaceRepository,
+    normalized: &Path,
+    timings: &[(u64, u64)],
+    asked: Option<Option<u32>>,
+    cancellation: &AtomicBool,
+    report: &mut dyn FnMut(u64, &'static str) -> Result<(), ProcessingError>,
 ) -> Result<DiarisationOutcome, ProcessingError> {
+    // Nobody asked. The models stay installed after the first use, so without this
+    // the pass would run on every later transcription unbidden.
+    let Some(expected_speakers) = asked else {
+        return Ok(DiarisationOutcome::Unavailable);
+    };
     // Speaker separation runs when somebody says how many people were speaking,
     // and not otherwise.
     //
@@ -1262,6 +1411,21 @@ fn diarise(
     // producing a result already known to be unusable. Declining is not a
     // limitation: it is refusing to spend half an hour on an answer that would be
     // wrong.
+    // The embedding runtime replaces all of the below where it is available: one
+    // vector per segment, grouped by arithmetic, so the number of speakers is an
+    // answer rather than a question and costs nothing to change. Measured on the
+    // reference meeting at 29 seconds against the diariser's 498.
+    if let Some(outcome) = embed_and_group(
+        repository,
+        normalized,
+        timings,
+        expected_speakers,
+        cancellation,
+        report,
+    )? {
+        return Ok(outcome);
+    }
+
     let Some(expected_speakers) = expected_speakers.filter(|count| *count >= 2) else {
         return Ok(DiarisationOutcome::Unavailable);
     };
@@ -2286,20 +2450,32 @@ pub(crate) fn retry_job(
         Some({
             let metadata =
                 transcription_metadata(&repository, &language, use_synthetic_adapters())?;
-            let expected_speakers = prior_settings
+            let stored = prior_settings
                 .as_deref()
                 .and_then(|settings| serde_json::from_str::<serde_json::Value>(settings).ok())
-                .and_then(|settings| {
-                    settings
-                        .get("expectedSpeakers")
-                        .and_then(serde_json::Value::as_u64)
-                })
+                .unwrap_or_else(|| serde_json::json!({}));
+            // A retry repeats what was asked for the first time, including the
+            // choice to leave the speakers alone.
+            let count = stored
+                .get("expectedSpeakers")
+                .and_then(serde_json::Value::as_u64)
                 .and_then(|count| u32::try_from(count).ok());
+            let speakers = match (
+                stored
+                    .get("separateSpeakers")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(count.is_some()),
+                count,
+            ) {
+                (false, _) => Speakers::Together,
+                (true, Some(count)) => Speakers::SeparateInto(count),
+                (true, None) => Speakers::Separate,
+            };
             (
                 metadata.0,
                 metadata.1,
                 metadata.2,
-                transcription_settings_with_speakers(&metadata.3, expected_speakers),
+                transcription_settings_with_speakers(&metadata.3, speakers),
                 metadata.4,
             )
         })

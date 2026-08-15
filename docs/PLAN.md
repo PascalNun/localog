@@ -129,7 +129,7 @@ Three ways to avoid asking were measured and none works:
   looked like a signal, but twenty returns fifteen. A real estimator would keep answering ten for
   anything above ten. Two agreeing points inside a narrow window are a coincidence, not a method.
 
-#### The pipeline is the wrong shape, and the fix is known — not started, needs a decision
+#### The pipeline was the wrong shape — replaced, and the count is now an answer
 
 Every problem above traces to one thing: the pass runs pyannote **segmentation** to find where
 speakers change, over audio whose boundaries transcription already established. The condensation, the
@@ -152,12 +152,31 @@ What survives from the sampling work is its central finding — two seconds of a
 place a voice — which is exactly what makes per-segment embedding cheap. What becomes unnecessary is
 the plumbing around it.
 
-The cost is real and unpaid: today the diariser is a supervised sidecar binary. This means linking
-`libsherpa-onnx-c-api` or writing a small sidecar that uses it, which changes the distribution work
-already pinned down. There is one genuine loss — pyannote can in principle catch a speaker change
-inside a single transcript segment, and one embedding per segment cannot. Segments average 7.3
-seconds here and the sample is taken from the middle, and the 126-segment merged runs suggest the
-current pipeline is not catching them in practice either.
+That is now built. `localog-speaker-embedding` is a supervised sidecar like the others, built from
+the same pinned sherpa-onnx revision as the diariser and linked statically so it carries no
+dependency on the machine that built it. It writes one vector per segment as a small versioned
+binary file rather than through a pipe, because a meeting's worth is megabytes. The grouping happens
+in the application and is checked against the study: on the reference meeting it reproduces it
+exactly, `388 120 102 17 17 11 10 7 1 1 1` at eleven voices.
+
+**The interface now offers three answers rather than two.** Leave the speakers together, separate
+them into a stated number, or separate them and let LocaLog work out how many. The third was not
+offerable before: the diariser answered by re-reading the audio, so a count had to be settled in
+advance by somebody who often does not know it. Leaving them together remains a choice somebody
+made rather than an absence of one, and the pass does not run because the models happen to be
+installed.
+
+The estimate reads the count off where the merging stops joining a person to themselves. The floor
+is fitted to one fixture with ground truth and one meeting without, so it is offered as an estimate
+that can be replaced with a number, never asserted.
+
+The diariser remains as the fallback where the embedding sidecar is not installed. There is one
+genuine loss against it — pyannote can in principle catch a speaker change inside a single transcript
+segment, and one embedding per segment cannot. Segments average 7.3 seconds here and the sample is
+taken from the middle, and the 126-segment merged runs suggest the older pipeline was not catching
+them in practice either.
+
+Not yet built and run on a clean machine, which is the same gap the other two sidecars have.
 
 #### Still unanswered
 
