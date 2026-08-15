@@ -265,14 +265,17 @@ multilingual quality evidence exist.
 
 ## What is not yet true
 
-- Recording from the microphone or system audio is not implemented. The study in
-  `spikes/meeting-recording/` defines the platform-neutral recorder contract and has the microphone
-  and the survive-a-kill mechanism working. System audio is written but **has never been observed to
-  capture anything**: macOS gates it behind Screen & System Audio Recording, hands an unauthorised
-  tap silence rather than an error, and will not attribute a permission request from a process
-  running below a terminal. Not permitted and not working are indistinguishable from there, so that
-  has to be answered from inside the packaged application, which has its own signed identity.
-  Storing a recording as Opus is built and measured; nothing writes into it yet.
+- Recording from the microphone or system audio is not wired into the application, but every part of
+  it now works in the study in `spikes/meeting-recording/`: the microphone, system audio, surviving
+  a kill without losing audio, and storing the result as Opus. System audio took five attempts and
+  failed all five for one reason — macOS gates it behind Screen & System Audio Recording and hands
+  an unauthorised tap silence rather than an error. Once granted, it captures. **A tap that is not
+  permitted is indistinguishable from one that is broken**, which is why a recorder must show that
+  sound is arriving before a meeting starts rather than after it ends.
+
+  What remains is the interface — the record screen — and answering whether the two tracks drift
+  apart over a long meeting, which a short run cannot separate from a fixed start offset.
+
 - Project and meeting archive actions are not exposed in the interface.
 - Basic backup and restore are not implemented.
 - The release config bundles the whisper.cpp and diariser sidecars once the target-specific artifacts have been built. Neither has been produced by the release command and run end to end yet, and FFmpeg still needs the same treatment.
