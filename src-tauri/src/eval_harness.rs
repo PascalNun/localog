@@ -88,7 +88,13 @@ fn does_the_model_follow_the_style() {
             vocabulary_revision: "adherence".into(),
             vocabulary: Vec::new(),
             transcript: transcript.clone(),
-            seed: 7,
+            // Variable, because a fixed seed makes a repeat reproduce the same run
+            // rather than test it. A comparison between models is only worth acting
+            // on if it survives the sampling.
+            seed: std::env::var("LOCALOG_ADHERENCE_SEED")
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(7),
             temperature_milli: 200,
             context_tokens: std::env::var("LOCALOG_EVAL_CONTEXT")
                 .ok()
@@ -139,7 +145,12 @@ fn does_the_model_follow_the_style() {
             .filter(|fact| crate::facts::is_accounted_for(fact, &markdown))
             .count();
         let safe = name.replace([':', '/', '.'], "-");
-        std::fs::write(out.join(format!("protocol-{safe}.md")), &markdown).expect("written");
+        let seed = request.seed;
+        std::fs::write(
+            out.join(format!("protocol-{safe}-seed{seed}.md")),
+            &markdown,
+        )
+        .expect("written");
         println!(
             "{name:>16} {seconds:>8} {headings:>9} {dividers:>7} {:>11} {bullets:>8} {:>13}",
             rows.len().saturating_sub(dividers * 2),
