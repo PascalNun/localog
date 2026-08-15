@@ -2684,3 +2684,18 @@ button.review-summary[aria-pressed='true'] {
   opacity: 0.35;
   cursor: default;
 }
+
+/* Where the keyboard is on the recording. Always drawn, because a caret that
+   appears only once somebody has moved it does not tell them they can. */
+.review-caret {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--ink);
+  opacity: 0.55;
+}
+.review-track:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

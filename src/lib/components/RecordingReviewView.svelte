@@ -59,12 +59,14 @@
     dragging = true;
     track.setPointerCapture(event.pointerId);
     const at = timeAt(event);
+    caretMs = at;
     selecting = { fromMs: at, toMs: at };
   }
 
   function extendSelection(event: PointerEvent) {
     if (!dragging || !selecting) return;
-    selecting = { ...selecting, toMs: timeAt(event) };
+    caretMs = timeAt(event);
+    selecting = { ...selecting, toMs: caretMs };
   }
 
   function endSelection(event: PointerEvent) {
@@ -82,6 +84,55 @@
         toMs: Math.max(selecting.fromMs, selecting.toMs),
       }
     : null;
+
+  /// Selecting by keyboard, because dragging is the only way to do this otherwise
+  /// and a keyboard cannot drag. A caret moves along the recording with the arrow
+  /// keys; holding shift takes the selection with it, which is how selection works
+  /// in every text field a person has ever used.
+  ///
+  /// The step is a thirtieth of the recording so that crossing an hour-long meeting
+  /// takes a few seconds, and a finer one is available on the same keys.
+  let caretMs = 0;
+  function stepFor(event: KeyboardEvent) {
+    if (event.altKey) return Math.max(100, Math.round(durationMs / 2000));
+    if (event.shiftKey || event.metaKey) return Math.max(1000, Math.round(durationMs / 300));
+    return Math.max(1000, Math.round(durationMs / 30));
+  }
+
+  function onTrackKey(event: KeyboardEvent) {
+    if (!durationMs) return;
+    const extend = event.shiftKey;
+    let next = caretMs;
+    switch (event.key) {
+      case 'ArrowRight':
+        next = Math.min(durationMs, caretMs + stepFor(event));
+        break;
+      case 'ArrowLeft':
+        next = Math.max(0, caretMs - stepFor(event));
+        break;
+      case 'Home':
+        next = 0;
+        break;
+      case 'End':
+        next = durationMs;
+        break;
+      case 'Escape':
+        selecting = null;
+        return;
+      default:
+        return;
+    }
+    event.preventDefault();
+    if (extend) {
+      // Anchor where the selection began, so shift-left after shift-right shrinks
+      // it rather than starting a new one going the other way.
+      const anchor = selecting ? selecting.fromMs : caretMs;
+      selecting = { fromMs: anchor, toMs: next };
+    } else {
+      selecting = null;
+    }
+    caretMs = next;
+  }
 
   async function commit(next: RecordingEdits) {
     edits = next;
@@ -159,14 +210,23 @@
           <span>{clock(durationMs)}</span>
         </div>
 
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="review-track"
           bind:this={track}
+          role="slider"
+          tabindex="0"
+          aria-label="The recording. Move with the arrow keys, hold shift to select."
+          aria-valuemin={0}
+          aria-valuemax={Math.round(durationMs / 1000)}
+          aria-valuenow={Math.round(caretMs / 1000)}
+          aria-valuetext={selection
+            ? `Selected ${clock(selection.fromMs)} to ${clock(selection.toMs)}`
+            : clock(caretMs)}
           onpointerdown={beginSelection}
           onpointermove={extendSelection}
           onpointerup={endSelection}
           onpointercancel={endSelection}
+          onkeydown={onTrackKey}
         >
           <div class="review-waveform" aria-hidden="true">
             {#each waveform as peak, index (index)}
@@ -190,6 +250,7 @@
               )}%"
             ></div>
           {/each}
+          <div class="review-caret" style="left: {percent(caretMs)}%"></div>
           {#if selection}
             <div
               class="review-selection"
@@ -204,7 +265,7 @@
           {#if selection}
             Selected {clock(selection.fromMs)} to {clock(selection.toMs)}.
           {:else}
-            Drag across the recording to select a stretch.
+            Drag across the recording to select a stretch, or use the arrow keys and hold shift.
           {/if}
         </p>
 
