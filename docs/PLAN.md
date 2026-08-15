@@ -233,6 +233,13 @@ it back feel possible.
 Editing before transcription is what keeps that simple: no transcript exists yet whose timestamps
 would have to be reconciled with a timeline that just got shorter.
 
+The recording timeline is usable without a pointer, which it was not when first built: it takes
+focus, the arrow keys move a visible caret along it, holding shift takes the selection with them the
+way selection works in a text field, and `Home`, `End` and `Escape` do what they say. Alt gives a
+finer step and shift a coarser one, so crossing an eighty-minute meeting is a few keys rather than
+a hundred. It announces itself as a slider whose value is the selection, so what a screen reader
+says and what the screen shows are the same thing.
+
 The editor still needs long-document, accessibility, and real-background-load validation.
 
 ### Libraries and settings — Partial
