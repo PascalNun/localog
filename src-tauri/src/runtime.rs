@@ -173,6 +173,16 @@ pub(crate) const DIARISER_NAMES: &[&str] = &[
     "sherpa-onnx-speaker-diarization",
 ];
 
+/// What the media tools are called, most preferred first.
+///
+/// The shipped names come first for the same reason as the others: a packaged
+/// release that found a system installation before its own signed sidecar would
+/// be running something nobody reviewed. The upstream names follow, because
+/// almost every developer machine already has these two and should not have to
+/// build a sidecar to run the application.
+pub(crate) const FFMPEG_NAMES: &[&str] = &["localog-ffmpeg", "ffmpeg"];
+pub(crate) const FFPROBE_NAMES: &[&str] = &["localog-ffprobe", "ffprobe"];
+
 /// What the speaker-embedding runtime is called.
 ///
 /// Only the shipped name: unlike whisper and the diariser, this executable is
@@ -553,6 +563,14 @@ mod tests {
         // The embedding sidecar is ours, so it has exactly one name and no
         // upstream alternative that could mean the same thing.
         assert_eq!(EMBEDDING_NAMES, &["localog-speaker-embedding"]);
+        // FFmpeg was found only on PATH for as long as it was looked for by a
+        // different function than everything else, so a bundled copy would have
+        // been packaged, signed and never used - exactly the fault this list was
+        // written to stop happening twice.
+        assert_eq!(FFMPEG_NAMES.first(), Some(&"localog-ffmpeg"));
+        assert_eq!(FFPROBE_NAMES.first(), Some(&"localog-ffprobe"));
+        assert!(FFMPEG_NAMES.contains(&"ffmpeg"));
+        assert!(FFPROBE_NAMES.contains(&"ffprobe"));
     }
 
     /// Without a known application directory there is nothing to prefer, and the
