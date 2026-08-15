@@ -315,10 +315,16 @@ audio with Metal; the embedding sidecar reproduces the reference meeting's group
 
 What to do next, in this order, because each unblocks what follows:
 
-1. **Package the application** — `npm run tauri:build`. Nothing has ever been bundled. This is the
-   highest-value step because it settles several questions at once: whether the release config
-   places all three sidecars, whether the resolver finds them inside the bundle, and whether the
-   whole path runs against shipped runtimes rather than a developer's machine.
+1. ~~Package the application.~~ **Done on 15 August 2026, and it works.** `LocaLog.app` bundles all
+   five sidecars into `Contents/MacOS` with the target suffix stripped, which is the shape the
+   resolver expects; each runs from inside the bundle, and the FFmpeg licence texts ship in
+   `Contents/Resources`. The application is ad-hoc signed, with no team identifier — enough to run
+   locally, not enough to distribute.
+
+   The `.dmg` step fails, and not for a reason in this project: `create-dmg` drives Finder over
+   AppleScript to arrange the window, and the build machine has not granted Automation permission
+   for Finder, so it stops with `-1743`. The application bundle is complete either way. A machine
+   with that permission, or a CI runner, produces the disk image.
 
 2. **Answer the system-audio question inside that package.** macOS gates capture behind Screen &
    System Audio Recording and hands an unauthorised tap silence rather than an error, and it will

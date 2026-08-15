@@ -4,7 +4,10 @@
     "externalBin": [
       "binaries/localog-whisper",
       "binaries/localog-speaker-diarization",
-      "binaries/localog-speaker-embedding"
-    ]
+      "binaries/localog-speaker-embedding",
+      "binaries/localog-ffmpeg",
+      "binaries/localog-ffprobe"
+    ],
+    "resources": ["binaries/licences/*"]
   }
 }
