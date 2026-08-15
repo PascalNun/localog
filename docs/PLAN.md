@@ -361,10 +361,21 @@ afternoon — a question that was too expensive to ask casually is now cheap, wh
 dividend of moving to embeddings. Also long recordings and overlapping speech. Decide whether the optional setting becomes the default once a verified runtime
 exists, and what the review interface needs for renaming, reassignment and merging labels.
 
-Underneath all of it, still unmeasured: **whether speaker labels improve the protocol at all.** A
-protocol generated with speakers and one without, from the same meeting, would settle whether any of
-this earns its place. It is the cheapest experiment on this list and the one that could remove the
-most work.
+**That question has now been asked, and the answer reorders this list.** Three protocols from the
+reference meeting differing only in their speaker labels — none, the embedding pass's twelve, and a
+scattered fifty-four — kept 24, 20 and 23 of 35 stated figures. No benefit from the labels is
+visible, and across all three drafts the string `Speaker N` appears **once**: the generator is handed
+the speakers and attributes almost nothing.
+
+The same runs exposed two failures that matter more than the speaker count. **No draft produced the
+table of next steps** the style asks for explicitly and twice — which means the unowned-tasks check
+shown beside a draft can never fire on this model, because it reads table rows and there are none.
+And the unlabelled run produced **no headings at all**, 98 bullets against a style asking for
+numbered sections.
+
+So the next protocol-quality work is instruction adherence, not attribution. See
+`docs/MODEL_EVALUATION.md` for the measurements and their limits — one model, one meeting, one
+style, and two larger models installed but untested.
 
 ### 4. Harden the product
 

@@ -59,6 +59,64 @@ Plain code found nineteen quantities in the transcript. One early generated prot
 
 Coverage alone is not enough. One topic-by-topic run covered 23 of 24 figures but produced roughly 74,000 characters—almost the length of the transcript. A professional protocol is not a transcript with headings.
 
+## Does attributing speech to speakers improve the protocol?
+
+The question underneath every hour spent on speaker separation, asked for the first
+time on 15 August 2026. Three protocols from the reference meeting, one model
+(`qwen3.5:4b`), the shipped formal-minutes style, the same seed and temperature,
+differing only in the speaker labels the generator was given:
+
+| Labels                                        | Distinct |  Time | Characters | Figures kept | Invented |
+| --------------------------------------------- | -------: | ----: | ---------: | -----------: | -------: |
+| none — every segment `Speaker 1`              |        1 | 599 s |     18,643 | **24 of 35** |        4 |
+| grouped — the embedding pass                  |       12 | 488 s |     15,965 |     20 of 35 |        3 |
+| scattered — a diarisation run without a count |       54 | 308 s |     13,000 |     23 of 35 |        2 |
+
+**On these measures the labels do not help.** The unlabelled run kept the most
+figures; the grouped run kept the fewest and was shorter. The differences are small
+and this is one model on one meeting, so the honest reading is not "labels hurt" but
+"no benefit is visible here, and the burden is on the next measurement to find one".
+
+More telling is that the labels barely reach the page. Across all three drafts the
+string `Speaker N` appears **once**. The generator is handed twelve or fifty-four
+distinct speakers and writes a protocol that attributes almost nothing — so
+attribution is not happening whether or not separation works, which makes the
+quality of the separation the second question rather than the first.
+
+### Two failures the same runs exposed, which matter more
+
+**No draft produced a table of next steps.** The style says so explicitly and twice —
+"End with a table of agreed next steps with two columns, the task and the
+responsible party", and "The table of next steps must list every action that was
+agreed". Three runs, zero tables.
+
+That has a direct consequence for the evidence shown beside a draft: the
+unowned-tasks check reads table rows, so on this model it can never fire. The check
+is not wrong. It measures a structure the model does not produce, which is a
+different problem and a worse one.
+
+**The unlabelled run produced no headings at all** — 98 bullet lines and not one
+heading, against a style asking for numbered sections with descriptive headings. The
+labelled runs produced 12 and 25. So the labels did change the shape of the output
+markedly, just not in the way they were meant to.
+
+### What this changes
+
+Making speaker separation more accurate is not the most valuable work available. A
+protocol that ignores the participants, omits the table it was asked for, and in one
+configuration has no sections at all is failing at things a reader notices long
+before they notice a misattributed sentence.
+
+It does not show that separation is worthless: recording microphone and system audio
+on separate tracks would attribute the room against the remote participants for
+free, and a person renaming a handful of labels in review gets attribution no model
+will match. But it does mean the next protocol-quality work should be about
+instruction adherence, and the speaker count and embedding model can wait.
+
+Measured on an M1 Pro with 16 GB. One model, one meeting, one style: `granite4.1:8b`
+and `gemma4:12b` are installed and untested here, and a model that does follow the
+style would change every line of this section.
+
 ## Speaker separation
 
 The reference meeting has **no known speaker count**. The owner attended, believes they were not
