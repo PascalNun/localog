@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key>
+  <string>app.localog.spike.record-meeting</string>
+  <key>CFBundleName</key>
+  <string>LocaLog meeting recorder</string>
+  <key>NSAudioCaptureUsageDescription</key>
+  <string>LocaLog records the audio of your meeting so it can be transcribed on this device.</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>LocaLog records the microphone in the room so the meeting can be transcribed on this device.</string>
+</dict>
+</plist>
