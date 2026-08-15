@@ -33,6 +33,22 @@ export type HardwareTier = 'baseline' | 'standard' | 'larger';
  */
 export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
   {
+    id: 'gemma4-12b',
+    name: 'Gemma 4 12B',
+    family: 'Gemma 4',
+    providerNames: ['gemma4:12b'],
+    tier: 'standard',
+    minimumMemoryGb: 16,
+    sizeLabel: 'about 8 GB installed',
+    languages: ['German', 'English', 'many more'],
+    testedLanguages: ['German'],
+    originLabel: 'International open model',
+    licenseLabel: 'Gemma terms of use',
+    description:
+      'The most accurate and the steadiest of the measured models: it kept 27 to 31 of a meeting’s 35 figures across three runs, where the next best kept as few as 6. Slower — about fourteen minutes for an eighty-minute meeting.',
+    status: 'baseline',
+  },
+  {
     id: 'qwen3.5-4b',
     name: 'Qwen3.5 4B',
     family: 'Qwen3.5',
@@ -44,8 +60,9 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     testedLanguages: ['German'],
     originLabel: 'International open model',
     licenseLabel: 'Apache 2.0',
-    description: 'The current LocaLog baseline for local protocol drafts.',
-    status: 'baseline',
+    description:
+      'The fastest measured model, at about five minutes for an eighty-minute meeting, and the choice where memory is short. It never produced the table of next steps the formal style asks for.',
+    status: 'candidate',
   },
   {
     id: 'ministral-3b',
@@ -142,8 +159,12 @@ export function recommendationFor(
     (entry) => entry.minimumMemoryGb <= (tier === 'baseline' ? 8 : tier === 'standard' ? 16 : 32),
   );
 
-  // Prefer a verified installed model. The catalogue order is intentional:
-  // Qwen is the measured baseline until another candidate beats it.
+  // Prefer a verified installed model. The catalogue order is intentional and is
+  // the order the models were measured in: Gemma 4 12B kept 27 to 31 of a
+  // meeting's 35 stated figures across three seeds where Granite kept as few as
+  // 6 on identical input, and Qwen never produced the table of next steps the
+  // formal style asks for. Qwen stays ahead of nothing else on the 8 GB tier,
+  // where Gemma does not fit.
   const installed = allowed
     .map((entry) => ({ entry, installed: installedProviderModel(entry, models) }))
     .find(({ installed }) => installed !== null);
