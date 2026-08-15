@@ -54,6 +54,30 @@ The start-page sound mark is a provisional seven-stroke waveform with a slightly
 
 The logo should support the product’s purpose without pretending that LocaLog is a recording utility. It is a mark for turning spoken work into a useful written protocol.
 
+## Recording
+
+Recording is part of the interface, not an instrument panel bolted onto it. The
+start-page reference already places `Record meeting` beside `Import file`, which is
+the standard the recording screens have to meet.
+
+The sound mark is a waveform, so a recording in progress should make that mark the
+live one rather than introduce a second visual language for audio. The transcript
+player's scrubber already draws in the same thin-stroke rhythm; levels, progress and
+identity should read as one idea seen in three places. What that rules out is the
+usual recorder vocabulary — filled meters, coloured level bars, pulsing red, a
+clipping indicator borrowed from a DAW.
+
+Trimming a recording and deleting a transcript segment are editing, and editing is
+what this product is for, so both belong in the calm hierarchy the rest of the
+interface uses. The transcript reference already shows where segment actions live:
+the quiet per-row menu, not a row of buttons that appear on hover.
+
+A recording in progress must be unmistakable at a glance, for the ordinary reason
+that hiding it would be dishonest, and not as a compliance device. Whether the
+people in the room have agreed to be recorded is the responsibility of the person
+recording them. No product can verify it, and one that pretends to would be
+manufacturing a record of consent it never witnessed.
+
 ## Visual review
 
 Review the start page, project view, new-meeting flow, transcript review, protocol editor, and settings in both themes and at representative desktop and compact sizes.
