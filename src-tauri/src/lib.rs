@@ -5,6 +5,7 @@ mod e2e_harness;
 #[cfg(test)]
 mod eval_harness;
 
+mod clustering;
 mod diarisation;
 mod domain;
 mod facts;
