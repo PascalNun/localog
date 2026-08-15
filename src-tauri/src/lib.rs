@@ -8,6 +8,7 @@ mod eval_harness;
 mod clustering;
 mod diarisation;
 mod domain;
+mod edits;
 mod facts;
 mod imports;
 mod media;
