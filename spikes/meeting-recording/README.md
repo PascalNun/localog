@@ -116,11 +116,29 @@ are indistinguishable from here, both being silence. The tap code has never been
 observed to capture anything, and two confident explanations for that silence — a
 missing clock source, a missing usage description — were already wrong.
 
-So the capture has to be verified from inside the packaged application, which has
-its own signed identity, shows its own dialog naming itself, and is scoped to
-itself rather than to somebody's terminal. That is also where a user meets it, so
-it is the test whose answer transfers. Until then, nothing should be built on the
-assumption that the tap works.
+Five ways of asking have now been tried, and all five produce silence:
+
+1. a bare executable run from a terminal;
+2. the same with `NSAudioCaptureUsageDescription` linked into `__info_plist`;
+3. the same ad-hoc signed with a stable identifier;
+4. the same placed inside an `.app` bundle and run directly, which still inherits
+   the terminal's identity;
+5. the same launched with `open`, so launchd starts it and it is its own
+   responsible process rather than a child of a terminal.
+
+The fifth is the interesting one and it changed the result, though not the way
+hoped: as its own application it also lost the microphone, which had been working
+by inheriting the terminal's grant. Both tracks came back as forty-four bytes of
+WAV header and no audio. No permission dialog appeared and `tccd` logged nothing
+naming the application.
+
+That is consistent — an identity of its own means permissions of its own, and it
+has none — but it means the remaining step needs a person at the keyboard, and
+possibly a notarised application rather than an ad-hoc signed one. **The capture
+code has still never been observed to capture anything.** Whoever picks this up
+should treat that as an open question rather than a working feature, and should
+plan to answer it by granting the packaged application permission in System
+Settings and watching the level display, which is the same thing a user will do.
 
 **This is the requirement the study exists to have found.** A recorder that silently
 captures nothing is the one failure this product cannot ship, and macOS will do
