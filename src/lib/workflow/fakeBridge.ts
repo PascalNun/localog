@@ -16,6 +16,7 @@ import type {
   SpeakerSeparationStatus,
   VocabularyDraft,
   FileDropEvent,
+  SpeakerRequest,
 } from './types';
 import type { WorkspaceStore } from './workspaceStore';
 
@@ -369,12 +370,12 @@ export class FakeWorkflowBridge implements WorkflowBridge {
 
   async startTranscription(
     meetingId: string,
-    _expectedSpeakers: number | null = null,
+    speakers: SpeakerRequest = 'together',
   ): Promise<void> {
     if (this.workspaceStore) {
       const failRequested = this.snapshot.nextJobOutcome === 'failure';
       this.snapshot.nextJobOutcome = 'success';
-      await this.workspaceStore.startTranscription(meetingId, failRequested, _expectedSpeakers);
+      await this.workspaceStore.startTranscription(meetingId, failRequested, speakers);
       return;
     }
     this.startJob(meetingId, 'transcription');

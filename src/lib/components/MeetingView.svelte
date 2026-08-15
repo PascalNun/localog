@@ -4,6 +4,7 @@
     AppRoute,
     MeetingSummary,
     ProjectSummary,
+    SpeakerRequest,
     SpeakerSeparationStatus,
   } from '../workflow/types';
   import { COMMON_MEETING_LANGUAGES, meetingLanguageLabel } from '../workflow/languages';
@@ -17,7 +18,7 @@
   export let presetLabel: string = 'Not selected';
   export let job: ActiveJob | null;
   export let onNavigate: (route: AppRoute) => void;
-  export let onTranscribe: (expectedSpeakers: number | null) => Promise<void>;
+  export let onTranscribe: (speakers: SpeakerRequest) => Promise<void>;
   export let onCancel: () => Promise<void>;
   export let onRetry: () => Promise<void>;
   export let onConfirmDuplicate: () => Promise<void>;
@@ -40,20 +41,28 @@
   let titleDraft = meeting.title;
   let startingTranscription = false;
   let transcriptionStartError = '';
-  // This is a hint for this transcription run, not a global application setting.
-  let expectedSpeakers = '';
+  // A choice for this transcription run, not a global application setting.
+  // '' leaves the speakers together, 'estimate' asks LocaLog to work out how many
+  // there were, and a number says how many spoke.
+  let speakerChoice = '';
   let editingLanguage = false;
   let languageDraft = meeting.language;
   let languageError = '';
   $: relevantJob = job?.meetingId === meeting.id ? job : null;
   $: transcriptionUnavailable = Boolean(relevantJob && relevantJob.state !== 'completed');
-  $: speakerNeedsPreparation = Boolean(expectedSpeakers && !speakerStatus.modelsInstalled);
+  $: speakerNeedsPreparation = Boolean(speakerChoice && !speakerStatus.modelsInstalled);
 
   async function startTranscription() {
     startingTranscription = true;
     transcriptionStartError = '';
     try {
-      await onTranscribe(expectedSpeakers ? Number(expectedSpeakers) : null);
+      await onTranscribe(
+        speakerChoice === ''
+          ? 'together'
+          : speakerChoice === 'estimate'
+            ? 'estimate'
+            : Number(speakerChoice),
+      );
     } catch {
       transcriptionStartError = 'Transcription could not be started. Please try again.';
     } finally {
@@ -186,16 +195,19 @@
         </dl>
         <label class="transcription-option">
           <span>People speaking</span>
-          <select bind:value={expectedSpeakers}>
+          <select bind:value={speakerChoice}>
             <option value="">Do not separate speakers</option>
+            <option value="estimate">Separate them, and work out how many</option>
             {#each Array.from({ length: 29 }, (_, index) => index + 2) as count (count)}
               <option value={count}>{count} people</option>
             {/each}
           </select>
           <small
-            >Your best estimate is enough — it is the number of voices LocaLog looks for. Too many
-            can split one person in two, too few can put two people together. Left unset, the
-            transcript keeps one speaker label.</small
+            >{speakerChoice === 'estimate'
+              ? 'LocaLog groups the voices it hears and counts them. An estimate, and one you can replace with a number if it reads wrong.'
+              : speakerChoice
+                ? 'Your best estimate is enough — it is the number of voices LocaLog looks for. Too many can split one person in two, too few can put two people together.'
+                : 'The transcript keeps one speaker label.'}</small
           >
         </label>
         {#if speakerNeedsPreparation}
@@ -216,7 +228,7 @@
                 : `Prepare${speakerStatus.downloadBytes > 0 ? ` (${formatBytes(speakerStatus.downloadBytes)})` : ''}`}</button
             >
           </div>
-        {:else if expectedSpeakers && !speakerStatus.runtimeHealthy}
+        {:else if speakerChoice && !speakerStatus.runtimeHealthy}
           <p class="setting-hint speaker-runtime-note">
             The speaker runtime is not available in this installation. Transcription can continue,
             but the transcript will use editable generic speaker labels.

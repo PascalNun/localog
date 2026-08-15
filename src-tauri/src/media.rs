@@ -381,7 +381,7 @@ pub(crate) fn diarisation_command(request: &DiarisationRequest<'_>) -> Command {
 
 /// Threads to give a model runtime: enough to use the machine, while leaving room
 /// for the interface to stay responsive.
-fn worker_threads() -> usize {
+pub(crate) fn worker_threads() -> usize {
     std::thread::available_parallelism()
         .map(|value| (value.get().saturating_sub(2)).clamp(1, 8))
         .unwrap_or(1)

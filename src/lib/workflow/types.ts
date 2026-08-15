@@ -82,6 +82,17 @@ export interface ProtocolRevisionSummary {
  * front of a person asks them to read less carefully, and reading carefully is the
  * only check in this product that reliably works.
  */
+/**
+ * What somebody asked for about speakers. Three answers rather than a number that
+ * might be missing: leaving them together is a choice, not an absence of one, and
+ * the separation pass must not run because the models happen to be installed.
+ *
+ * `'estimate'` is only offered where the runtime can work the number out, which
+ * the diariser could not — it answered by re-reading the audio, so every count
+ * cost another pass and had to be decided in advance.
+ */
+export type SpeakerRequest = 'together' | 'estimate' | number;
+
 export interface ProtocolEvidence {
   quantitiesStated: number;
   quantitiesAccounted: number;
@@ -268,7 +279,7 @@ export interface WorkflowBridge {
   createProject(input: NewProjectInput): Promise<ProjectSummary>;
   createMeeting(input: NewMeetingInput): Promise<MeetingSummary>;
   importRecording(meetingId: string): Promise<void>;
-  startTranscription(meetingId: string, expectedSpeakers?: number | null): Promise<void>;
+  startTranscription(meetingId: string, speakers?: SpeakerRequest): Promise<void>;
   generateProtocol(meetingId: string): Promise<void>;
   cancelActiveJob(meetingId: string): Promise<void>;
   retryActiveJob(meetingId: string): Promise<void>;
