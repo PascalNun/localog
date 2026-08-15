@@ -85,44 +85,46 @@ quality of the separation the second question rather than the first.
 
 ### Is the model too small, or the prompt wrong?
 
-The failures above have one cheap question underneath them, asked on 15 August 2026
-by running the same transcript and the same shipped style through the installed
-models. One run each, same seed, structure counted rather than prose read.
+Asked on 15 August 2026 by running the same transcript and the same shipped style
+through the installed models, counting structure rather than reading prose. Then
+asked again at two further seeds, which changed the answer.
 
-| Model           |      Time | Headings | Tables | Bullets | Figures kept |    Characters |
-| --------------- | --------: | -------: | -----: | ------: | -----------: | ------------: |
-| `qwen3.5:4b`    | 308–599 s |     0–25 |  **0** |   53–98 |  20–24 of 35 | 13,000–18,643 |
-| `granite4.1:8b` |     555 s |       23 |  **1** |      21 |     22 of 35 |         4,830 |
-| `gemma4:12b`    |     827 s |        3 |      0 |      64 | **31 of 35** |        11,036 |
+| Model           | Seed |  Time | Headings | Tables | Figures kept |
+| --------------- | ---: | ----: | -------: | -----: | -----------: |
+| `granite4.1:8b` |    7 | 555 s |       23 |      1 |     22 of 35 |
+| `granite4.1:8b` |  101 | 558 s |       26 |      1 |     19 of 35 |
+| `granite4.1:8b` |  202 | 526 s |       16 |      1 |  **6 of 35** |
+| `gemma4:12b`    |    7 | 827 s |        3 |      0 |     31 of 35 |
+| `gemma4:12b`    |  101 | 841 s |       21 |      1 |     29 of 35 |
+| `gemma4:12b`    |  202 | 816 s |       25 |      1 |     27 of 35 |
+| `qwen3.5:4b`    |    7 | 317 s |       10 |      0 |     24 of 35 |
 
-**The instructions are followable.** `granite4.1:8b` produced the table of next steps
-that `qwen3.5:4b` never produced in four runs, with four rows and an owner against
-every one of them. So the prompt is not the fault, and prompt engineering is not
-where the next improvement lies.
+**The instructions are followable.** Both larger models produce the table of next
+steps at most seeds, which `qwen3.5:4b` never produced in five runs. The prompt is
+not the fault, and prompt engineering is not where the next improvement lies.
 
-**No installed model does both jobs.** Granite gives structure and then compresses
-an eighty-two minute meeting into 4,830 characters — less than the shortest of the
-three documents a person wrote for this meeting, against a style that says plainly
-not to summarise. Gemma keeps 31 of 35 figures, far the best factual retention
-measured here, and produces three headings and no table.
+**Single-run comparisons between models are worthless here, and one was nearly acted
+on.** The first sweep used one seed and produced two conclusions that do not
+survive: that `gemma4:12b` does not produce tables — it does, at two of three seeds
+— and that the two models trade structure against completeness, which was an
+artifact of the one seed each was measured at.
 
-**The current default is the worst of the three on both axes.** `qwen3.5:4b` was
-endorsed earlier in this document on the strength of producing a full-length German
-draft; that endorsement predates any structural measurement and should not be relied
-on.
+**What does survive is a difference in reliability.** `granite4.1:8b` keeps 22, 19
+and 6 of 35 stated figures on identical input: a run that loses five sixths of the
+figures a meeting stated is not a tool for producing a record, and nothing in the
+output announces which run it was. `gemma4:12b` keeps 27, 29 and 31 — a spread of
+four against granite's sixteen, and better at its worst than granite at its best.
 
-So the largest lever available is the model, not the wording. A change of model moves
-figures kept from 20 to 31 out of 35, which is a bigger difference than anything
-achieved by rewriting instructions.
+So `gemma4:12b` is the candidate, on both accuracy and stability, at roughly 1.5×
+granite's time and 2.6× `qwen3.5:4b`'s. The endorsement `qwen3.5:4b` carries earlier
+in this document predates any structural measurement and should not be relied on.
 
-Generation is reproducible: run again with the same seed, transcript and style and
-the same model returns the same document, to the heading. That is worth having —
-evidence about a draft means little if the draft cannot be reproduced — but it also
-means a "repeat" at a fixed seed tests nothing. The seed is now a variable in the
-harness, and a comparison between models is only worth acting on if it survives
-being run at several.
+Generation is reproducible: the same seed, transcript and style return the same
+document to the heading. That is worth having — evidence about a draft means little
+if the draft cannot be reproduced — but it also means a "repeat" at a fixed seed
+tests nothing, which is how the first sweep came to be believed.
 
-One meeting, one style, German.
+One meeting, one style, German, three seeds.
 
 ### Two failures the same runs exposed, which matter more
 
