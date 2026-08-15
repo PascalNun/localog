@@ -65,5 +65,9 @@ temp/
 .claude/
 
 # Generated Tauri sidecars
-src-tauri/binaries/localog-speaker-diarization-*
-src-tauri/binaries/*.exe
+# Sidecars are native artifacts built by scripts/build-*-sidecar.sh and signed
+# with the application. They are never committed: they are megabytes, they are
+# specific to one machine's target, and the whole point of the build scripts is
+# that they can be reproduced from a pinned source revision.
+src-tauri/binaries/*
+!src-tauri/binaries/README.md
