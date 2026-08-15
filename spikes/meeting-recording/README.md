@@ -94,6 +94,34 @@ binary's `__info_plist`, ad-hoc code signing, and running from inside a signed
 The recorder now asks before it creates anything and refuses with that explanation
 rather than producing a file of nothing.
 
+**Whether the capture itself works is still unproven, and cannot be proven from a
+terminal.** The permission is granted to an application, and this study's binary
+runs several processes below one:
+
+```
+/bin/zsh
+  └ …/Application Support/Claude/claude-code/<version>/claude.app/…/claude
+      └ /Applications/Claude.app/Contents/Helpers/disclaimer
+          └ /Applications/Claude.app
+```
+
+The nested bundle in the middle is separately signed, so a grant to the
+application at the bottom does not reach the top, and its path carries a version
+number that changes with every update. `CGRequestScreenCaptureAccess()` returns
+false immediately without showing a dialog, so macOS will not even attribute the
+request.
+
+That distinction matters more than it looks: **not permitted** and **not working**
+are indistinguishable from here, both being silence. The tap code has never been
+observed to capture anything, and two confident explanations for that silence — a
+missing clock source, a missing usage description — were already wrong.
+
+So the capture has to be verified from inside the packaged application, which has
+its own signed identity, shows its own dialog naming itself, and is scoped to
+itself rather than to somebody's terminal. That is also where a user meets it, so
+it is the test whose answer transfers. Until then, nothing should be built on the
+assumption that the tap works.
+
 **This is the requirement the study exists to have found.** A recorder that silently
 captures nothing is the one failure this product cannot ship, and macOS will do
 exactly that by default. Whatever gets built has to establish that sound is arriving
