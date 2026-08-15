@@ -83,6 +83,42 @@ distinct speakers and writes a protocol that attributes almost nothing — so
 attribution is not happening whether or not separation works, which makes the
 quality of the separation the second question rather than the first.
 
+### Is the model too small, or the prompt wrong?
+
+The failures above have one cheap question underneath them, asked on 15 August 2026
+by running the same transcript and the same shipped style through the installed
+models. One run each, same seed, structure counted rather than prose read.
+
+| Model           |      Time | Headings | Tables | Bullets | Figures kept |    Characters |
+| --------------- | --------: | -------: | -----: | ------: | -----------: | ------------: |
+| `qwen3.5:4b`    | 308–599 s |     0–25 |  **0** |   53–98 |  20–24 of 35 | 13,000–18,643 |
+| `granite4.1:8b` |     555 s |       23 |  **1** |      21 |     22 of 35 |         4,830 |
+| `gemma4:12b`    |     827 s |        3 |      0 |      64 | **31 of 35** |        11,036 |
+
+**The instructions are followable.** `granite4.1:8b` produced the table of next steps
+that `qwen3.5:4b` never produced in four runs, with four rows and an owner against
+every one of them. So the prompt is not the fault, and prompt engineering is not
+where the next improvement lies.
+
+**No installed model does both jobs.** Granite gives structure and then compresses
+an eighty-two minute meeting into 4,830 characters — less than the shortest of the
+three documents a person wrote for this meeting, against a style that says plainly
+not to summarise. Gemma keeps 31 of 35 figures, far the best factual retention
+measured here, and produces three headings and no table.
+
+**The current default is the worst of the three on both axes.** `qwen3.5:4b` was
+endorsed earlier in this document on the strength of producing a full-length German
+draft; that endorsement predates any structural measurement and should not be relied
+on.
+
+So the largest lever available is the model, not the wording. A change of model moves
+figures kept from 20 to 31 out of 35, which is a bigger difference than anything
+achieved by rewriting instructions.
+
+One meeting, one style, one run per model, German. Repeats would be worth having
+before choosing a default, because a single run cannot separate a model's behaviour
+from a sampling accident.
+
 ### Two failures the same runs exposed, which matter more
 
 **No draft produced a table of next steps.** The style says so explicitly and twice —
