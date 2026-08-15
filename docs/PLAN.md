@@ -243,9 +243,17 @@ Work in this order:
 
 1. Decide whether the current sectioned approach is enough or whether the structured evidence record should become the production intermediate.
 2. Keep the useful transcript-to-segment links and unclaimed-segment reporting.
-3. Quantities kept, figures invented, and length against the recording are measured and shown.
-   Unsupported statements, actions without owners, and missing sections still need checks that can
-   be relied on.
+3. Quantities kept, figures invented, length against the recording, and tasks recorded with nobody
+   against them are measured and shown. Unsupported statements still need a check that can be
+   relied on, and the obvious ones need a model to judge its own work, which this project has
+   already found unreliable.
+
+   Missing sections cannot be checked as things stand. A style's `required_sections` are stored as
+   English literals while the protocol is written in the meeting's language, and they are
+   deliberately kept out of the prompt — sending them once took the reference protocol from 17,393
+   characters to 2,747. Matching "Actions" against "Aufgaben" needs something the application does
+   not have.
+
 4. Retry one failed section or pass rather than discarding the complete run.
 5. Compare the result with the existing human reference on completeness, correctness, attribution, length, and editing effort—not length alone.
 6. Repeat the same workflow with an English meeting or synthetic equivalent.

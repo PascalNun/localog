@@ -228,6 +228,16 @@
                 >
               </p>
             {/if}
+            {#if evidence.tasksUnowned && evidence.tasksUnowned.length > 0}
+              <p class="evidence-unowned">
+                {evidence.tasksUnowned.length === 1
+                  ? 'One task here has nobody against it'
+                  : `${evidence.tasksUnowned.length} tasks here have nobody against them`}:
+                {evidence.tasksUnowned.join('; ')}. The draft leaves an owner out rather than
+                guessing at one, so this may be exactly what the meeting decided — and it is far
+                cheaper to put a name to it now than at the next meeting.
+              </p>
+            {/if}
             <p class="evidence-length">
               {lengthAgainstRecording}
             </p>

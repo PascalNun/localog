@@ -124,8 +124,10 @@ No final assembly decision was made in this meeting.
 
 ## Actions
 
-- Prepare the acoustic note and updated cost range before Thursday afternoon.
-- Carry both viable options into the next review.
+| Task | Responsible |
+| --- | --- |
+| Prepare the acoustic note and updated cost range before Thursday | Priya |
+| Carry both viable options into the next review | |
 `,
   styleId: 'style-formal',
   reviewState: 'draft',
@@ -133,6 +135,16 @@ No final assembly decision was made in this meeting.
   saveState: 'saved',
   savedAtMs: Date.now(),
   revisions: [{ id: 'protocol-demo-1', ordinal: 1, status: 'draft', createdAtMs: Date.now() }],
+  // The preview shows the evidence a real run records, because a demonstration
+  // that omits it demonstrates a different product.
+  evidence: {
+    quantitiesStated: 4,
+    quantitiesAccounted: 3,
+    quantitiesInvented: [],
+    tasksUnowned: ['Carry both viable options into the next review'],
+    charactersSpoken: 6120,
+    charactersWritten: 780,
+  },
 };
 
 function sampleTranscriptDocument(meetingId: string): TranscriptDocument {
