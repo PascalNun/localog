@@ -31,6 +31,7 @@ function mockStore(overrides: Partial<WorkspaceStore> = {}): WorkspaceStore {
     cancelProcessing: vi.fn<WorkspaceStore['cancelProcessing']>(),
     retryProcessing: vi.fn<WorkspaceStore['retryProcessing']>(),
     updateTranscriptSegment: vi.fn<WorkspaceStore['updateTranscriptSegment']>(),
+    deleteTranscriptSegment: vi.fn<WorkspaceStore['deleteTranscriptSegment']>(),
     renameTranscriptSpeaker: vi.fn<WorkspaceStore['renameTranscriptSpeaker']>(),
     subscribeFileDrops: vi
       .fn<WorkspaceStore['subscribeFileDrops']>()

@@ -68,6 +68,7 @@ export interface WorkspaceStore {
     segmentId: string,
     text: string,
   ): Promise<WorkspaceData>;
+  deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<WorkspaceData>;
   renameTranscriptSpeaker(
     meetingId: string,
     speaker: string,
@@ -212,6 +213,10 @@ class TauriWorkspaceStore implements WorkspaceStore {
     text: string,
   ): Promise<WorkspaceData> {
     return invoke('update_transcript_segment', { meetingId, segmentId, text });
+  }
+
+  deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<WorkspaceData> {
+    return invoke('delete_transcript_segment', { meetingId, segmentId });
   }
 
   renameTranscriptSpeaker(

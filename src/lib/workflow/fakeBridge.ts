@@ -465,6 +465,24 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     this.emit();
   }
 
+  async deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<void> {
+    if (this.workspaceStore) {
+      this.applyDurableWorkspace(
+        await this.workspaceStore.deleteTranscriptSegment(meetingId, segmentId),
+      );
+      this.emit();
+      return;
+    }
+    const document = this.snapshot.transcripts[meetingId];
+    // The last one stays, as it does in the application: a transcript of nothing
+    // is not a document somebody meant to make.
+    if (!document || document.segments.length <= 1) return;
+    document.segments = document.segments.filter((candidate) => candidate.id !== segmentId);
+    document.isDirty = true;
+    document.savedAtMs = Date.now();
+    this.emit();
+  }
+
   async updateTranscriptSegment(meetingId: string, segmentId: string, text: string): Promise<void> {
     if (this.workspaceStore) {
       this.applyDurableWorkspace(

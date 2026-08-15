@@ -315,6 +315,7 @@ export interface WorkflowBridge {
   updateMeetingTitle(meetingId: string, title: string): Promise<void>;
   updateMeetingLanguage(meetingId: string, language: string): Promise<void>;
   updateTranscriptSegment(meetingId: string, segmentId: string, text: string): Promise<void>;
+  deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<void>;
   updateSpeaker(meetingId: string, speaker: string, replacement: string): Promise<void>;
   /** Files dropped onto the window. Returns an unsubscribe function. */
   subscribeFileDrops(handler: (event: FileDropEvent) => void): () => void;
