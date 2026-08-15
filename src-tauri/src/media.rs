@@ -249,6 +249,54 @@ pub(crate) fn condense_for_diarisation(
     write_pcm16_mono_16k(destination, &condensed)
 }
 
+/// Write the working audio a person's edits leave behind.
+///
+/// The same arithmetic as the speaker pass: the working file is 16 kHz mono 16-bit
+/// PCM that this module wrote, so keeping part of it is a byte range and not a
+/// question for a tool. Exact by construction, and quick enough that trimming a
+/// long meeting is not something to wait for.
+///
+/// The recording this reads is never modified. That is the whole point of holding
+/// the edits as a description: somebody who trims two minutes and then finds the
+/// decision was inside them has lost nothing.
+pub(crate) fn apply_edits(
+    source: &Path,
+    duration_ms: u64,
+    edits: &crate::edits::Edits,
+    destination: &Path,
+) -> Result<(), String> {
+    let spans = crate::edits::kept(duration_ms, edits);
+    if spans.is_empty() {
+        return Err("These edits would leave no recording at all.".into());
+    }
+    let (data_offset, data_length) = pcm16_mono_16k_data(source)?;
+    let mut file = fs::File::open(source)
+        .map_err(|error| format!("The recording could not be read: {error}"))?;
+
+    let mut kept = Vec::new();
+    for span in &spans {
+        let from = span.from_ms * BYTES_PER_MS;
+        let wanted = span.length_ms() * BYTES_PER_MS;
+        // A span reaching past the end of the audio keeps what is there. The
+        // duration comes from a probe and the file is what it is; trusting the
+        // probe over the file would read whatever follows it.
+        let available = data_length.saturating_sub(from).min(wanted);
+        if available == 0 {
+            continue;
+        }
+        let at = kept.len();
+        kept.resize(at + available as usize, 0);
+        file.seek(SeekFrom::Start(data_offset + from))
+            .map_err(|error| format!("The recording could not be read: {error}"))?;
+        file.read_exact(&mut kept[at..])
+            .map_err(|error| format!("The recording could not be read: {error}"))?;
+    }
+    if kept.is_empty() {
+        return Err("These edits would leave no recording at all.".into());
+    }
+    write_pcm16_mono_16k(destination, &kept)
+}
+
 /// Bytes of working audio per millisecond: 16 kHz, one channel, two bytes a frame.
 const BYTES_PER_MS: u64 = 32;
 
@@ -566,6 +614,81 @@ mod tests {
             timings.last().expect("a segment").1 as f64 / 60_000.0,
             condensed as f64 / 60_000.0,
         );
+    }
+
+    /// Cutting must take exactly the audio the edits describe, and must leave the
+    /// recording it read alone. A test that only checks the length would pass on a
+    /// file that kept the wrong seconds.
+    #[test]
+    fn edits_keep_exactly_the_audio_they_describe() {
+        let directory = std::env::temp_dir().join("localog-apply-edits");
+        std::fs::create_dir_all(&directory).expect("working directory");
+        let source = directory.join("recording.wav");
+        let destination = directory.join("edited.wav");
+        // Sixty seconds where every frame records the millisecond it belongs to.
+        let mut audio = Vec::new();
+        for ms in 0..60_000u64 {
+            for _ in 0..16 {
+                audio.extend_from_slice(&(ms as i16).to_le_bytes());
+            }
+        }
+        write_pcm16_mono_16k(&source, &audio).expect("a recording");
+        let before = std::fs::read(&source).expect("readable");
+
+        // Start at ten seconds, end at fifty, and drop twenty to thirty.
+        let edits = crate::edits::Edits {
+            start_ms: 10_000,
+            end_ms: Some(50_000),
+            removed: vec![crate::edits::Span {
+                from_ms: 20_000,
+                to_ms: 30_000,
+            }],
+        };
+        apply_edits(&source, 60_000, &edits, &destination).expect("edited");
+
+        let written = std::fs::read(&destination).expect("output");
+        let (offset, length) = pcm16_mono_16k_data(&destination).expect("readable");
+        let kept = &written[offset as usize..(offset + length) as usize];
+        // Ten to twenty and thirty to fifty: thirty seconds.
+        assert_eq!(length, 30_000 * BYTES_PER_MS);
+        let at = |ms: u64| {
+            let byte = (ms * BYTES_PER_MS) as usize;
+            i16::from_le_bytes([kept[byte], kept[byte + 1]])
+        };
+        // Compared through the same conversion the fixture used, because a
+        // millisecond past 32767 does not fit in a sample and wraps.
+        let millisecond = |ms: u64| ms as i16;
+        assert_eq!(at(0), millisecond(10_000), "the edit begins at the trim");
+        assert_eq!(
+            at(9_999),
+            millisecond(19_999),
+            "the last moment before the cut"
+        );
+        assert_eq!(at(10_000), millisecond(30_000), "the first moment after it");
+        assert_eq!(at(29_999), millisecond(49_999), "the edit ends at the trim");
+
+        // And the recording it read is untouched, which is the promise.
+        assert_eq!(std::fs::read(&source).expect("readable"), before);
+        let _ = std::fs::remove_dir_all(&directory);
+    }
+
+    /// Edits that keep nothing must refuse rather than write an empty file that
+    /// later looks like a recording of silence.
+    #[test]
+    fn edits_that_keep_nothing_are_refused() {
+        let directory = std::env::temp_dir().join("localog-apply-nothing");
+        std::fs::create_dir_all(&directory).expect("working directory");
+        let source = directory.join("recording.wav");
+        write_pcm16_mono_16k(&source, &vec![0u8; 32_000]).expect("a recording");
+        let edits = crate::edits::Edits {
+            removed: vec![crate::edits::Span {
+                from_ms: 0,
+                to_ms: 1_000,
+            }],
+            ..Default::default()
+        };
+        assert!(apply_edits(&source, 1_000, &edits, &directory.join("out.wav")).is_err());
+        let _ = std::fs::remove_dir_all(&directory);
     }
 
     /// The arithmetic is only right for the working format, so anything else is
