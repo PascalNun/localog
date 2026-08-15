@@ -14,6 +14,147 @@ use crate::provider::*;
 use std::sync::atomic::AtomicBool;
 use std::time::Instant;
 
+/// Does the model follow the style it was given?
+///
+/// Asked because three runs of `qwen3.5:4b` produced no table of next steps, which
+/// the formal style demands explicitly and twice, and one of them produced no
+/// headings at all. That is a worse failure than any misattributed sentence, and it
+/// has one cheap question underneath it: is the model too small, or is the prompt
+/// wrong? A larger model producing the table answers "use a better model"; every
+/// model failing the same way answers "the instructions do not work".
+///
+/// Counts structure rather than reading the prose, because the instructions being
+/// tested are structural: numbered sections with headings, and a closing table with
+/// two columns.
+///
+/// ```text
+/// LOCALOG_ADHERENCE_TRANSCRIPT=<transcript json> \
+/// LOCALOG_ADHERENCE_OUT=<a directory outside the repository> \
+/// LOCALOG_ADHERENCE_MODELS=qwen3.5:4b,granite4.1:8b,gemma4:12b \
+///   cargo test --lib -- --ignored --nocapture does_the_model_follow_the_style
+/// ```
+#[test]
+#[ignore = "requires a real transcript and a running Ollama"]
+fn does_the_model_follow_the_style() {
+    let transcript_path = std::env::var("LOCALOG_ADHERENCE_TRANSCRIPT").expect("a transcript");
+    let out = std::path::PathBuf::from(std::env::var("LOCALOG_ADHERENCE_OUT").expect("a folder"));
+    let language = std::env::var("LOCALOG_EVAL_LANGUAGE").unwrap_or("German".into());
+    let wanted: Vec<String> = std::env::var("LOCALOG_ADHERENCE_MODELS")
+        .unwrap_or("qwen3.5:4b".into())
+        .split(',')
+        .map(|name| name.trim().to_string())
+        .filter(|name| !name.is_empty())
+        .collect();
+    std::fs::create_dir_all(&out).expect("an output folder");
+
+    let value: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&transcript_path).expect("readable"))
+            .expect("json");
+    let segments: Vec<crate::domain::TranscriptSegment> =
+        serde_json::from_value(value["segments"].clone()).expect("segments");
+    let transcript: Vec<GenerationSegment> = segments
+        .iter()
+        .map(|segment| GenerationSegment {
+            start_ms: segment.start_ms,
+            speaker: segment.speaker.clone(),
+            text: segment.text.clone(),
+        })
+        .collect();
+    let stated = crate::facts::quantities(&segments);
+
+    let provider = OllamaProvider::loopback();
+    let runtime_version = provider.version().expect("ollama must be running");
+    let installed = provider.installed_models().unwrap();
+
+    println!(
+        "{:>16} {:>8} {:>9} {:>7} {:>11} {:>8} {:>13}",
+        "model", "seconds", "headings", "tables", "table rows", "bullets", "figures kept"
+    );
+    let mut summary = String::from(
+        "| model | seconds | characters | headings | tables | figures kept |\\n\
+         | --- | ---: | ---: | ---: | ---: | ---: |\\n",
+    );
+    for name in &wanted {
+        let Some(model) = installed.iter().find(|candidate| candidate.name == *name) else {
+            println!("{name:>16}  not installed, skipped");
+            continue;
+        };
+        let request = GenerationRequest {
+            model: model.name.clone(),
+            model_digest: model.digest.clone(),
+            runtime_version: runtime_version.clone(),
+            meeting_language: language.clone(),
+            style: formal_minutes_style(),
+            vocabulary_revision: "adherence".into(),
+            vocabulary: Vec::new(),
+            transcript: transcript.clone(),
+            seed: 7,
+            temperature_milli: 200,
+            context_tokens: std::env::var("LOCALOG_EVAL_CONTEXT")
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(40_960),
+            maximum_output_tokens: std::env::var("LOCALOG_EVAL_OUTPUT")
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(8_192),
+        };
+        let started = Instant::now();
+        let markdown =
+            match provider.generate(&request, &AtomicBool::new(false), &mut |_, _| Ok(())) {
+                Ok(markdown) => markdown,
+                Err(error) => {
+                    println!("{name:>16}  failed: {error:?}");
+                    continue;
+                }
+            };
+        let seconds = started.elapsed().as_secs();
+
+        let lines: Vec<&str> = markdown.lines().collect();
+        let headings = lines
+            .iter()
+            .filter(|line| line.trim_start().starts_with('#'))
+            .count();
+        let rows: Vec<&&str> = lines
+            .iter()
+            .filter(|line| line.trim_start().starts_with('|'))
+            .collect();
+        let dividers = rows
+            .iter()
+            .filter(|line| {
+                line.trim()
+                    .chars()
+                    .all(|c| matches!(c, '|' | '-' | ':' | ' '))
+            })
+            .count();
+        let bullets = lines
+            .iter()
+            .filter(|line| {
+                let trimmed = line.trim_start();
+                trimmed.starts_with("- ") || trimmed.starts_with("* ")
+            })
+            .count();
+        let kept = stated
+            .iter()
+            .filter(|fact| crate::facts::is_accounted_for(fact, &markdown))
+            .count();
+        let safe = name.replace([':', '/', '.'], "-");
+        std::fs::write(out.join(format!("protocol-{safe}.md")), &markdown).expect("written");
+        println!(
+            "{name:>16} {seconds:>8} {headings:>9} {dividers:>7} {:>11} {bullets:>8} {:>13}",
+            rows.len().saturating_sub(dividers * 2),
+            format!("{kept}/{}", stated.len()),
+        );
+        summary.push_str(&format!(
+            "| {name} | {seconds} | {} | {headings} | {dividers} | {kept}/{} |\\n",
+            markdown.len(),
+            stated.len()
+        ));
+    }
+    std::fs::write(out.join("adherence.md"), &summary).expect("written");
+    println!("\\ndrafts written to {}", out.display());
+}
+
 /// Does attributing speech to speakers make the protocol better?
 ///
 /// The question underneath every hour spent on speaker separation, and it has never

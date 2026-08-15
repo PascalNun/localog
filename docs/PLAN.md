@@ -379,9 +379,16 @@ shown beside a draft can never fire on this model, because it reads table rows a
 And the unlabelled run produced **no headings at all**, 98 bullets against a style asking for
 numbered sections.
 
-So the next protocol-quality work is instruction adherence, not attribution. See
-`docs/MODEL_EVALUATION.md` for the measurements and their limits — one model, one meeting, one
-style, and two larger models installed but untested.
+That instruction-adherence question has since been asked too, across the installed models.
+`granite4.1:8b` **does** produce the table `qwen3.5:4b` never produced, so the instructions are
+followable and the prompt is not the fault. But no installed model does both jobs: granite gives
+structure and compresses the meeting to 4,830 characters, gemma keeps 31 of 35 figures with three
+headings and no table, and the current default is the worst of the three on both axes.
+
+**So the largest lever is the model, not the wording** — a change of model moves figures kept from 20
+to 31 out of 35, more than any rewriting of instructions has achieved. Choosing a default deserves
+repeats first, since one run cannot separate a model's behaviour from a sampling accident. See
+`docs/MODEL_EVALUATION.md`.
 
 ### 4. Harden the product
 
