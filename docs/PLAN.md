@@ -379,16 +379,18 @@ shown beside a draft can never fire on this model, because it reads table rows a
 And the unlabelled run produced **no headings at all**, 98 bullets against a style asking for
 numbered sections.
 
-That instruction-adherence question has since been asked too, across the installed models.
-`granite4.1:8b` **does** produce the table `qwen3.5:4b` never produced, so the instructions are
-followable and the prompt is not the fault. But no installed model does both jobs: granite gives
-structure and compresses the meeting to 4,830 characters, gemma keeps 31 of 35 figures with three
-headings and no table, and the current default is the worst of the three on both axes.
+That instruction-adherence question has since been asked too, across the installed models and at
+three seeds each. The instructions are followable: both larger models produce the table
+`qwen3.5:4b` never produced in five runs. **So the prompt is not the fault**, and the largest lever
+available is the model.
 
-**So the largest lever is the model, not the wording** — a change of model moves figures kept from 20
-to 31 out of 35, more than any rewriting of instructions has achieved. Choosing a default deserves
-repeats first, since one run cannot separate a model's behaviour from a sampling accident. See
-`docs/MODEL_EVALUATION.md`.
+What the seeds changed is which model. On identical input `granite4.1:8b` keeps 22, 19 and 6 of 35
+stated figures — a run that loses five sixths of a meeting's figures is not a tool for producing a
+record, and nothing in the output says which run it was. `gemma4:12b` keeps 27, 29 and 31, better at
+its worst than granite at its best, at about 1.5× the time.
+
+**`gemma4:12b` is the candidate for the default**, and the endorsement `qwen3.5:4b` carries in the
+evaluation predates any structural measurement. See `docs/MODEL_EVALUATION.md`.
 
 ### 4. Harden the product
 
