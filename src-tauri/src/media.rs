@@ -259,6 +259,86 @@ pub(crate) fn condense_for_diarisation(
 /// The recording this reads is never modified. That is the whole point of holding
 /// the edits as a description: somebody who trims two minutes and then finds the
 /// decision was inside them has lost nothing.
+/// Store a recording as Opus.
+///
+/// A recorder writes plain PCM, because a format that survives being killed is
+/// worth more during a meeting than a small one. Afterwards the size matters and
+/// the risk has passed: 48 kHz mono 16-bit costs 5.76 MB a minute, so two tracks
+/// over a ninety-minute meeting is about a gigabyte, and the same recording at 32
+/// kbps Opus is about twenty-nine megabytes.
+///
+/// Opus rather than anything else because it is built for speech, transparent at
+/// this rate, and unencumbered — which matters to a GPL project in the way MP3's
+/// history should remind everybody.
+///
+/// This lives here rather than in the recorder so that every platform's recorder
+/// can stay as small as possible. Writing a WAV is something a few dozen lines of
+/// any language can do; encoding is not, and doing it once here means the Linux
+/// and Windows recorders inherit it.
+// Reachable once a recorder writes into the application. The encoding lands with
+// the rest of the recording work rather than after it, because it is the one part
+// that needs no permission from anybody's operating system to be proven.
+#[allow(dead_code)]
+pub(crate) fn encode_to_opus(
+    ffmpeg: &Path,
+    source: &Path,
+    destination: &Path,
+    kilobits: u32,
+    cancellation: &AtomicBool,
+) -> Result<(), String> {
+    let temporary = destination.with_extension("opus.part");
+    let _ = fs::remove_file(&temporary);
+    let mut command = Command::new(ffmpeg);
+    command
+        .args(["-hide_banner", "-nostdin", "-y", "-i"])
+        .arg(source)
+        .args(["-c:a", "libopus", "-b:a"])
+        .arg(format!("{kilobits}k"))
+        // Mono, because a meeting is speech and the second channel would double
+        // the file to say the same thing twice.
+        .args(["-ac", "1", "-f", "opus"])
+        .arg(&temporary);
+    if let Err(error) = run_process(
+        command,
+        cancellation,
+        ProcessLimits::with_max_output(512 * 1024),
+    ) {
+        let _ = fs::remove_file(&temporary);
+        return Err(error.to_string());
+    }
+
+    // Check what was written against what was read. An encode that stops early
+    // loses the end of a meeting and reports success, which is the failure nobody
+    // notices until they look for something that was said at the end.
+    let written = fs::metadata(&temporary)
+        .map_err(|error| {
+            let _ = fs::remove_file(&temporary);
+            format!("The recording could not be stored: {error}")
+        })?
+        .len();
+    if written == 0 {
+        let _ = fs::remove_file(&temporary);
+        return Err("The recording was stored as an empty file.".into());
+    }
+    let (_, data_length) = pcm16_mono_16k_data(source).unwrap_or((0, 0));
+    if data_length > 0 {
+        // Roughly what this many seconds should cost at this rate, allowing that
+        // a variable bitrate spends less on quiet passages than on speech.
+        let seconds = data_length as f64 / (BYTES_PER_MS * 1000) as f64;
+        let least = (seconds * kilobits as f64 * 1000.0 / 8.0 * 0.25) as u64;
+        if written < least {
+            let _ = fs::remove_file(&temporary);
+            return Err(format!(
+                "The stored recording is {written} bytes, too small for {seconds:.0} seconds."
+            ));
+        }
+    }
+    fs::rename(&temporary, destination).map_err(|error| {
+        let _ = fs::remove_file(&temporary);
+        format!("The recording could not be stored: {error}")
+    })
+}
+
 /// The shape of a recording, as peaks, for drawing.
 ///
 /// One value per bucket, from zero to one, taken as the loudest sample in that
@@ -672,6 +752,46 @@ mod tests {
             timings.last().expect("a segment").1 as f64 / 60_000.0,
             condensed as f64 / 60_000.0,
         );
+    }
+
+    /// Storing a recording must actually store it. Runs the real ffmpeg, because
+    /// the failure this guards against — an encode that stops early and reports
+    /// success — cannot happen without one.
+    #[test]
+    #[ignore = "requires ffmpeg"]
+    fn a_recording_stored_as_opus_keeps_its_length() {
+        let ffmpeg = PathBuf::from(std::env::var("LOCALOG_FFMPEG").unwrap_or("ffmpeg".into()));
+        let directory = std::env::temp_dir().join("localog-opus");
+        std::fs::create_dir_all(&directory).expect("working directory");
+        let source = directory.join("recording.wav");
+        let destination = directory.join("recording.opus");
+
+        // Sixty seconds of a tone, so the encoder has something to spend bits on;
+        // pure silence compresses to almost nothing and would prove little.
+        let mut audio = Vec::new();
+        for frame in 0..(16_000 * 60u32) {
+            let value = ((frame as f32 * 0.05).sin() * 8_000.0) as i16;
+            audio.extend_from_slice(&value.to_le_bytes());
+        }
+        write_pcm16_mono_16k(&source, &audio).expect("a recording");
+
+        let cancellation = AtomicBool::new(false);
+        encode_to_opus(&ffmpeg, &source, &destination, 32, &cancellation).expect("stored");
+
+        let raw = std::fs::metadata(&source).expect("source").len();
+        let stored = std::fs::metadata(&destination).expect("stored").len();
+        println!("{raw} bytes of PCM stored as {stored} bytes of Opus");
+        assert!(stored > 0);
+        // A minute at 32 kbps is roughly 240 KB; well under a tenth of the PCM.
+        assert!(
+            stored < raw / 5,
+            "Opus should be far smaller: {stored} vs {raw}"
+        );
+        // And not so small that the encode clearly stopped early.
+        assert!(stored > 60 * 32 * 1000 / 8 / 4, "too small to be a minute");
+        // The partial file must never be left behind.
+        assert!(!directory.join("recording.opus.part").exists());
+        let _ = std::fs::remove_dir_all(&directory);
     }
 
     /// A waveform has to show where the sound is, or trimming the quiet start of a
