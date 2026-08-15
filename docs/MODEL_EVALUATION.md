@@ -115,9 +115,14 @@ So the largest lever available is the model, not the wording. A change of model 
 figures kept from 20 to 31 out of 35, which is a bigger difference than anything
 achieved by rewriting instructions.
 
-One meeting, one style, one run per model, German. Repeats would be worth having
-before choosing a default, because a single run cannot separate a model's behaviour
-from a sampling accident.
+Generation is reproducible: run again with the same seed, transcript and style and
+the same model returns the same document, to the heading. That is worth having —
+evidence about a draft means little if the draft cannot be reproduced — but it also
+means a "repeat" at a fixed seed tests nothing. The seed is now a variable in the
+harness, and a comparison between models is only worth acting on if it survives
+being run at several.
+
+One meeting, one style, German.
 
 ### Two failures the same runs exposed, which matter more
 
