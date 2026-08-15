@@ -2661,3 +2661,26 @@ button.review-summary[aria-pressed='true'] {
   flex: none;
   margin-top: 2px;
 }
+
+/* Removing a line from a transcript. Quiet and always present rather than
+   appearing on hover, because an action somebody cannot see is one they cannot
+   use, and a keyboard never hovers. */
+.segment-remove {
+  align-self: start;
+  margin-top: 4px;
+  padding: 4px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--faint);
+  cursor: pointer;
+  line-height: 0;
+}
+.segment-remove:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--ink);
+}
+.segment-remove:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

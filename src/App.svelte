@@ -521,6 +521,7 @@
           onRetry={() => bridge.retryActiveJob(meeting.id)}
           onRerunTranscription={() => bridge.startTranscription(meeting.id)}
           onUpdateLanguage={(language) => bridge.updateMeetingLanguage(meeting.id, language)}
+          onDeleteSegment={(segmentId) => bridge.deleteTranscriptSegment(meeting.id, segmentId)}
           onUpdateSegment={(segmentId, text) =>
             bridge.updateTranscriptSegment(meeting.id, segmentId, text)}
           onUpdateSpeaker={(speaker, replacement) =>

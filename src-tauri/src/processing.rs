@@ -2076,6 +2076,53 @@ pub(crate) fn autosave_transcript_segment(
     repository.workspace_snapshot()
 }
 
+/// Take a segment out of the working transcript.
+///
+/// For the throat-clearing, the crosstalk, and the thirty seconds of somebody's
+/// dog. What is removed is not paraphrased or emptied: it is gone from the working
+/// document, so nothing downstream has to decide what an empty segment means.
+///
+/// The committed revision this was edited from is untouched, as every revision is,
+/// so a person who deletes the wrong line can return to the transcript as
+/// transcribed. That is the safety net here — there is no per-segment undo, and
+/// pretending otherwise would be worse than saying so.
+///
+/// The last segment cannot be deleted. A transcript of nothing is not a document
+/// somebody meant to make, and every screen downstream would have to learn to read
+/// one.
+pub(crate) fn delete_transcript_segment(
+    root: &Path,
+    meeting_id: &str,
+    segment_id: &str,
+) -> StorageResult<WorkspaceSnapshot> {
+    let repository = WorkspaceRepository::open(root)?;
+    let (path, checksum): (String, String) = repository.connection.query_row(
+        "SELECT artifact_path, checksum FROM transcript_working WHERE meeting_id = ?1",
+        [meeting_id],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    let bytes = read_verified(root, &path, &checksum).map_err(processing_to_storage)?;
+    let mut artifact: TranscriptArtifact = serde_json::from_slice(&bytes)
+        .map_err(|_| StorageError::InvalidData("The saved transcript is invalid."))?;
+    if !artifact
+        .segments
+        .iter()
+        .any(|segment| segment.id == segment_id)
+    {
+        return Err(StorageError::InvalidData(
+            "The transcript segment no longer exists.",
+        ));
+    }
+    if artifact.segments.len() <= 1 {
+        return Err(StorageError::InvalidData(
+            "A transcript needs at least one segment.",
+        ));
+    }
+    artifact.segments.retain(|segment| segment.id != segment_id);
+    persist_transcript_working(&repository, meeting_id, &path, &artifact)?;
+    repository.workspace_snapshot()
+}
+
 pub(crate) fn rename_speaker(
     root: &Path,
     meeting_id: &str,
@@ -3290,6 +3337,65 @@ mod tests {
             vocabulary_revision.as_deref(),
             Some(inputs.vocabulary_revision.as_str()),
             "vocabulary_revision must hold the vocabulary's revision"
+        );
+    }
+
+    /// Deleting takes the segment out rather than emptying it, so nothing
+    /// downstream has to decide what an empty segment means.
+    #[test]
+    fn a_deleted_segment_leaves_the_transcript() {
+        let fixture = Fixture::source_ready();
+        fixture.transcribe();
+        let before = WorkspaceRepository::open(&fixture.root)
+            .unwrap()
+            .workspace_snapshot()
+            .unwrap();
+        let transcript = &before.transcripts[&fixture.meeting_id];
+        let gone = transcript.segments[2].id.clone();
+        let count = transcript.segments.len();
+
+        let after = delete_transcript_segment(&fixture.root, &fixture.meeting_id, &gone).unwrap();
+        let segments = &after.transcripts[&fixture.meeting_id].segments;
+        assert_eq!(segments.len(), count - 1);
+        assert!(!segments.iter().any(|segment| segment.id == gone));
+        // The rest keep their order and their words.
+        assert_eq!(segments[0].id, transcript.segments[0].id);
+        assert_eq!(segments[2].id, transcript.segments[3].id);
+        // And the working copy is now different from what was committed, which is
+        // what puts the transcript back in review.
+        assert!(after.transcripts[&fixture.meeting_id].is_dirty);
+    }
+
+    /// A transcript of nothing is not a document somebody meant to make, and every
+    /// screen after this one would have to learn to read one.
+    #[test]
+    fn the_last_segment_cannot_be_deleted() {
+        let fixture = Fixture::source_ready();
+        fixture.transcribe();
+        let snapshot = WorkspaceRepository::open(&fixture.root)
+            .unwrap()
+            .workspace_snapshot()
+            .unwrap();
+        let ids: Vec<String> = snapshot.transcripts[&fixture.meeting_id]
+            .segments
+            .iter()
+            .map(|segment| segment.id.clone())
+            .collect();
+        for id in &ids[..ids.len() - 1] {
+            delete_transcript_segment(&fixture.root, &fixture.meeting_id, id).unwrap();
+        }
+        let refused =
+            delete_transcript_segment(&fixture.root, &fixture.meeting_id, &ids[ids.len() - 1]);
+        assert!(refused.is_err(), "the last segment must survive");
+    }
+
+    /// A segment somebody else already removed, or an id from nowhere.
+    #[test]
+    fn deleting_a_segment_that_is_not_there_is_refused() {
+        let fixture = Fixture::source_ready();
+        fixture.transcribe();
+        assert!(
+            delete_transcript_segment(&fixture.root, &fixture.meeting_id, "no-such-id").is_err()
         );
     }
 

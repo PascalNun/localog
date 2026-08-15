@@ -27,6 +27,7 @@
   export let onRerunTranscription: () => Promise<void>;
   export let onUpdateLanguage: (language: string) => Promise<void>;
   export let onUpdateSegment: (segmentId: string, text: string) => Promise<void>;
+  export let onDeleteSegment: (segmentId: string) => Promise<void>;
   export let onUpdateSpeaker: (speaker: string, replacement: string) => Promise<void>;
   export let onLoadAudio: (
     meetingId: string,
@@ -145,6 +146,24 @@
     const minutes = Math.floor((seconds % 3600) / 60);
     const remainder = seconds % 60;
     return [hours, minutes, remainder].map((value) => value.toString().padStart(2, '0')).join(':');
+  }
+
+  let deletingSegment = '';
+
+  // Removing a line is no more permanent than rewriting one, and rewriting asks
+  // nobody's permission: the committed revision is the way back from both. A
+  // dialog here would suggest this is the dangerous edit, which it is not.
+  async function removeSegment(segmentId: string) {
+    deletingSegment = segmentId;
+    saveState = 'saving';
+    try {
+      await onDeleteSegment(segmentId);
+      saveState = 'saved';
+    } catch {
+      saveState = 'failed';
+    } finally {
+      deletingSegment = '';
+    }
   }
 
   async function saveSegment(segmentId: string, text: string) {
@@ -332,6 +351,14 @@
             {#if segment.needsReview}<span class="review-flag" title={uncertainLabel(segment)}
                 ><Icon name="warning" size={14} /> {uncertainLabel(segment)}</span
               >{/if}
+            <button
+              class="segment-remove"
+              onclick={() => removeSegment(segment.id)}
+              disabled={deletingSegment === segment.id || (transcript?.segments.length ?? 0) <= 1}
+              title="Remove this line from the transcript"
+              aria-label="Remove the line at {segmentTimeLabel(segment.startMs)}"
+              ><Icon name="close" size={14} /></button
+            >
           </article>
         {/each}
       </section>

@@ -811,6 +811,21 @@ async fn update_transcript_segment(
     .await
 }
 
+/// Remove a segment from the working transcript. The committed revision it was
+/// edited from is untouched, which is where somebody goes if they delete the wrong
+/// line.
+#[tauri::command]
+async fn delete_transcript_segment(
+    state: State<'_, StorageState>,
+    meeting_id: String,
+    segment_id: String,
+) -> Result<WorkspaceSnapshot, String> {
+    with_repository_root(state.root.clone(), move |root| {
+        processing::delete_transcript_segment(root, &meeting_id, &segment_id)
+    })
+    .await
+}
+
 #[tauri::command]
 async fn rename_transcript_speaker(
     state: State<'_, StorageState>,
@@ -1167,6 +1182,7 @@ pub fn run() {
             cancel_processing,
             retry_processing,
             update_transcript_segment,
+            delete_transcript_segment,
             rename_transcript_speaker,
             save_vocabulary_entry,
             delete_vocabulary_entry,
