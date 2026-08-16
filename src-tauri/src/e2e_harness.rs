@@ -422,3 +422,72 @@ fn finds_the_topics_of_a_real_meeting() {
     );
     assert!(!topics.is_empty(), "no topics were found at all");
 }
+
+/// Exercise the correction commands against a real workspace on disk.
+///
+/// The panel was built against the fake bridge and the Rust behind it against unit
+/// tests, which between them prove that the types line up and the arithmetic is
+/// right. Neither proves that the commands read the transcript the application
+/// actually stores, write a revision it can load again, or leave the workspace in a
+/// state it can still open.
+///
+/// Non-destructive: it corrects a word to itself, so the transcript is rewritten with
+/// identical content and nothing a person typed is changed. What is under test is the
+/// path, not the substitution.
+///
+///   LOCALOG_E2E_ROOT=~/Library/Application\ Support/app.localog.desktop \
+///     cargo test --lib -- --ignored --nocapture corrects_a_transcript_through_the_real_commands
+#[test]
+#[ignore = "requires a real workspace with a transcribed meeting"]
+fn corrects_a_transcript_through_the_real_commands() {
+    let root = required("LOCALOG_E2E_ROOT");
+    let repository = WorkspaceRepository::open(&root).unwrap();
+    let meeting_id: String = repository
+        .connection
+        .query_row(
+            "SELECT meeting_id FROM transcript_working ORDER BY rowid DESC LIMIT 1",
+            [],
+            |row| row.get(0),
+        )
+        .expect("the workspace holds no working transcript");
+    drop(repository);
+
+    let candidates = processing::name_candidates(&root, &meeting_id).unwrap();
+    println!("{} candidates offered:", candidates.len());
+    for candidate in &candidates {
+        println!(
+            "  {:>3}x  {:<24} {}",
+            candidate.occurrences, candidate.heard, candidate.context
+        );
+    }
+    let Some(first) = candidates.first() else {
+        println!("nothing to correct in this workspace; the path is untested");
+        return;
+    };
+
+    let matches = processing::preview_correction(&root, &meeting_id, &first.heard, &first.heard)
+        .expect("preview must read the stored transcript");
+    println!("\n{} places for {}", matches.len(), first.heard);
+    assert!(
+        !matches.is_empty(),
+        "a candidate the extractor offered must be findable in the same transcript"
+    );
+
+    // Correcting the word to itself: every code path runs, no content changes.
+    let snapshot =
+        processing::apply_correction(&root, &meeting_id, &first.heard, &first.heard, &[], false)
+            .expect("applying must write a working transcript the workspace can load");
+
+    assert!(
+        snapshot.transcripts.contains_key(&meeting_id),
+        "the workspace must still hold this meeting's transcript afterwards"
+    );
+    let after = processing::name_candidates(&root, &meeting_id)
+        .expect("the rewritten transcript must be readable again");
+    assert_eq!(
+        after.len(),
+        candidates.len(),
+        "a correction to itself must change nothing about what is offered"
+    );
+    println!("\nthe path holds: read, preview, apply, and read again");
+}
