@@ -45,6 +45,24 @@ The last row is the one that matters. The word never appears, so the protocol mo
 
 This means the model comparisons in this document measure protocol models fairly against each other, but understate all of them. Terminology errors that were read as generation faults are transcription faults. The two levers were known and documented in this very section before the comparisons were run; neither was pulled.
 
+### Pulling both levers
+
+Same audio, same fourteen terms counted, 16 August 2026. Thirty proper nouns passed as whisper's initial prompt with `--carry-initial-prompt`, and then also the larger model.
+
+| Transcription | Terms with a correct spelling | Terms with no wrong spelling left | Time |
+| --- | ---: | ---: | ---: |
+| `base`, no vocabulary | 3 of 14 | 0 of 14 | 2 min |
+| `base` + vocabulary | 10 of 14 | 8 of 14 | 2 min |
+| `medium` + vocabulary | **13 of 14** | **11 of 14** | 7 min |
+
+Transcript length barely moved across all three — 72,837 to 74,114 characters. This is not more words, it is the same words spelled correctly.
+
+The two levers compose rather than overlap. Two of the participant surnames did not improve at all from the vocabulary on `base` and were correct immediately on `medium`: biasing a model towards a spelling only helps if it can resolve the sounds in the first place. Conversely `medium` alone would not have known which of several plausible spellings a project uses.
+
+One term resists every combination, and one pair of three-letter abbreviations differing by a single consonant still mixes. Both are arguments for making correction easy in the transcript view, not for expecting transcription to be perfect.
+
+Seven minutes against two, on an eighty-two minute meeting, for that difference in terminology. Transcription and generation never run at once, so the larger model does not compete with the language model for memory.
+
 ### Reading a draft against the written protocol
 
 The first such comparison, 16 August 2026, gemma4:12b at seed 7. Details naming the project are in `eval/COMPARISON.md`, which is not tracked.
