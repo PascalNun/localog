@@ -705,9 +705,10 @@ impl OllamaProvider {
             },
         )?;
         let structured: StructuredProtocol = parse_structured(&generated)?;
-        validate_markdown(&structured.protocol_markdown)?;
+        let markdown = strip_code_fence(&structured.protocol_markdown).to_string();
+        validate_markdown(&markdown, spoken_characters(request))?;
         progress(78, "validating_protocol")?;
-        Ok(structured.protocol_markdown)
+        Ok(markdown)
     }
 
     /// A real meeting exceeds the window. Each section is condensed first, then the
@@ -830,9 +831,10 @@ impl OllamaProvider {
             &mut |written| progress(arrived(70, 76, written, num_predict), "generating_protocol"),
         )?;
         let structured: StructuredProtocol = parse_structured(&generated)?;
-        validate_markdown(&structured.protocol_markdown)?;
+        let markdown = strip_code_fence(&structured.protocol_markdown).to_string();
+        validate_markdown(&markdown, spoken_characters(request))?;
         progress(78, "validating_protocol")?;
-        Ok(structured.protocol_markdown)
+        Ok(markdown)
     }
 
     /// Combine a group of consecutive notes into one, preserving their content.
@@ -1421,11 +1423,75 @@ fn topics_schema() -> serde_json::Value {
     })
 }
 
-fn validate_markdown(markdown: &str) -> Result<()> {
-    if markdown.trim().is_empty() {
+/// How many characters the meeting itself holds, which is what a protocol of it is
+/// judged plausible against.
+fn spoken_characters(request: &GenerationRequest) -> usize {
+    request
+        .transcript
+        .iter()
+        .map(|segment| segment.text.chars().count())
+        .sum()
+}
+
+/// Take a protocol out of the code fence a model wrapped it in.
+///
+/// Asked for markdown, models return it fenced — ```` ```markdown ```` and even
+/// ```` ```json ````. The fence is not part of the protocol and would be shown to a
+/// person as literal backticks, so it is removed. Deterministic, and cheaper than
+/// asking the model again.
+fn strip_code_fence(markdown: &str) -> &str {
+    let trimmed = markdown.trim();
+    let Some(rest) = trimmed.strip_prefix("```") else {
+        return trimmed;
+    };
+    // The word after the backticks, if any, names the language and is not content.
+    let after_language = match rest.find('\n') {
+        Some(at) if rest[..at].chars().all(char::is_alphanumeric) => &rest[at + 1..],
+        _ => rest,
+    };
+    after_language
+        .trim_end()
+        .strip_suffix("```")
+        .unwrap_or(after_language)
+        .trim()
+}
+
+/// Refuse a protocol that is plainly not one.
+///
+/// `ministral-3:8b` returned two of these in three runs on the reference meeting: a
+/// 211-byte stub carrying the placeholders the style forbids, and a JSON document
+/// with `metadata` and `organisations` keys where markdown was asked for. Both were
+/// accepted by a check that only looked for emptiness, and the second scored 28 of
+/// 35 figures because every number was in it as text.
+///
+/// The bounds are deliberately loose. A terse style legitimately writes little, so
+/// this is not a quality judgement — it catches the answer that is not a protocol at
+/// all, and leaves everything else to the person reading it.
+fn validate_markdown(markdown: &str, transcript_chars: usize) -> Result<()> {
+    let markdown = markdown.trim();
+    if markdown.is_empty() {
         return Err(ProviderError::InvalidResponse(
             "The model returned an empty protocol.".into(),
         ));
+    }
+    // A JSON object where markdown was asked for. Checked by parsing rather than by
+    // the leading brace, so a protocol that happens to open with one is safe.
+    if markdown.starts_with('{')
+        && serde_json::from_str::<serde_json::Value>(markdown).is_ok_and(|value| value.is_object())
+    {
+        return Err(ProviderError::InvalidResponse(
+            "The model returned a JSON document instead of a protocol.".into(),
+        ));
+    }
+    // A hundredth of what was said, which even the tersest style clears. The stub
+    // that prompted this was three thousandths.
+    let least = (transcript_chars / 100).clamp(200, 4_000);
+    if transcript_chars > 0 && markdown.chars().count() < least {
+        return Err(ProviderError::InvalidResponse(format!(
+            "The model returned {} characters for a meeting of {transcript_chars}, which is too \
+             little to be a protocol of it.",
+            markdown.chars().count()
+        )));
     }
     Ok(())
 }
@@ -1465,6 +1531,48 @@ mod tests {
             }
             Err(error) => panic!("the repair did not fix it: {error}"),
         }
+    }
+
+    /// The two answers ministral-3:8b really returned, which a check for emptiness
+    /// let through. Both are shaped wrongly rather than written badly, which is what
+    /// makes them catchable without a model.
+    #[test]
+    fn an_answer_that_is_not_a_protocol_is_refused() {
+        let spoken = 73_000;
+        // A JSON document where markdown was asked for. It scored 28 of 35 figures,
+        // because every number is in it as text.
+        let as_json = r#"{"meeting_protocol":{"metadata":{"language":"de"},
+            "participants":{"organisations":[{"name":"Nokia"}]}}}"#;
+        assert!(validate_markdown(as_json, spoken).is_err());
+
+        // A stub: a heading and two of the placeholders the style forbids.
+        let stub = "# Protokoll der Besprechung\n*Datum: [nicht im Transkript genannt]*";
+        assert!(validate_markdown(stub, spoken).is_err());
+
+        // And a real protocol passes, terse though it is.
+        let real = "## Beschlüsse\n\n".to_string() + &"Die Fassade bleibt. ".repeat(60);
+        assert!(validate_markdown(&real, spoken).is_ok());
+    }
+
+    /// A protocol that happens to open with a brace is not a JSON document, and
+    /// refusing it would throw away somebody's meeting over a punctuation mark.
+    #[test]
+    fn a_protocol_beginning_with_a_brace_is_not_mistaken_for_json() {
+        let awkward = "{ Anmerkung } Die Fassade bleibt. ".repeat(30);
+        assert!(validate_markdown(&awkward, 73_000).is_ok());
+    }
+
+    /// Models return markdown fenced, including — measured — fenced as json.
+    #[test]
+    fn a_fenced_protocol_is_unwrapped() {
+        assert_eq!(
+            strip_code_fence("```markdown\n## Beschluss\n\nDie Fassade bleibt.\n```"),
+            "## Beschluss\n\nDie Fassade bleibt."
+        );
+        assert_eq!(strip_code_fence("```json\n{\"a\":1}\n```"), "{\"a\":1}");
+        // An unfenced protocol is returned as it is, and one whose own content uses
+        // a fence for a code sample keeps it.
+        assert_eq!(strip_code_fence("## Beschluss"), "## Beschluss");
     }
 
     /// A progress figure that does not move cannot be told from a stalled one, and
@@ -1703,18 +1811,18 @@ mod tests {
 
     #[test]
     fn rejects_only_a_protocol_that_is_not_one() {
-        assert!(validate_markdown("# Summary\n\n# Actions\n").is_ok());
+        assert!(validate_markdown("# Summary\n\n# Actions\n", 0).is_ok());
         // A protocol written in the meeting's language names its sections in that
         // language. Rejecting it for that made every German meeting fail.
         assert!(
-            validate_markdown("# Zusammenfassung\n\n# Maßnahmen\n").is_ok(),
+            validate_markdown("# Zusammenfassung\n\n# Maßnahmen\n", 0).is_ok(),
             "a translated heading is not a defect"
         );
     }
 
     #[test]
     fn rejects_empty_protocols() {
-        assert!(validate_markdown("  ").is_err());
+        assert!(validate_markdown("  ", 0).is_err());
     }
 
     #[test]
