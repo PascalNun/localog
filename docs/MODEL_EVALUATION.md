@@ -33,13 +33,13 @@ Found on 16 August 2026, by reading a generated protocol against the one the own
 
 The transcript all the model comparisons in this document are based on was produced with the `balanced` preset, which maps to whisper `base`, and with an empty vocabulary — the workspace holds zero vocabulary entries. Counted in that transcript, for terms the written protocol spells consistently:
 
-| What the term is | Wrong spellings | Times wrong | Ever right |
-| --- | --- | ---: | --- |
-| The building system supplier | two variants | 13 | never |
-| The housing form under discussion | one variant | 40 | never |
-| The funding body's abbreviation | one variant | 4 | 3 times, mixed |
-| Five participant surnames | one variant each | 8 | two of five, mixed |
-| The word for structural engineering | — | — | **absent from all 72,837 characters** |
+| What the term is                    | Wrong spellings  | Times wrong | Ever right                            |
+| ----------------------------------- | ---------------- | ----------: | ------------------------------------- |
+| The building system supplier        | two variants     |          13 | never                                 |
+| The housing form under discussion   | one variant      |          40 | never                                 |
+| The funding body's abbreviation     | one variant      |           4 | 3 times, mixed                        |
+| Five participant surnames           | one variant each |           8 | two of five, mixed                    |
+| The word for structural engineering | —                |           — | **absent from all 72,837 characters** |
 
 The last row is the one that matters. The word never appears, so the protocol model filed the structural engineer under a discipline he does not practise. No protocol model can recover a term it was never given, and the generated draft reproduced these spellings faithfully — which is the correct behaviour, not a fault.
 
@@ -49,11 +49,11 @@ This means the model comparisons in this document measure protocol models fairly
 
 Same audio, same fourteen terms counted, 16 August 2026. Thirty proper nouns passed as whisper's initial prompt with `--carry-initial-prompt`, and then also the larger model.
 
-| Transcription | Terms with a correct spelling | Terms with no wrong spelling left | Time |
-| --- | ---: | ---: | ---: |
-| `base`, no vocabulary | 3 of 14 | 0 of 14 | 2 min |
-| `base` + vocabulary | 10 of 14 | 8 of 14 | 2 min |
-| `medium` + vocabulary | **13 of 14** | **11 of 14** | 7 min |
+| Transcription         | Terms with a correct spelling | Terms with no wrong spelling left |  Time |
+| --------------------- | ----------------------------: | --------------------------------: | ----: |
+| `base`, no vocabulary |                       3 of 14 |                           0 of 14 | 2 min |
+| `base` + vocabulary   |                      10 of 14 |                           8 of 14 | 2 min |
+| `medium` + vocabulary |                  **13 of 14** |                      **11 of 14** | 7 min |
 
 Transcript length barely moved across all three — 72,837 to 74,114 characters. This is not more words, it is the same words spelled correctly.
 
