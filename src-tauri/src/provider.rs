@@ -701,12 +701,12 @@ impl OllamaProvider {
                 system: PROTOCOL_SYSTEM,
                 prompt: &encode_prompt(&payload)?,
                 format: protocol_schema(),
-                num_predict: request.maximum_output_tokens,
+                num_predict: output_allowance(request),
             },
             cancelled,
             &mut |written| {
                 progress(
-                    arrived(60, 76, written, request.maximum_output_tokens),
+                    arrived(60, 76, written, output_allowance(request)),
                     "generating_protocol",
                 )
             },
@@ -1212,6 +1212,24 @@ fn mentions(spoken: &str, term: &str) -> bool {
 /// Divide the transcript into contiguous section ranges that each fit the model's
 /// window alongside the style, vocabulary and room for the answer. Returns a single
 /// range when the whole transcript already fits.
+/// How much of the context the answer is allowed to claim.
+///
+/// The answer and the material it is written from share one window. A configuration
+/// that promises the answer the whole context leaves nothing to read from, and the
+/// planner below then falls to its last resort of one section per segment: hundreds
+/// of sections, none of them long enough to carry a subject. Measured, that produced
+/// ninety-four characters for an eighty-minute meeting.
+///
+/// Half is the most the answer can take while leaving a window worth filling.
+fn output_allowance(request: &GenerationRequest) -> u32 {
+    request.maximum_output_tokens.min(request.context_tokens / 2)
+}
+
+/// The tokens left over for everything the model has to read.
+fn reading_window(request: &GenerationRequest) -> usize {
+    request.context_tokens.saturating_sub(output_allowance(request)) as usize
+}
+
 fn plan_sections(request: &GenerationRequest) -> Vec<std::ops::Range<usize>> {
     // German tokenises to roughly three characters per token; the margin keeps a
     // long word or an unusual name from pushing a section over the edge.
@@ -1223,9 +1241,7 @@ fn plan_sections(request: &GenerationRequest) -> Vec<std::ops::Range<usize>> {
     if total == 0 {
         return Vec::new();
     }
-    let window = request
-        .context_tokens
-        .saturating_sub(request.maximum_output_tokens) as usize;
+    let window = reading_window(request);
     let budget_chars = window * CHARS_PER_TOKEN * SAFETY_NUMERATOR / SAFETY_DENOMINATOR;
     // Everything in the prompt that is not transcript still has to fit.
     let overhead: usize = request
@@ -1270,9 +1286,7 @@ fn plan_sections(request: &GenerationRequest) -> Vec<std::ops::Range<usize>> {
 /// collected notes still need folding.
 fn synthesis_budget(request: &GenerationRequest) -> usize {
     const CHARS_PER_TOKEN: usize = 3;
-    let window = request
-        .context_tokens
-        .saturating_sub(request.maximum_output_tokens) as usize;
+    let window = reading_window(request);
     let budget_chars = window * CHARS_PER_TOKEN * 7 / 10;
     let overhead: usize = request
         .style
@@ -1861,12 +1875,39 @@ mod tests {
         assert!(plan_sections(&request).is_empty());
     }
 
+    /// A context no larger than the promised answer used to leave a zero-width
+    /// reading window, and the planner fell to one section per segment. Six hundred
+    /// and seventy-five sections is not a plan, and the model returned ninety-four
+    /// characters for an eighty-minute meeting.
+    #[test]
+    fn the_answer_never_claims_the_whole_context() {
+        let mut request = synthetic_request(300, 200);
+        request.context_tokens = 8_192;
+        request.maximum_output_tokens = 8_192;
+
+        assert_eq!(output_allowance(&request), 4_096);
+        assert!(reading_window(&request) > 0);
+        let sections = plan_sections(&request);
+        assert!(
+            sections.len() < request.transcript.len(),
+            "one section per segment is the last resort, not a plan: {} sections for {} segments",
+            sections.len(),
+            request.transcript.len()
+        );
+    }
+
+    #[test]
+    fn a_generous_context_leaves_the_requested_answer_alone() {
+        let mut request = synthetic_request(300, 200);
+        request.context_tokens = 40_960;
+        request.maximum_output_tokens = 8_192;
+        assert_eq!(output_allowance(&request), 8_192);
+    }
+
     #[test]
     fn each_section_stays_within_the_character_budget() {
         let request = synthetic_request(300, 200);
-        let window = request
-            .context_tokens
-            .saturating_sub(request.maximum_output_tokens) as usize;
+        let window = reading_window(&request);
         let budget = window * 3 * 7 / 10;
         for range in plan_sections(&request) {
             let size: usize = request.transcript[range.clone()]
