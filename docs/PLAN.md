@@ -527,29 +527,35 @@ fell to its last resort of one section per segment. That was a defect in the cod
 well as in the test — the answer can no longer claim more than half the window — and
 the point has to be measured again.
 
-Figures kept did not move: 29 of 35 at every context that worked. Whatever a smaller
-context costs, it is not the quantities.
+**Neither the actions table nor the figures depend on the context, and both claims
+that they did were wrong.** They were each made from one draw at each point. Repeated
+across three seeds:
 
-**The table of tasks and owners does not depend on the context, and the claim that it
-did was wrong.** Repeating each point at further seeds settled it:
+| Seed |       24,576 |       32,768 |     40,960 |
+| ---: | -----------: | -----------: | ---------: |
+|    7 | table, 29/35 | **—**, 29/35 | **—**, ~29 |
+|  101 | table, 25/35 | table, 27/35 |      table |
+|  202 | table, 27/35 | table, 23/35 |      table |
 
-| Context | Runs producing a table |
-| ------: | ---------------------- |
-|  24,576 | 3 of 3                 |
-|  32,768 | 1 of 2                 |
-|  40,960 | 2 of 3                 |
+Two things follow, and the second matters more.
 
-Six of eight, spread across every context. The seed-7 run at 40,960 is the outlier
-that lacks one — and it is the draft that was read against the written protocol, so
-"the draft has no actions table" became "this context produces no actions table" on
-the strength of a single draw. That is the same error this document had already
-recorded once, when `granite4.1:8b` scored 22, 19 and 6 on three seeds of one
-comparison. Knowing about the trap is not the same as being out of it.
+The context does nothing measurable between 24,576 and 40,960 — not to figures kept,
+not to whether the protocol carries its table. So **the window can be chosen for what
+the machine can hold rather than for quality**, which is the answer the 8 GB target
+needed. Figures range 23 to 29 across seeds at a fixed context, which is wider than
+any difference between contexts; "29 of 35 at every context" was three coincidences
+read as a constant.
 
-What survives is a useful negative: **between 24,576 and 40,960 nothing measurable
-changes** — not figures kept, not whether the protocol carries its table. The window
-can be chosen for what the machine can hold rather than for quality, which is the
-answer the 8 GB target needed.
+**The variation that matters is between draws, not between settings.** Both runs
+missing the table are at seed 7 — the harness default, and therefore the draw behind
+every early single-seed comparison in this project and the draft that was read against
+the written protocol. "This draft has no actions table" became "this context produces
+no actions table" on that basis.
+
+This is the third time the same mistake has been recorded here: `granite4.1:8b`
+scoring 22, 19 and 6 on three seeds is the same finding wearing different clothes.
+Knowing about the trap is evidently not the same as being out of it, so the rule now
+is that no comparison at a single seed is written down as a property of anything.
 
 What remains genuinely open is why one draw in eight omits the table entirely, since
 that is the failure a reader would notice first.
