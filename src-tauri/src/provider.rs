@@ -1546,11 +1546,23 @@ fn validate_markdown(markdown: &str, transcript_chars: usize) -> Result<()> {
             "The model returned an empty protocol.".into(),
         ));
     }
-    // A JSON object where markdown was asked for. Checked by parsing rather than by
-    // the leading brace, so a protocol that happens to open with one is safe.
-    if markdown.starts_with('{')
-        && serde_json::from_str::<serde_json::Value>(markdown).is_ok_and(|value| value.is_object())
-    {
+    // A JSON document where markdown was asked for.
+    //
+    // Judged by shape rather than by whether it parses. The first version required
+    // it to parse, and a model then returned twenty kilobytes of malformed JSON
+    // which passed as markdown for exactly that reason: the check was strictest
+    // about the answers closest to being right.
+    //
+    // Opening with a brace or a bracket is not enough on its own, because a protocol
+    // may legitimately begin with one. It must also carry a quoted key, which prose
+    // does not.
+    let opens_as_data = markdown.starts_with('{') || markdown.starts_with('[');
+    let carries_keys = markdown
+        .chars()
+        .take(400)
+        .collect::<String>()
+        .contains("\":");
+    if opens_as_data && carries_keys {
         return Err(ProviderError::InvalidResponse(
             "The model returned a JSON document instead of a protocol.".into(),
         ));
@@ -1666,6 +1678,17 @@ mod tests {
         let as_json = r#"{"meeting_protocol":{"metadata":{"language":"de"},
             "participants":{"organisations":[{"name":"Nokia"}]}}}"#;
         assert!(validate_markdown(as_json, spoken).is_err());
+
+        // And the same thing malformed, which a check that required it to parse let
+        // through — twenty kilobytes of it, accepted as a protocol.
+        let broken_json = r#"{
+  "meeting_protocol": {
+    "language": "German",
+    "uncertainty_notes": ["Keine expliziten V"#;
+        assert!(
+            validate_markdown(broken_json, spoken).is_err(),
+            "malformed JSON is still not a protocol"
+        );
 
         // A stub: a heading and two of the placeholders the style forbids.
         let stub = "# Protokoll der Besprechung\n*Datum: [nicht im Transkript genannt]*";
