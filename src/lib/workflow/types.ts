@@ -69,6 +69,10 @@ export interface CorrectionMatch {
   context: string;
 }
 
+/**
+ * What a correction did, which can differ from what was asked of it: a place whose
+ * text has moved since the review is skipped rather than corrected blindly.
+ */
 export interface AppliedCorrection {
   wrong: string;
   right: string;
@@ -363,7 +367,7 @@ export interface WorkflowBridge {
    * One action, two outcomes: this transcript is repaired, and the next meeting is
    * transcribed correctly because the term joins the project's names.
    */
-  applyCorrection(meetingId: string, correction: AppliedCorrection): Promise<void>;
+  applyCorrection(meetingId: string, correction: AppliedCorrection): Promise<number>;
   saveVocabularyEntry(entry: VocabularyDraft): Promise<void>;
   deleteVocabularyEntry(entryId: string): Promise<void>;
   updateProtocol(meetingId: string, markdown: string): Promise<void>;

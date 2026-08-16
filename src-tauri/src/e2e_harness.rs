@@ -474,14 +474,20 @@ fn corrects_a_transcript_through_the_real_commands() {
     );
 
     // Correcting the word to itself: every code path runs, no content changes.
-    let snapshot =
+    let result =
         processing::apply_correction(&root, &meeting_id, &first.heard, &first.heard, &[], false)
             .expect("applying must write a working transcript the workspace can load");
 
     assert!(
-        snapshot.transcripts.contains_key(&meeting_id),
+        result.workspace.transcripts.contains_key(&meeting_id),
         "the workspace must still hold this meeting's transcript afterwards"
     );
+    assert_eq!(
+        result.changed,
+        matches.len(),
+        "what it reports changing must be what it changed"
+    );
+    println!("changed {} places, as previewed", result.changed);
     let after = processing::name_candidates(&root, &meeting_id)
         .expect("the rewritten transcript must be readable again");
     assert_eq!(

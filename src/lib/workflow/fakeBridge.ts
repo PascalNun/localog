@@ -582,18 +582,21 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       }));
   }
 
-  async applyCorrection(meetingId: string, correction: AppliedCorrection): Promise<void> {
+  async applyCorrection(meetingId: string, correction: AppliedCorrection): Promise<number> {
     if (this.workspaceStore) {
-      this.applyDurableWorkspace(await this.workspaceStore.applyCorrection(meetingId, correction));
+      const result = await this.workspaceStore.applyCorrection(meetingId, correction);
+      this.applyDurableWorkspace(result.workspace);
       this.emit();
-      return;
+      return result.changed;
     }
+    let changed = 0;
     const document = this.snapshot.transcripts[meetingId];
-    if (!document) return;
+    if (!document) return 0;
     for (const segment of document.segments) {
       if (correction.keptSegmentIds.length && !correction.keptSegmentIds.includes(segment.id)) {
         continue;
       }
+      changed += segment.text.split(correction.wrong).length - 1;
       segment.text = segment.text.split(correction.wrong).join(correction.right);
     }
     if (correction.remember) {
@@ -607,6 +610,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       });
     }
     this.emit();
+    return changed;
   }
 
   async saveVocabularyEntry(draft: VocabularyDraft): Promise<void> {

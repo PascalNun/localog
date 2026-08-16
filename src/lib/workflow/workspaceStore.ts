@@ -74,7 +74,10 @@ export interface WorkspaceStore {
   deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<WorkspaceData>;
   findNameCandidates(meetingId: string): Promise<NameCandidate[]>;
   previewCorrection(meetingId: string, wrong: string, right: string): Promise<CorrectionMatch[]>;
-  applyCorrection(meetingId: string, correction: AppliedCorrection): Promise<WorkspaceData>;
+  applyCorrection(
+    meetingId: string,
+    correction: AppliedCorrection,
+  ): Promise<{ workspace: WorkspaceData; changed: number }>;
   renameTranscriptSpeaker(
     meetingId: string,
     speaker: string,
@@ -229,7 +232,10 @@ class TauriWorkspaceStore implements WorkspaceStore {
     return invoke('preview_correction', { meetingId, wrong, right });
   }
 
-  applyCorrection(meetingId: string, correction: AppliedCorrection): Promise<WorkspaceData> {
+  applyCorrection(
+    meetingId: string,
+    correction: AppliedCorrection,
+  ): Promise<{ workspace: WorkspaceData; changed: number }> {
     return invoke('apply_correction', { meetingId, correction });
   }
 
