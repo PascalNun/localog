@@ -847,10 +847,16 @@ impl OllamaProvider {
                         correction,
                     };
                     let prompt = encode_prompt(&payload)?;
+                    // Deliberately far above what `within_budget` will accept. A
+                    // hard cap set at the same threshold as a soft check truncates
+                    // the answer instead of letting the check reject it, and a
+                    // truncated answer cannot be corrected — the first version of
+                    // this set both to twice the budget and so guaranteed that the
+                    // correction it defines could never fire.
                     let num_predict = answer_budget(
                         request.context_tokens,
                         prompt.len(),
-                        ((budget * 2 / CHARS_PER_OUTPUT_TOKEN) as u32).max(512),
+                        ((budget * ROOM_TO_OVERRUN / CHARS_PER_OUTPUT_TOKEN) as u32).max(1_024),
                     );
                     let generated = self.complete(
                         request,
@@ -1978,6 +1984,19 @@ fn tidy_protocol(markdown: &str) -> String {
     repaired.join("\n").trim().to_string()
 }
 
+/// How far past its budget a section may run before it is rejected and asked again.
+#[cfg(test)]
+const ALLOWED_OVERRUN: usize = 2;
+
+/// How far past its budget a section is *allowed to finish writing*, so that an
+/// overrun arrives whole and can be corrected rather than arriving cut off.
+///
+/// Must be comfortably larger than `ALLOWED_OVERRUN`. They were equal once and the
+/// result was that every overrunning section was truncated by the token cap before
+/// the check could reject it, which made the correction unreachable.
+#[cfg(test)]
+const ROOM_TO_OVERRUN: usize = 5;
+
 /// Reject a section that grossly overruns the length it was given.
 ///
 /// Generous, because a model asked for 900 characters will not land on 900 and should
@@ -1986,7 +2005,6 @@ fn tidy_protocol(markdown: &str) -> String {
 /// rather than one that missed it.
 #[cfg(test)]
 fn within_budget(section: &str, budget: usize) -> Result<()> {
-    const ALLOWED_OVERRUN: usize = 2;
     if section.len() > budget * ALLOWED_OVERRUN {
         return Err(ProviderError::InvalidResponse(format!(
             "This section is {} characters and its budget is about {budget}. It is one \
@@ -2546,6 +2564,37 @@ mod tests {
             beyond_one_answer(&wide).is_some(),
             "the ceiling is the answer, not the window"
         );
+    }
+
+    /// The bug this pins cost a 797-second run. Both thresholds were twice the
+    /// budget, so an overrunning section was cut off by the token cap before the
+    /// check could reject it — and a cut-off answer cannot be corrected, which made
+    /// the correcting retry defined right beside it unreachable.
+    #[test]
+    fn a_section_may_finish_overrunning_before_it_is_judged_for_overrunning() {
+        assert!(
+            ROOM_TO_OVERRUN > ALLOWED_OVERRUN,
+            "the cap must sit above the check, or an overrun arrives truncated \
+             instead of correctable: cap {ROOM_TO_OVERRUN}, check {ALLOWED_OVERRUN}"
+        );
+    }
+
+    #[test]
+    fn a_section_within_its_budget_is_accepted() {
+        assert!(within_budget(&"x".repeat(900), 1_000).is_ok());
+        assert!(
+            within_budget(&"x".repeat(1_900), 1_000).is_ok(),
+            "some slack is fine"
+        );
+    }
+
+    #[test]
+    fn a_section_that_ignored_its_budget_is_told_what_to_do() {
+        let error = within_budget(&"x".repeat(9_000), 1_000).unwrap_err();
+        let message = error.to_string();
+        assert!(message.contains("9000 characters"), "{message}");
+        assert!(message.contains("about 1000"), "{message}");
+        assert!(message.contains("not a document of its own"), "{message}");
     }
 
     #[test]
