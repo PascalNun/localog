@@ -33,6 +33,24 @@ pub enum ProviderError {
     Stalled,
 }
 
+impl ProviderError {
+    /// Whether this is one request going wrong rather than the machine being wrong.
+    ///
+    /// A bad answer, a truncated one, or a model that went quiet says nothing about
+    /// the next request, so the meeting can continue without this stretch of it. A
+    /// missing model or a changed runtime will fail every remaining section the same
+    /// way, and continuing would produce a document that is all holes.
+    pub(crate) fn is_a_bad_draw(&self) -> bool {
+        matches!(
+            self,
+            Self::InvalidResponse(_)
+                | Self::ResponseTooLarge
+                | Self::IncompleteResponse
+                | Self::Stalled
+        )
+    }
+}
+
 /// How long a model may send nothing before it is treated as stopped.
 ///
 /// Generous, because a large model on a slow machine pauses: reading an
@@ -730,6 +748,9 @@ impl OllamaProvider {
     ) -> Result<String> {
         let count = sections.len();
         let mut notes = Vec::with_capacity(count);
+        // Stretches no amount of retrying could condense. Kept so the finished
+        // protocol can say where they were, rather than closing over the hole.
+        let mut gaps: Vec<Gap> = Vec::new();
         for (index, range) in sections.iter().enumerate() {
             if cancelled.load(Ordering::Acquire) {
                 return Err(ProviderError::Cancelled);
@@ -779,8 +800,29 @@ impl OllamaProvider {
                         .sum();
                     validate_markdown(notes, spoken)
                 },
-            )?;
+            );
+            // A section that never came back is a quarter of an hour of the meeting,
+            // not the meeting. Losing the fifteen minutes either side of it as well
+            // is the wrong trade, and a reader who is told where the hole is can go
+            // and listen to that stretch. A reader given a protocol that quietly
+            // skips it cannot, because nothing tells them to.
+            let section_notes = match section_notes {
+                Ok(notes) => notes,
+                Err(error) if error.is_a_bad_draw() => {
+                    let gap = Gap::across(&request.transcript[range.clone()], &error);
+                    let placeholder = gap.as_note(&request.meeting_language);
+                    gaps.push(gap);
+                    placeholder
+                }
+                Err(error) => return Err(error),
+            };
             notes.push(section_notes);
+        }
+        // Every section failing is a broken run, not a protocol full of holes.
+        if gaps.len() == count {
+            return Err(ProviderError::InvalidResponse(format!(
+                "None of the {count} sections of this meeting could be condensed."
+            )));
         }
 
         // The notes must fit the window too, or synthesis silently loses the meeting's
@@ -863,7 +905,10 @@ impl OllamaProvider {
             |markdown: &String| validate_markdown(markdown, spoken_characters(request)),
         )?;
         progress(78, "validating_protocol")?;
-        Ok(markdown)
+        // Said again at the foot of the document, because the note asking for the
+        // hole to be described is an instruction to a model and instructions to
+        // models are sometimes not followed. This part does not depend on one.
+        Ok(append_gap_notice(markdown, &gaps))
     }
 
     /// Combine a group of consecutive notes into one, preserving their content.
@@ -1212,6 +1257,85 @@ fn mentions(spoken: &str, term: &str) -> bool {
 /// Divide the transcript into contiguous section ranges that each fit the model's
 /// window alongside the style, vocabulary and room for the answer. Returns a single
 /// range when the whole transcript already fits.
+/// A stretch of the meeting that could not be condensed, and where it was.
+#[derive(Debug, Clone)]
+pub(crate) struct Gap {
+    from_ms: u64,
+    to_ms: u64,
+    reason: String,
+}
+
+impl Gap {
+    fn across(segments: &[GenerationSegment], error: &ProviderError) -> Self {
+        Self {
+            from_ms: segments
+                .first()
+                .map(|segment| segment.start_ms)
+                .unwrap_or(0),
+            to_ms: segments.last().map(|segment| segment.start_ms).unwrap_or(0),
+            reason: error.to_string(),
+        }
+    }
+
+    /// Written into the notes so the model composing the protocol can see the hole
+    /// and write around it honestly instead of inventing a bridge across it.
+    fn as_note(&self, language: &str) -> String {
+        format!(
+            "> UNREADABLE SECTION — {} to {}. This stretch of the meeting could not be \
+             condensed and its content is unknown. Say so plainly at this point in the \
+             protocol, in {language}. Do not guess what was discussed here.",
+            clock(self.from_ms),
+            clock(self.to_ms)
+        )
+    }
+
+    fn as_notice(&self) -> String {
+        format!(
+            "- {} – {} ({})",
+            clock(self.from_ms),
+            clock(self.to_ms),
+            self.reason
+        )
+    }
+}
+
+/// State plainly, at the end of the protocol, which stretches of the meeting are
+/// missing from it.
+///
+/// A protocol that silently omits a quarter of an hour reads exactly like one that
+/// covers everything, and the reader has no way to tell them apart. This is the
+/// difference between the two.
+fn append_gap_notice(markdown: String, gaps: &[Gap]) -> String {
+    if gaps.is_empty() {
+        return markdown;
+    }
+    let listed: Vec<String> = gaps.iter().map(Gap::as_notice).collect();
+    format!(
+        "{}\n\n---\n\n## Not covered by this protocol\n\n\
+         {} of the recording could not be read, and nothing above describes {}. \
+         The recording itself is complete and these stretches can still be listened to.\n\n{}\n",
+        markdown.trim_end(),
+        if gaps.len() == 1 {
+            "One stretch"
+        } else {
+            "Several stretches"
+        },
+        if gaps.len() == 1 { "it" } else { "them" },
+        listed.join("\n")
+    )
+}
+
+/// Minutes and seconds, which is how somebody scrubs to a place in a recording.
+fn clock(ms: u64) -> String {
+    let total = ms / 1000;
+    let (hours, minutes, seconds) = (total / 3600, (total % 3600) / 60, total % 60);
+    if hours > 0 {
+        format!("{hours}:{minutes:02}:{seconds:02}")
+    } else {
+        format!("{minutes}:{seconds:02}")
+    }
+}
+
 /// How much of the context the answer is allowed to claim.
 ///
 /// The answer and the material it is written from share one window. A configuration
@@ -1222,12 +1346,16 @@ fn mentions(spoken: &str, term: &str) -> bool {
 ///
 /// Half is the most the answer can take while leaving a window worth filling.
 fn output_allowance(request: &GenerationRequest) -> u32 {
-    request.maximum_output_tokens.min(request.context_tokens / 2)
+    request
+        .maximum_output_tokens
+        .min(request.context_tokens / 2)
 }
 
 /// The tokens left over for everything the model has to read.
 fn reading_window(request: &GenerationRequest) -> usize {
-    request.context_tokens.saturating_sub(output_allowance(request)) as usize
+    request
+        .context_tokens
+        .saturating_sub(output_allowance(request)) as usize
 }
 
 fn plan_sections(request: &GenerationRequest) -> Vec<std::ops::Range<usize>> {
@@ -1873,6 +2001,69 @@ mod tests {
     fn an_empty_transcript_plans_no_sections() {
         let request = synthetic_request(0, 0);
         assert!(plan_sections(&request).is_empty());
+    }
+
+    #[test]
+    fn a_protocol_with_no_gaps_is_left_exactly_as_written() {
+        let markdown = "# Protokoll\n\n## 1. Thema\n\nInhalt.\n".to_string();
+        assert_eq!(append_gap_notice(markdown.clone(), &[]), markdown);
+    }
+
+    /// The failure this exists to prevent: fifteen minutes missing from a document
+    /// that reads as though it covers everything.
+    #[test]
+    fn a_missing_stretch_is_named_at_the_foot_of_the_protocol() {
+        let gaps = vec![Gap {
+            from_ms: 1_500_000,
+            to_ms: 2_400_000,
+            reason: "the model stopped answering".into(),
+        }];
+        let out = append_gap_notice("# Protokoll\n\nInhalt.".into(), &gaps);
+
+        assert!(
+            out.starts_with("# Protokoll"),
+            "the protocol itself is kept"
+        );
+        assert!(out.contains("Not covered by this protocol"));
+        assert!(out.contains("25:00"), "the start is scrubbable: {out}");
+        assert!(out.contains("40:00"), "the end is scrubbable: {out}");
+        assert!(out.contains("the model stopped answering"));
+    }
+
+    #[test]
+    fn several_missing_stretches_all_appear() {
+        let gaps = vec![
+            Gap {
+                from_ms: 0,
+                to_ms: 60_000,
+                reason: "a".into(),
+            },
+            Gap {
+                from_ms: 3_600_000,
+                to_ms: 3_720_000,
+                reason: "b".into(),
+            },
+        ];
+        let out = append_gap_notice("# P".into(), &gaps);
+        assert!(out.contains("0:00 – 1:00"));
+        assert!(out.contains("1:00:00 – 1:02:00"), "past an hour: {out}");
+        assert!(out.contains("Several stretches"));
+    }
+
+    /// A bad answer is one request going wrong; a missing model will go wrong the
+    /// same way every time and must not be papered over as a gap.
+    #[test]
+    fn only_a_bad_draw_is_survivable() {
+        assert!(ProviderError::InvalidResponse("x".into()).is_a_bad_draw());
+        assert!(ProviderError::Stalled.is_a_bad_draw());
+        assert!(ProviderError::IncompleteResponse.is_a_bad_draw());
+        assert!(ProviderError::ResponseTooLarge.is_a_bad_draw());
+
+        assert!(!ProviderError::Cancelled.is_a_bad_draw());
+        assert!(!ProviderError::ModelChanged.is_a_bad_draw());
+        assert!(!ProviderError::RuntimeChanged.is_a_bad_draw());
+        assert!(!ProviderError::ModelMissing("m".into()).is_a_bad_draw());
+        assert!(!ProviderError::Unavailable("m".into()).is_a_bad_draw());
     }
 
     /// A context no larger than the promised answer used to leave a zero-width
