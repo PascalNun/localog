@@ -4,7 +4,21 @@ This is the short answer to “where is LocaLog now, and what should happen next
 
 The product and architecture documents describe the destination. The decision log records choices. This document describes what the code can honestly claim today.
 
-Last reviewed: 15 August 2026.
+Last reviewed: 16 August 2026.
+
+## What 16 August established
+
+**Transcription was the bottleneck, and it is largely fixed.** Every model comparison in this project had been run on a transcript made with the smallest whisper model and an empty vocabulary. Thirty proper nouns plus the larger model take fourteen counted terms from three spelled correctly to thirteen, and leave nothing for a person to correct. It does **not** produce a better protocol — measured, four runs, no difference. It fixes the document somebody circulates, which is a narrower claim and the true one.
+
+**The context window is free to choose above 16,384.** Fifteen runs across five widths: quality does not move, time does — 16,384 costs about 2.4× the wall-clock of 40,960. 8,192 fails at every seed because the window cannot hold the folded notes and a whole protocol at once. The floor and the unknown-memory fallback were 4,096 and 8,192; both are now 16,384.
+
+**A protocol has to fit in one answer, which caps meetings at roughly 1.8× the reference one.** Independent of the machine. Now said before the work starts rather than after three identical failures.
+
+**Writing by topic controls length and coverage but not structure.** 74,000 characters became 26,100 with per-topic budgets, at 31 of 35 figures — the best coverage measured. The document is still organised by when things were said, with three separate facade sections. Structure is a global decision and per-section rules cannot make it.
+
+**On method, at the cost of four withdrawn claims:** every conclusion drawn from comparing two protocols at one seed was noise — figures range 23 to 31 at a _fixed_ setting. Every direct count held. When something fails, measure the constraint rather than reasoning about the cause.
+
+**On guards:** a hard cap set equal to the soft check it accompanies makes the correction unreachable, and a per-section fatal check aborted a twenty-three-minute run over 198 characters. Limits must be proportionate to what actually goes wrong.
 
 ## The direction
 
