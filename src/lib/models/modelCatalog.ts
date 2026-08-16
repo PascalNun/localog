@@ -88,11 +88,12 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     minimumMemoryGb: 16,
     sizeLabel: 'larger local model',
     languages: ['German', 'English', 'Japanese', 'many more'],
-    testedLanguages: [],
+    testedLanguages: ['German'],
     originLabel: 'European model',
     licenseLabel: 'Apache 2.0',
-    description: 'A higher-quality European candidate for machines with more memory.',
-    status: 'planned',
+    description:
+      'Measured on a German meeting at three settings and wrote a usable protocol at one of them: the others produced a two-line stub and a JSON document where markdown was asked for. Kept as the European candidate, not yet an alternative to the baseline.',
+    status: 'candidate',
   },
   {
     id: 'granite4.1-8b',

@@ -176,6 +176,36 @@ tests nothing, which is how the first sweep came to be believed.
 
 One meeting, one style, German, three seeds.
 
+### The European candidate, measured
+
+`ministral-3:8b` is what the catalogue offers as its European option and had never
+been run. Three seeds, same transcript, same style:
+
+| Seed |  Time | What it produced                                                                                                                                                                | Figures kept |
+| ---: | ----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -----------: |
+|    7 | 866 s | A protocol: 12 KB, participants by organisation, 48 headings, the table with four owned rows                                                                                    |     28 of 35 |
+|  101 | 438 s | **211 bytes.** A code fence, a heading, and two `[nicht im Transkript genannt]` placeholders, which the style forbids                                                           |      0 of 35 |
+|  202 | 838 s | **A JSON document**, opening ` ```json ` and holding `metadata`, `participants`, `organisations` — asked for markdown inside a JSON field, it returned JSON inside a JSON field |     28 of 35 |
+
+One usable protocol in three. `gemma4:12b` opens `## Projektbeteiligte` and produces
+eleven kilobytes of protocol at every seed.
+
+**The strongest case yet for reading rather than counting.** The JSON document scored
+28 of 35 — better than Gemma at the same seed — because every figure is present as
+text. By every structural measure it looked competitive, and it is not a protocol at
+all. This project already learned that once, when a draft longer than its own
+transcript scored 23 of 24; the same instrument failed the same way here.
+
+Two of the three runs also produced JSON the application could not parse until the
+repair described in `provider.rs` was added: the model writes markdown's line breaks
+and real newlines inside a JSON string. That is a fault of the model rather than of
+the transcript, and it destroyed a quarter-hour of work each time until it was
+handled.
+
+So Gemma remains the baseline and the European option is not yet a substitute. What
+would change that is a model that respects the output contract, not a better figure
+count.
+
 ### Two failures the same runs exposed, which matter more
 
 **No draft produced a table of next steps.** The style says so explicitly and twice —
