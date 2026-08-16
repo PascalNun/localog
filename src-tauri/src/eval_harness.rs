@@ -589,3 +589,106 @@ fn what_room_each_context_leaves_for_the_protocol() {
         );
     }
 }
+
+/// Write a protocol topic by topic, with each section given a share of the length.
+///
+/// The one previous attempt at this covered 23 of 24 figures and produced roughly
+/// 74,000 characters — four times a human protocol — so what failed was proportion,
+/// not comprehension. This supplies the missing part: each topic is told about how
+/// many characters it is worth, from its share of what was said.
+///
+/// Nothing here ever holds the whole protocol, which is the point. The largest thing
+/// in any request is one topic's passages, so the length of the meeting stops being
+/// bounded by what fits in a single answer.
+///
+///   LOCALOG_ADHERENCE_TRANSCRIPT=… LOCALOG_ADHERENCE_OUT=… \
+///     cargo test --lib -- --ignored --nocapture does_writing_by_topic_stay_in_proportion
+#[test]
+#[ignore = "requires a real transcript and a running Ollama"]
+fn does_writing_by_topic_stay_in_proportion() {
+    let transcript_path = std::env::var("LOCALOG_ADHERENCE_TRANSCRIPT").expect("a transcript");
+    let out = std::path::PathBuf::from(std::env::var("LOCALOG_ADHERENCE_OUT").expect("a folder"));
+    let name = std::env::var("LOCALOG_ADHERENCE_MODELS").unwrap_or("gemma4:12b".into());
+    let seed: u64 = std::env::var("LOCALOG_ADHERENCE_SEED")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(7);
+    std::fs::create_dir_all(&out).expect("an output folder");
+
+    let value: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&transcript_path).expect("readable"))
+            .expect("json");
+    let segments: Vec<crate::domain::TranscriptSegment> =
+        serde_json::from_value(value["segments"].clone()).expect("segments");
+    let stated = crate::facts::quantities(&segments);
+    let transcript: Vec<GenerationSegment> = segments
+        .iter()
+        .map(|segment| GenerationSegment {
+            start_ms: segment.start_ms,
+            speaker: segment.speaker.clone(),
+            text: segment.text.clone(),
+        })
+        .collect();
+
+    let provider = OllamaProvider::loopback();
+    let runtime_version = provider.version().expect("ollama must be running");
+    let model = provider
+        .installed_models()
+        .unwrap()
+        .into_iter()
+        .find(|candidate| candidate.name == name)
+        .expect("the model must be installed");
+
+    let request = GenerationRequest {
+        model: model.name.clone(),
+        model_digest: model.digest.clone(),
+        runtime_version,
+        meeting_language: "German".into(),
+        style: formal_minutes_style(),
+        vocabulary_revision: "by-topic".into(),
+        vocabulary: Vec::new(),
+        transcript,
+        seed,
+        temperature_milli: 200,
+        context_tokens: std::env::var("LOCALOG_EVAL_CONTEXT")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(40_960),
+        maximum_output_tokens: 8_192,
+    };
+
+    let started = Instant::now();
+    let markdown =
+        match provider.write_by_topic(&request, &AtomicBool::new(false), &mut |_, _| Ok(())) {
+            Ok(markdown) => markdown,
+            Err(error) => {
+                println!("failed: {error:?}");
+                return;
+            }
+        };
+    let seconds = started.elapsed().as_secs();
+
+    let path = out.join(format!("by-topic-{}-seed{seed}.md", name.replace(':', "-")));
+    std::fs::write(&path, &markdown).expect("writable");
+
+    let kept = stated
+        .iter()
+        .filter(|fact| crate::facts::is_accounted_for(fact, &markdown))
+        .count();
+    let headings = markdown
+        .lines()
+        .filter(|line| line.starts_with('#'))
+        .count();
+    let table_rows = markdown
+        .lines()
+        .filter(|line| line.trim_start().starts_with('|'))
+        .count();
+    println!(
+        "\n{seconds} s, {} characters, {headings} headings, {table_rows} table lines, {kept} of {} figures",
+        markdown.len(),
+        stated.len()
+    );
+    println!("A human wrote about 18,000 characters for this meeting.");
+    println!("The previous attempt at writing by topic produced about 74,000.");
+    println!("written to {}", path.display());
+}

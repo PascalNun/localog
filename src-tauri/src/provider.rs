@@ -222,6 +222,30 @@ struct MergePayload<'a> {
     correction: Option<&'a str>,
 }
 
+/// One section of a protocol, written from the passages that discussed it.
+#[cfg(test)]
+#[derive(Serialize)]
+struct TopicSectionPayload<'a> {
+    meeting_language: &'a str,
+    /// What this section is about, as the topic pass named it.
+    topic: &'a str,
+    /// Every topic in the meeting, in order, so this section knows what the others
+    /// cover and does not re-explain them. Titles only: the point is to write around
+    /// the neighbours, not to reproduce them.
+    outline: &'a [String],
+    /// Where this one sits in that outline.
+    position: usize,
+    /// About how many characters this section is worth, from its share of what was
+    /// said. The failure this exists to prevent produced a document four times the
+    /// length of a human protocol, with the coverage entirely correct.
+    character_budget: usize,
+    /// The passages that discussed it, at full resolution rather than as notes.
+    transcript: &'a [GenerationSegment],
+    instructions: &'a [String],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    correction: Option<&'a str>,
+}
+
 #[derive(Serialize)]
 struct SynthesisPayload<'a> {
     meeting_language: &'a str,
@@ -750,6 +774,107 @@ impl OllamaProvider {
     /// A real meeting exceeds the window. Each section is condensed first, then the
     /// protocol is written from the collected notes. Nothing is silently dropped:
     /// every segment belongs to exactly one section.
+    /// Write the protocol one topic at a time, never holding the whole of it.
+    ///
+    /// The path this is measured against reads the meeting in sections, condenses
+    /// each into notes, folds the notes until they fit, and writes the protocol in a
+    /// single answer. That last step bounds the length of meeting the product can
+    /// handle: the answer ceiling is a fixed number of tokens, so a meeting about
+    /// twice the reference one cannot be written at all, on any machine.
+    ///
+    /// Here nothing holds the whole document. Each topic is written from the passages
+    /// that discussed it, at full resolution rather than from notes — one lossy step
+    /// instead of two — and the sections are joined without a model.
+    ///
+    /// The one previous attempt covered 23 of 24 figures and ran to four times the
+    /// length of a human protocol. What it lacked was proportion, which is arithmetic
+    /// rather than judgement: a topic holding a third of the segments is worth about a
+    /// third of the document.
+    #[cfg(test)]
+    pub fn write_by_topic(
+        &self,
+        request: &GenerationRequest,
+        cancelled: &AtomicBool,
+        progress: &mut dyn FnMut(u64, &str) -> Result<()>,
+    ) -> Result<String> {
+        let (topics, unclaimed) = self.find_topics(request, cancelled, progress)?;
+        if topics.is_empty() {
+            return Err(ProviderError::InvalidResponse(
+                "No subjects were found in this meeting.".into(),
+            ));
+        }
+        let outline: Vec<String> = topics.iter().map(|topic| topic.title.clone()).collect();
+
+        // What the whole protocol should come to, from the ratio a person actually
+        // wrote: about 73,000 characters spoken became about 18,000 written.
+        let spoken = spoken_characters(request);
+        let target = spoken / PROTOCOL_SHARE_OF_SPEECH;
+        let claimed: usize = topics.iter().map(|topic| topic.segments.len()).sum();
+        if !unclaimed.is_empty() {
+            progress(29, "segments_no_subject_claimed")?;
+        }
+
+        let instructions = with_density(request);
+        let mut written = Vec::with_capacity(topics.len());
+        for (index, topic) in topics.iter().enumerate() {
+            if cancelled.load(Ordering::Acquire) {
+                return Err(ProviderError::Cancelled);
+            }
+            let start = 30 + (index as u64 * 45) / topics.len() as u64;
+            progress(start, "writing_section")?;
+
+            let passages: Vec<GenerationSegment> = topic
+                .segments
+                .iter()
+                .filter_map(|&at| request.transcript.get(at).cloned())
+                .collect();
+            if passages.is_empty() {
+                continue;
+            }
+            // This topic's share of what was said, and so of the document.
+            let budget = (target * topic.segments.len() / claimed.max(1)).max(400);
+
+            let section = with_correction(
+                |correction| {
+                    let payload = TopicSectionPayload {
+                        meeting_language: &request.meeting_language,
+                        topic: &topic.title,
+                        outline: &outline,
+                        position: index + 1,
+                        character_budget: budget,
+                        transcript: &passages,
+                        instructions: &instructions,
+                        correction,
+                    };
+                    let prompt = encode_prompt(&payload)?;
+                    let num_predict = answer_budget(
+                        request.context_tokens,
+                        prompt.len(),
+                        ((budget * 2 / CHARS_PER_OUTPUT_TOKEN) as u32).max(512),
+                    );
+                    let generated = self.complete(
+                        request,
+                        Completion {
+                            system: TOPIC_SECTION_SYSTEM,
+                            prompt: &prompt,
+                            format: protocol_schema(),
+                            num_predict,
+                        },
+                        cancelled,
+                        &mut |_| progress(start, "writing_section"),
+                    )?;
+                    let structured: StructuredProtocol = parse_structured(&generated)?;
+                    Ok(tidy_protocol(&structured.protocol_markdown))
+                },
+                |section: &String| within_budget(section, budget),
+            )?;
+            written.push(section);
+        }
+
+        progress(78, "validating_protocol")?;
+        Ok(written.join("\n\n"))
+    }
+
     fn generate_from_sections(
         &self,
         request: &GenerationRequest,
@@ -1214,6 +1339,9 @@ const PROTOCOL_SYSTEM: &str = "Create a reviewable professional meeting protocol
 const SECTION_SYSTEM: &str = "Record one section of a meeting transcript as detailed factual notes in the meeting's language. Completeness matters more than brevity: keep every topic discussed, every decision, every agreed action and its owner, every open question, and every number, measurement, area, date and proper name exactly as stated. Write one bullet per distinct point rather than merging several into a summary sentence. Do not add anything that was not said, and do not write a protocol yet. Return only schema-valid JSON. If the payload carries a correction, your previous answer was rejected for the reason it gives; fix exactly that and return the whole answer again.";
 
 const SYNTHESIS_SYSTEM: &str = "Write a reviewable professional meeting protocol from ordered notes taken across the whole meeting. The notes are the only source. Never invent decisions, actions, owners, or dates, and state uncertainty explicitly. Group related material by topic rather than by the order it was discussed. Follow the controlled style and return only schema-valid JSON.";
+
+#[cfg(test)]
+const TOPIC_SECTION_SYSTEM: &str = "Write one section of a professional meeting protocol, in the meeting's language, from the passages supplied. They are the only source. Never invent decisions, actions, owners or dates, and reproduce every number, measurement, area, date and proper name exactly as stated. Write about this section's own subject only: the outline names what the other sections cover, and repeating them is a fault. Keep close to the character budget given — it is this subject's share of the whole protocol, and overrunning it is the failure this format exists to prevent. Begin with a heading for the subject. Do not write an introduction, a participants list or a table of actions; those are written separately. Return only schema-valid JSON. If the payload carries a correction, your previous answer was rejected for the reason it gives; fix exactly that and return the whole answer again.";
 
 const MERGE_SYSTEM: &str = "Combine consecutive sets of meeting notes into one set, in the meeting's language. Keep every decision, action, owner, open question, number, measurement, date and proper name. Remove only exact repetition between the sets. Do not shorten anything that is stated once. Return only schema-valid JSON. If a correction field is present, the previous attempt was rejected for the reason it gives; fix that and return the notes again.";
 
@@ -1848,6 +1976,26 @@ fn tidy_protocol(markdown: &str) -> String {
         .map(|line| doubled(line).unwrap_or_else(|| line.to_string()))
         .collect();
     repaired.join("\n").trim().to_string()
+}
+
+/// Reject a section that grossly overruns the length it was given.
+///
+/// Generous, because a model asked for 900 characters will not land on 900 and should
+/// not be made to try. What this catches is the failure that produced a document four
+/// times the length of a human protocol: a section that ignored its budget entirely
+/// rather than one that missed it.
+#[cfg(test)]
+fn within_budget(section: &str, budget: usize) -> Result<()> {
+    const ALLOWED_OVERRUN: usize = 2;
+    if section.len() > budget * ALLOWED_OVERRUN {
+        return Err(ProviderError::InvalidResponse(format!(
+            "This section is {} characters and its budget is about {budget}. It is one \
+             of several sections of one protocol, not a document of its own. Write the \
+             same content in about {budget} characters.",
+            section.len()
+        )));
+    }
+    Ok(())
 }
 
 /// Refuse a protocol that is plainly not one.
