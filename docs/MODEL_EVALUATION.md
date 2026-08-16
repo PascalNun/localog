@@ -27,6 +27,40 @@ The measured whisper models behaved roughly as follows:
 
 Vocabulary made the important difference in this domain. Proper names and unusual project terms were the words most likely to be wrong, while ordinary professional terminology was usually already recognised correctly.
 
+### Every comparison below was run on a transcript that used neither
+
+Found on 16 August 2026, by reading a generated protocol against the one the owner wrote for the same meeting rather than against another draft.
+
+The transcript all the model comparisons in this document are based on was produced with the `balanced` preset, which maps to whisper `base`, and with an empty vocabulary — the workspace holds zero vocabulary entries. Counted in that transcript, for terms the written protocol spells consistently:
+
+| What the term is | Wrong spellings | Times wrong | Ever right |
+| --- | --- | ---: | --- |
+| The building system supplier | two variants | 13 | never |
+| The housing form under discussion | one variant | 40 | never |
+| The funding body's abbreviation | one variant | 4 | 3 times, mixed |
+| Five participant surnames | one variant each | 8 | two of five, mixed |
+| The word for structural engineering | — | — | **absent from all 72,837 characters** |
+
+The last row is the one that matters. The word never appears, so the protocol model filed the structural engineer under a discipline he does not practise. No protocol model can recover a term it was never given, and the generated draft reproduced these spellings faithfully — which is the correct behaviour, not a fault.
+
+This means the model comparisons in this document measure protocol models fairly against each other, but understate all of them. Terminology errors that were read as generation faults are transcription faults. The two levers were known and documented in this very section before the comparisons were run; neither was pulled.
+
+### Reading a draft against the written protocol
+
+The first such comparison, 16 August 2026, gemma4:12b at seed 7. Details naming the project are in `eval/COMPARISON.md`, which is not tracked.
+
+What survived the comparison well: every quantity checked was correct, including areas, grid dimensions, room counts before and after a reduction, and a funding ceiling. The draft also reproduced the meeting's judgement of six design approaches — which were rejected, which were kept, and why — from the words alone.
+
+What failed:
+
+1. **No actions table.** The written protocol closes with seventeen rows of task and owner. The draft has none. This is the part of a protocol a reader acts on.
+2. **It ends a third early**, mid-subject, and the last thing in the file is the model's own JSON scaffolding leaking into the document.
+3. **Every proper noun is wrong**, for the transcription reasons above.
+
+Faults 1 and 2 are one fault: the draft ran out before finishing, and nothing marked the place where it stopped. A reader cannot tell a protocol that ended from one that was cut off.
+
+This is the first evidence about whether milestone 1 is met, and it says no — for reasons that are specific and addressable rather than diffuse.
+
 ## Protocol generation
 
 ### The first pass, and why its verdicts have expired
