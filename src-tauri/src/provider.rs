@@ -730,7 +730,7 @@ impl OllamaProvider {
             },
         )?;
         let structured: StructuredProtocol = parse_structured(&generated)?;
-        let markdown = strip_code_fence(&structured.protocol_markdown).to_string();
+        let markdown = tidy_protocol(&structured.protocol_markdown);
         validate_protocol(&markdown, spoken_characters(request), &request.style)?;
         progress(78, "validating_protocol")?;
         Ok(markdown)
@@ -900,7 +900,7 @@ impl OllamaProvider {
                     },
                 )?;
                 let structured: StructuredProtocol = parse_structured(&generated)?;
-                Ok(strip_code_fence(&structured.protocol_markdown).to_string())
+                Ok(tidy_protocol(&structured.protocol_markdown))
             },
             |markdown: &String| {
                 validate_protocol(markdown, spoken_characters(request), &request.style)
@@ -1672,6 +1672,71 @@ fn strip_code_fence(markdown: &str) -> &str {
         .trim()
 }
 
+/// Tidy the things a model gets nearly right, rather than making it try again.
+///
+/// Measured across twenty-eight drafts from this project's evaluation runs, thirteen
+/// carried at least one of these — more than carried any other defect, including the
+/// missing action table. Every one of them reaches the reader as visible rubbish in
+/// their document, and every one is the model's own scaffolding rather than a mistake
+/// about the meeting.
+///
+/// Repairing beats rejecting here. The answer is right and its packaging is not, so a
+/// retry would spend fifteen minutes reproducing the same content and might arrive
+/// with the same wrapping.
+///
+/// A trailing backslash is deliberately left alone. It looks like leakage and is a
+/// legitimate CommonMark hard line break, and this project has done enough damage
+/// today by acting on things that merely looked wrong.
+fn tidy_protocol(markdown: &str) -> String {
+    let mut text = strip_code_fence(markdown).to_string();
+
+    // An escaped newline written into the body rather than used as one. It reaches
+    // the reader as the two characters, usually welding a bullet onto the line above.
+    if text.contains("\\n") {
+        text = text.replace("\\\\n", "\n").replace("\\n", "\n");
+    }
+
+    // Scaffolding after the protocol has ended: the closing braces of the JSON the
+    // model was answering into, and any fence that came with them.
+    if let Some(at) = text.rfind("```") {
+        let tail = &text[at..];
+        if tail.len() < 40 && !tail.contains('\n') {
+            text.truncate(at);
+        }
+    }
+    // The braces usually sit on the end of the last sentence rather than on a line of
+    // their own — the draft that prompted this ended `...laufenden Planung."} }`. So
+    // the suffix is what gets measured, not the line.
+    //
+    // A brace or a bracket has to be present. A protocol may legitimately end on a
+    // closing quotation mark, and removing that would be a repair worse than the
+    // fault.
+    let scaffold = |glyph: char| matches!(glyph, '}' | ']' | '"' | ',' | ' ' | '`' | '\n');
+    let kept = text.trim_end_matches(scaffold).len();
+    let suffix = &text[kept..];
+    if suffix.contains('}') || suffix.contains(']') {
+        text.truncate(kept);
+    }
+
+    // A heading marked twice, which happens when the model writes its own hashes into
+    // a field that already carries them. Renders as literal hashes in the heading.
+    let doubled = |line: &str| -> Option<String> {
+        let rest = line.trim_start_matches('#');
+        let hashes = line.len() - rest.len();
+        let inner = rest.trim_start();
+        if hashes == 0 || !inner.starts_with('#') {
+            return None;
+        }
+        let after = inner.trim_start_matches('#').trim_start();
+        Some(format!("{} {}", "#".repeat(hashes), after))
+    };
+    let repaired: Vec<String> = text
+        .lines()
+        .map(|line| doubled(line).unwrap_or_else(|| line.to_string()))
+        .collect();
+    repaired.join("\n").trim().to_string()
+}
+
 /// Refuse a protocol that is plainly not one.
 ///
 /// `ministral-3:8b` returned two of these in three runs on the reference meeting: a
@@ -2061,6 +2126,69 @@ mod tests {
     fn an_empty_transcript_plans_no_sections() {
         let request = synthetic_request(0, 0);
         assert!(plan_sections(&request).is_empty());
+    }
+
+    /// Taken verbatim from a draft: the escape reaches the reader as two characters
+    /// and welds the next bullet onto the line above it.
+    #[test]
+    fn an_escaped_newline_written_into_the_body_becomes_one() {
+        let leaked = "teilweise zu schließen.\\n*   **Erdgeschoss:** Die Erschließung";
+        let tidied = tidy_protocol(leaked);
+        assert!(!tidied.contains("\\n"), "{tidied}");
+        assert!(
+            tidied.contains("zu schließen.\n*   **Erdgeschoss:**"),
+            "{tidied}"
+        );
+    }
+
+    #[test]
+    fn a_doubly_escaped_newline_is_also_a_newline() {
+        let tidied = tidy_protocol("Förderfähigkeit.\\\\n*   Für die Wohnung");
+        assert!(!tidied.contains('\\'), "{tidied}");
+    }
+
+    /// Also verbatim: a draft that ended with the closing braces of the JSON the
+    /// model was answering into, and the fence that came with them.
+    #[test]
+    fn scaffolding_after_the_end_of_the_protocol_is_removed() {
+        let with_tail = "## 9. Nächste Schritte\n\n*   Die Abstimmung erfolgt.\"} }```json";
+        let tidied = tidy_protocol(with_tail);
+        assert!(tidied.ends_with("Die Abstimmung erfolgt."), "{tidied}");
+        assert!(!tidied.contains("```"), "{tidied}");
+    }
+
+    #[test]
+    fn a_heading_marked_twice_is_marked_once() {
+        let doubled = "## ### 1. Grundrissgestaltung\n\nInhalt.\n\n### ## 2. Fassade";
+        let tidied = tidy_protocol(doubled);
+        assert!(tidied.contains("## 1. Grundrissgestaltung"), "{tidied}");
+        assert!(!tidied.contains("## ###"), "{tidied}");
+        assert!(!tidied.contains("### ##"), "{tidied}");
+    }
+
+    /// A trailing backslash is a legitimate CommonMark hard line break. It looks like
+    /// leakage, which is not the same as being it.
+    #[test]
+    fn a_hard_line_break_is_left_where_the_model_put_it() {
+        let hard_break = "Erste Zeile.\\\nZweite Zeile.";
+        assert_eq!(tidy_protocol(hard_break), hard_break);
+    }
+
+    #[test]
+    fn a_clean_protocol_survives_tidying_unchanged() {
+        let clean =
+            "# Protokoll\n\n## 1. Thema\n\nInhalt.\n\n| Aufgabe | Wer |\n|---|---|\n| Tun | KSP |";
+        assert_eq!(tidy_protocol(clean), clean);
+    }
+
+    /// A protocol may legitimately contain a fenced block; only a stray fence at the
+    /// very end, with nothing after it, is scaffolding.
+    #[test]
+    fn a_real_fenced_block_inside_the_protocol_is_kept() {
+        let with_block = "# P\n\n```text\nAblauf\n```\n\n## 2. Weiter\n\nInhalt.";
+        let tidied = tidy_protocol(with_block);
+        assert!(tidied.contains("```text"), "{tidied}");
+        assert!(tidied.contains("Ablauf"), "{tidied}");
     }
 
     /// The failure this exists to catch: measured, about one draw in five returned a
