@@ -731,7 +731,7 @@ impl OllamaProvider {
         )?;
         let structured: StructuredProtocol = parse_structured(&generated)?;
         let markdown = strip_code_fence(&structured.protocol_markdown).to_string();
-        validate_markdown(&markdown, spoken_characters(request))?;
+        validate_protocol(&markdown, spoken_characters(request), &request.style)?;
         progress(78, "validating_protocol")?;
         Ok(markdown)
     }
@@ -902,7 +902,9 @@ impl OllamaProvider {
                 let structured: StructuredProtocol = parse_structured(&generated)?;
                 Ok(strip_code_fence(&structured.protocol_markdown).to_string())
             },
-            |markdown: &String| validate_markdown(markdown, spoken_characters(request)),
+            |markdown: &String| {
+                validate_protocol(markdown, spoken_characters(request), &request.style)
+            },
         )?;
         progress(78, "validating_protocol")?;
         // Said again at the foot of the document, because the note asking for the
@@ -1681,6 +1683,60 @@ fn strip_code_fence(markdown: &str) -> &str {
 /// The bounds are deliberately loose. A terse style legitimately writes little, so
 /// this is not a quality judgement — it catches the answer that is not a protocol at
 /// all, and leaves everything else to the person reading it.
+/// Whether a finished protocol must carry a table of tasks and owners.
+///
+/// Keyed on the style because the shipped formal-minutes style asks for one twice in
+/// its own instructions, and there is no way for anybody to author a style that does
+/// not. When styles become authorable this has to become something a style declares.
+///
+/// `required_sections` cannot do this job and never has. It holds English section
+/// names while the protocol is written in the meeting's language, so matching
+/// "Actions" against "Aufgaben" needs something the application does not have — and
+/// it has therefore never been checked anywhere. A table needs no translating.
+fn wants_an_action_table(style: &GenerationStyle) -> bool {
+    style.id == "style-formal"
+}
+
+/// Whether the document contains a markdown table.
+///
+/// Judged by the delimiter row, which is the one line a table cannot do without and
+/// which no prose produces by accident. Counting pipe characters would match a
+/// sentence that happened to use one.
+fn has_a_table(markdown: &str) -> bool {
+    markdown.lines().any(|line| {
+        let line = line.trim();
+        line.starts_with('|')
+            && line.contains("--")
+            && line
+                .chars()
+                .all(|glyph| matches!(glyph, '|' | '-' | ':' | ' '))
+    })
+}
+
+/// Everything `validate_markdown` checks, plus what this particular style promised.
+///
+/// Measured on the reference meeting, roughly one draw in five returns a protocol with
+/// no table of tasks and owners, having been told twice to end with one. That is the
+/// omission a reader notices first, because it is the part of a protocol they act on,
+/// and nothing caught it. The message is written as an instruction because it is fed
+/// back to the model as the correction.
+fn validate_protocol(
+    markdown: &str,
+    transcript_chars: usize,
+    style: &GenerationStyle,
+) -> Result<()> {
+    validate_markdown(markdown, transcript_chars)?;
+    if wants_an_action_table(style) && !has_a_table(markdown) {
+        return Err(ProviderError::InvalidResponse(
+            "The protocol has no table of agreed next steps. End it with a markdown \
+             table of two columns, the task and the responsible party, listing every \
+             action that was agreed."
+                .into(),
+        ));
+    }
+    Ok(())
+}
+
 fn validate_markdown(markdown: &str, transcript_chars: usize) -> Result<()> {
     let markdown = markdown.trim();
     if markdown.is_empty() {
@@ -2001,6 +2057,59 @@ mod tests {
     fn an_empty_transcript_plans_no_sections() {
         let request = synthetic_request(0, 0);
         assert!(plan_sections(&request).is_empty());
+    }
+
+    /// The failure this exists to catch: measured, about one draw in five returned a
+    /// protocol with no table of tasks and owners, having been told twice to end with
+    /// one. It is the part of the document a reader acts on.
+    #[test]
+    fn a_formal_protocol_without_its_action_table_is_refused() {
+        let style = formal_style();
+        let without = "# Protokoll\n\n## 1. Fassade\n\nEs wurde besprochen.\n";
+        let error = validate_protocol(without, 0, &style).unwrap_err();
+        let message = error.to_string();
+        assert!(message.contains("table"), "{message}");
+        // The message is fed back to the model, so it has to say what to do.
+        assert!(message.contains("End it with"), "{message}");
+    }
+
+    #[test]
+    fn a_formal_protocol_with_its_action_table_passes() {
+        let style = formal_style();
+        let with = "# Protokoll\n\n## 9. Nächste Schritte\n\n\
+                    | Aufgabe | Zuständigkeit |\n|---|---|\n| Grundrisse fixieren | KSP |\n";
+        assert!(validate_protocol(with, 0, &style).is_ok());
+    }
+
+    /// A table is a table in any language, which is the whole reason the check is
+    /// structural: required_sections holds English names and the protocol is German.
+    #[test]
+    fn the_table_check_does_not_depend_on_language() {
+        assert!(has_a_table(
+            "| Task | Owner |\n| --- | --- |\n| Do it | Me |"
+        ));
+        assert!(has_a_table(
+            "| Aufgabe | Zuständigkeit |\n|:---|---:|\n| Tun | Ich |"
+        ));
+    }
+
+    /// Prose that happens to contain a pipe is not a table, and a delimiter row is
+    /// the one line a table cannot do without.
+    #[test]
+    fn prose_containing_a_pipe_is_not_mistaken_for_a_table() {
+        assert!(!has_a_table("Die Wand | die Stütze war das Thema."));
+        assert!(!has_a_table("| Aufgabe | Zuständigkeit |"));
+        assert!(!has_a_table("Ein Strich --- steht hier allein."));
+    }
+
+    fn formal_style() -> GenerationStyle {
+        GenerationStyle {
+            id: "style-formal".into(),
+            revision: "formal-minutes@2".into(),
+            density: crate::domain::ProtocolDensity::Comprehensive,
+            instructions: Vec::new(),
+            required_sections: Vec::new(),
+        }
     }
 
     #[test]
