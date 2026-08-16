@@ -128,13 +128,21 @@ The first draft produced with everything from 16 August in place — the correct
 
 **All three faults found in the first comparison are fixed.** Every name is right, including a structural engineer who had been filed under a discipline he does not practise. The actions table exists and its four rows are real actions from the meeting, one with an owner. The draft ends properly, with dates, rather than in the model's own scaffolding.
 
-**A fourth fault was underneath them, and is now the whole problem.** Of ten subjects checked from the written protocol, nine are absent: the soil survey, the appointment with the district office, the next meeting being moved, a participant's leave, the agreement to bundle questions through one person, the pilot standard, the 90 cm access width, the access balcony at one building, and the shared meeting room. The draft is 9,591 characters against 17,879, and does not truncate — it ends cleanly. It **silently omits subjects**.
+**A fourth fault sits underneath them, and its size is not yet established.** The first attempt to measure it was wrong and is recorded here rather than quietly fixed. Ten subjects from the written protocol were searched for in the draft, nine were absent, and that was written down as "the draft silently omits subjects" — without checking whether the transcript contained them. Six of the nine are not in the transcript under any spelling tried, so the model could not have written them and was right not to. Checking a draft against a reference without checking the source is the same error this document has recorded four times already.
 
-That is what the style already forbids in its own words: "Cover every topic that was discussed. A protocol that silently omits a topic is incomplete, even if what remains reads well." Nothing checks it. The harness now catches an answer that fails; it cannot see an answer that leaves things out.
+What survives the correction, across two seeds:
 
-It also explains why this went unnoticed. The earlier drafts failed in louder ways — no table, cut off mid-sentence, every name wrong — and a reader stops at the first fault. Fixing the loud faults made the quiet one visible.
+| Subject                                         | In the transcript            | In the draft          |
+| ----------------------------------------------- | ---------------------------- | --------------------- |
+| The district office and the appointment with it | yes                          | **no, at both seeds** |
+| The soil survey                                 | not under any spelling tried | —                     |
+| Bundling questions through one person           | not under any spelling tried | —                     |
+| The 90 cm access width                          | no                           | —                     |
+| The pilot standard, dates                       | yes                          | yes                   |
 
-**What would catch it.** `topics.rs` divides a meeting into the subjects it discussed and is compiled for evaluation only; the plan records that running it merely to index a finished protocol would add about seven minutes to a twelve-minute run "for a diagnostic". That cost was weighed against an unknown benefit. The benefit is now known: it is the dominant remaining fault, and a subject the pass found which no heading covers is exactly the thing to show a reader.
+So there is at least one subject discussed and not recorded, consistently at both seeds. Whether that is one omission or many needs a reading rather than a word search, and the two subjects absent from the transcript are their own question: the written protocol records them, so either they were said in a form transcription lost entirely, or the author knew them from outside the recording.
+
+The lengths are worth keeping in view while that is settled: 9,591 characters at seed 7 and 18,772 at seed 101, against a written protocol of 17,879. Length varies by a factor of two between draws and the same subject is missing from both, so length is not what decides coverage.
 
 ## Protocol generation
 
