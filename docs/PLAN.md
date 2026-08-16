@@ -631,6 +631,35 @@ So the trade is memory against time, at flat quality. An eight-gigabyte machine 
 run this at a small window and pay for it in minutes rather than in the protocol — a
 better bargain than it looked, and the answer that target needed.
 
+#### What not to spend effort on, and why
+
+Decided 16 August 2026, before any of it was built.
+
+The context problem is the part of this work most likely to solve itself. It is not a
+limit on what a model can understand; it is key-value cache memory on a small machine.
+Both sides move the right way: capability per parameter keeps improving, and the 8 GB
+floor is a legacy-device concern that shrinks every year the project runs — decision 28
+names an M1 from 2020 as the weakest representative machine.
+
+So the test for any design proposed to work around a small window: **does it survive a
+model change?**
+
+| Work                                                            | Survives a better model                                                     |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| The names glossary and the transcript corrections               | Yes — about whisper and proper nouns, nothing to do with the language model |
+| Harness checks: the action table, tidying, retries, marked gaps | Yes — a better model still draws badly sometimes                            |
+| Knowing the window is free to choose                            | It is knowledge, not architecture, and costs nothing to keep                |
+| An index-and-write-in-parts design built _for_ small windows    | **No** — a smaller, better model makes it wasted work                       |
+
+That last row is the decision. **Do not rebuild generation around an index in order to
+fit a small context.** If it is built, it must be justified by protocol quality or by
+harness reliability — reasons that outlive whatever model is current — and measured
+against the current path rather than assumed better.
+
+The small-device target does not need it either way. 16,384 tokens already produces the
+same protocol for about 2.4 times the wall-clock, so a modest machine is served by
+choosing a smaller window rather than by rearchitecting.
+
 **What that is worth to the product, rather than to the benchmark.** A local
 application usually degrades on a weaker machine by giving it a smaller model, and a
 smaller model writes a worse protocol — measured here at 20 figures against 31. This
