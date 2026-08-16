@@ -189,6 +189,10 @@ struct SectionPayload<'a> {
     section_index: usize,
     section_count: usize,
     transcript: &'a [GenerationSegment],
+    /// What was wrong with the previous answer, when there was one. Present only on
+    /// a retry, so a first request is exactly what it always was.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    correction: Option<&'a str>,
 }
 
 #[derive(Serialize)]
@@ -206,6 +210,9 @@ struct SynthesisPayload<'a> {
     vocabulary_revision: &'a str,
     vocabulary: &'a [String],
     section_notes: &'a [String],
+    /// What was wrong with the previous answer, on a retry only.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    correction: Option<&'a str>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -730,37 +737,50 @@ impl OllamaProvider {
             // Condensing runs from 20% to 60%; synthesis owns the rest.
             let start = 20 + (index as u64 * 40) / count as u64;
             progress(start, "condensing_transcript")?;
-            let payload = SectionPayload {
-                meeting_language: &request.meeting_language,
-                section_index: index + 1,
-                section_count: count,
-                transcript: &request.transcript[range.clone()],
-            };
-            let prompt = encode_prompt(&payload)?;
-            // Notes condense a section, so they should not exceed it by much. An
-            // unbounded budget invites a model to write until the cap instead of
-            // until the material runs out; the protocol's own preference is the
-            // wrong bound because it describes the finished document, not the notes.
-            let notes_ceiling = ((prompt.len() / 2) as u32).max(1024);
-            let num_predict = answer_budget(request.context_tokens, prompt.len(), notes_ceiling);
-            let generated = self.complete(
-                request,
-                Completion {
-                    system: SECTION_SYSTEM,
-                    prompt: &prompt,
-                    format: notes_schema(),
-                    num_predict,
+            // Retried on its own when it comes back unusable, rather than failing
+            // the meeting. The sections either side of a bad draw were fine, and
+            // discarding them costs a quarter of an hour for one request's fault.
+            let section_notes = with_correction(
+                |correction| {
+                    let payload = SectionPayload {
+                        meeting_language: &request.meeting_language,
+                        section_index: index + 1,
+                        section_count: count,
+                        transcript: &request.transcript[range.clone()],
+                        correction,
+                    };
+                    let prompt = encode_prompt(&payload)?;
+                    // Notes condense a section, so they should not exceed it by much.
+                    // An unbounded budget invites a model to write until the cap
+                    // instead of until the material runs out; the protocol's own
+                    // preference is the wrong bound because it describes the finished
+                    // document, not the notes.
+                    let notes_ceiling = ((prompt.len() / 2) as u32).max(1024);
+                    let num_predict =
+                        answer_budget(request.context_tokens, prompt.len(), notes_ceiling);
+                    let generated = self.complete(
+                        request,
+                        Completion {
+                            system: SECTION_SYSTEM,
+                            prompt: &prompt,
+                            format: notes_schema(),
+                            num_predict,
+                        },
+                        cancelled,
+                        &mut |_| progress(start, "condensing_transcript"),
+                    )?;
+                    let structured: StructuredNotes = parse_structured(&generated)?;
+                    Ok(strip_code_fence(&structured.notes_markdown).to_string())
                 },
-                cancelled,
-                &mut |_| progress(start, "condensing_transcript"),
+                |notes: &String| {
+                    let spoken: usize = request.transcript[range.clone()]
+                        .iter()
+                        .map(|segment| segment.text.chars().count())
+                        .sum();
+                    validate_markdown(notes, spoken)
+                },
             )?;
-            let structured: StructuredNotes = parse_structured(&generated)?;
-            if structured.notes_markdown.trim().is_empty() {
-                return Err(ProviderError::InvalidResponse(
-                    "The model returned empty notes for a section of the meeting.".into(),
-                ));
-            }
-            notes.push(structured.notes_markdown);
+            notes.push(section_notes);
         }
 
         // The notes must fit the window too, or synthesis silently loses the meeting's
@@ -804,35 +824,44 @@ impl OllamaProvider {
 
         progress(62, "generating_protocol")?;
         let instructions = with_density(request);
-        let payload = SynthesisPayload {
-            meeting_language: &request.meeting_language,
-            style_id: &request.style.id,
-            style_revision: &request.style.revision,
-            instructions: &instructions,
-            vocabulary_revision: &request.vocabulary_revision,
-            vocabulary: &request.vocabulary,
-            section_notes: &notes,
-        };
-        let prompt = encode_prompt(&payload)?;
-        let num_predict = answer_budget(
-            request.context_tokens,
-            prompt.len(),
-            request.maximum_output_tokens,
-        );
-        let generated = self.complete(
-            request,
-            Completion {
-                system: SYNTHESIS_SYSTEM,
-                prompt: &prompt,
-                format: protocol_schema(),
-                num_predict,
+        // The last step, and the most expensive to lose: every section has already
+        // been condensed by the time it runs.
+        let markdown = with_correction(
+            |correction| {
+                let payload = SynthesisPayload {
+                    meeting_language: &request.meeting_language,
+                    style_id: &request.style.id,
+                    style_revision: &request.style.revision,
+                    instructions: &instructions,
+                    vocabulary_revision: &request.vocabulary_revision,
+                    vocabulary: &request.vocabulary,
+                    section_notes: &notes,
+                    correction,
+                };
+                let prompt = encode_prompt(&payload)?;
+                let num_predict = answer_budget(
+                    request.context_tokens,
+                    prompt.len(),
+                    request.maximum_output_tokens,
+                );
+                let generated = self.complete(
+                    request,
+                    Completion {
+                        system: SYNTHESIS_SYSTEM,
+                        prompt: &prompt,
+                        format: protocol_schema(),
+                        num_predict,
+                    },
+                    cancelled,
+                    &mut |written| {
+                        progress(arrived(70, 76, written, num_predict), "generating_protocol")
+                    },
+                )?;
+                let structured: StructuredProtocol = parse_structured(&generated)?;
+                Ok(strip_code_fence(&structured.protocol_markdown).to_string())
             },
-            cancelled,
-            &mut |written| progress(arrived(70, 76, written, num_predict), "generating_protocol"),
+            |markdown: &String| validate_markdown(markdown, spoken_characters(request)),
         )?;
-        let structured: StructuredProtocol = parse_structured(&generated)?;
-        let markdown = strip_code_fence(&structured.protocol_markdown).to_string();
-        validate_markdown(&markdown, spoken_characters(request))?;
         progress(78, "validating_protocol")?;
         Ok(markdown)
     }
@@ -1108,9 +1137,9 @@ struct Completion<'a> {
     num_predict: u32,
 }
 
-const PROTOCOL_SYSTEM: &str = "Create a reviewable professional meeting protocol using only the supplied transcript. Never invent decisions, actions, owners, or dates. State uncertainty explicitly. Follow the controlled style and return only schema-valid JSON.";
+const PROTOCOL_SYSTEM: &str = "Create a reviewable professional meeting protocol using only the supplied transcript. Never invent decisions, actions, owners, or dates. State uncertainty explicitly. Follow the controlled style and return only schema-valid JSON. If the payload carries a correction, your previous answer was rejected for the reason it gives; fix exactly that and return the whole answer again.";
 
-const SECTION_SYSTEM: &str = "Record one section of a meeting transcript as detailed factual notes in the meeting's language. Completeness matters more than brevity: keep every topic discussed, every decision, every agreed action and its owner, every open question, and every number, measurement, area, date and proper name exactly as stated. Write one bullet per distinct point rather than merging several into a summary sentence. Do not add anything that was not said, and do not write a protocol yet. Return only schema-valid JSON.";
+const SECTION_SYSTEM: &str = "Record one section of a meeting transcript as detailed factual notes in the meeting's language. Completeness matters more than brevity: keep every topic discussed, every decision, every agreed action and its owner, every open question, and every number, measurement, area, date and proper name exactly as stated. Write one bullet per distinct point rather than merging several into a summary sentence. Do not add anything that was not said, and do not write a protocol yet. Return only schema-valid JSON. If the payload carries a correction, your previous answer was rejected for the reason it gives; fix exactly that and return the whole answer again.";
 
 const SYNTHESIS_SYSTEM: &str = "Write a reviewable professional meeting protocol from ordered notes taken across the whole meeting. The notes are the only source. Never invent decisions, actions, owners, or dates, and state uncertainty explicitly. Group related material by topic rather than by the order it was discussed. Follow the controlled style and return only schema-valid JSON.";
 
@@ -1423,6 +1452,49 @@ fn topics_schema() -> serde_json::Value {
     })
 }
 
+/// Ask again when an answer is unusable, telling the model what was wrong with the
+/// last one.
+///
+/// A section is one request among many, and the sections around a bad one were fine.
+/// Losing the whole run to a single bad draw costs a quarter of an hour of somebody's
+/// machine; asking that one section again costs a fraction of it.
+///
+/// The correction is the point rather than the repetition. "You returned JSON,
+/// return markdown" is a strong instruction, and a model that has just done so is
+/// far likelier to comply than one asked the same question twice. Measured need:
+/// `ministral-3:8b` returned a JSON document at one seed and a two-line stub at
+/// another, from the same prompt that worked at a third.
+///
+/// Bounded and small. A model that fails three times is not having bad luck, and
+/// spending a person's afternoon proving it is worse than telling them.
+const ATTEMPTS_PER_STEP: usize = 3;
+
+/// Run one generation step, correcting and retrying while the answer is unusable.
+///
+/// `check` is what decides usable, and its message becomes the correction — so the
+/// same rule states the requirement and explains the failure, and the two cannot
+/// drift apart.
+fn with_correction<T>(
+    mut attempt: impl FnMut(Option<&str>) -> Result<T>,
+    mut check: impl FnMut(&T) -> Result<()>,
+) -> Result<T> {
+    let mut correction: Option<String> = None;
+    let mut last: Option<ProviderError> = None;
+    for _ in 0..ATTEMPTS_PER_STEP {
+        let answer = attempt(correction.as_deref())?;
+        match check(&answer) {
+            Ok(()) => return Ok(answer),
+            Err(problem) => {
+                correction = Some(problem.to_string());
+                last = Some(problem);
+            }
+        }
+    }
+    Err(last.unwrap_or_else(|| {
+        ProviderError::InvalidResponse("The model could not produce a usable answer.".into())
+    }))
+}
+
 /// How many characters the meeting itself holds, which is what a protocol of it is
 /// judged plausible against.
 fn spoken_characters(request: &GenerationRequest) -> usize {
@@ -1531,6 +1603,56 @@ mod tests {
             }
             Err(error) => panic!("the repair did not fix it: {error}"),
         }
+    }
+
+    /// A bad draw costs one request, not the meeting.
+    #[test]
+    fn an_unusable_answer_is_asked_again_with_the_reason() {
+        use std::cell::RefCell;
+        let corrections: RefCell<Vec<Option<String>>> = RefCell::new(Vec::new());
+        let attempts = RefCell::new(0);
+        let answer = with_correction(
+            |correction| {
+                corrections
+                    .borrow_mut()
+                    .push(correction.map(str::to_string));
+                let mut count = attempts.borrow_mut();
+                *count += 1;
+                // Unusable twice, then right: the shape ministral-3:8b produced.
+                Ok(if *count < 3 {
+                    r#"{"a":1}"#.to_string()
+                } else {
+                    "## Beschluss\n\nDie Fassade bleibt.".to_string()
+                })
+            },
+            |markdown: &String| validate_markdown(markdown, 0),
+        )
+        .expect("the third answer is usable");
+        assert!(answer.starts_with("## Beschluss"));
+        assert_eq!(*attempts.borrow(), 3);
+        let seen = corrections.borrow();
+        assert_eq!(seen[0], None, "the first request is what it always was");
+        assert!(
+            seen[1].as_deref().unwrap_or_default().contains("JSON"),
+            "the retry must say what was wrong: {:?}",
+            seen[1]
+        );
+    }
+
+    /// A model failing three times is not having bad luck, and spending somebody's
+    /// afternoon proving it is worse than telling them.
+    #[test]
+    fn asking_forever_is_not_the_alternative() {
+        let attempts = std::cell::RefCell::new(0);
+        let outcome = with_correction(
+            |_| {
+                *attempts.borrow_mut() += 1;
+                Ok(String::new())
+            },
+            |markdown: &String| validate_markdown(markdown, 0),
+        );
+        assert!(outcome.is_err());
+        assert_eq!(*attempts.borrow(), ATTEMPTS_PER_STEP);
     }
 
     /// The two answers ministral-3:8b really returned, which a check for emptiness
