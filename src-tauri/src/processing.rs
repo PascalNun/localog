@@ -128,15 +128,16 @@ fn affordable_context(
 fn machine_memory_bytes() -> u64 {
     #[cfg(target_os = "macos")]
     {
-        let output = std::process::Command::new("sysctl")
+        std::process::Command::new("sysctl")
             .args(["-n", "hw.memsize"])
             .output()
-            .ok();
-        return output
+            .ok()
             .and_then(|out| String::from_utf8(out.stdout).ok())
             .and_then(|text| text.trim().parse().ok())
-            .unwrap_or(0);
+            .unwrap_or(0)
     }
+    // Windows and Linux report this differently; until each is read properly the
+    // context falls back to the conservative constant rather than to a guess.
     #[cfg(not(target_os = "macos"))]
     {
         0
