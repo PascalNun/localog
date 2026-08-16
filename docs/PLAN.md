@@ -419,6 +419,24 @@ Two constraints make it safe:
   cannot invent a name nobody entered. That bounds the single risk of letting a model
   near the evidence record.
 
+**6. Say what is being done, at every step.** `docs/UX.md` already requires this —
+the status answers "what is happening?" in a reader's words, with a moving detail on
+long steps — and the five steps above were written without it, which is how a stage
+that quietly rewrites the evidence record gets built.
+
+This stage needs it more than most, because it changes a document the person is
+holding. Concretely:
+
+- The substitution is instant, so it needs a **result**, not a progress bar:
+  "12 corrections applied in 80 places" with the places listed and undoable. A silent
+  transformation of the transcript would contradict the standing rule that imported
+  originals and existing exports are never silently changed.
+- The model pass gets a stage in a reader's words — "Checking 3 passages that could
+  not be settled" — with the count as the moving detail, not a spinner.
+- Waiting for approval is already one of the states the sidebar distinguishes, and
+  this stage is the clearest case of it in the application.
+- Nothing here is a heavy-lane task, so it must not block or be blocked by one.
+
 Build order is deliberate: the deterministic pass first. If a few meetings show the
 leftover is consistently three-ish words, a person fixes them faster than the
 suggestion could be built.
