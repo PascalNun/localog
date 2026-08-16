@@ -878,7 +878,19 @@ impl OllamaProvider {
                 num_ctx: request.context_tokens,
                 num_predict: call.num_predict,
             },
-            keep_alive: "2m",
+            // Released the moment the request finishes, rather than held for
+            // minutes afterwards.
+            //
+            // One heavy task runs at a time in this application, but the lock is
+            // let go when generation returns while Ollama would still be holding
+            // the weights — so a transcription starting straight afterwards would
+            // meet a machine with several gigabytes of language model still on it.
+            // On the eight-gigabyte target that is the difference between working
+            // and swapping.
+            //
+            // The cost is reloading the model if somebody generates twice in a row:
+            // seconds against the fourteen minutes a generation takes.
+            keep_alive: "0",
         };
         let response = self
             .generation_agent
