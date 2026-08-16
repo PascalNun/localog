@@ -965,6 +965,12 @@ fn parse_structured<T: serde::de::DeserializeOwned>(generated: &str) -> Result<T
     match serde_json::from_str(generated) {
         Ok(value) => Ok(value),
         Err(first) => serde_json::from_str(&escape_raw_controls(generated)).map_err(|_| {
+            // Keep what could not be read, when somebody asks for it. Off unless the
+            // variable is set, because this is the contents of a meeting and it must
+            // not be written anywhere by default.
+            if let Some(path) = std::env::var_os("LOCALOG_KEEP_UNREADABLE") {
+                let _ = std::fs::write(path, generated);
+            }
             // The first error is the useful one: it describes what the model wrote,
             // not what the repair failed to make of it.
             ProviderError::InvalidResponse(truncate(&first.to_string(), 280))
@@ -972,30 +978,46 @@ fn parse_structured<T: serde::de::DeserializeOwned>(generated: &str) -> Result<T
     }
 }
 
-/// Escape control characters that appear raw inside a JSON string.
+/// Make a nearly-JSON answer readable, without changing what it says.
 ///
-/// Only inside a string: a tab or newline between tokens is legal JSON whitespace,
-/// and escaping those would break a document that was never broken. Quotes are
-/// tracked so the difference is known, and a quote preceded by a backslash does not
-/// end the string it is in.
-fn escape_raw_controls(line: &str) -> String {
-    let mut out = String::with_capacity(line.len() + 16);
+/// A model asked for JSON whose field holds markdown writes markdown, and markdown
+/// and JSON disagree about two characters. Both faults were measured in one answer
+/// from `ministral-3:8b`:
+///
+/// - **Raw newlines inside the string.** A protocol is multi-line, and the model
+///   pressed return rather than writing `\n`. Invalid JSON from the second line on.
+/// - **A backslash that is not a JSON escape.** Markdown ends a line with a
+///   backslash to force a break, so the answer held a backslash followed by a real
+///   newline — which is not one of JSON's escapes, and which a first attempt at this
+///   made worse by treating the backslash as though it began one.
+///
+/// Both are repaired by reading the answer as JSON's own grammar does: only inside a
+/// string, tracking whether a quote is escaped, and checking that a backslash really
+/// begins an escape before trusting it. Nothing outside a string is touched, because
+/// a newline between tokens is legal there and escaping it would break an answer that
+/// was never broken.
+fn escape_raw_controls(text: &str) -> String {
+    /// The only characters JSON allows after a backslash.
+    const VALID_ESCAPE: &[char] = &['"', '\\', '/', 'b', 'f', 'n', 'r', 't', 'u'];
+    let mut out = String::with_capacity(text.len() + 64);
+    let mut characters = text.chars().peekable();
     let mut in_string = false;
-    let mut escaped = false;
-    for character in line.chars() {
-        if escaped {
-            out.push(character);
-            escaped = false;
-            continue;
-        }
+    while let Some(character) = characters.next() {
         match character {
-            '\\' if in_string => {
-                out.push(character);
-                escaped = true;
-            }
+            '\\' if in_string => match characters.peek() {
+                // A real escape: keep both halves as they are.
+                Some(next) if VALID_ESCAPE.contains(next) => {
+                    out.push('\\');
+                    out.push(characters.next().expect("peeked"));
+                }
+                // A backslash the model meant literally. Escaping it here rather
+                // than consuming what follows is the whole difference: the newline
+                // after it is then seen as a control character and repaired too.
+                _ => out.push_str("\\\\"),
+            },
             '"' => {
                 in_string = !in_string;
-                out.push(character);
+                out.push('"');
             }
             control if in_string && (control as u32) < 0x20 => match control {
                 '\n' => out.push_str("\\n"),
@@ -1372,25 +1394,33 @@ fn truncate(value: &str, max_chars: usize) -> String {
 mod tests {
     use super::*;
 
-    /// The shape that actually arrived: generation asks for a JSON object whose
-    /// field holds the protocol, the protocol is multi-line markdown, and the model
-    /// wrote the newlines raw instead of escaping them. Invalid JSON, and the whole
-    /// generation lost — ministral-3:8b failed the reference meeting this way at two
-    /// seeds of three, each after minutes of work.
+    /// Both faults exactly as they arrived in one answer from ministral-3:8b: raw
+    /// newlines inside the string because a protocol is multi-line, and a backslash
+    /// ending a line because that is how markdown forces a break. The second was
+    /// what a first attempt at this repair got wrong, by trusting the backslash to
+    /// begin a JSON escape.
     #[test]
-    fn a_raw_control_character_does_not_lose_the_generation() {
-        // A protocol written across real newlines inside the JSON string.
-        let broken = "{\"protocol_markdown\":\"## Beschluss\n\nDie Fassade bleibt.\"}";
+    fn a_markdown_answer_that_is_not_quite_json_is_still_read() {
+        // Raw newlines, and a backslash forcing a markdown line break before one.
+        let broken = "{\"protocol_markdown\":\"## Beschluss\n\nDie Fassade bleibt.\\\nEnde.\"}";
         assert!(
             serde_json::from_str::<serde_json::Value>(broken).is_err(),
             "the fixture must really be invalid JSON"
         );
         let structured: StructuredProtocol = parse_structured(broken).expect("repaired");
-        assert_eq!(
-            structured.protocol_markdown,
-            "## Beschluss\n\nDie Fassade bleibt."
-        );
-        assert_eq!(structured.protocol_markdown.lines().count(), 3);
+        assert!(structured.protocol_markdown.starts_with("## Beschluss"));
+        assert!(structured.protocol_markdown.ends_with("Ende."));
+        // Four lines: the heading, a blank, the sentence, and what the backslash broke.
+        assert_eq!(structured.protocol_markdown.lines().count(), 4);
+    }
+
+    /// A backslash that does begin a real escape must be left alone, or every
+    /// quotation mark in a German protocol would gain a stray backslash.
+    #[test]
+    fn a_real_escape_is_not_escaped_twice() {
+        let fine = "{\"protocol_markdown\":\"Er sagte \\\"ja\\\" dazu.\"}";
+        let structured: StructuredProtocol = parse_structured(fine).expect("parsed");
+        assert_eq!(structured.protocol_markdown, "Er sagte \"ja\" dazu.");
     }
 
     /// A well-formed answer must not be touched by the repair, and must not pay for
