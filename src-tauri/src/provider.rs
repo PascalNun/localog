@@ -816,6 +816,7 @@ impl OllamaProvider {
 
         let instructions = with_density(request);
         let mut written = Vec::with_capacity(topics.len());
+        let mut overran = 0usize;
         for (index, topic) in topics.iter().enumerate() {
             if cancelled.load(Ordering::Acquire) {
                 return Err(ProviderError::Cancelled);
@@ -834,7 +835,7 @@ impl OllamaProvider {
             // This topic's share of what was said, and so of the document.
             let budget = (target * topic.segments.len() / claimed.max(1)).max(400);
 
-            let section = with_correction(
+            let (section, within) = with_correction_or_keep(
                 |correction| {
                     let payload = TopicSectionPayload {
                         meeting_language: &request.meeting_language,
@@ -874,11 +875,31 @@ impl OllamaProvider {
                 },
                 |section: &String| within_budget(section, budget),
             )?;
+            if !within {
+                // Kept rather than lost. A section over its budget is a document
+                // slightly longer than intended; a section discarded is a subject
+                // missing from the meeting.
+                overran += 1;
+            }
             written.push(section);
         }
 
         progress(78, "validating_protocol")?;
-        Ok(written.join("\n\n"))
+        let protocol = written.join("\n\n");
+        // The failure this whole scheme exists to prevent was the *total* — 74,000
+        // characters against a human protocol of 18,000. That is the number worth
+        // judging, and it is judged here rather than section by section.
+        if protocol.len() > target * TOTAL_OVERRUN {
+            return Err(ProviderError::InvalidResponse(format!(
+                "The protocol came to {} characters against a target of about {target}, \
+                 which is the failure writing by subject is prone to.",
+                protocol.len()
+            )));
+        }
+        if overran > 0 {
+            progress(79, "sections_over_their_length")?;
+        }
+        Ok(protocol)
     }
 
     fn generate_from_sections(
@@ -1831,6 +1852,40 @@ const ATTEMPTS_PER_STEP: usize = 3;
 /// `check` is what decides usable, and its message becomes the correction — so the
 /// same rule states the requirement and explains the failure, and the two cannot
 /// drift apart.
+/// Try, correct, and keep the last answer rather than losing it.
+///
+/// For a check whose failure is a matter of degree rather than of kind. A section
+/// that will not come down to its budget is still the content of that section, and
+/// discarding it takes the meeting with it: a per-section budget enforced strictly
+/// aborted a twenty-three-minute run over 198 characters on a document of 26,000.
+///
+/// Returns whether the answer ended up acceptable, so a caller can say what happened
+/// rather than pretending it did not.
+#[cfg(test)]
+fn with_correction_or_keep<T>(
+    mut attempt: impl FnMut(Option<&str>) -> Result<T>,
+    mut check: impl FnMut(&T) -> Result<()>,
+) -> Result<(T, bool)> {
+    let mut correction: Option<String> = None;
+    let mut last: Option<T> = None;
+    for _ in 0..ATTEMPTS_PER_STEP {
+        let answer = attempt(correction.as_deref())?;
+        match check(&answer) {
+            Ok(()) => return Ok((answer, true)),
+            Err(problem) => {
+                correction = Some(problem.to_string());
+                last = Some(answer);
+            }
+        }
+    }
+    match last {
+        Some(answer) => Ok((answer, false)),
+        None => Err(ProviderError::InvalidResponse(
+            "The model could not produce a usable answer.".into(),
+        )),
+    }
+}
+
 fn with_correction<T>(
     mut attempt: impl FnMut(Option<&str>) -> Result<T>,
     mut check: impl FnMut(&T) -> Result<()>,
@@ -1996,6 +2051,13 @@ const ALLOWED_OVERRUN: usize = 2;
 /// the check could reject it, which made the correction unreachable.
 #[cfg(test)]
 const ROOM_TO_OVERRUN: usize = 5;
+
+/// How far past the target the whole protocol may run before the attempt is called a
+/// failure. This is the level the original fault lived at: 74,000 characters against
+/// a human protocol of 18,000, which is four times over. A section being half again
+/// its own budget is not that, and treating it as though it were cost a run.
+#[cfg(test)]
+const TOTAL_OVERRUN: usize = 3;
 
 /// The cap must sit above the check, or an overrunning section arrives truncated
 /// rather than correctable. Checked when this compiles rather than when it runs,
@@ -2572,6 +2634,57 @@ mod tests {
             beyond_one_answer(&wide).is_some(),
             "the ceiling is the answer, not the window"
         );
+    }
+
+    /// A section that will not shorten is still that section's content. Losing it
+    /// takes a subject out of the meeting; keeping it makes the document slightly
+    /// longer than intended. The second is obviously the better trade, and the first
+    /// is what the code did.
+    #[test]
+    fn a_section_that_will_not_shorten_is_kept_rather_than_lost() {
+        let mut tries = 0;
+        let (answer, within) = with_correction_or_keep(
+            |_correction| {
+                tries += 1;
+                Ok("x".repeat(1_922))
+            },
+            |section: &String| within_budget(section, 862),
+        )
+        .expect("an answer that overruns is still an answer");
+
+        assert_eq!(
+            tries, ATTEMPTS_PER_STEP,
+            "it should have tried to correct it"
+        );
+        assert!(!within, "and should report that it did not succeed");
+        assert_eq!(answer.len(), 1_922, "while keeping what it got");
+    }
+
+    #[test]
+    fn a_section_that_shortens_when_asked_reports_success() {
+        let mut tries = 0;
+        let (answer, within) = with_correction_or_keep(
+            |_correction| {
+                tries += 1;
+                Ok("x".repeat(if tries == 1 { 9_000 } else { 900 }))
+            },
+            |section: &String| within_budget(section, 1_000),
+        )
+        .unwrap();
+
+        assert_eq!(tries, 2);
+        assert!(within);
+        assert_eq!(answer.len(), 900);
+    }
+
+    /// The level the original fault lived at, and so the level worth failing on.
+    #[test]
+    fn the_total_is_what_a_runaway_document_is_judged_by() {
+        // 26,100 against a target of about 18,000 is the measured result: long, and
+        // nothing like the failure this exists to catch.
+        assert!(26_100 < 18_000 * TOTAL_OVERRUN);
+        // 74,000 is.
+        assert!(74_000 > 18_000 * TOTAL_OVERRUN);
     }
 
     #[test]
