@@ -20,6 +20,16 @@ Explaining plainly is a stance, not a simplification. The words are chosen becau
 
 A silent application does not merely feel worse. It discards the one participant who knows things the software cannot.
 
+### Where thinking like a person helps, and where it misleads
+
+Noticed on 16 August 2026, after a day in which the analogy produced most of the good decisions and one bad one.
+
+It is reliably right at **the boundary between person and machine** — who decides what, and what the application must say out loud. The panel that said "322 to check" became six words worth glancing at by asking what somebody would actually do with it. A run lost to one bad section became a protocol with the missing stretch named, because a person can act on a gap they can see. Corrections are offered with their sentence because a participant's surname and the German for "cross" differ by one letter and only a person can tell them apart. The names list exists because no local model knows the client's name and the person in the room does.
+
+It misleads as **a theory of how the model should generate text**. "Write it topic by topic, as a person would" was measured and produced a document four times the length of a human protocol: the analogy broke because a model writing one section carries no sense of the document it belongs to, which a person does without effort.
+
+So: reach for it when the question is what to show, what to ask for, or who should judge. Distrust it when the question is how the model should work internally, and measure instead.
+
 ## Navigation
 
 The slim project sidebar stays visible on larger windows. It contains:
