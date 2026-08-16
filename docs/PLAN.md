@@ -309,6 +309,48 @@ Work in this order:
 5. Compare the result with the existing human reference on completeness, correctness, attribution, length, and editing effort—not length alone.
 6. Repeat the same workflow with an English meeting or synthetic equivalent.
 
+### 1a. Strengthen the harness so a bad draw is not a lost run
+
+Generation is already sectioned: a long meeting is condensed section by section and
+then synthesised. When any one step returns something unusable the whole run is
+discarded, which is a quarter of an hour of somebody's machine for a fault that
+affected one section.
+
+Measured on the reference meeting, `ministral-3:8b` returned a usable protocol at one
+seed of three and `gemma4:12b` at three of three — but Gemma missed the required
+table at one of them. So this is not about rescuing weak models: every model has bad
+draws, and the harness currently converts each one into a total loss.
+
+Done, and worth having before the rest:
+
+- Code fences stripped deterministically, including ` ```json `.
+- An answer refused when it parses as a JSON object, or is shorter than a hundredth
+  of what was said. Both of `ministral-3:8b`'s failures are caught by this, and the
+  JSON one had scored 28 of 35 figures.
+- Every parse of a model's answer repaired when it is nearly-JSON, rather than the
+  run being lost to a newline the model wrote inside a string.
+
+To build, in order:
+
+1. **Retry the step that failed, not the run.** A section that comes back empty,
+   fenced-as-JSON or implausibly short is one request, and the sections around it
+   were fine. Retry it a small fixed number of times before failing the job.
+2. **Tell the model what was wrong.** "You returned JSON; return markdown" is a
+   strong correction and costs one request. This is the whole of the agentic part —
+   it needs no planner and no extra pass, only the rejection fed back.
+3. **Keep what survived.** If a section still fails after its retries, the honest
+   outcome is a protocol with that stretch marked as missing, not the loss of the
+   fifteen minutes that produced the rest. A person can see a gap; they cannot see a
+   run that never finished.
+4. **Ask for less where it fails.** `ministral-3:8b` wrote 12 KB successfully at one
+   seed and collapsed at others, which suggests smaller sections would be steadier.
+   Worth measuring before adopting: more requests is also more time.
+
+What this cannot do is worth stating plainly. It enforces the shape of an answer and
+never its substance. A model that writes 211 bytes about an eighty-minute meeting
+will not be made to understand it by being asked again — the floor rises, the ceiling
+does not.
+
 ### 2. Measure the approved baseline
 
 Run the complete path on an M1 Mac with 8 GB RAM. Record elapsed time, peak memory, swap behaviour, disk use, cancellation time, and whether the interface remains usable while work runs.
