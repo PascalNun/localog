@@ -63,6 +63,22 @@ One term resists every combination, and one pair of three-letter abbreviations d
 
 Seven minutes against two, on an eighty-two minute meeting, for that difference in terminology. Transcription and generation never run at once, so the larger model does not compete with the language model for memory.
 
+### What that leaves for the person to correct
+
+Run through the shipping extractor rather than a script, 16 August 2026. It offers a word only when the transcriber was unsure of it every time it was heard.
+
+|                                                    | Original transcript | Both levers pulled |
+| -------------------------------------------------- | ------------------: | -----------------: |
+| Segments flagged as containing something uncertain |          322 of 675 |         192 of 793 |
+| Candidates offered                                 |                   6 |                  4 |
+| **Mis-heard names among them**                     |               **2** |              **0** |
+
+Every candidate remaining on the corrected transcript is a correctly spelled word the transcriber happened to be unsure of, including a hyphenated compound spelled exactly as the written protocol spells it — one the original transcript never managed.
+
+So on a well-transcribed meeting the panel has nothing to correct and says so. It reports what the transcriber was unsure of, not what is wrong.
+
+This is the claim that survived the speaker-label control. Whether a corrected transcript produces a better _protocol_ could not be shown: that measure is noise across every condition tested here. That it produces a transcript with no names left to correct is direct.
+
 ### Reading a draft against the written protocol
 
 The first such comparison, 16 August 2026, gemma4:12b at seed 7. Details naming the project are in `eval/COMPARISON.md`, which is not tracked.
