@@ -57,6 +57,10 @@ describe('generation model catalogue', () => {
         digest: 'sha256:granite',
       }),
     ).toBe('Installed');
-    expect(modelStatusLabel(ministral!, null)).toBe('Planned candidate');
+    // Ministral 8B is installable and has been measured, so it is a candidate
+    // rather than a plan. Llama is still the entry that has never been run.
+    expect(modelStatusLabel(ministral!, null)).toBe('Not installed');
+    const llama = GENERATION_MODEL_CATALOG.find((entry) => entry.id === 'llama-8b');
+    expect(modelStatusLabel(llama!, null)).toBe('Planned candidate');
   });
 });
