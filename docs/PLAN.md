@@ -410,6 +410,26 @@ Add archive and basic backup/restore, finish the language settings, confirm audi
 
 Only after the workflow and runtime choices are credible should the project enable bundling, signing, notarisation, and packaged Windows/Linux validation.
 
+## Running the evaluation harnesses
+
+They take minutes to hours against real models, which makes a few things easy to get
+wrong and expensive to get wrong:
+
+- **Check what is already running before starting anything.** Two generations on a
+  16 GB machine compete for memory, spill onto the CPU and produce timings that mean
+  nothing — and one run was left going for nine hours while a second was started
+  beside it. `ps` and `ollama ps` answer this in a second.
+- **`ollama ps` is the honest view of memory**, not the model's size on disk. A 7.1 GB
+  model at a 40,960-token context occupies 14 GB. Anything reporting a CPU share
+  rather than 100 % GPU is swapping and its timings should be discarded.
+- **Never wait on a `pgrep` for a string the waiting command itself contains.** It
+  matches its own command line and waits forever, which is how the nine hours passed.
+- **Vary the seed.** A repeat at a fixed seed reproduces the run rather than testing
+  it, and the spread between seeds has been larger than the spread between models.
+- **Read the drafts, do not only count them.** Both faults worth fixing in August
+  2026 — a literal `\n` printed mid-sentence, and an evidence check defeated by a
+  model behaving well — were invisible to every structural measure.
+
 ## Definition of done for a milestone
 
 Every milestone should end with:
