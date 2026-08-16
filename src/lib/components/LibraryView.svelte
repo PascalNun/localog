@@ -117,7 +117,7 @@
   }
 
   function ownerLabel(entry: VocabularyEntry): string {
-    if (entry.scope !== 'Project') return 'Global vocabulary';
+    if (entry.scope !== 'Project') return 'Every project';
     return projects.find((project) => project.id === entry.projectId)?.name ?? 'Unknown project';
   }
 </script>
@@ -126,11 +126,11 @@
   <header class="workspace-header library-header">
     <div>
       <p class="eyebrow">Library</p>
-      <h1 tabindex="-1">{kind === 'styles' ? 'Protocol styles' : 'Vocabulary'}</h1>
+      <h1 tabindex="-1">{kind === 'styles' ? 'Protocol styles' : 'Names & terms'}</h1>
       <p>
         {kind === 'styles'
           ? 'Reusable professional document presets—not raw prompts.'
-          : 'Preferred terminology shared globally or within a project.'}
+          : 'The names transcription cannot guess: your project, the firms, the people. Measured on a real meeting, these are worth more than any other setting here.'}
       </p>
     </div>
     {#if kind === 'vocabulary' && !draft}
@@ -152,7 +152,7 @@
   {:else}
     <div class="library-scope-note">
       <strong>Ownership is automatic.</strong><span
-        >Project vocabulary applies to its meetings without repeated selection.</span
+        >A project's names and terms apply to its meetings without repeated selection.</span
       >
     </div>
 
@@ -224,13 +224,15 @@
     {#if vocabulary.length === 0}
       <div class="empty-inline">
         <Icon name="book" size={22} />
-        <h2>No vocabulary entries yet</h2>
+        <h2>No names or terms yet</h2>
         <p>
           Add the names, firms and abbreviations this work uses so they are transcribed correctly.
+          On a real eighty-minute meeting this took the project's own name from never spelled
+          correctly to always.
         </p>
       </div>
     {:else}
-      <section class="library-list" aria-label="Vocabulary entries">
+      <section class="library-list" aria-label="Names and terms">
         {#each vocabulary as entry (entry.id)}<article class:is-disabled={!entry.enabled}>
             <div>
               <h2>{entry.term}</h2>

@@ -129,7 +129,7 @@
         class:active={route.name === 'vocabulary'}
         class="nav-link"
         onclick={() => navigate({ name: 'vocabulary' })}
-        ><Icon name="book" size={17} /> Vocabulary</button
+        ><Icon name="book" size={17} /> Names &amp; terms</button
       >
     </section>
 

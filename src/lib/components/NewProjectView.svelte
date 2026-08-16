@@ -65,7 +65,7 @@
     <details class="advanced-disclosure">
       <summary>Project defaults</summary>
       <p>
-        Vocabulary, recurring participants, and a protocol style can be configured in the project
+        Names & terms, recurring participants, and a protocol style can be configured in the project
         after creation.
       </p>
     </details>
