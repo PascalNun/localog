@@ -301,6 +301,10 @@
     recordingReview = null;
     const wanted = route.meetingId;
     void bridge.getRecordingReview(wanted).then((found) => {
+      // Not a loop: this block's condition reads `route` and `reviewedMeeting`, and
+      // `reviewedMeeting` was set above, so assigning the review cannot retrigger it.
+      // The guard is for a second meeting opened while the first was still loading.
+      // eslint-disable-next-line svelte/infinite-reactive-loop
       if (reviewedMeeting === wanted) recordingReview = found;
     });
   }

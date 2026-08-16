@@ -316,16 +316,16 @@ found so far and it improves every model at once.
 
 The reference meeting was transcribed with an empty vocabulary — the workspace holds
 zero entries — and every model comparison in this project rests on that transcript.
-Giving whisper thirty proper nouns as its initial prompt, on the *same* model, with
+Giving whisper thirty proper nouns as its initial prompt, on the _same_ model, with
 nothing else changed:
 
-| Term | Without vocabulary | With vocabulary |
-| --- | --- | --- |
-| The housing form the meeting is about | 0 right, 40 wrong | 32 right, 4 wrong |
-| The building system supplier | 0 right, 13 wrong | 6 right, 2 wrong |
-| The client's name | 0 right, 1 wrong | 4 right, 0 wrong |
-| The word for the building envelope | 19 right, 11 wrong | 35 right, 6 wrong |
-| The word for structural engineering | **never occurs at all** | occurs |
+| Term                                  | Without vocabulary      | With vocabulary   |
+| ------------------------------------- | ----------------------- | ----------------- |
+| The housing form the meeting is about | 0 right, 40 wrong       | 32 right, 4 wrong |
+| The building system supplier          | 0 right, 13 wrong       | 6 right, 2 wrong  |
+| The client's name                     | 0 right, 1 wrong        | 4 right, 0 wrong  |
+| The word for the building envelope    | 19 right, 11 wrong      | 35 right, 6 wrong |
+| The word for structural engineering   | **never occurs at all** | occurs            |
 
 The last row is the one to act on. Without the vocabulary that word does not exist
 anywhere in seventy-two thousand characters, and the generated protocol therefore
@@ -419,7 +419,7 @@ the context as an environment variable, so it needs no code.
 | Context | Sections | Seconds | Headings | Table rows | Figures |
 | ------: | -------: | ------: | -------: | ---------: | ------: |
 |   8,192 |        — |       — |        — |          — | invalid |
-|  16,384 |        5 |       — |        — |          — | failed  |
+|  16,384 |        5 |       — |        — |          — |  failed |
 |  24,576 |        3 |    1345 |       10 |     **12** |   29/35 |
 |  32,768 |        2 |     895 |       25 |          0 |   29/35 |
 |  40,960 |        2 |    ~840 |        — |          0 |   29/35 |

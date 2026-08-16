@@ -19,6 +19,9 @@
   // Reload the working copy when a different recording arrives, never on every
   // redraw, or a person's dragging would be undone by their own saving.
   $: if (review && loaded !== meeting.id) {
+    // The linter reads this as writing a value nobody goes on to use. It is read by
+    // this block's own condition on the next run, which is the whole point of it.
+    // eslint-disable-next-line no-useless-assignment
     loaded = meeting.id;
     edits = {
       startMs: review.edits.startMs ?? 0,
@@ -102,7 +105,8 @@
   function onTrackKey(event: KeyboardEvent) {
     if (!durationMs) return;
     const extend = event.shiftKey;
-    let next = caretMs;
+    // Assigned by every branch that falls through; the rest return.
+    let next: number;
     switch (event.key) {
       case 'ArrowRight':
         next = Math.min(durationMs, caretMs + stepFor(event));
