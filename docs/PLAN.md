@@ -43,7 +43,19 @@ Written 17 August 2026. The order is by what it settles, not by what is quickest
 
 ### Parked, with reasons
 
-Writing by topic, until there is an idea for structure that per-section rules cannot supply — it controls length and coverage and produces a document ordered by when things were said. The model that proposes corrections for the two or three ragged words a meeting leaves. The visual pass over the interface, which is a different job from the interaction and was deliberately not done with it.
+Writing by topic. Two things are now known about it and one is not. It **does** control
+length — 74,000 characters became 26,100 with per-topic budgets — and coverage held at 31
+of 35 figures, the best measured. It **does not** produce a document organised by subject:
+twenty-nine headings with three separate facade sections and the meeting's closing at
+position fifteen, because each topic is written independently in transcript order and
+structure is a global decision. What is **not** known is whether it removes the dependence
+on a wide context, which is the reason it was tried: two runs at 8,192 tokens failed with
+the answer cut off, and the implementation never split an oversized topic — a comment
+claims it does and no code does — so a single topic's passages can fill the window on
+their own. Measuring that needs instrumenting the path rather than inferring from the
+failures, which is what the second cause candidate (the topic pass's own group-judging
+payload) makes clear. Parked until there is an idea for structure that per-section rules
+cannot supply — it controls length and coverage and produces a document ordered by when things were said. The model that proposes corrections for the two or three ragged words a meeting leaves. The visual pass over the interface, which is a different job from the interaction and was deliberately not done with it.
 
 ## The direction
 
