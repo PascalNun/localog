@@ -20,7 +20,7 @@ Status words:
 4. The protocol is the outcome. Transcription is a reviewable source, not the final product.
 5. Generated protocols remain drafts. Revisions are retained and a review belongs to one exact immutable revision.
 6. Interface language and meeting/content language are separate settings.
-7. Protocol styles are named professional presets with structured instructions and output expectations. They are not arbitrary prompt fields for each meeting.
+7. Protocol styles are named professional presets with structured instructions and output expectations. They are not arbitrary prompt fields for each meeting. **A person can author their own**, which is how a firm makes the protocol the shape its own work needs; the constraint is that a style is a structured preset, not a free prompt box, and that it is reusable across meetings rather than retyped for each one. Only the shipped style exists today, and nothing in the application yet lets anybody create one.
 8. The interface is a core product requirement equal to privacy and data reliability. It should feel calm, immediate, clear, and professional.
 9. Barlow is the locally bundled primary application typeface. The reference images are directional, not a list of literal controls.
 
