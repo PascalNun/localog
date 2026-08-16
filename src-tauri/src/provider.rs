@@ -931,8 +931,27 @@ impl OllamaProvider {
         if !done {
             return Err(ProviderError::IncompleteResponse);
         }
-        Ok(generated)
+        Ok(repair_escaped_newlines(&generated))
     }
+}
+
+/// Turn a literal backslash-n the model wrote as text into an actual line break.
+///
+/// The JSON is already unescaped by the time it reaches here, so a `\n` surviving
+/// in the text is two characters the model typed rather than an encoding fault.
+/// Measured on the reference meeting: gemma4:12b leaves three to nine of them in a
+/// protocol, each one appearing mid-sentence in a document somebody is meant to
+/// hand to a client.
+///
+/// Safe to do unconditionally for this product. A meeting protocol is prose,
+/// headings and tables, and has no legitimate use for the sequence — where a
+/// technical discussion really does mention one, losing it costs less than
+/// printing an escape code in the middle of a paragraph.
+fn repair_escaped_newlines(markdown: &str) -> String {
+    if !markdown.contains("\\n") {
+        return markdown.to_string();
+    }
+    markdown.replace("\\n", "\n")
 }
 
 /// One model call: what to ask, how to constrain it, and how much answer to allow.
@@ -1278,6 +1297,23 @@ fn truncate(value: &str, max_chars: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A model that types the two characters instead of a line break leaves an
+    /// escape code in the middle of a professional document. Measured: three to
+    /// nine per protocol from the model this project is moving to.
+    #[test]
+    fn an_escape_the_model_typed_becomes_a_line_break() {
+        let written = "Der Aufzug wurde eingerückt.\\n*   **Treppenhaus:** Sicherheitstreppenhaus.";
+        let repaired = repair_escaped_newlines(written);
+        assert!(
+            !repaired.contains("\\n"),
+            "the escape should be gone: {repaired}"
+        );
+        assert_eq!(repaired.lines().count(), 2);
+        // A protocol without any is returned untouched rather than rebuilt.
+        let clean = "## Beschluss\n\nDie Fassade bleibt.";
+        assert_eq!(repair_escaped_newlines(clean), clean);
+    }
     use std::io::{Read, Write};
     use std::net::TcpListener;
     use std::thread;
