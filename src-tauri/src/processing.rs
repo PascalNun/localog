@@ -96,7 +96,11 @@ fn affordable_context(
 ) -> u32 {
     /// Measured on the reference meeting and not exceeded since.
     const MEASURED_AFFORDABLE: u32 = 40_960;
-    const WHEN_UNREPORTED: u32 = 8_192;
+    /// When the provider will not say how wide its context is. Was 8,192, which was
+    /// measured on 16 August 2026 to fail three times out of three: at that width the
+    /// window cannot hold the folded notes and a whole protocol at once, so a run
+    /// ends with the answer cut off. A guess has to be a width that works.
+    const WHEN_UNREPORTED: u32 = 16_384;
     /// `mistral-nemo` spends about 170 KB of key-value cache per token where Qwen
     /// spends about 32. The larger is used for every model, because a context that
     /// turns out to fit easily is a smaller disappointment than one that does not
@@ -105,9 +109,12 @@ fn affordable_context(
     /// For everything that is not this model: the application, the interface, the
     /// transcription runtime that may still be resident, and the operating system.
     const RESERVED: u64 = 3 * 1024 * 1024 * 1024;
-    /// Below this a context is too short to hold a meeting section usefully, so a
-    /// machine that cannot afford it is told rather than quietly given a stub.
-    const LEAST_USEFUL: u32 = 4_096;
+    /// The narrowest width measured to produce a protocol at all. 8,192 fails at
+    /// every seed and 4,096 — what this used to be — is narrower still, so a machine
+    /// too small for this is better served by being slow than by being handed a
+    /// window that cannot finish. Quality does not vary with the window; only time
+    /// does, which makes slow the right way to be wrong.
+    const LEAST_USEFUL: u32 = 16_384;
 
     let supported = provider
         .model_context_length(model)
@@ -3323,7 +3330,12 @@ mod tests {
             cramped <= for_nemo,
             "less memory must never buy more context"
         );
-        assert!(cramped >= 4_096, "and never fall below a usable floor");
+        // 8,192 was measured to fail at every seed and 4,096 is narrower still, so
+        // the floor is the narrowest width that has been seen to produce a protocol.
+        assert!(
+            cramped >= 16_384,
+            "and never fall below a width measured to work: {cramped}"
+        );
 
         // What cannot be established is not guessed at.
         assert_eq!(
