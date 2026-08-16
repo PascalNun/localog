@@ -349,6 +349,34 @@ The immediate consequence is that `required_sections` should be replaced rather 
 Structural expectations in a checkable form are what it was reaching for; English section names
 were the wrong shape for a document written in German.
 
+#### A contradiction that becomes live the moment density is chosen
+
+Density should be a choice the person makes, and three options are enough — `ProtocolDensity`
+already has exactly three, and their directives read well. But the shipped style also carries its
+own length instruction:
+
+> Write at whatever length the material requires. Do not compress the meeting into a summary: this
+> is a record, and a reader who was absent must be able to follow what was discussed and what
+> follows from it.
+
+while `with_density` independently appends, for Terse:
+
+> Write as briefly as the meaning allows, roughly a line per point.
+
+Both reach the model in the same prompt. It is dormant today because one style exists, its density
+is fixed at comprehensive, and nothing lets anybody choose otherwise. It bites on the first day
+density becomes selectable, at two of its three settings.
+
+The decomposition says what to do. That instruction is three things fused: a length rule, which is
+density's; a "this is a record, not a summary" rule, which is fidelity's and is already carried by
+"Cover every topic that was discussed"; and a justification for both. Split along those lines it can
+be deleted without losing anything.
+
+Not done yet, deliberately. It is prose in the only thing that produces protocols, it needs a style
+revision and a migration, and the change should be measured rather than assumed — the value of
+these instructions has been wrong before. Do it with the density-selection work, and measure the
+comprehensive setting before and after.
+
 4. Retry one failed section or pass rather than discarding the complete run.
 5. Compare the result with the existing human reference on completeness, correctness, attribution, length, and editing effort—not length alone.
 6. Repeat the same workflow with an English meeting or synthetic equivalent.
