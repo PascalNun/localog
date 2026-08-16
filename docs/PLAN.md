@@ -606,44 +606,42 @@ kept and a reading of the draft would show, so the experiment is: `gemma4:12b` a
 `ministral-3:8b` at 8,192 against 40,960 on the reference meeting. The harness takes
 the context as an environment variable, so it needs no code.
 
-#### First measurements, 16 August 2026
+#### Measured, 16 August 2026
 
-`gemma4:12b`, seed 7. One draw at each point, which is why the reading below is corrected further down:
+`gemma4:12b` on the reference meeting, three seeds at each context. Twelve runs.
 
-| Context | Sections | Seconds | Headings | Table rows | Figures |
-| ------: | -------: | ------: | -------: | ---------: | ------: |
-|   8,192 |        — |       — |        — |          — | invalid |
-|  16,384 |        5 |       — |        — |          — |  failed |
-|  24,576 |        3 |    1345 |       10 |     **12** |   29/35 |
-|  32,768 |        2 |     895 |       25 |          0 |   29/35 |
-|  40,960 |        2 |    ~840 |        — |          0 |   29/35 |
+| Context | Sections | Seconds (mean) | Figures, by seed | Tables |
+| ------: | -------: | -------------: | ---------------- | -----: |
+|  16,384 |        5 |      **2,079** | 24, 31, 26       | 3 of 3 |
+|  24,576 |        3 |          1,457 | 29, 25, 27       | 3 of 3 |
+|  32,768 |        2 |            877 | 29, 27, 23       | 2 of 3 |
+|  40,960 |        2 |           ~840 | ~29, –, –        | 2 of 3 |
 
-Three things, in descending order of confidence.
+**Quality does not depend on the context. Time does.** Figures range 23 to 31 across
+seeds at a fixed window, which is wider than any difference between windows; the best
+single result of the whole sweep — 31 of 35 — came from 16,384, the context that had
+been written off as failing. Ten of twelve runs carried the action table, spread
+across every context. Headings swing from 11 to 48 at 16,384 alone.
 
-The 8,192 row is not a measurement. The harness passes a maximum output of 8,192
-tokens, so at that context the reading window was exactly zero and `plan_sections`
-fell to its last resort of one section per segment. That was a defect in the code as
-well as in the test — the answer can no longer claim more than half the window — and
-the point has to be measured again.
+What moves systematically is wall-clock: **16,384 costs about 2.4 times as long as
+40,960**, because five sections means five times the requests. That was predicted
+above before it was measured, and it is the only prediction here that survived.
 
-**Neither the actions table nor the figures depend on the context, and both claims
-that they did were wrong.** They were each made from one draw at each point. Repeated
-across three seeds:
+So the trade is memory against time, at flat quality. An eight-gigabyte machine can
+run this at a small window and pay for it in minutes rather than in the protocol — a
+better bargain than it looked, and the answer that target needed.
 
-| Seed |       24,576 |       32,768 |     40,960 |
-| ---: | -----------: | -----------: | ---------: |
-|    7 | table, 29/35 | **—**, 29/35 | **—**, ~29 |
-|  101 | table, 25/35 | table, 27/35 |      table |
-|  202 | table, 27/35 | table, 23/35 |      table |
+Two earlier readings of this sweep were wrong, both from single draws at each point,
+and both are recorded here rather than quietly fixed. The first said a smaller context
+produced the action table; the second said figures were a flat 29 everywhere. Also
+withdrawn: 16,384 does not fail — it returned `IncompleteResponse` once and then
+produced protocols at all three seeds, including the best of them.
 
-Two things follow, and the second matters more.
-
-The context does nothing measurable between 24,576 and 40,960 — not to figures kept,
-not to whether the protocol carries its table. So **the window can be chosen for what
-the machine can hold rather than for quality**, which is the answer the 8 GB target
-needed. Figures range 23 to 29 across seeds at a fixed context, which is wider than
-any difference between contexts; "29 of 35 at every context" was three coincidences
-read as a constant.
+The 8,192 row is absent because it was never measured. The harness passed a maximum
+output of 8,192 tokens, so at that context the reading window was exactly zero and
+`plan_sections` fell to its last resort of one section per segment. That was a defect
+in the code as much as in the test; the answer can no longer claim more than half the
+window, and the point is being measured now.
 
 **The variation that matters is between draws, not between settings.** Both runs
 missing the table are at seed 7 — the harness default, and therefore the draw behind
