@@ -347,6 +347,15 @@ fn provider_processing_error(error: provider::ProviderError) -> ProcessingError 
             code: "provider_incomplete_output",
             message: "The local model stopped before returning a complete protocol.".into(),
         },
+        // Said in terms of what happened and what to do, because the alternative is
+        // a person watching a progress bar that will never move again.
+        provider::ProviderError::Stalled => ProcessingError::Runtime {
+            code: "provider_stalled",
+            message: "The local model stopped responding partway through and the draft was not \
+                      committed. This usually means it needs more memory than is free — a smaller \
+                      model, or closing other applications, should let it finish."
+                .into(),
+        },
     }
 }
 
