@@ -917,9 +917,20 @@ impl OllamaProvider {
             if line.len() > MAX_RESPONSE_BYTES {
                 return Err(ProviderError::ResponseTooLarge);
             }
-            let chunk: StreamChunk = serde_json::from_str(line.trim()).map_err(|error| {
-                ProviderError::InvalidResponse(truncate(&error.to_string(), 280))
-            })?;
+            let chunk: StreamChunk =
+                match serde_json::from_str(line.trim()) {
+                    Ok(chunk) => chunk,
+                    // A raw control character inside a JSON string is invalid JSON, and
+                    // the provider has been observed to emit one: a generation of the
+                    // reference meeting failed after minutes with `control character
+                    // found while parsing a string`. Losing a fourteen-minute run over
+                    // one byte the model happened to type is not a trade worth making,
+                    // so the line is repaired and parsed again. Only on failure, so
+                    // nothing normal pays for it.
+                    Err(_) => serde_json::from_str(&escape_raw_controls(line.trim())).map_err(
+                        |error| ProviderError::InvalidResponse(truncate(&error.to_string(), 280)),
+                    )?,
+                };
             generated.push_str(if chunk.response.is_empty() {
                 &chunk.thinking
             } else {
@@ -945,6 +956,43 @@ impl OllamaProvider {
         }
         Ok(repair_escaped_newlines(&generated))
     }
+}
+
+/// Escape control characters that appear raw inside a JSON string.
+///
+/// Only inside a string: a tab or newline between tokens is legal JSON whitespace,
+/// and escaping those would break a document that was never broken. Quotes are
+/// tracked so the difference is known, and a quote preceded by a backslash does not
+/// end the string it is in.
+fn escape_raw_controls(line: &str) -> String {
+    let mut out = String::with_capacity(line.len() + 16);
+    let mut in_string = false;
+    let mut escaped = false;
+    for character in line.chars() {
+        if escaped {
+            out.push(character);
+            escaped = false;
+            continue;
+        }
+        match character {
+            '\\' if in_string => {
+                out.push(character);
+                escaped = true;
+            }
+            '"' => {
+                in_string = !in_string;
+                out.push(character);
+            }
+            control if in_string && (control as u32) < 0x20 => match control {
+                '\n' => out.push_str("\\n"),
+                '\r' => out.push_str("\\r"),
+                '\t' => out.push_str("\\t"),
+                other => out.push_str(&format!("\\u{:04x}", other as u32)),
+            },
+            other => out.push(other),
+        }
+    }
+    out
 }
 
 /// Turn a literal backslash-n the model wrote as text into an actual line break.
@@ -1309,6 +1357,43 @@ fn truncate(value: &str, max_chars: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A raw control character inside a JSON string is invalid JSON, and losing a
+    /// fourteen-minute generation to one byte the model happened to type is not a
+    /// trade worth making. Measured: ministral-3:8b failed a run this way.
+    #[test]
+    fn a_raw_control_character_does_not_lose_the_generation() {
+        // A newline sitting raw inside the string, which is what arrived.
+        let broken = "{\"response\":\"Der Beschluss\nbleibt\",\"done\":false}";
+        assert!(
+            serde_json::from_str::<serde_json::Value>(broken).is_err(),
+            "the fixture must really be invalid JSON"
+        );
+        let repaired = escape_raw_controls(broken);
+        let value: serde_json::Value = serde_json::from_str(&repaired).expect("repaired");
+        assert_eq!(value["response"], "Der Beschluss\nbleibt");
+    }
+
+    /// Whitespace between tokens is legal JSON and must not be touched, or a
+    /// document that was never broken would be broken by the repair.
+    #[test]
+    fn whitespace_between_tokens_is_left_alone() {
+        let fine = "{\"response\": \"ok\",\n \"done\": true}";
+        let value: serde_json::Value =
+            serde_json::from_str(&escape_raw_controls(fine)).expect("still valid");
+        assert_eq!(value["response"], "ok");
+        assert_eq!(value["done"], true);
+    }
+
+    /// An escaped quote does not end the string it sits in, so what follows is
+    /// still inside one and still needs repairing.
+    #[test]
+    fn an_escaped_quote_does_not_confuse_the_repair() {
+        let broken = "{\"response\":\"sagte \\\"ja\\\" und\ndann\",\"done\":false}";
+        let value: serde_json::Value =
+            serde_json::from_str(&escape_raw_controls(broken)).expect("repaired");
+        assert_eq!(value["response"], "sagte \"ja\" und\ndann");
+    }
 
     /// A model that types the two characters instead of a line break leaves an
     /// escape code in the middle of a professional document. Measured: three to
