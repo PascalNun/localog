@@ -1031,7 +1031,7 @@ impl OllamaProvider {
         let instructions = with_density(request);
         // The last step, and the most expensive to lose: every section has already
         // been condensed by the time it runs.
-        let markdown = with_correction(
+        let (markdown, complete) = with_correction_or_keep(
             |correction| {
                 let payload = SynthesisPayload {
                     meeting_language: &request.meeting_language,
@@ -1070,6 +1070,22 @@ impl OllamaProvider {
             },
         )?;
         progress(78, "validating_protocol")?;
+
+        // An answer kept after every retry failed must still be a protocol. Asking
+        // three times for a table and not getting one is a document with something
+        // missing; returning a JSON dump three times is not a document.
+        validate_markdown(&markdown, spoken_characters(request))?;
+
+        // A protocol without its table of tasks and owners is worth less than one
+        // with it, and worth far more than the meeting it would otherwise take with
+        // it. Measured, about one draw in five arrives without one, so discarding
+        // those runs would lose whole meetings to a fault a reader can see and act
+        // on. It is kept, and the document says what it is missing.
+        let markdown = if complete {
+            markdown
+        } else {
+            note_missing_table(markdown)
+        };
         // Said again at the foot of the document, because the note asking for the
         // hole to be described is an instruction to a model and instructions to
         // models are sometimes not followed. This part does not depend on one.
@@ -1481,6 +1497,22 @@ impl Gap {
     }
 }
 
+/// Say that the protocol has no table of tasks and owners, when three attempts have
+/// failed to produce one.
+///
+/// The reader is the one who can do something about it — they were at the meeting and
+/// the model was not — but only if they are told. A protocol that quietly omits the
+/// part somebody acts on reads exactly like one that had no actions to record.
+fn note_missing_table(markdown: String) -> String {
+    format!(
+        "{}\n\n---\n\n## No table of next steps\n\nThis protocol was written three \
+         times and none of them ended with a table of agreed tasks and their owners. \
+         Any actions the meeting agreed are described in the sections above but are \
+         not collected here.\n",
+        markdown.trim_end()
+    )
+}
+
 /// State plainly, at the end of the protocol, which stretches of the meeting are
 /// missing from it.
 ///
@@ -1861,7 +1893,6 @@ const ATTEMPTS_PER_STEP: usize = 3;
 ///
 /// Returns whether the answer ended up acceptable, so a caller can say what happened
 /// rather than pretending it did not.
-#[cfg(test)]
 fn with_correction_or_keep<T>(
     mut attempt: impl FnMut(Option<&str>) -> Result<T>,
     mut check: impl FnMut(&T) -> Result<()>,
@@ -2702,6 +2733,35 @@ mod tests {
         assert!(message.contains("9000 characters"), "{message}");
         assert!(message.contains("about 1000"), "{message}");
         assert!(message.contains("not a document of its own"), "{message}");
+    }
+
+    /// The consistency this restores: gaps are marked and kept, over-long sections
+    /// are kept and counted, and a protocol that never grew its table was thrown
+    /// away along with the meeting it recorded.
+    #[test]
+    fn a_protocol_that_never_grew_its_table_is_kept_and_says_so() {
+        let without = "# Protokoll\n\n## 1. Fassade\n\nEs wurde besprochen.";
+        let noted = note_missing_table(without.into());
+
+        assert!(
+            noted.starts_with("# Protokoll"),
+            "the protocol itself is kept"
+        );
+        assert!(noted.contains("No table of next steps"));
+        assert!(
+            noted.contains("written three times"),
+            "and says why: {noted}"
+        );
+    }
+
+    /// A kept answer still has to be a protocol. Three JSON dumps are not a document
+    /// with something missing; they are not a document.
+    #[test]
+    fn keeping_an_answer_does_not_mean_keeping_anything() {
+        let spoken = 73_000;
+        let dump = r#"{"metadata": {"title": "x"}, "organisations": []}"#;
+        assert!(validate_markdown(dump, spoken).is_err());
+        assert!(validate_markdown("", spoken).is_err());
     }
 
     #[test]
