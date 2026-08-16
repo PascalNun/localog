@@ -217,6 +217,9 @@ struct SectionPayload<'a> {
 struct MergePayload<'a> {
     meeting_language: &'a str,
     notes: &'a [String],
+    /// What was wrong with the previous attempt, when there was one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    correction: Option<&'a str>,
 }
 
 #[derive(Serialize)]
@@ -915,6 +918,12 @@ impl OllamaProvider {
 
     /// Combine a group of consecutive notes into one, preserving their content.
     /// A single note is returned unchanged rather than sent through the model again.
+    ///
+    /// Retried on its own like the passes either side of it. This was the one step
+    /// without that protection, so a single bad draw here lost a run that had already
+    /// condensed the whole meeting — and this step runs most often at the smallest
+    /// contexts, where the notes need folding several times over. An eight-thousand
+    /// token run failed exactly this way.
     fn merge_notes(
         &self,
         request: &GenerationRequest,
@@ -925,26 +934,34 @@ impl OllamaProvider {
         if group.len() == 1 {
             return Ok(group[0].clone());
         }
-        let payload = MergePayload {
-            meeting_language: &request.meeting_language,
-            notes: group,
-        };
-        let prompt = encode_prompt(&payload)?;
-        let notes_ceiling = ((prompt.len() / 2) as u32).max(1024);
-        let num_predict = answer_budget(request.context_tokens, prompt.len(), notes_ceiling);
-        let generated = self.complete(
-            request,
-            Completion {
-                system: MERGE_SYSTEM,
-                prompt: &prompt,
-                format: notes_schema(),
-                num_predict,
+        let held: usize = group.iter().map(String::len).sum();
+        with_correction(
+            |correction| {
+                let payload = MergePayload {
+                    meeting_language: &request.meeting_language,
+                    notes: group,
+                    correction,
+                };
+                let prompt = encode_prompt(&payload)?;
+                let notes_ceiling = ((prompt.len() / 2) as u32).max(1024);
+                let num_predict =
+                    answer_budget(request.context_tokens, prompt.len(), notes_ceiling);
+                let generated = self.complete(
+                    request,
+                    Completion {
+                        system: MERGE_SYSTEM,
+                        prompt: &prompt,
+                        format: notes_schema(),
+                        num_predict,
+                    },
+                    cancelled,
+                    &mut |_| progress(60, "condensing_transcript"),
+                )?;
+                let structured: StructuredNotes = parse_structured(&generated)?;
+                Ok(strip_code_fence(&structured.notes_markdown).to_string())
             },
-            cancelled,
-            &mut |_| progress(60, "condensing_transcript"),
-        )?;
-        let structured: StructuredNotes = parse_structured(&generated)?;
-        Ok(structured.notes_markdown)
+            |merged: &String| validate_markdown(merged, held),
+        )
     }
 
     /// One bounded, cancellable, streamed completion.
@@ -1190,7 +1207,7 @@ const SECTION_SYSTEM: &str = "Record one section of a meeting transcript as deta
 
 const SYNTHESIS_SYSTEM: &str = "Write a reviewable professional meeting protocol from ordered notes taken across the whole meeting. The notes are the only source. Never invent decisions, actions, owners, or dates, and state uncertainty explicitly. Group related material by topic rather than by the order it was discussed. Follow the controlled style and return only schema-valid JSON.";
 
-const MERGE_SYSTEM: &str = "Combine consecutive sets of meeting notes into one set, in the meeting's language. Keep every decision, action, owner, open question, number, measurement, date and proper name. Remove only exact repetition between the sets. Do not shorten anything that is stated once. Return only schema-valid JSON.";
+const MERGE_SYSTEM: &str = "Combine consecutive sets of meeting notes into one set, in the meeting's language. Keep every decision, action, owner, open question, number, measurement, date and proper name. Remove only exact repetition between the sets. Do not shorten anything that is stated once. Return only schema-valid JSON. If a correction field is present, the previous attempt was rejected for the reason it gives; fix that and return the notes again.";
 
 fn encode_prompt<T: Serialize>(payload: &T) -> Result<String> {
     let bytes = serde_json::to_vec(payload)
