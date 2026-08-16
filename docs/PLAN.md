@@ -371,6 +371,33 @@ Open question for the owner: whether the flag count stays visible alongside, or 
 candidates replace it. The flags are also how somebody finds passages to re-read
 before trusting the protocol, which is an argument for keeping them.
 
+**1b. The protocol model already flags names the transcriber was sure about.** Found
+by accident, 16 August 2026, reading the foot of a draft:
+
+> [Note: The term "Klinker-Nord" is used in the source text; it is unclear if this
+> refers to a specific project name or location.]
+
+That is the client's name, mis-heard. Unprompted, the model noticed the word behaves
+like a name it does not recognise and told the reader instead of using it silently.
+
+The important part is which error it caught. whisper flagged the catastrophically
+mangled form of that name — `Lärgedorf-Bildes-Fropette-Reit` — and did **not** flag
+the plain wrong spelling, because it was confident about it. **A transcriber's
+confidence cannot flag an error it is confident about.** That is a structural blind
+spot, and it is the dangerous class: a confidently wrong name is the one that reaches
+a client's inbox looking correct.
+
+So there are three sources of candidate terms, and they overlap less than expected:
+
+1. Words the transcriber was unsure of every time — catches garbled forms.
+2. The same, grouped by stem — catches names whose mis-hearing varied.
+3. **The protocol model's own notes — catches names the transcriber was sure about.**
+
+The third is weak on its own: four of thirteen drafts carried such a note, each
+flagging one name. It is also free, since the model is already writing them, and it is
+the only one of the three that can see this class at all. Harvesting them into the
+candidate list is a small piece of work with no new model call.
+
 **2. One correction, two jobs.** Correcting `Klaster → Cluster` should fix the current
 transcript _and_ enter Names & terms so the next meeting is transcribed correctly.
 Cure and prevention from the same keystroke, which is what makes the thirty seconds
