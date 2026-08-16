@@ -77,7 +77,34 @@ Every candidate remaining on the corrected transcript is a correctly spelled wor
 
 So on a well-transcribed meeting the panel has nothing to correct and says so. It reports what the transcriber was unsure of, not what is wrong.
 
-This is the claim that survived the speaker-label control. Whether a corrected transcript produces a better _protocol_ could not be shown: that measure is noise across every condition tested here. That it produces a transcript with no names left to correct is direct.
+This is the claim that survived the speaker-label control. That a corrected transcript produces a transcript with no names left to correct is direct. That it produces a better _protocol_ was tested and is not the case — see below.
+
+### A correctly spelled transcript does not produce a better protocol
+
+Settled 16 August 2026, after a control run removed the confound that made it look otherwise. `gemma4:12b` at 40,960, speaker labels flattened in both conditions so that only the spelling differs:
+
+| Transcript                       |          Seed 7 |        Seed 101 |
+| -------------------------------- | --------------: | --------------: |
+| Original, labels flattened       | table, 28 of 35 | table, 30 of 35 |
+| Corrected, `medium` + vocabulary | table, 30 of 39 | table, 28 of 39 |
+
+Four runs, four action tables, and figure ratios of 80, 86, 77 and 72 per cent — overlapping, with the corrected transcript no better and possibly slightly worse.
+
+The first comparison had suggested otherwise, but the corrected transcripts were also unlabelled while the original carried fifty-four speaker labels, and this document had already measured that removing labels changes the figures kept. Holding the labels constant removes the difference.
+
+In hindsight the very first draft read against the written protocol said as much: every quantity in it was correct while every proper noun was wrong. The model was already extracting the right facts from a transcript full of mis-heard names.
+
+**This relocates what the transcription work is for rather than diminishing it.** The vocabulary and the larger model do not help a model understand a meeting. They fix the document a person has to circulate, where a client's name spelt wrongly and a structural engineer filed under a discipline he does not practise are unacceptable however many figures survived. That is a narrower claim than the one first made here, and unlike the first one it holds.
+
+### What this project's measurements are worth, by kind
+
+Worth stating plainly, because four separate conclusions were withdrawn on 16 August 2026 and they failed the same way.
+
+Every measure derived from **comparing two protocols** turned out to be noise at one draw each: whether the action table appears, how many figures are kept, whether the context matters, whether speaker labels matter, whether corrected spelling matters. Figures range 23 to 31 across seeds at a fixed setting, which is wider than any difference between settings.
+
+Every measure that is a **direct count** held: terms spelled correctly against a written reference, occurrences a correction changes, candidates an extractor offers, segments a transcriber flagged.
+
+The rule that follows: a protocol comparison needs several seeds before it is written down, and a claim that can be made as a direct count should be.
 
 ### Reading a draft against the written protocol
 
