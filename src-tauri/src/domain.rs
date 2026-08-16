@@ -342,3 +342,18 @@ pub struct WorkspaceSnapshot {
     pub active_meeting_id: Option<String>,
     pub active_route: Option<String>,
 }
+
+/// A spelling correction somebody approved, and what to do with it.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppliedCorrection {
+    pub wrong: String,
+    pub right: String,
+    /// Segments whose occurrences to change. Empty means every one of them, which is
+    /// what somebody means when they correct a project's name.
+    #[serde(default)]
+    pub kept_segment_ids: Vec<String>,
+    /// Whether to keep the spelling for the project's future meetings.
+    #[serde(default)]
+    pub remember: bool,
+}

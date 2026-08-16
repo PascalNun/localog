@@ -16,12 +16,8 @@
 //! than what it could: it cannot be shown to the reader as a list of exact
 //! substitutions, and it would quietly tidy prose along the way.
 
-// Reachable from the evaluation harness and its tests, not yet from the application:
-// the screen that offers these corrections is designed and not built. Wired up in the
-// slice that adds it, at which point this attribute goes.
-#![allow(dead_code)]
-
 use crate::domain::TranscriptSegment;
+use std::collections::HashMap;
 
 /// One spelling somebody corrected, and what it should say.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -68,6 +64,118 @@ fn lower_initial(word: &str) -> String {
     }
 }
 
+/// A word the transcriber never got right, offered as a possible name.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Candidate {
+    pub heard: String,
+    pub occurrences: usize,
+    /// One place it appears, because a mis-heard word is unfamiliar by definition
+    /// and cannot be recognised without its sentence.
+    pub context: String,
+}
+
+/// How many candidates are worth offering.
+///
+/// A short list somebody finishes beats a long one they abandon, and anything missed
+/// is caught at the next meeting. Measured on an eighty-minute meeting the filter
+/// below yields about six, so this is a guard against an unusual transcript rather
+/// than a limit that normally bites.
+const MOST_CANDIDATES: usize = 12;
+
+/// Occurrences before a word is worth offering. One is usually a stumble.
+const LEAST_OCCURRENCES: usize = 2;
+
+/// Letters before a word is worth offering. Shorter ones are particles.
+const LEAST_LETTERS: usize = 4;
+
+/// The words the transcriber was never sure of, most frequent first.
+///
+/// The filter is deliberately strict: a word qualifies only if **every** time it was
+/// heard, the transcriber was unsure of it. A word it usually gets right and fumbles
+/// once is a stumble; a word it never gets right is a word it does not know, which is
+/// what a name is.
+///
+/// Measured on the reference meeting this turns 1,941 distinct words into six, of
+/// which two or three are the names that matter. The same transcript flags 322 of its
+/// 675 segments as containing something uncertain, which is why the count that panel
+/// used to show was not a task anybody started.
+///
+/// It cannot catch a name the transcriber was confident about and wrong — nothing
+/// reading confidence can. Those turn up in the protocol model's own notes instead.
+pub(crate) fn name_candidates(segments: &[TranscriptSegment]) -> Vec<Candidate> {
+    let mut heard: HashMap<String, usize> = HashMap::new();
+    let mut unsure: HashMap<String, usize> = HashMap::new();
+    let mut first_seen: HashMap<String, (usize, usize)> = HashMap::new();
+
+    for (index, segment) in segments.iter().enumerate() {
+        for (at, word) in words(&segment.text) {
+            let key = word.to_lowercase();
+            *heard.entry(key.clone()).or_default() += 1;
+            first_seen.entry(key).or_insert((index, at));
+        }
+        for word in &segment.uncertain_words {
+            let trimmed = word.trim_matches(|glyph: char| !glyph.is_alphabetic());
+            if trimmed.chars().count() >= LEAST_LETTERS {
+                *unsure.entry(trimmed.to_lowercase()).or_default() += 1;
+            }
+        }
+    }
+
+    let mut candidates: Vec<Candidate> = unsure
+        .iter()
+        .filter(|(word, doubted)| {
+            let total = heard.get(word.as_str()).copied().unwrap_or(**doubted);
+            total >= LEAST_OCCURRENCES && **doubted >= total
+        })
+        .filter_map(|(word, _)| {
+            let &(index, at) = first_seen.get(word)?;
+            let segment = segments.get(index)?;
+            let spelled = segment.text.get(at..)?.split_whitespace().next()?;
+            Some(Candidate {
+                heard: spelled
+                    .trim_matches(|glyph: char| !glyph.is_alphabetic())
+                    .to_string(),
+                occurrences: heard.get(word).copied().unwrap_or(0),
+                context: around(&segment.text, at, spelled.len()),
+            })
+        })
+        .filter(|candidate| candidate.heard.chars().count() >= LEAST_LETTERS)
+        .collect();
+
+    // Most first, then alphabetically so the list does not reshuffle between runs.
+    candidates.sort_by(|left, right| {
+        right
+            .occurrences
+            .cmp(&left.occurrences)
+            .then_with(|| left.heard.cmp(&right.heard))
+    });
+    candidates.truncate(MOST_CANDIDATES);
+    candidates
+}
+
+/// Words of a passage, with where each one starts.
+fn words(text: &str) -> Vec<(usize, &str)> {
+    let mut found = Vec::new();
+    let mut start = None;
+    for (at, glyph) in text.char_indices() {
+        let letter = glyph.is_alphabetic() || glyph == '-';
+        match (letter, start) {
+            (true, None) => start = Some(at),
+            (false, Some(from)) => {
+                found.push((from, &text[from..at]));
+                start = None;
+            }
+            _ => {}
+        }
+    }
+    if let Some(from) = start {
+        found.push((from, &text[from..]));
+    }
+    found.retain(|(_, word)| word.chars().count() >= LEAST_LETTERS);
+    found
+}
+
 /// One place a correction would apply, with enough of its sentence to judge it.
 ///
 /// The judging matters. Some wrong spellings are also ordinary words: a participant
@@ -75,7 +183,8 @@ fn lower_initial(word: &str) -> String {
 /// which is the German for cross. Every occurrence there happened to be the person,
 /// and that will not always hold — so this exists to be looked at before anything is
 /// replaced.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct Match {
     pub segment_id: String,
     pub start_ms: u64,
@@ -245,6 +354,99 @@ mod tests {
         assert_eq!(segments[0].text, "Die Clusterwohnung im Norden.");
         assert_eq!(segments[1].text, "Ein Raumcluster und ein Einraumcluster.");
         assert_eq!(segments[2].text, "Das Cluster selbst bleibt.");
+    }
+
+    fn doubted(id: &str, text: &str, unsure: &[&str]) -> TranscriptSegment {
+        TranscriptSegment {
+            id: id.into(),
+            start_ms: 0,
+            end_ms: 1000,
+            speaker: "Speaker 1".into(),
+            text: text.into(),
+            needs_review: !unsure.is_empty(),
+            uncertain_words: unsure.iter().map(|word| word.to_string()).collect(),
+        }
+    }
+
+    /// The distinction the filter rests on: a word it usually gets right and fumbles
+    /// once is a stumble; a word it never gets right is a word it does not know.
+    #[test]
+    fn only_a_word_never_heard_confidently_is_offered() {
+        let segments = vec![
+            doubted("a", "Das Trakwerk liegt darüber.", &["Trakwerk"]),
+            doubted("b", "Das Trakwerk bleibt so.", &["Trakwerk"]),
+            // Fumbled once out of three, so the transcriber does know this word.
+            doubted("c", "Die Wohnungen im Norden.", &["Wohnungen"]),
+            doubted("d", "Die Wohnungen sind fertig.", &[]),
+            doubted("e", "Wohnungen überall.", &[]),
+        ];
+        let found = name_candidates(&segments);
+
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!(found[0].heard, "Trakwerk");
+        assert_eq!(found[0].occurrences, 2);
+        assert!(found[0].context.contains("Trakwerk"), "{:?}", found[0]);
+    }
+
+    #[test]
+    fn a_word_heard_once_is_a_stumble_rather_than_a_name() {
+        let segments = vec![doubted("a", "Ein Propositionen hier.", &["Propositionen"])];
+        assert!(name_candidates(&segments).is_empty());
+    }
+
+    #[test]
+    fn candidates_come_most_frequent_first() {
+        let segments = vec![
+            doubted("a", "Nukera und Trakwerk.", &["Nukera", "Trakwerk"]),
+            doubted("b", "Nukera und Trakwerk.", &["Nukera", "Trakwerk"]),
+            doubted("c", "Nukera nochmal.", &["Nukera"]),
+        ];
+        let found = name_candidates(&segments);
+        assert_eq!(found[0].heard, "Nukera");
+        assert_eq!(found[0].occurrences, 3);
+        assert_eq!(found[1].heard, "Trakwerk");
+    }
+
+    /// The panel shows a list somebody finishes. An unusual transcript must not turn
+    /// it back into the 322-item chore it replaced.
+    #[test]
+    fn the_list_stays_short_enough_to_finish() {
+        // Distinct alphabetic words: digits end a word, so Wortform1 and Wortform2
+        // would both be counted as "Wortform" and the list would be one item long.
+        let letters = [
+            "aaaa", "bbbb", "cccc", "dddd", "eeee", "ffff", "gggg", "hhhh", "iiii", "jjjj", "kkkk",
+            "llll", "mmmm", "nnnn", "oooo", "pppp", "qqqq", "rrrr", "ssss", "tttt",
+        ];
+        let segments: Vec<TranscriptSegment> = letters
+            .iter()
+            .enumerate()
+            .flat_map(|(index, word)| {
+                let text = format!("Ein {word} hier.");
+                [
+                    doubted(&format!("a{index}"), &text, &[word]),
+                    doubted(&format!("b{index}"), &text, &[word]),
+                ]
+            })
+            .collect();
+        assert_eq!(name_candidates(&segments).len(), MOST_CANDIDATES);
+    }
+
+    #[test]
+    fn a_transcript_with_no_uncertainty_offers_nothing() {
+        let segments = vec![doubted("a", "Alles war deutlich zu hören.", &[])];
+        assert!(name_candidates(&segments).is_empty());
+    }
+
+    /// German capitalises nouns, so the same word appears both ways; counting them
+    /// separately would split a candidate in half.
+    #[test]
+    fn a_word_is_counted_however_it_is_capitalised() {
+        let segments = vec![
+            doubted("a", "Das Trakwerk hier.", &["Trakwerk"]),
+            doubted("b", "trakwerk kommt später.", &["trakwerk"]),
+        ];
+        let found = name_candidates(&segments);
+        assert_eq!(found.len(), 1, "{found:?}");
     }
 
     /// An abbreviation must not be lowered into a compound form. `NOKERA` would

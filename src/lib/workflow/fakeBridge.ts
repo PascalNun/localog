@@ -540,7 +540,8 @@ export class FakeWorkflowBridge implements WorkflowBridge {
    * Shaped like the real thing measured on a long meeting: a handful of words, some
    * of them names worth keeping and some of them the transcriber simply fumbling.
    */
-  async findNameCandidates(_meetingId: string): Promise<NameCandidate[]> {
+  async findNameCandidates(meetingId: string): Promise<NameCandidate[]> {
+    if (this.workspaceStore) return this.workspaceStore.findNameCandidates(meetingId);
     return [
       {
         heard: 'Meridien',
@@ -567,6 +568,9 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     wrong: string,
     _right: string,
   ): Promise<CorrectionMatch[]> {
+    if (this.workspaceStore) {
+      return this.workspaceStore.previewCorrection(meetingId, wrong, _right);
+    }
     const document = this.snapshot.transcripts[meetingId];
     if (!document) return [];
     return document.segments
@@ -579,6 +583,11 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async applyCorrection(meetingId: string, correction: AppliedCorrection): Promise<void> {
+    if (this.workspaceStore) {
+      this.applyDurableWorkspace(await this.workspaceStore.applyCorrection(meetingId, correction));
+      this.emit();
+      return;
+    }
     const document = this.snapshot.transcripts[meetingId];
     if (!document) return;
     for (const segment of document.segments) {
