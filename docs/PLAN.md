@@ -679,11 +679,34 @@ produced the action table; the second said figures were a flat 29 everywhere. Al
 withdrawn: 16,384 does not fail — it returned `IncompleteResponse` once and then
 produced protocols at all three seeds, including the best of them.
 
-The 8,192 row is absent because it was never measured. The harness passed a maximum
-output of 8,192 tokens, so at that context the reading window was exactly zero and
-`plan_sections` fell to its last resort of one section per segment. That was a defect
-in the code as much as in the test; the answer can no longer claim more than half the
-window, and the point is being measured now.
+#### 8,192 is a floor, and the reason is arithmetic
+
+Measured at three seeds after the fold was given the retry it lacked. All three failed
+with `IncompleteResponse`, identically — which is what a structural limit looks like
+and exactly not what a bad draw looks like, since everything else measured here varied
+between seeds.
+
+Reported by the harness's own sizing rather than inferred from the failures:
+
+| Context | Sections | Notes fold to | Room left for the protocol   |
+| ------: | -------: | ------------: | ---------------------------- |
+|   8,192 |       18 |      6,254 ch | 5,069 tok — about 15,200 ch  |
+|  16,384 |        8 |     14,856 ch | the full 8,192 tok requested |
+|  24,576 |        4 |     32,059 ch | the full 8,192 tok requested |
+|  32,768 |        3 |     49,262 ch | the full 8,192 tok requested |
+|  40,960 |        2 |     66,465 ch | the full 8,192 tok requested |
+
+Drafts of this meeting run 11,000 to 18,000 characters, so at 8,192 a long one is cut
+off. **It is the only window that binds the answer**; every larger one is limited by
+the requested output ceiling with room over. Retrying cannot help, which is why giving
+the fold a retry did not: arithmetic does not vary between attempts.
+
+The earlier attempt at this point was invalid rather than failing — the harness
+promised the answer the whole window, the reading window came out at zero and
+`plan_sections` fell to one section per segment. That was a defect in the code as much
+as in the test and is fixed.
+
+**So the floor is 16,384, and it costs time rather than quality.**
 
 **The variation that matters is between draws, not between settings.** Both runs
 missing the table are at seed 7 — the harness default, and therefore the draw behind
