@@ -26,8 +26,8 @@ Written 17 August 2026. The order is by what it settles, not by what is quickest
 
 ### Finish what is open
 
-1. **Run the correction panel against the real backend.** Commands are registered, the store is wired and the binary builds, but everything exercised so far went through the fake bridge. It is a shipped feature tested only by unit tests and the evaluation harness. Click it once in the application.
-2. **Move the by-topic budget check to the total, and make it advisory.** Per-section and fatal, it aborted a twenty-three-minute run over 198 characters. Evaluation-only code, so contained — but it also left the 8,192 by-topic run unanswered, which was the question that experiment existed to settle.
+1. ~~**Run the correction panel against the real backend.**~~ Done, 17 August. The commands read the transcript the application stores, write one it can load again, and leave the workspace openable — exercised against the real workspace rather than a fixture, correcting a word to itself so nothing a person typed changed. What remains untested is the Tauri IPC layer itself, which the binary building and the commands being registered makes thin.
+2. ~~**Move the by-topic budget check to the total.**~~ Done, 17 August. A section that will not shorten is kept and counted rather than discarded, because losing it takes a subject out of the meeting while keeping it makes the document slightly long. The whole protocol fails only past three times the target — which 26,100 is not and 74,000 is. **The 8,192 by-topic run can now be answered and has not been.**
 
 ### Then: find out where milestone 1 actually stands
 
