@@ -276,8 +276,8 @@
           </div>
         </div>
         <p class="refinement-note">
-          Contextual AI refinement remains out of this shell until the editor/provider spikes prove
-          safe revision behavior.
+          Nothing here rewrites your text for you. The draft is yours to edit, and every revision is
+          kept.
         </p>
       </aside>
     {/if}

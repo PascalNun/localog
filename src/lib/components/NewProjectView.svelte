@@ -65,8 +65,8 @@
     <details class="advanced-disclosure">
       <summary>Project defaults</summary>
       <p>
-        Names & terms, recurring participants, and a protocol style can be configured in the project
-        after creation.
+        A protocol style, and the names and terms this work uses, can be set for the project after
+        it is created. The names are worth a minute: they are what transcription cannot guess.
       </p>
     </details>
     {#if submitError}<p class="form-error" role="alert">{submitError}</p>{/if}

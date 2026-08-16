@@ -219,8 +219,8 @@
         <details class="advanced-disclosure">
           <summary>Advanced processing options</summary>
           <p>
-            Exact runtime and model controls remain intentionally absent until the focused
-            transcription and provider spikes validate them.
+            Transcription quality and the model that writes the protocol are chosen once, in
+            Settings, and reused for every meeting.
           </p>
         </details>
       </div>
