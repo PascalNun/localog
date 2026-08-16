@@ -631,6 +631,19 @@ So the trade is memory against time, at flat quality. An eight-gigabyte machine 
 run this at a small window and pay for it in minutes rather than in the protocol — a
 better bargain than it looked, and the answer that target needed.
 
+**What that is worth to the product, rather than to the benchmark.** A local
+application usually degrades on a weaker machine by giving it a smaller model, and a
+smaller model writes a worse protocol — measured here at 20 figures against 31. This
+result says the window is not that kind of dial. The same model at a smaller window
+produces the same protocol and takes longer, so a modest machine can be slower without
+being worse, and there is no quality tier to explain to anybody.
+
+Two limits keep that from being a claim yet. It holds for the **window**, not for the
+model: a machine too small for `gemma4:12b` at any window still has to run something
+else, and that does cost quality. And nothing here has run on eight gigabytes — every
+figure in this section is from a 16 GB M1 Pro. The M1/8 GB baseline still has to be
+measured on the hardware it describes.
+
 Two earlier readings of this sweep were wrong, both from single draws at each point,
 and both are recorded here rather than quietly fixed. The first said a smaller context
 produced the action table; the second said figures were a flat 29 everywhere. Also
