@@ -156,6 +156,32 @@ exactly that by default. Whatever gets built has to establish that sound is arri
 before the meeting starts — which is the same live level display the interface
 already wants, promoted from a nicety to a correctness requirement.
 
+### A recorder that dies without cleaning up breaks the machine's audio
+
+Found by breaking it. Three test runs were ended with `kill -9`, which bypasses the
+recorder's own teardown, so their process taps and aggregate devices were never
+destroyed. The processes stayed alive holding them, `coreaudiod` went to 43 % CPU,
+and every application on the machine lost sound — `afplay` returning
+`AudioQueueStart failed`. Killing the orphans was not enough; the daemon had to be
+restarted with `sudo killall coreaudiod`.
+
+That is a user-facing failure, not a testing accident. A recorder that crashes
+during a meeting — or is force-quit, or killed by the system under memory pressure —
+leaves somebody with no sound in any application and nothing to explain why. It is
+worse than losing the recording.
+
+So a recorder must not rely on its own exit path to release the tap:
+
+- tear down on every signal it can catch, which this study does for `SIGINT` and
+  `SIGTERM` and did not save it from `SIGKILL`;
+- find and destroy any tap or aggregate device left behind by a previous run when
+  starting, since after `SIGKILL` there is no other opportunity;
+- and never be tested with `kill -9` again without checking afterwards.
+
+The private aggregate device is invisible to `system_profiler` and to Sound
+settings, which is why nothing showed the cause. `ollama ps` has an equivalent —
+what a tool reports about itself is not what the machine is actually holding.
+
 ### Drift between the tracks is real and unexplained
 
 Over 235 seconds the two tracks ended 0.300 s apart. A single run cannot separate a
