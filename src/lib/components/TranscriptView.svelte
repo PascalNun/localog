@@ -618,9 +618,13 @@
           {:else}
             <h3>Nothing to check</h3>
             <p>
-              Every name the transcriber was unsure of has been dealt with. {unclearCount
-                ? `${unclearCount} passages are still flagged as unclear for other reasons.`
-                : ''}
+              {#if unclearCount}
+                No word was misheard every time it came up. {unclearCount} passages are still flagged
+                as unclear for other reasons.
+              {:else}
+                Nothing was flagged as unclear. A transcript made before this was recorded also
+                shows nothing here, so an older one may be worth reading rather than trusting.
+              {/if}
             </p>
           {/if}
 
