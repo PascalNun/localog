@@ -251,26 +251,45 @@ pub(crate) fn unowned_tasks(protocol: &str) -> Vec<String> {
         // Requiring the dashes is what stops a sentence containing a pipe from
         // being read as a table.
         if is_row(lines[index]) && index + 1 < lines.len() && is_divider(lines[index + 1]) {
+            let mut rows: Vec<Vec<String>> = Vec::new();
             let mut at = index + 2;
             while at < lines.len() && is_row(lines[at]) {
                 let cells = cells_of(lines[at]);
                 // A single-column table has nowhere to put an owner, so it is not
                 // a table of tasks and nothing here applies to it.
                 if cells.len() >= 2 {
-                    let task = cells[0].trim();
-                    let unowned = cells[1..].iter().any(|cell| is_blank(cell));
-                    if unowned && !task.is_empty() {
-                        found.push(task.to_string());
-                    }
+                    rows.push(cells.iter().map(|cell| cell.trim().to_string()).collect());
                 }
                 at += 1;
             }
+            found.extend(unowned_in(&rows));
             index = at;
             continue;
         }
         index += 1;
     }
     found
+}
+
+/// The tasks in one table that nobody is carrying.
+///
+/// An empty cell, or one holding a mark people write to mean empty. It cannot see
+/// the other way a cell says nobody: a model told never to invent an owner writes
+/// it in words — `Nicht angegeben`, `not stated`, `TBD` — and this reads that as a
+/// filled cell and stays quiet.
+///
+/// Recognising those words needs the protocol's language, which this deliberately
+/// does not have. Finding them by repetition was tried and abandoned: a value
+/// filling most of an owner column looks exactly like a placeholder and exactly
+/// like the one person who carries most of a meeting's follow-ups, which is the
+/// common case. Telling somebody their assigned work is unassigned is a worse
+/// failure than missing an unassigned task, so the limit is left in place and
+/// written down rather than papered over with a threshold.
+fn unowned_in(rows: &[Vec<String>]) -> Vec<String> {
+    rows.iter()
+        .filter(|row| !row[0].is_empty() && row[1..].iter().any(|cell| is_blank(cell)))
+        .map(|row| row[0].clone())
+        .collect()
 }
 
 fn is_row(line: &str) -> bool {
@@ -333,6 +352,44 @@ mod tests {
                 "Heizlastberechnung nachreichen".to_string(),
                 "Angebot einholen".to_string()
             ]
+        );
+    }
+
+    /// What this cannot see, recorded as a test so the limit is visible rather than
+    /// discovered again. A model told never to invent an owner writes the absence in
+    /// words, and those rows stay quiet. Reading a real protocol is what revealed
+    /// it; counting never would have.
+    #[test]
+    fn an_owner_written_as_words_is_missed_and_that_is_known() {
+        let protocol = "\
+| Aufgabe | Verantwortlich |
+| --- | --- |
+| Grundrisse korrigieren | Fachplanung |
+| Abweichungen bei den Bädern klären | Nicht angegeben |
+| Raster beim Balkonhersteller prüfen | Nicht angegeben |
+| Fassade mit dem Team besprechen | Team |
+| Trennwände bei Haus A prüfen | Nicht angegeben |
+";
+        // Three of these five tasks name nobody, and none is reported.
+        assert!(unowned_tasks(protocol).is_empty());
+    }
+
+    /// The reason the gap above is left open. Finding those words by repetition was
+    /// tried, and it calls this person a placeholder: one owner carrying most of the
+    /// follow-ups is the common shape of a real meeting.
+    #[test]
+    fn one_person_carrying_several_tasks_is_never_reported() {
+        let protocol = "\
+| Task | Owner |
+| --- | --- |
+| Send the drawings | Mira |
+| Confirm the survey | Mira |
+| Book the crane | Tomas |
+| Update the schedule | Mira |
+";
+        assert!(
+            unowned_tasks(protocol).is_empty(),
+            "Mira is a person, not a placeholder"
         );
     }
 
