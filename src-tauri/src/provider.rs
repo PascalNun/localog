@@ -2059,6 +2059,15 @@ const ROOM_TO_OVERRUN: usize = 5;
 #[cfg(test)]
 const TOTAL_OVERRUN: usize = 3;
 
+/// Sized against both measurements on the reference meeting, whose written protocol
+/// is about 18,000 characters: the 26,100 that per-topic writing with budgets
+/// produced must pass, and the 74,000 it produced without them must not.
+#[cfg(test)]
+const _: () = {
+    assert!(26_100 < 18_000 * TOTAL_OVERRUN);
+    assert!(74_000 > 18_000 * TOTAL_OVERRUN);
+};
+
 /// The cap must sit above the check, or an overrunning section arrives truncated
 /// rather than correctable. Checked when this compiles rather than when it runs,
 /// because the two constants read as interchangeable and are not: they were equal
@@ -2675,16 +2684,6 @@ mod tests {
         assert_eq!(tries, 2);
         assert!(within);
         assert_eq!(answer.len(), 900);
-    }
-
-    /// The level the original fault lived at, and so the level worth failing on.
-    #[test]
-    fn the_total_is_what_a_runaway_document_is_judged_by() {
-        // 26,100 against a target of about 18,000 is the measured result: long, and
-        // nothing like the failure this exists to catch.
-        assert!(26_100 < 18_000 * TOTAL_OVERRUN);
-        // 74,000 is.
-        assert!(74_000 > 18_000 * TOTAL_OVERRUN);
     }
 
     #[test]
