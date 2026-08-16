@@ -142,6 +142,16 @@ What survives the correction, across two seeds:
 
 So there is at least one subject discussed and not recorded, consistently at both seeds. Whether that is one omission or many needs a reading rather than a word search, and the two subjects absent from the transcript are their own question: the written protocol records them, so either they were said in a form transcription lost entirely, or the author knew them from outside the recording.
 
+**What reading three drafts found, which counting did not.**
+
+All three carry an action table, so the check works. Figures held at 26 to 30 of 39. Seed 101 is a credible protocol: six numbered sections, 18,772 characters against a written 17,879, seven real actions, and specific detail — a 12 m² room too narrow for its meter cabinets, the 1.50 m clearance they need, the access balcony at one building not running the whole way round.
+
+Three faults a count cannot see:
+
+- **The same speaker label appears twice as two different people**, once under electrical planning and once under fire safety. The transcript it was written from has no speaker separation, so every segment is "Speaker 1" and the model faithfully lists that label under two roles. A reader meets a participants list naming the same person as two disciplines.
+- **Words corrupted in the middle**: "wurdeerückt" for "wurde eingerückt". Not the model's scaffolding, which the tidying pass removes, but a word damaged inside a sentence.
+- **Every owner reads "Nicht angegeben".** This is correct: the style forbids guessing an owner the source does not give. It is also the clearest measured difference from the written protocol, where a person assigns owners from knowing who does what. A protocol that never attributes an action is honest and half as useful, and no change to the model fixes it.
+
 The lengths are worth keeping in view while that is settled: 9,591 characters at seed 7 and 18,772 at seed 101, against a written protocol of 17,879. Length varies by a factor of two between draws and the same subject is missing from both, so length is not what decides coverage.
 
 ## Protocol generation
