@@ -33,6 +33,7 @@
     TranscriptionCapability,
     TranscriptionPreset,
     TranscriptionRuntimeStatus,
+    AppliedCorrection,
   } from './lib/workflow/types';
 
   // The shell already depends on the boundary that future Rust-backed adapters will implement.
@@ -515,6 +516,11 @@
         <TranscriptView
           {protocolStyle}
           onLoadAudio={(meetingId: string) => bridge.getMeetingAudio(meetingId)}
+          onFindNameCandidates={(meetingId: string) => bridge.findNameCandidates(meetingId)}
+          onPreviewCorrection={(meetingId: string, wrong: string, right: string) =>
+            bridge.previewCorrection(meetingId, wrong, right)}
+          onApplyCorrection={(meetingId: string, correction: AppliedCorrection) =>
+            bridge.applyCorrection(meetingId, correction)}
           {project}
           {meeting}
           transcript={snapshot.transcripts[meeting.id] ?? null}

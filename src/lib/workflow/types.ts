@@ -44,6 +44,40 @@ export interface MeetingSummary {
   styleId: string;
 }
 
+/**
+ * A word the transcriber never got right, offered as a possible name.
+ *
+ * Not every candidate is a name — the filter keeps words the transcriber was unsure
+ * of every time it heard them, which catches mis-heard proper nouns along with some
+ * ordinary words it simply fumbled. A short list somebody scans beats a long one they
+ * abandon, and anything missed is caught next meeting.
+ */
+export interface NameCandidate {
+  /** The spelling as the transcript has it. */
+  heard: string;
+  /** How many times it occurs. */
+  occurrences: number;
+  /** One place it appears, so it can be recognised without hunting for it. */
+  context: string;
+}
+
+/** One place a correction would apply. */
+export interface CorrectionMatch {
+  segmentId: string;
+  startMs: number;
+  /** The sentence around it, because some wrong spellings are ordinary words. */
+  context: string;
+}
+
+export interface AppliedCorrection {
+  wrong: string;
+  right: string;
+  /** Segment ids of the occurrences to change. Empty means every one of them. */
+  keptSegmentIds: string[];
+  /** Whether to remember the spelling for the project's future meetings. */
+  remember: boolean;
+}
+
 export interface TranscriptSegment {
   id: string;
   startMs: number;
@@ -319,6 +353,17 @@ export interface WorkflowBridge {
   updateSpeaker(meetingId: string, speaker: string, replacement: string): Promise<void>;
   /** Files dropped onto the window. Returns an unsubscribe function. */
   subscribeFileDrops(handler: (event: FileDropEvent) => void): () => void;
+  /** Words the transcriber was never sure of, most likely first. */
+  findNameCandidates(meetingId: string): Promise<NameCandidate[]>;
+  /** Every place a correction would apply, with enough sentence to judge it. */
+  previewCorrection(meetingId: string, wrong: string, right: string): Promise<CorrectionMatch[]>;
+  /**
+   * Apply the kept occurrences and remember the spelling.
+   *
+   * One action, two outcomes: this transcript is repaired, and the next meeting is
+   * transcribed correctly because the term joins the project's names.
+   */
+  applyCorrection(meetingId: string, correction: AppliedCorrection): Promise<void>;
   saveVocabularyEntry(entry: VocabularyDraft): Promise<void>;
   deleteVocabularyEntry(entryId: string): Promise<void>;
   updateProtocol(meetingId: string, markdown: string): Promise<void>;

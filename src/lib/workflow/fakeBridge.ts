@@ -19,6 +19,9 @@ import type {
   SpeakerRequest,
   RecordingEdits,
   RecordingReview,
+  NameCandidate,
+  CorrectionMatch,
+  AppliedCorrection,
 } from './types';
 import type { WorkspaceStore } from './workspaceStore';
 
@@ -529,6 +532,72 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   /// built. In the browser preview there is no native window to drop onto.
   subscribeFileDrops(handler: (event: FileDropEvent) => void): () => void {
     return this.workspaceStore?.subscribeFileDrops(handler) ?? (() => undefined);
+  }
+
+  /**
+   * Stand-in candidates until the extractor exists in Rust.
+   *
+   * Shaped like the real thing measured on a long meeting: a handful of words, some
+   * of them names worth keeping and some of them the transcriber simply fumbling.
+   */
+  async findNameCandidates(_meetingId: string): Promise<NameCandidate[]> {
+    return [
+      {
+        heard: 'Meridien',
+        occurrences: 7,
+        context: '…confirmed with Meridien before the review…',
+      },
+      {
+        heard: 'Junktion',
+        occurrences: 4,
+        context: '…the Junktion detail remains serviceable…',
+      },
+      {
+        heard: 'Alvares',
+        occurrences: 3,
+        context: '…Alvares will circulate both items…',
+      },
+      { heard: 'ansonst', occurrences: 2, context: '…und ansonst bleibt es dabei…' },
+      { heard: 'kanopie', occurrences: 2, context: '…die kanopie über dem Eingang…' },
+    ];
+  }
+
+  async previewCorrection(
+    meetingId: string,
+    wrong: string,
+    _right: string,
+  ): Promise<CorrectionMatch[]> {
+    const document = this.snapshot.transcripts[meetingId];
+    if (!document) return [];
+    return document.segments
+      .filter((segment: TranscriptSegment) => segment.text.includes(wrong))
+      .map((segment: TranscriptSegment) => ({
+        segmentId: segment.id,
+        startMs: segment.startMs,
+        context: segment.text,
+      }));
+  }
+
+  async applyCorrection(meetingId: string, correction: AppliedCorrection): Promise<void> {
+    const document = this.snapshot.transcripts[meetingId];
+    if (!document) return;
+    for (const segment of document.segments) {
+      if (correction.keptSegmentIds.length && !correction.keptSegmentIds.includes(segment.id)) {
+        continue;
+      }
+      segment.text = segment.text.split(correction.wrong).join(correction.right);
+    }
+    if (correction.remember) {
+      await this.saveVocabularyEntry({
+        id: null,
+        term: correction.right,
+        category: 'Person',
+        scope: 'Project',
+        projectId: this.snapshot.projects[0]?.id ?? null,
+        enabled: true,
+      });
+    }
+    this.emit();
   }
 
   async saveVocabularyEntry(draft: VocabularyDraft): Promise<void> {
