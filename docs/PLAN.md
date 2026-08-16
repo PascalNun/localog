@@ -309,6 +309,43 @@ Work in this order:
 5. Compare the result with the existing human reference on completeness, correctness, attribution, length, and editing effort—not length alone.
 6. Repeat the same workflow with an English meeting or synthetic equivalent.
 
+### 1z. Ask for the vocabulary, because it is the largest measured win in the project
+
+Do this before any further work on protocol models. It is the cheapest improvement
+found so far and it improves every model at once.
+
+The reference meeting was transcribed with an empty vocabulary — the workspace holds
+zero entries — and every model comparison in this project rests on that transcript.
+Giving whisper thirty proper nouns as its initial prompt, on the *same* model, with
+nothing else changed:
+
+| Term | Without vocabulary | With vocabulary |
+| --- | --- | --- |
+| The housing form the meeting is about | 0 right, 40 wrong | 32 right, 4 wrong |
+| The building system supplier | 0 right, 13 wrong | 6 right, 2 wrong |
+| The client's name | 0 right, 1 wrong | 4 right, 0 wrong |
+| The word for the building envelope | 19 right, 11 wrong | 35 right, 6 wrong |
+| The word for structural engineering | **never occurs at all** | occurs |
+
+The last row is the one to act on. Without the vocabulary that word does not exist
+anywhere in seventy-two thousand characters, and the generated protocol therefore
+files a named structural engineer under a discipline he does not practise. No
+protocol model can recover from that, and every hour spent comparing protocol models
+on that transcript was measuring the transcriber.
+
+The mechanism is built and correct: `vocabulary_prompt` prioritises proper nouns,
+respects whisper's limit, and passes `--carry-initial-prompt` so the terms bias the
+whole meeting rather than its first thirty seconds. **What is missing is the asking.**
+`NewProjectView` mentions in one line that vocabulary "can be configured in the
+project"; `NewMeetingView` says per-meeting vocabulary "is not available yet". A
+person who creates a project, records a meeting and presses go gets the bad
+transcript, because nothing ever asked them for the twelve words that would fix it.
+
+So the work is a question of product, not of models: at project creation, ask for
+the names — the client, the firms, the people, the project. It is the one input where
+a minute of somebody's typing is worth more than any model choice this project has
+measured. The exact shape of that asking is a design decision and is the owner's.
+
 ### 1a. Strengthen the harness so a bad draw is not a lost run
 
 Generation is already sectioned: a long meeting is condensed section by section and
