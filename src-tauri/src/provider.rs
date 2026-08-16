@@ -432,6 +432,14 @@ impl OllamaProvider {
         let focused = focus_vocabulary(request);
         let request = &focused;
 
+        // Said before the work starts rather than after three identical failures.
+        // The person can shorten the recording, choose a terser style, or accept a
+        // protocol that stops early — but only if they are told, and told now.
+        if let Some(warning) = beyond_one_answer(request) {
+            progress(19, "protocol_would_not_fit")?;
+            return Err(ProviderError::InvalidResponse(warning));
+        }
+
         let sections = plan_sections(request);
         if sections.len() <= 1 {
             return self.generate_in_one_pass(request, cancelled, progress);
@@ -1710,6 +1718,40 @@ fn with_correction<T>(
     }))
 }
 
+/// Characters of German a token carries, measured on this project's own drafts.
+const CHARS_PER_OUTPUT_TOKEN: usize = 4;
+
+/// Roughly what fraction of what was said ends up in a protocol of it.
+///
+/// The reference meeting spoke about 73,000 characters and its written protocol is
+/// about 18,000, so a quarter. Deliberately an underestimate of the danger rather
+/// than an overestimate: a style asking for full prose lands nearer this than a terse
+/// one does, and warning somebody unnecessarily is worse than not warning them.
+const PROTOCOL_SHARE_OF_SPEECH: usize = 4;
+
+/// Whether a meeting is too long for a protocol of it to be written in one answer.
+///
+/// Not a property of the machine, which is what makes it worth saying out loud. The
+/// answer ceiling is a fixed number of tokens, so it binds identically on a laptop
+/// and on a workstation, and a meeting large enough to exceed it fails the same way
+/// every time — three identical `IncompleteResponse` failures and a message about the
+/// model stopping early, which sounds like a fault and is arithmetic.
+///
+/// Measured at 8,192 tokens of context, where the window binds before this does: all
+/// three seeds failed identically. This is the same limit seen from the other end.
+fn beyond_one_answer(request: &GenerationRequest) -> Option<String> {
+    let expected = spoken_characters(request) / PROTOCOL_SHARE_OF_SPEECH;
+    let ceiling = output_allowance(request) as usize * CHARS_PER_OUTPUT_TOKEN;
+    if expected <= ceiling {
+        return None;
+    }
+    Some(format!(
+        "This meeting is long enough that a protocol of it — roughly {expected} \
+         characters — would not fit in one answer, which holds about {ceiling}. \
+         The protocol would be cut off before the end."
+    ))
+}
+
 /// How many characters the meeting itself holds, which is what a protocol of it is
 /// judged plausible against.
 fn spoken_characters(request: &GenerationRequest) -> usize {
@@ -2313,6 +2355,49 @@ mod tests {
             instructions: Vec::new(),
             required_sections: Vec::new(),
         }
+    }
+
+    /// The reference meeting, which fits: about 73,000 characters spoken, a protocol
+    /// of about 18,000, and an answer that holds about 32,000.
+    #[test]
+    fn a_meeting_that_fits_in_one_answer_is_not_warned_about() {
+        // 675 segments of about 105 characters is the reference meeting's shape:
+        // roughly 71,000 characters spoken, a protocol of about 18,000.
+        let mut request = synthetic_request(675, 21);
+        request.context_tokens = 40_960;
+        request.maximum_output_tokens = 8_192;
+        assert!(beyond_one_answer(&request).is_none());
+    }
+
+    /// The case the owner raised: somebody records a meeting several times longer.
+    /// It fails identically on every machine, because the ceiling is tokens.
+    #[test]
+    fn a_meeting_too_long_for_one_answer_is_named_before_the_work_starts() {
+        // Twice the reference meeting, which is where the ceiling starts to bite.
+        let mut request = synthetic_request(675, 45);
+        request.context_tokens = 40_960;
+        request.maximum_output_tokens = 8_192;
+
+        let warning = beyond_one_answer(&request).expect("a meeting this long cannot fit");
+        assert!(warning.contains("would not fit in one answer"), "{warning}");
+        assert!(warning.contains("cut off"), "{warning}");
+    }
+
+    /// A bigger machine does not help, which is the point worth making to somebody
+    /// who would otherwise go looking for more memory.
+    #[test]
+    fn a_wider_context_does_not_raise_the_answer_ceiling() {
+        let mut narrow = synthetic_request(675, 45);
+        narrow.context_tokens = 16_384;
+        narrow.maximum_output_tokens = 8_192;
+        let mut wide = narrow.clone();
+        wide.context_tokens = 131_072;
+
+        assert!(beyond_one_answer(&narrow).is_some());
+        assert!(
+            beyond_one_answer(&wide).is_some(),
+            "the ceiling is the answer, not the window"
+        );
     }
 
     #[test]
