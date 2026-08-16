@@ -438,6 +438,12 @@ fn generates_a_protocol_from_a_real_transcript() {
 
 /// Derived from a real professional protocol: topic-structured, explicit about
 /// what was not decided, and ending in an owner-attributed action table.
+/// The shipped formal-minutes instructions, so a sizing probe measures the real
+/// overhead rather than a guess at it.
+pub(crate) fn formal_minutes_instructions() -> Vec<String> {
+    formal_minutes_style().instructions
+}
+
 fn formal_minutes_style() -> GenerationStyle {
     GenerationStyle {
         id: "style-formal".into(),
@@ -547,6 +553,39 @@ fn what_the_extractor_offers() {
         println!(
             "  {:>3}x  {:<22} {}",
             candidate.occurrences, candidate.heard, candidate.context
+        );
+    }
+}
+
+/// What room a context actually leaves for the protocol itself.
+///
+/// Answers a question the failing 8,192 runs raised: whether they were unlucky or
+/// whether the window cannot hold the notes and a whole protocol at once. Needs no
+/// Ollama — it is the harness's own arithmetic, reported rather than estimated.
+#[test]
+#[ignore = "reports arithmetic rather than asserting behaviour"]
+fn what_room_each_context_leaves_for_the_protocol() {
+    // A German protocol of the reference meeting runs 11,000 to 18,000 characters,
+    // measured across this project's drafts. Three characters to the token.
+    const CHARS_PER_TOKEN: usize = 3;
+    println!(
+        "{:>8} {:>10} {:>12} {:>14} {:>10}",
+        "context", "sections", "notes fit", "answer room", "verdict"
+    );
+    for context in [8_192u32, 16_384, 24_576, 32_768, 40_960] {
+        let request = crate::provider::sizing_probe(context, 8_192);
+        let (sections, notes_chars, answer_tokens) = request;
+        let answer_chars = answer_tokens as usize * CHARS_PER_TOKEN;
+        let verdict = if answer_chars < 11_000 {
+            "too small"
+        } else if answer_chars < 18_000 {
+            "marginal"
+        } else {
+            "fits"
+        };
+        println!(
+            "{context:>8} {sections:>10} {notes_chars:>12} {:>14} {verdict:>10}",
+            format!("{answer_tokens} tok / {answer_chars} ch")
         );
     }
 }

@@ -1458,6 +1458,60 @@ fn answer_budget(context_tokens: u32, prompt_chars: usize, requested: u32) -> u3
     requested.min(room).max(256)
 }
 
+/// What a context leaves for each stage, without running anything.
+///
+/// Reports the numbers the planner and the budgets actually compute, so a question
+/// about whether a window can hold a protocol is answered by arithmetic rather than
+/// by inference from a failure. Used by the evaluation harness.
+#[cfg(test)]
+pub(crate) fn sizing_probe(context_tokens: u32, maximum_output_tokens: u32) -> (usize, usize, u32) {
+    let style = GenerationStyle {
+        id: "style-formal".into(),
+        revision: "probe".into(),
+        density: crate::domain::ProtocolDensity::Comprehensive,
+        instructions: crate::eval_harness::formal_minutes_instructions(),
+        required_sections: Vec::new(),
+    };
+    // A transcript the size of the reference meeting, in segments its size.
+    let transcript: Vec<GenerationSegment> = (0..675)
+        .map(|index| GenerationSegment {
+            start_ms: index as u64 * 7000,
+            speaker: "Speaker 1".into(),
+            text: "x".repeat(108),
+        })
+        .collect();
+    let request = GenerationRequest {
+        model: "probe".into(),
+        model_digest: "probe".into(),
+        runtime_version: "probe".into(),
+        meeting_language: "German".into(),
+        style,
+        vocabulary_revision: "probe".into(),
+        vocabulary: Vec::new(),
+        transcript,
+        seed: 7,
+        temperature_milli: 200,
+        context_tokens,
+        maximum_output_tokens,
+    };
+    let sections = plan_sections(&request).len();
+    let notes_chars = synthesis_budget(&request);
+    // The synthesis prompt is the folded notes plus the style and the scaffolding.
+    let overhead: usize = request
+        .style
+        .instructions
+        .iter()
+        .map(|value| value.len() + 8)
+        .sum::<usize>()
+        + 512;
+    let answer_tokens = answer_budget(
+        context_tokens,
+        notes_chars + overhead,
+        maximum_output_tokens,
+    );
+    (sections, notes_chars, answer_tokens)
+}
+
 fn segment_chars(segment: &GenerationSegment) -> usize {
     // Speaker and timestamp are serialised alongside the text.
     segment.text.len() + segment.speaker.len() + 40
