@@ -8,6 +8,18 @@ The interface is therefore part of the product’s reliability. A calm layout, h
 
 At every moment, the user should know which meeting they are working on, what the application has already done, what needs attention, and what will happen next.
 
+### Why this is a requirement and not a courtesy
+
+Three reasons, in ascending order of how much they matter.
+
+People are more willing to sit through a long process when they can see what it is doing. The same seven minutes feels different when it is named than when it is silent, and this application's steps genuinely are long and local — transcription and generation run for minutes on the user's own machine while they wait.
+
+Explaining plainly is a stance, not a simplification. The words are chosen because a reader can follow what is happening, not because they could not follow the real thing. There is no audience here that needs to be protected from what the application is doing.
+
+**And an informed user is a capable one.** This is the reason that outranks the others. When something unexpected happens, the person is the only part of the system that can decide to rerun a step, correct a name, or read a passage again — and they can only do that if they were told. The correction work described in `PLAN.md` depends on it entirely: a transcript that silently mis-hears eleven proper nouns leaves nobody in a position to fix it, while one that says which six words it was unsure of turns the user into the most effective component in the pipeline. No model on this machine knows the client's name; the person in the room does.
+
+A silent application does not merely feel worse. It discards the one participant who knows things the software cannot.
+
 ## Navigation
 
 The slim project sidebar stays visible on larger windows. It contains:
@@ -15,7 +27,7 @@ The slim project sidebar stays visible on larger windows. It contains:
 - the LocaLog wordmark;
 - projects and their meeting counts;
 - a clear way to create a project;
-- the small library area for protocol styles and vocabulary;
+- the small library area for protocol styles and names & terms;
 - settings;
 - one quiet status line for background work.
 
@@ -73,7 +85,7 @@ The first useful location is the first thing that needs attention, not necessari
 
 ## Protocol generation
 
-Before generation, the user should be able to see what will be used: the selected professional style, the meeting language, relevant vocabulary, and the reviewed transcript revision.
+Before generation, the user should be able to see what will be used: the selected professional style, the meeting language, the relevant names and terms, and the reviewed transcript revision.
 
 The normal interface talks about outcomes, not runtimes. “Balanced transcription” and “Formal minutes” belong in the main workflow. Exact model names, paths, context limits, and provider diagnostics belong in settings or an advanced area.
 
