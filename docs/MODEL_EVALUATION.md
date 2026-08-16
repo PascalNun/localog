@@ -103,6 +103,36 @@ distinct speakers and writes a protocol that attributes almost nothing — so
 attribution is not happening whether or not separation works, which makes the
 quality of the separation the second question rather than the first.
 
+### Reading the protocols, rather than counting them
+
+The measurements in this section are structural — headings, tables, figures kept.
+That is the instrument this project already found gameable once, when a document
+longer than its own transcript scored 23 of 24. So the drafts were read.
+
+**`gemma4:12b` writes a protocol a professional could edit rather than rewrite.**
+It opens with the participants grouped by discipline, each with their name and role
+and the speaker label they were given. It numbers its sections and sub-sections
+descriptively. It carries specific figures into the prose — areas, spans,
+dimensions, deadlines — rather than rounding them away. It ends with the table of
+next steps the style asks for, an owner against each row, and writes `Nicht
+angegeben` where the meeting named nobody: the instruction never to invent an owner,
+followed exactly.
+
+It is the baseline as of 16 August 2026, on that reading and on the figures.
+
+Two faults were visible only by reading:
+
+- The model types a **literal backslash-n** as text, three to nine times per
+  protocol, landing mid-sentence in a document somebody hands to a client. The JSON
+  is unescaped long before that point, so these are two characters the model wrote.
+  They are now repaired into line breaks.
+- The **unowned-tasks evidence is defeated by the model behaving well.** It looks
+  for an empty cell, and a model told never to invent an owner writes the absence in
+  words, so the check reports nothing on precisely the rows it exists to raise. What
+  was tried and reverted is recorded in `facts.rs`.
+
+Neither would have appeared in any count.
+
 ### Is the model too small, or the prompt wrong?
 
 Asked on 15 August 2026 by running the same transcript and the same shipped style
