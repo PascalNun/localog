@@ -827,6 +827,52 @@ async fn delete_transcript_segment(
     .await
 }
 
+/// The words the transcriber was never sure of, offered as possible names.
+#[tauri::command]
+async fn find_name_candidates(
+    state: State<'_, StorageState>,
+    meeting_id: String,
+) -> Result<Vec<corrections::Candidate>, String> {
+    with_repository_root(state.root.clone(), move |root| {
+        processing::name_candidates(root, &meeting_id)
+    })
+    .await
+}
+
+/// Every place a correction would apply, so it can be judged before it is made.
+#[tauri::command]
+async fn preview_correction(
+    state: State<'_, StorageState>,
+    meeting_id: String,
+    wrong: String,
+    right: String,
+) -> Result<Vec<corrections::Match>, String> {
+    with_repository_root(state.root.clone(), move |root| {
+        processing::preview_correction(root, &meeting_id, &wrong, &right)
+    })
+    .await
+}
+
+/// Correct a spelling in the working transcript, and remember it for the project.
+#[tauri::command]
+async fn apply_correction(
+    state: State<'_, StorageState>,
+    meeting_id: String,
+    correction: domain::AppliedCorrection,
+) -> Result<WorkspaceSnapshot, String> {
+    with_repository_root(state.root.clone(), move |root| {
+        processing::apply_correction(
+            root,
+            &meeting_id,
+            &correction.wrong,
+            &correction.right,
+            &correction.kept_segment_ids,
+            correction.remember,
+        )
+    })
+    .await
+}
+
 #[tauri::command]
 async fn rename_transcript_speaker(
     state: State<'_, StorageState>,
@@ -1181,6 +1227,9 @@ pub fn run() {
             start_transcription,
             start_generation,
             cancel_processing,
+            find_name_candidates,
+            preview_correction,
+            apply_correction,
             retry_processing,
             update_transcript_segment,
             delete_transcript_segment,

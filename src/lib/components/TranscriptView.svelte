@@ -54,8 +54,13 @@
   let candidates: NameCandidate[] = [];
   let candidatesFor = '';
   $: if (transcript && candidatesFor !== meeting.id) {
+    // Read by this block's own condition on the next run, which the linter cannot
+    // see; and assigning the candidates cannot retrigger a condition that depends
+    // only on the meeting.
+    // eslint-disable-next-line no-useless-assignment
     candidatesFor = meeting.id;
     correcting = null;
+    // eslint-disable-next-line svelte/infinite-reactive-loop
     void onFindNameCandidates(meeting.id).then((found) => (candidates = found));
   }
 
@@ -63,7 +68,7 @@
   let correcting: { heard: string; spelling: string } | null = null;
   let matches: CorrectionMatch[] = [];
   /** Occurrences to leave alone, because a wrong spelling can be an ordinary word. */
-  let declined = new Set<string>();
+  let declined: string[] = [];
   let remember = true;
   let applying = false;
   let applied = '';
@@ -71,18 +76,17 @@
   async function startCorrecting(candidate: NameCandidate) {
     applied = '';
     correcting = { heard: candidate.heard, spelling: candidate.heard };
-    declined = new Set();
+    declined = [];
     matches = await onPreviewCorrection(meeting.id, candidate.heard, candidate.heard);
   }
 
   function toggleDeclined(segmentId: string) {
-    const next = new Set(declined);
-    if (next.has(segmentId)) next.delete(segmentId);
-    else next.add(segmentId);
-    declined = next;
+    declined = declined.includes(segmentId)
+      ? declined.filter((id) => id !== segmentId)
+      : [...declined, segmentId];
   }
 
-  $: keptMatches = matches.filter((match) => !declined.has(match.segmentId));
+  $: keptMatches = matches.filter((match) => !declined.includes(match.segmentId));
 
   async function applyCorrection() {
     if (!correcting || !correcting.spelling.trim() || !keptMatches.length) return;
@@ -93,7 +97,7 @@
       await onApplyCorrection(meeting.id, {
         wrong,
         right,
-        keptSegmentIds: declined.size ? keptMatches.map((match) => match.segmentId) : [],
+        keptSegmentIds: declined.length ? keptMatches.map((match) => match.segmentId) : [],
         remember,
       });
       applied = `${wrong} → ${right} in ${keptMatches.length} ${
@@ -557,7 +561,8 @@
             {#if matches.length}
               <p class="correction-note">
                 Found in {matches.length}
-                {matches.length === 1 ? 'place' : 'places'}. Untick any that should stay as they are.
+                {matches.length === 1 ? 'place' : 'places'}. Untick any that should stay as they
+                are.
               </p>
               <ul class="correction-matches">
                 {#each matches as match (match.segmentId)}
@@ -565,7 +570,7 @@
                     <label>
                       <input
                         type="checkbox"
-                        checked={!declined.has(match.segmentId)}
+                        checked={!declined.includes(match.segmentId)}
                         onchange={() => toggleDeclined(match.segmentId)}
                       />
                       <span>{match.context}</span>

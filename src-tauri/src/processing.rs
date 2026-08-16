@@ -3183,6 +3183,115 @@ fn processing_to_storage(error: ProcessingError) -> StorageError {
     }
 }
 
+/// The words the transcriber was never sure of in a meeting's working transcript.
+pub(crate) fn name_candidates(
+    root: &Path,
+    meeting_id: &str,
+) -> StorageResult<Vec<crate::corrections::Candidate>> {
+    let repository = WorkspaceRepository::open(root)?;
+    let artifact = working_transcript(root, &repository, meeting_id)?.1;
+    Ok(crate::corrections::name_candidates(&artifact.segments))
+}
+
+/// Every place a correction would apply. Nothing is changed.
+pub(crate) fn preview_correction(
+    root: &Path,
+    meeting_id: &str,
+    wrong: &str,
+    right: &str,
+) -> StorageResult<Vec<crate::corrections::Match>> {
+    let repository = WorkspaceRepository::open(root)?;
+    let artifact = working_transcript(root, &repository, meeting_id)?.1;
+    let correction = crate::corrections::Correction {
+        wrong: wrong.to_string(),
+        right: right.to_string(),
+    };
+    Ok(crate::corrections::preview(
+        &artifact.segments,
+        &[correction],
+    ))
+}
+
+/// Correct a spelling in the working transcript, and optionally remember it.
+///
+/// Two outcomes from one action: this transcript is repaired, and the project keeps
+/// the spelling so the next meeting is transcribed correctly. The committed revision
+/// this was edited from is untouched, which is where somebody goes if the correction
+/// was wrong.
+pub(crate) fn apply_correction(
+    root: &Path,
+    meeting_id: &str,
+    wrong: &str,
+    right: &str,
+    kept_segment_ids: &[String],
+    remember: bool,
+) -> StorageResult<WorkspaceSnapshot> {
+    let right = right.trim();
+    if wrong.trim().is_empty() || right.is_empty() || right.chars().count() > 200 {
+        return Err(StorageError::InvalidData("Enter a valid spelling."));
+    }
+    let mut repository = WorkspaceRepository::open(root)?;
+    let (path, mut artifact) = working_transcript(root, &repository, meeting_id)?;
+
+    let correction = crate::corrections::Correction {
+        wrong: wrong.to_string(),
+        right: right.to_string(),
+    };
+    if kept_segment_ids.is_empty() {
+        crate::corrections::apply(&mut artifact.segments, &[correction]);
+    } else {
+        let kept: Vec<crate::corrections::Match> =
+            crate::corrections::preview(&artifact.segments, &[correction])
+                .into_iter()
+                .filter(|found| kept_segment_ids.contains(&found.segment_id))
+                .collect();
+        crate::corrections::apply_kept(&mut artifact.segments, &kept);
+    }
+    persist_transcript_working(&repository, meeting_id, &path, &artifact)?;
+
+    if remember {
+        let project_id: String = repository.connection.query_row(
+            "SELECT project_id FROM meetings WHERE id = ?1",
+            [meeting_id],
+            |row| row.get(0),
+        )?;
+        // A term that is already known is left as it is rather than duplicated.
+        let known: bool = repository.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM vocabulary_entries WHERE term = ?1)",
+            [right],
+            |row| row.get(0),
+        )?;
+        if !known {
+            repository.save_vocabulary_entry(crate::domain::VocabularyDraft {
+                id: None,
+                term: right.to_string(),
+                category: "Person".into(),
+                scope: "Project".into(),
+                project_id: Some(project_id),
+                enabled: true,
+            })?;
+        }
+    }
+    repository.workspace_snapshot()
+}
+
+/// The working transcript of a meeting, with the path it is stored at.
+fn working_transcript(
+    root: &Path,
+    repository: &WorkspaceRepository,
+    meeting_id: &str,
+) -> StorageResult<(String, TranscriptArtifact)> {
+    let (path, checksum): (String, String) = repository.connection.query_row(
+        "SELECT artifact_path, checksum FROM transcript_working WHERE meeting_id = ?1",
+        [meeting_id],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    let bytes = read_verified(root, &path, &checksum).map_err(processing_to_storage)?;
+    let artifact: TranscriptArtifact = serde_json::from_slice(&bytes)
+        .map_err(|_| StorageError::InvalidData("The saved transcript is invalid."))?;
+    Ok((path, artifact))
+}
+
 #[cfg(test)]
 mod tests {
 

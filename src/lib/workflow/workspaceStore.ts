@@ -26,6 +26,9 @@ import type {
   VocabularyDraft,
   VocabularyEntry,
   FileDropEvent,
+  NameCandidate,
+  CorrectionMatch,
+  AppliedCorrection,
 } from './types';
 
 export interface WorkspaceData {
@@ -69,6 +72,9 @@ export interface WorkspaceStore {
     text: string,
   ): Promise<WorkspaceData>;
   deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<WorkspaceData>;
+  findNameCandidates(meetingId: string): Promise<NameCandidate[]>;
+  previewCorrection(meetingId: string, wrong: string, right: string): Promise<CorrectionMatch[]>;
+  applyCorrection(meetingId: string, correction: AppliedCorrection): Promise<WorkspaceData>;
   renameTranscriptSpeaker(
     meetingId: string,
     speaker: string,
@@ -213,6 +219,18 @@ class TauriWorkspaceStore implements WorkspaceStore {
     text: string,
   ): Promise<WorkspaceData> {
     return invoke('update_transcript_segment', { meetingId, segmentId, text });
+  }
+
+  findNameCandidates(meetingId: string): Promise<NameCandidate[]> {
+    return invoke('find_name_candidates', { meetingId });
+  }
+
+  previewCorrection(meetingId: string, wrong: string, right: string): Promise<CorrectionMatch[]> {
+    return invoke('preview_correction', { meetingId, wrong, right });
+  }
+
+  applyCorrection(meetingId: string, correction: AppliedCorrection): Promise<WorkspaceData> {
+    return invoke('apply_correction', { meetingId, correction });
   }
 
   deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<WorkspaceData> {

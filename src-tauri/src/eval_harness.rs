@@ -521,3 +521,32 @@ fn what_the_corrections_change() {
         "every place offered for review must be a place that changes"
     );
 }
+
+/// What the candidate extractor offers on a real transcript.
+///
+///   LOCALOG_CORRECTIONS_TRANSCRIPT=… \
+///     cargo test --lib -- --ignored --nocapture what_the_extractor_offers
+#[test]
+#[ignore = "requires a real transcript"]
+fn what_the_extractor_offers() {
+    let path = std::env::var("LOCALOG_CORRECTIONS_TRANSCRIPT").expect("a transcript");
+    let value: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).expect("readable")).expect("json");
+    let segments: Vec<crate::domain::TranscriptSegment> =
+        serde_json::from_value(value["segments"].clone()).expect("segments");
+
+    let flagged = segments.iter().filter(|s| s.needs_review).count();
+    println!(
+        "{} segments, {flagged} flagged as containing something uncertain",
+        segments.len()
+    );
+
+    let candidates = crate::corrections::name_candidates(&segments);
+    println!("\n{} offered:\n", candidates.len());
+    for candidate in &candidates {
+        println!(
+            "  {:>3}x  {:<22} {}",
+            candidate.occurrences, candidate.heard, candidate.context
+        );
+    }
+}
