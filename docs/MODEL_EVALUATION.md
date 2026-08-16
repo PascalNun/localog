@@ -122,6 +122,20 @@ Faults 1 and 2 are one fault: the draft ran out before finishing, and nothing ma
 
 This is the first evidence about whether milestone 1 is met, and it says no — for reasons that are specific and addressable rather than diffuse.
 
+### The acceptance test, 17 August 2026
+
+The first draft produced with everything from 16 August in place — the corrected transcript, the action-table check, the tidying pass, the marked gaps — read against the written protocol. `gemma4:12b`, seed 7, 793 seconds, 30 of 39 figures.
+
+**All three faults found in the first comparison are fixed.** Every name is right, including a structural engineer who had been filed under a discipline he does not practise. The actions table exists and its four rows are real actions from the meeting, one with an owner. The draft ends properly, with dates, rather than in the model's own scaffolding.
+
+**A fourth fault was underneath them, and is now the whole problem.** Of ten subjects checked from the written protocol, nine are absent: the soil survey, the appointment with the district office, the next meeting being moved, a participant's leave, the agreement to bundle questions through one person, the pilot standard, the 90 cm access width, the access balcony at one building, and the shared meeting room. The draft is 9,591 characters against 17,879, and does not truncate — it ends cleanly. It **silently omits subjects**.
+
+That is what the style already forbids in its own words: "Cover every topic that was discussed. A protocol that silently omits a topic is incomplete, even if what remains reads well." Nothing checks it. The harness now catches an answer that fails; it cannot see an answer that leaves things out.
+
+It also explains why this went unnoticed. The earlier drafts failed in louder ways — no table, cut off mid-sentence, every name wrong — and a reader stops at the first fault. Fixing the loud faults made the quiet one visible.
+
+**What would catch it.** `topics.rs` divides a meeting into the subjects it discussed and is compiled for evaluation only; the plan records that running it merely to index a finished protocol would add about seven minutes to a twelve-minute run "for a diagnostic". That cost was weighed against an unknown benefit. The benefit is now known: it is the dominant remaining fault, and a subject the pass found which no heading covers is exactly the thing to show a reader.
+
 ## Protocol generation
 
 ### The first pass, and why its verdicts have expired
