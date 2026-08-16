@@ -338,12 +338,16 @@ To build, in order:
 2. **Tell the model what was wrong.** "You returned JSON; return markdown" is a
    strong correction and costs one request. This is the whole of the agentic part —
    it needs no planner and no extra pass, only the rejection fed back.
-3. **Keep what survived.** If a section still fails after its retries, the honest
-   outcome is a protocol with that stretch marked as missing, not the loss of the
-   fifteen minutes that produced the rest. A person can see a gap; they cannot see a
-   run that never finished.
+3. ~~**Keep what survived.**~~ Built. A section that fails every retry becomes a
+   marked hole: the notes carry an instruction to say at that point that the content
+   is unknown and not to guess at it, and the finished protocol carries a closing
+   section naming each missing stretch by its position in the recording, so somebody
+   can scrub to it and listen. The second of those does not depend on the model doing
+   as it was told. Only a bad answer, a truncated one or a model gone quiet is
+   survivable this way; a missing model or a changed runtime fails every remaining
+   section identically and still fails the run, as does every section failing.
 4. **Ask for less at a time**, which is the same experiment as the context question
-   below and worth running once for both.
+   below and worth running once for both. Partly measured — see below.
 
 ### The context window is a parameter, not a requirement
 
@@ -370,6 +374,36 @@ in two places is likelier to be split between sections. That is exactly what fig
 kept and a reading of the draft would show, so the experiment is: `gemma4:12b` and
 `ministral-3:8b` at 8,192 against 40,960 on the reference meeting. The harness takes
 the context as an environment variable, so it needs no code.
+
+#### First measurements, 16 August 2026
+
+`gemma4:12b`, seed 7, one draw at each point:
+
+| Context | Sections | Seconds | Headings | Table rows | Figures |
+| ------: | -------: | ------: | -------: | ---------: | ------: |
+|   8,192 |        — |       — |        — |          — | invalid |
+|  16,384 |        5 |       — |        — |          — | failed  |
+|  24,576 |        3 |    1345 |       10 |     **12** |   29/35 |
+|  32,768 |        2 |     895 |       25 |          0 |   29/35 |
+|  40,960 |        2 |    ~840 |        — |          0 |   29/35 |
+
+Three things, in descending order of confidence.
+
+The 8,192 row is not a measurement. The harness passes a maximum output of 8,192
+tokens, so at that context the reading window was exactly zero and `plan_sections`
+fell to its last resort of one section per segment. That was a defect in the code as
+well as in the test — the answer can no longer claim more than half the window — and
+the point has to be measured again.
+
+Figures kept did not move: 29 of 35 at every context that worked. Whatever a smaller
+context costs, it is not the quantities.
+
+**The only run that produced a table of tasks and owners was the one with the most
+sections.** No 40,960 run ever has. The written protocol for this meeting closes with
+seventeen rows of task and owner, and a draft without them does not do a protocol's
+main job, so this is the most valuable thread here. It is also one draw against one
+draw, which is worth nothing on its own — `granite4.1:8b` scored 22, 19 and 6 on
+three seeds of the same comparison. Being repeated at further seeds.
 
 One distinction to keep. The first phase currently **condenses** — it writes detailed
 notes keeping every point — rather than **indexing**, which is what a person does
