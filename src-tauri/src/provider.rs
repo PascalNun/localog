@@ -658,7 +658,7 @@ impl OllamaProvider {
                 return Ok(topics);
             }
         };
-        let Ok(structured) = serde_json::from_str::<StructuredGroups>(&generated) else {
+        let Ok(structured) = parse_structured::<StructuredGroups>(&generated) else {
             progress(33, "joining_failed:the reply was not valid")?;
             return Ok(topics);
         };
@@ -829,8 +829,7 @@ impl OllamaProvider {
             cancelled,
             &mut |written| progress(arrived(70, 76, written, num_predict), "generating_protocol"),
         )?;
-        let structured: StructuredProtocol = serde_json::from_str(&generated)
-            .map_err(|error| ProviderError::InvalidResponse(truncate(&error.to_string(), 280)))?;
+        let structured: StructuredProtocol = parse_structured(&generated)?;
         validate_markdown(&structured.protocol_markdown)?;
         progress(78, "validating_protocol")?;
         Ok(structured.protocol_markdown)
@@ -990,16 +989,20 @@ impl OllamaProvider {
 fn parse_structured<T: serde::de::DeserializeOwned>(generated: &str) -> Result<T> {
     match serde_json::from_str(generated) {
         Ok(value) => Ok(value),
-        Err(first) => serde_json::from_str(&escape_raw_controls(generated)).map_err(|_| {
+        Err(first) => serde_json::from_str(&escape_raw_controls(generated)).map_err(|second| {
             // Keep what could not be read, when somebody asks for it. Off unless the
             // variable is set, because this is the contents of a meeting and it must
             // not be written anywhere by default.
             if let Some(path) = std::env::var_os("LOCALOG_KEEP_UNREADABLE") {
                 let _ = std::fs::write(path, generated);
             }
-            // The first error is the useful one: it describes what the model wrote,
-            // not what the repair failed to make of it.
-            ProviderError::InvalidResponse(truncate(&first.to_string(), 280))
+            // Both, because reporting only the first hid a bug for three attempts:
+            // a parse that never reached the repair and a repair that failed produce
+            // the same message, and the difference is the whole diagnosis.
+            ProviderError::InvalidResponse(truncate(
+                &format!("{first}; after repair: {second}"),
+                280,
+            ))
         }),
     }
 }
@@ -1438,6 +1441,31 @@ fn truncate(value: &str, max_chars: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Run the repair against an answer a model really produced.
+    ///
+    /// `LOCALOG_KEEP_UNREADABLE` writes one out when parsing fails; point this at
+    /// it. Guessing at the shape of these is what cost three wrong attempts.
+    #[test]
+    #[ignore = "requires a captured unreadable answer"]
+    fn a_captured_answer_can_be_read() {
+        let path = std::env::var("LOCALOG_UNREADABLE").expect("a captured answer");
+        let raw = std::fs::read_to_string(&path).expect("readable");
+        println!("{} bytes captured", raw.len());
+        let straight = serde_json::from_str::<serde_json::Value>(&raw);
+        println!(
+            "straight parse: {:?}",
+            straight.as_ref().err().map(|e| e.to_string())
+        );
+        let repaired = escape_raw_controls(&raw);
+        match serde_json::from_str::<serde_json::Value>(&repaired) {
+            Ok(value) => {
+                let keys: Vec<&String> = value.as_object().expect("an object").keys().collect();
+                println!("REPAIRED — keys {keys:?}");
+            }
+            Err(error) => panic!("the repair did not fix it: {error}"),
+        }
+    }
 
     /// A progress figure that does not move cannot be told from a stalled one, and
     /// this project spent nine hours in exactly that state watching its own harness.
