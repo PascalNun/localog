@@ -626,24 +626,24 @@ transcript to fit `context_tokens`, and `synthesis_budget` folds the notes until
 fit the same window. The harness already works the way a person would: read the
 meeting in pieces, then bring the pieces together on far less material than the
 whole. 40,960 tokens was chosen because it was measured as affordable, not because
-the design needs it. Setting it to 8,192 makes more, smaller sections and more
-folding, and changes nothing else.
+the design needs it. Narrowing it makes more, smaller sections and more folding, and
+until 16 August it was not known what else it changed.
 
-Two reasons to try it:
+The two reasons it was worth measuring, and how they came out:
 
-- **Memory.** At 8,192 tokens `gemma4:12b` needs roughly a fifth of the key-value
-  cache — about 1 GB rather than 5, bringing it near 7 GB total instead of 12. The
-  best measured model does not currently fit the 8 GB target, and this is the most
-  plausible route to making it.
+- **Memory.** The hope was 8,192 tokens — about 1 GB of key-value cache rather than 5,
+  which would bring `gemma4:12b` near 7 GB total instead of 12 and inside the 8 GB
+  target. **That width does not work**: it leaves about 15,200 characters for a
+  protocol that runs 11,000 to 18,000, and three seeds failed identically. The route
+  to a small machine is 16,384, which works at every seed and costs about 2.4 times
+  the wall-clock.
 - **Weaker models.** `ministral-3:8b` wrote 12 KB of usable protocol at one seed and
-  collapsed at two others from the same prompt. A smaller ask may be a steadier one,
-  which would matter far more to it than to Gemma.
+  collapsed at two others from the same prompt. Whether a smaller ask is a steadier
+  one for it has not been measured; the correcting retry rescued one of its two
+  failures without any change of width.
 
-The cost is more requests, so more wall-clock, and more joins — a subject discussed
-in two places is likelier to be split between sections. That is exactly what figures
-kept and a reading of the draft would show, so the experiment is: `gemma4:12b` and
-`ministral-3:8b` at 8,192 against 40,960 on the reference meeting. The harness takes
-the context as an environment variable, so it needs no code.
+The cost is more requests and so more wall-clock, which is what the measurements
+below show and the only thing they show: quality does not move.
 
 #### Measured, 16 August 2026
 
