@@ -1685,14 +1685,18 @@ fn strip_code_fence(markdown: &str) -> &str {
 /// all, and leaves everything else to the person reading it.
 /// Whether a finished protocol must carry a table of tasks and owners.
 ///
-/// Keyed on the style because the shipped formal-minutes style asks for one twice in
-/// its own instructions, and there is no way for anybody to author a style that does
-/// not. When styles become authorable this has to become something a style declares.
+/// **This is a placeholder for something a style should declare.** Styles are meant to
+/// be authored by the people using them — decision 7 — and an authored style would
+/// silently escape this check, which is the opposite of what a firm authoring its own
+/// protocol shape would want. Only the shipped style exists today and nothing can
+/// create another, so keying on it is honest about what is true now and wrong about
+/// where this is going. It must be replaced when authoring arrives.
 ///
-/// `required_sections` cannot do this job and never has. It holds English section
-/// names while the protocol is written in the meeting's language, so matching
-/// "Actions" against "Aufgaben" needs something the application does not have — and
-/// it has therefore never been checked anywhere. A table needs no translating.
+/// `required_sections` is the field that was supposed to do this and cannot. It holds
+/// English section names while the protocol is written in the meeting's language, so
+/// matching "Actions" against "Aufgaben" needs something the application does not
+/// have — and it has therefore never been checked anywhere. A table needs no
+/// translating, which is why the check is structural.
 fn wants_an_action_table(style: &GenerationStyle) -> bool {
     style.id == "style-formal"
 }
