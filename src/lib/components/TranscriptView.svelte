@@ -44,7 +44,7 @@
   export let onApplyCorrection: (
     meetingId: string,
     correction: AppliedCorrection,
-  ) => Promise<void> = async () => undefined;
+  ) => Promise<number> = async () => 0;
 
   /// Correcting a name the transcriber never heard right.
   ///
@@ -94,15 +94,21 @@
     const wrong = correcting.heard;
     const right = correcting.spelling.trim();
     try {
-      await onApplyCorrection(meeting.id, {
+      // What it reports is what the transcript says it did, not what was asked of
+      // it: a place whose text moved since the review is skipped rather than
+      // corrected blindly, and saying otherwise would be a lie this screen has no
+      // way to notice.
+      const changed = await onApplyCorrection(meeting.id, {
         wrong,
         right,
         keptSegmentIds: declined.length ? keptMatches.map((match) => match.segmentId) : [],
         remember,
       });
-      applied = `${wrong} → ${right} in ${keptMatches.length} ${
-        keptMatches.length === 1 ? 'place' : 'places'
-      }${remember ? ', and kept for this project' : ''}.`;
+      applied = changed
+        ? `${wrong} → ${right} in ${changed} ${changed === 1 ? 'place' : 'places'}${
+            remember ? ', and kept for this project' : ''
+          }.`
+        : `Nothing was changed — the transcript has moved since these were found.`;
       candidates = candidates.filter((candidate) => candidate.heard !== wrong);
       correcting = null;
       matches = [];

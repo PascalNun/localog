@@ -859,7 +859,7 @@ async fn apply_correction(
     state: State<'_, StorageState>,
     meeting_id: String,
     correction: domain::AppliedCorrection,
-) -> Result<WorkspaceSnapshot, String> {
+) -> Result<processing::AppliedCorrectionResult, String> {
     with_repository_root(state.root.clone(), move |root| {
         processing::apply_correction(
             root,

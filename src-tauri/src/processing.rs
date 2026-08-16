@@ -3232,7 +3232,7 @@ pub(crate) fn apply_correction(
     right: &str,
     kept_segment_ids: &[String],
     remember: bool,
-) -> StorageResult<WorkspaceSnapshot> {
+) -> StorageResult<AppliedCorrectionResult> {
     let right = right.trim();
     if wrong.trim().is_empty() || right.is_empty() || right.chars().count() > 200 {
         return Err(StorageError::InvalidData("Enter a valid spelling."));
@@ -3244,16 +3244,18 @@ pub(crate) fn apply_correction(
         wrong: wrong.to_string(),
         right: right.to_string(),
     };
-    if kept_segment_ids.is_empty() {
-        crate::corrections::apply(&mut artifact.segments, &[correction]);
+    let changed = if kept_segment_ids.is_empty() {
+        crate::corrections::apply(&mut artifact.segments, &[correction])
+            .into_iter()
+            .sum::<usize>()
     } else {
         let kept: Vec<crate::corrections::Match> =
             crate::corrections::preview(&artifact.segments, &[correction])
                 .into_iter()
                 .filter(|found| kept_segment_ids.contains(&found.segment_id))
                 .collect();
-        crate::corrections::apply_kept(&mut artifact.segments, &kept);
-    }
+        crate::corrections::apply_kept(&mut artifact.segments, &kept)
+    };
     persist_transcript_working(&repository, meeting_id, &path, &artifact)?;
 
     if remember {
@@ -3279,7 +3281,23 @@ pub(crate) fn apply_correction(
             })?;
         }
     }
-    repository.workspace_snapshot()
+    Ok(AppliedCorrectionResult {
+        workspace: repository.workspace_snapshot()?,
+        changed,
+    })
+}
+
+/// What a correction actually did, as against what was asked of it.
+///
+/// The count matters because it can differ from the number of places somebody
+/// approved: a match whose text has moved since the review is skipped rather than
+/// applied to whatever now sits at that position. Telling them "corrected in five
+/// places" when it changed none would be a lie the interface had no way to notice.
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AppliedCorrectionResult {
+    pub workspace: WorkspaceSnapshot,
+    pub changed: usize,
 }
 
 /// The working transcript of a meeting, with the path it is stored at.

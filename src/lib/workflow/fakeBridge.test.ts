@@ -26,7 +26,9 @@ function mockStore(overrides: Partial<WorkspaceStore> = {}): WorkspaceStore {
     cancelImport: vi.fn<WorkspaceStore['cancelImport']>(),
     findNameCandidates: vi.fn<WorkspaceStore['findNameCandidates']>().mockResolvedValue([]),
     previewCorrection: vi.fn<WorkspaceStore['previewCorrection']>().mockResolvedValue([]),
-    applyCorrection: vi.fn<WorkspaceStore['applyCorrection']>().mockResolvedValue(emptyWorkspace),
+    applyCorrection: vi
+      .fn<WorkspaceStore['applyCorrection']>()
+      .mockResolvedValue({ workspace: emptyWorkspace, changed: 0 }),
     retryImport: vi.fn<WorkspaceStore['retryImport']>(),
     replaceImportSource: vi.fn<WorkspaceStore['replaceImportSource']>(),
     startTranscription: vi.fn<WorkspaceStore['startTranscription']>(),
