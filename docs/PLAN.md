@@ -342,9 +342,41 @@ To build, in order:
    outcome is a protocol with that stretch marked as missing, not the loss of the
    fifteen minutes that produced the rest. A person can see a gap; they cannot see a
    run that never finished.
-4. **Ask for less where it fails.** `ministral-3:8b` wrote 12 KB successfully at one
-   seed and collapsed at others, which suggests smaller sections would be steadier.
-   Worth measuring before adopting: more requests is also more time.
+4. **Ask for less at a time**, which is the same experiment as the context question
+   below and worth running once for both.
+
+### The context window is a parameter, not a requirement
+
+Worth recording because it is easy to assume otherwise. `plan_sections` divides a
+transcript to fit `context_tokens`, and `synthesis_budget` folds the notes until they
+fit the same window. The harness already works the way a person would: read the
+meeting in pieces, then bring the pieces together on far less material than the
+whole. 40,960 tokens was chosen because it was measured as affordable, not because
+the design needs it. Setting it to 8,192 makes more, smaller sections and more
+folding, and changes nothing else.
+
+Two reasons to try it:
+
+- **Memory.** At 8,192 tokens `gemma4:12b` needs roughly a fifth of the key-value
+  cache — about 1 GB rather than 5, bringing it near 7 GB total instead of 12. The
+  best measured model does not currently fit the 8 GB target, and this is the most
+  plausible route to making it.
+- **Weaker models.** `ministral-3:8b` wrote 12 KB of usable protocol at one seed and
+  collapsed at two others from the same prompt. A smaller ask may be a steadier one,
+  which would matter far more to it than to Gemma.
+
+The cost is more requests, so more wall-clock, and more joins — a subject discussed
+in two places is likelier to be split between sections. That is exactly what figures
+kept and a reading of the draft would show, so the experiment is: `gemma4:12b` and
+`ministral-3:8b` at 8,192 against 40,960 on the reference meeting. The harness takes
+the context as an environment variable, so it needs no code.
+
+One distinction to keep. The first phase currently **condenses** — it writes detailed
+notes keeping every point — rather than **indexing**, which is what a person does
+when they scan a transcript marking where each subject lives. An index would be
+cheaper again. `topics.rs` already does it and is compiled for evaluation only:
+what was measured and rejected there was _writing_ subject by subject, which produced
+a document longer than the transcript. Finding the subjects was never the failure.
 
 What this cannot do is worth stating plainly. It enforces the shape of an answer and
 never its substance. A model that writes 211 bytes about an eighty-minute meeting
