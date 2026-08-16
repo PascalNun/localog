@@ -346,6 +346,83 @@ the names — the client, the firms, the people, the project. It is the one inpu
 a minute of somebody's typing is worth more than any model choice this project has
 measured. The exact shape of that asking is a design decision and is the owner's.
 
+The screen is now called **Names & terms**. Vocabulary oversold it and glossary would
+be wrong — a glossary carries definitions and this carries none. It is a spelling
+list, and measured, almost entirely a list of proper nouns.
+
+#### Where the application asks, and what it does with the answer
+
+Designed 16 August 2026 with the owner. Not built.
+
+**1. Offer candidates instead of a number nobody can act on.** whisper already records
+which words it was unsure of, and the transcript view already has a panel for them.
+For the reference meeting that panel says **322 to check** out of 675 segments, which
+is not a task anybody starts. But the words it flags do contain the mis-heard names —
+`Trakwerk`, `Klasterwohnung`, `Nukera`, `Jaman`.
+
+Keeping only words the transcriber was unsure of _every_ time it heard them, heard at
+least twice, gives **six candidates** for an eighty-minute meeting, of which two or
+three are the names that matter. That is a thirty-second job with a large payoff, in a
+panel that currently asks for an impossible one. Loosening the filter to catch more
+names costs precision quickly: a top-fifteen list picks up two more surnames and about
+as many ordinary German compounds.
+
+Open question for the owner: whether the flag count stays visible alongside, or the
+candidates replace it. The flags are also how somebody finds passages to re-read
+before trusting the protocol, which is an argument for keeping them.
+
+**2. One correction, two jobs.** Correcting `Klaster → Cluster` should fix the current
+transcript _and_ enter Names & terms so the next meeting is transcribed correctly.
+Cure and prevention from the same keystroke, which is what makes the thirty seconds
+worth spending.
+
+**3. Fix the current transcript deterministically, before the protocol harness sees
+it.** Measured on the reference meeting, plain substring replacement of eleven
+corrected stems fixed **80 occurrences** in milliseconds — reaching roughly what a
+seven-minute re-transcription with the larger model achieved:
+
+| Term     | Before | After replacement | (`medium` + vocabulary) |
+| -------- | -----: | ----------------: | ----------------------: |
+| Cluster  |      0 |            **40** |                      40 |
+| NOKERA   |      0 |            **16** |                      35 |
+| Tragwerk |      0 |             **5** |                       6 |
+| Fassade  |     19 |            **30** |                      50 |
+
+Compounds are the easy case, not the hard one, because German builds them by
+concatenation: fixing the stem repaired `Clusterwohnung`, `Raumcluster` and
+`Einraumcluster` without anyone listing them. Of 74 occurrences, 59 came out clean and
+about **three** were genuinely still wrong — `Clusterwund`, `Clusterwohnenheit`.
+
+No model, instant, and auditable: the change can be shown and undone, which a model
+pass over the whole transcript cannot offer.
+
+**4. The replacement must be reviewable, because some wrong spellings are real words.**
+`Kreuz` should be `Kreutz`, a participant's surname — and _Kreuz_ is the German word
+for cross. In this meeting all three occurrences are the person, so replacing blind
+would have been safe; that will not always hold. Show the matches in context and let
+them be deselected.
+
+**5. Only then, a small model, on what is left.** Three ragged words per meeting is
+where substitution cannot help, because the mis-hearing itself varied and there is no
+consistent stem to catch. This is the one stage in the pipeline where a long context
+is provably unnecessary: deciding whether `Kreuz` is a person or a crucifix needs one
+sentence, not eighty minutes. So it is a small model, a few hundred characters of
+window, and only for passages the deterministic pass could not settle — seconds of
+work, not minutes.
+
+Two constraints make it safe:
+
+- **It proposes; it never applies.** The transcript changes only where somebody
+  approved the change.
+- **It is given Names & terms, and may only propose corrections built from them.** It
+  may offer `Clusterwohnenheit → Clusterwohneinheit` because `Cluster` is listed. It
+  cannot invent a name nobody entered. That bounds the single risk of letting a model
+  near the evidence record.
+
+Build order is deliberate: the deterministic pass first. If a few meetings show the
+leftover is consistently three-ish words, a person fixes them faster than the
+suggestion could be built.
+
 ### 1a. Strengthen the harness so a bad draw is not a lost run
 
 Generation is already sectioned: a long meeting is condensed section by section and
