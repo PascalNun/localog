@@ -213,7 +213,7 @@
           >
           <p class="field-note">
             Transcription quality is chosen once in Settings and applies to every meeting.
-            Per-meeting overrides and vocabulary selection are not available yet.
+            Per-meeting overrides and choosing names & terms per meeting are not available yet.
           </p>
         </div>
         <details class="advanced-disclosure">

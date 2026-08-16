@@ -465,8 +465,8 @@
           <p class="eyebrow">Unclear terms</p>
           <h3>{unclearCount ? `${unclearCount} to check` : 'None remaining'}</h3>
           <p>
-            Editing a flagged segment marks it reviewed. Vocabulary suggestions will be validated in
-            the transcription spike.
+            Editing a flagged segment marks it reviewed. A name the transcriber never got right is
+            worth adding under Names &amp; terms, so the next meeting spells it correctly.
           </p>
         </div>
         {#if protocolStyle}
