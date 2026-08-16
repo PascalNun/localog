@@ -1997,6 +1997,14 @@ const ALLOWED_OVERRUN: usize = 2;
 #[cfg(test)]
 const ROOM_TO_OVERRUN: usize = 5;
 
+/// The cap must sit above the check, or an overrunning section arrives truncated
+/// rather than correctable. Checked when this compiles rather than when it runs,
+/// because the two constants read as interchangeable and are not: they were equal
+/// once, and it cost a 797-second run and made the correction beside them
+/// unreachable.
+#[cfg(test)]
+const _: () = assert!(ROOM_TO_OVERRUN > ALLOWED_OVERRUN);
+
 /// Reject a section that grossly overruns the length it was given.
 ///
 /// Generous, because a model asked for 900 characters will not land on 900 and should
@@ -2563,19 +2571,6 @@ mod tests {
         assert!(
             beyond_one_answer(&wide).is_some(),
             "the ceiling is the answer, not the window"
-        );
-    }
-
-    /// The bug this pins cost a 797-second run. Both thresholds were twice the
-    /// budget, so an overrunning section was cut off by the token cap before the
-    /// check could reject it — and a cut-off answer cannot be corrected, which made
-    /// the correcting retry defined right beside it unreachable.
-    #[test]
-    fn a_section_may_finish_overrunning_before_it_is_judged_for_overrunning() {
-        assert!(
-            ROOM_TO_OVERRUN > ALLOWED_OVERRUN,
-            "the cap must sit above the check, or an overrun arrives truncated \
-             instead of correctable: cap {ROOM_TO_OVERRUN}, check {ALLOWED_OVERRUN}"
         );
     }
 
