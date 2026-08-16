@@ -503,10 +503,7 @@ impl OllamaProvider {
                 cancelled,
                 &mut |_| Ok(()),
             )?;
-            let structured: StructuredTopics =
-                serde_json::from_str(&generated).map_err(|error| {
-                    ProviderError::InvalidResponse(truncate(&error.to_string(), 280))
-                })?;
+            let structured: StructuredTopics = parse_structured(&generated)?;
             for topic in structured.topics {
                 let segments = crate::topics::resolve_within(selection, window, &topic.segments);
                 if segments.is_empty() || topic.title.trim().is_empty() {
@@ -686,8 +683,7 @@ impl OllamaProvider {
             cancelled,
             &mut |_| progress(60, "generating_protocol"),
         )?;
-        let structured: StructuredProtocol = serde_json::from_str(&generated)
-            .map_err(|error| ProviderError::InvalidResponse(truncate(&error.to_string(), 280)))?;
+        let structured: StructuredProtocol = parse_structured(&generated)?;
         validate_markdown(&structured.protocol_markdown)?;
         progress(78, "validating_protocol")?;
         Ok(structured.protocol_markdown)
@@ -736,10 +732,7 @@ impl OllamaProvider {
                 cancelled,
                 &mut |_| progress(start, "condensing_transcript"),
             )?;
-            let structured: StructuredNotes =
-                serde_json::from_str(&generated).map_err(|error| {
-                    ProviderError::InvalidResponse(truncate(&error.to_string(), 280))
-                })?;
+            let structured: StructuredNotes = parse_structured(&generated)?;
             if structured.notes_markdown.trim().is_empty() {
                 return Err(ProviderError::InvalidResponse(
                     "The model returned empty notes for a section of the meeting.".into(),
@@ -852,8 +845,7 @@ impl OllamaProvider {
             cancelled,
             &mut |_| progress(60, "condensing_transcript"),
         )?;
-        let structured: StructuredNotes = serde_json::from_str(&generated)
-            .map_err(|error| ProviderError::InvalidResponse(truncate(&error.to_string(), 280)))?;
+        let structured: StructuredNotes = parse_structured(&generated)?;
         Ok(structured.notes_markdown)
     }
 
@@ -955,6 +947,28 @@ impl OllamaProvider {
             return Err(ProviderError::IncompleteResponse);
         }
         Ok(repair_escaped_newlines(&generated))
+    }
+}
+
+/// Parse what the model returned as structured output, repairing it first if it is
+/// not quite JSON.
+///
+/// Generation asks the model for a JSON object whose fields hold the protocol, and
+/// a protocol is multi-line markdown. A model that writes a raw newline inside that
+/// string rather than escaping it has produced invalid JSON, and the whole
+/// generation is lost — measured: `ministral-3:8b` failed the reference meeting this
+/// way at two seeds out of three, each after minutes of work.
+///
+/// The repair runs only after a straight parse fails, so a well-formed answer costs
+/// nothing, and it only escapes control characters found inside strings.
+fn parse_structured<T: serde::de::DeserializeOwned>(generated: &str) -> Result<T> {
+    match serde_json::from_str(generated) {
+        Ok(value) => Ok(value),
+        Err(first) => serde_json::from_str(&escape_raw_controls(generated)).map_err(|_| {
+            // The first error is the useful one: it describes what the model wrote,
+            // not what the repair failed to make of it.
+            ProviderError::InvalidResponse(truncate(&first.to_string(), 280))
+        }),
     }
 }
 
@@ -1358,20 +1372,37 @@ fn truncate(value: &str, max_chars: usize) -> String {
 mod tests {
     use super::*;
 
-    /// A raw control character inside a JSON string is invalid JSON, and losing a
-    /// fourteen-minute generation to one byte the model happened to type is not a
-    /// trade worth making. Measured: ministral-3:8b failed a run this way.
+    /// The shape that actually arrived: generation asks for a JSON object whose
+    /// field holds the protocol, the protocol is multi-line markdown, and the model
+    /// wrote the newlines raw instead of escaping them. Invalid JSON, and the whole
+    /// generation lost — ministral-3:8b failed the reference meeting this way at two
+    /// seeds of three, each after minutes of work.
     #[test]
     fn a_raw_control_character_does_not_lose_the_generation() {
-        // A newline sitting raw inside the string, which is what arrived.
-        let broken = "{\"response\":\"Der Beschluss\nbleibt\",\"done\":false}";
+        // A protocol written across real newlines inside the JSON string.
+        let broken = "{\"protocol_markdown\":\"## Beschluss\n\nDie Fassade bleibt.\"}";
         assert!(
             serde_json::from_str::<serde_json::Value>(broken).is_err(),
             "the fixture must really be invalid JSON"
         );
-        let repaired = escape_raw_controls(broken);
-        let value: serde_json::Value = serde_json::from_str(&repaired).expect("repaired");
-        assert_eq!(value["response"], "Der Beschluss\nbleibt");
+        let structured: StructuredProtocol = parse_structured(broken).expect("repaired");
+        assert_eq!(
+            structured.protocol_markdown,
+            "## Beschluss\n\nDie Fassade bleibt."
+        );
+        assert_eq!(structured.protocol_markdown.lines().count(), 3);
+    }
+
+    /// A well-formed answer must not be touched by the repair, and must not pay for
+    /// it either — the straight parse is tried first.
+    #[test]
+    fn a_well_formed_structured_answer_is_parsed_unchanged() {
+        let fine = "{\"protocol_markdown\":\"## Beschluss\\n\\nDie Fassade bleibt.\"}";
+        let structured: StructuredProtocol = parse_structured(fine).expect("parsed");
+        assert_eq!(
+            structured.protocol_markdown,
+            "## Beschluss\n\nDie Fassade bleibt."
+        );
     }
 
     /// Whitespace between tokens is legal JSON and must not be touched, or a
