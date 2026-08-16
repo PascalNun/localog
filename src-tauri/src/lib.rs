@@ -6,6 +6,7 @@ mod e2e_harness;
 mod eval_harness;
 
 mod clustering;
+mod corrections;
 mod diarisation;
 mod domain;
 mod edits;

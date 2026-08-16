@@ -462,3 +462,62 @@ fn formal_minutes_style() -> GenerationStyle {
         required_sections: vec!["Teilnehmende".into()],
     }
 }
+
+/// Run the transcript corrections over a real transcript and report what they change.
+///
+/// The claim this checks was first measured in a throwaway script, which is not the
+/// same as measuring the code that would ship. Building it already found one thing the
+/// script had hidden: German lower-cases the interior of a compound, so a stem
+/// correction is two rules rather than one, and the script had listed both by hand
+/// without anybody noticing.
+///
+///   LOCALOG_CORRECTIONS_TRANSCRIPT=… \
+///   LOCALOG_CORRECTIONS="Klaster=Cluster,Nokera=NOKERA" \
+///     cargo test --lib -- --ignored --nocapture what_the_corrections_change
+#[test]
+#[ignore = "requires a real transcript"]
+fn what_the_corrections_change() {
+    let path = std::env::var("LOCALOG_CORRECTIONS_TRANSCRIPT").expect("a transcript");
+    let pairs = std::env::var("LOCALOG_CORRECTIONS").expect("wrong=right pairs, comma separated");
+    let corrections: Vec<crate::corrections::Correction> = pairs
+        .split(',')
+        .filter_map(|pair| pair.split_once('='))
+        .map(|(wrong, right)| crate::corrections::Correction {
+            wrong: wrong.trim().to_string(),
+            right: right.trim().to_string(),
+        })
+        .collect();
+
+    let value: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).expect("readable")).expect("json");
+    let mut segments: Vec<crate::domain::TranscriptSegment> =
+        serde_json::from_value(value["segments"].clone()).expect("segments");
+
+    let found = crate::corrections::preview(&segments, &corrections);
+    println!("{} places would change:", found.len());
+    for shown in found.iter().take(8) {
+        println!(
+            "  {:>7} ms  {}",
+            shown.start_ms,
+            shown.context.replace('\n', " ")
+        );
+    }
+    if found.len() > 8 {
+        println!("  … and {} more", found.len() - 8);
+    }
+
+    let counts = crate::corrections::apply(&mut segments, &corrections);
+    println!("\n{:<24}occurrences", "correction");
+    for (correction, count) in corrections.iter().zip(&counts) {
+        println!(
+            "{:<24}{count}",
+            format!("{} -> {}", correction.wrong, correction.right)
+        );
+    }
+    println!("\ntotal: {}", counts.iter().sum::<usize>());
+    assert_eq!(
+        found.len(),
+        counts.iter().sum::<usize>(),
+        "every place offered for review must be a place that changes"
+    );
+}
