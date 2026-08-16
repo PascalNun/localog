@@ -49,6 +49,22 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     status: 'baseline',
   },
   {
+    id: 'ministral-8b',
+    name: 'Ministral 3 8B',
+    family: 'Ministral 3',
+    providerNames: ['ministral-3:8b', 'ministral-3:8b-instruct-2512-q4_K_M'],
+    tier: 'standard',
+    minimumMemoryGb: 16,
+    sizeLabel: 'larger local model',
+    languages: ['German', 'English', 'Japanese', 'many more'],
+    testedLanguages: ['German'],
+    originLabel: 'European model',
+    licenseLabel: 'Apache 2.0',
+    description:
+      'Measured on a German meeting at three settings and wrote a usable protocol at one of them: the others produced a two-line stub and a JSON document where markdown was asked for. Kept as the European candidate, not yet an alternative to the baseline.',
+    status: 'candidate',
+  },
+  {
     id: 'qwen3.5-4b',
     name: 'Qwen3.5 4B',
     family: 'Qwen3.5',
@@ -80,22 +96,6 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     status: 'candidate',
   },
   {
-    id: 'ministral-8b',
-    name: 'Ministral 3 8B',
-    family: 'Ministral 3',
-    providerNames: ['ministral-3:8b', 'ministral-3:8b-instruct-2512-q4_K_M'],
-    tier: 'standard',
-    minimumMemoryGb: 16,
-    sizeLabel: 'larger local model',
-    languages: ['German', 'English', 'Japanese', 'many more'],
-    testedLanguages: ['German'],
-    originLabel: 'European model',
-    licenseLabel: 'Apache 2.0',
-    description:
-      'Measured on a German meeting at three settings and wrote a usable protocol at one of them: the others produced a two-line stub and a JSON document where markdown was asked for. Kept as the European candidate, not yet an alternative to the baseline.',
-    status: 'candidate',
-  },
-  {
     id: 'granite4.1-8b',
     name: 'Granite 4.1 8B',
     family: 'Granite 4.1',
@@ -104,10 +104,11 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     minimumMemoryGb: 16,
     sizeLabel: 'about 5.3 GB installed',
     languages: ['German', 'English'],
-    testedLanguages: [],
+    testedLanguages: ['German'],
     originLabel: 'International open model',
     licenseLabel: 'Apache 2.0',
-    description: 'An installed 8B comparison model for the 16 GB test machine.',
+    description:
+      'Measured on a German meeting at three settings and kept 22, 19 and 6 of its 35 stated figures on identical input. A run that loses five sixths of what a meeting stated is not a tool for producing a record, so it is not recommended.',
     status: 'candidate',
   },
   {
@@ -160,12 +161,16 @@ export function recommendationFor(
     (entry) => entry.minimumMemoryGb <= (tier === 'baseline' ? 8 : tier === 'standard' ? 16 : 32),
   );
 
-  // Prefer a verified installed model. The catalogue order is intentional and is
-  // the order the models were measured in: Gemma 4 12B kept 27 to 31 of a
-  // meeting's 35 stated figures across three seeds where Granite kept as few as
-  // 6 on identical input, and Qwen never produced the table of next steps the
-  // formal style asks for. Qwen stays ahead of nothing else on the 8 GB tier,
-  // where Gemma does not fit.
+  // Prefer a verified installed model. The catalogue order is what was measured on
+  // a German meeting at three settings each, best first:
+  //
+  //   Gemma 4 12B   27-31 of 35 figures, a protocol at every setting
+  //   Ministral 8B  28 of 35 at its best, a protocol at one setting of three
+  //   Qwen 4B       20-24 of 35, and never the table of next steps the style asks
+  //   Granite 8B    22, 19 and 6 on identical input — not recommended
+  //
+  // Qwen still comes before the untested 3B, so an eight-gigabyte machine — where
+  // neither Gemma nor Ministral 8B fits — is offered the one that has been run.
   const installed = allowed
     .map((entry) => ({ entry, installed: installedProviderModel(entry, models) }))
     .find(({ installed }) => installed !== null);
