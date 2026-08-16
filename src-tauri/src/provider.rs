@@ -29,7 +29,19 @@ pub enum ProviderError {
     Cancelled,
     ResponseTooLarge,
     IncompleteResponse,
+    /// The model accepted the work and then stopped sending anything.
+    Stalled,
 }
+
+/// How long a model may send nothing before it is treated as stopped.
+///
+/// Generous, because a large model on a slow machine pauses: reading an
+/// eighty-minute transcript is minutes of work before the first token, and
+/// `gemma4:12b` was measured at fourteen minutes for a whole protocol. What this
+/// catches is the case with no pauses at all — a model that has stopped answering
+/// and will never resume, which had no limit before this and would have been waited
+/// on until somebody gave up.
+const SILENCE_BEFORE_GIVING_UP: Duration = Duration::from_secs(300);
 
 impl Display for ProviderError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
@@ -41,6 +53,10 @@ impl Display for ProviderError {
             Self::RuntimeChanged => write!(formatter, "the Ollama runtime changed"),
             Self::Cancelled => write!(formatter, "local generation was cancelled"),
             Self::ResponseTooLarge => write!(formatter, "the local model response was too large"),
+            Self::Stalled => write!(
+                formatter,
+                "the local model stopped responding partway through"
+            ),
             Self::IncompleteResponse => {
                 write!(formatter, "the local model response was incomplete")
             }
@@ -681,7 +697,12 @@ impl OllamaProvider {
                 num_predict: request.maximum_output_tokens,
             },
             cancelled,
-            &mut |_| progress(60, "generating_protocol"),
+            &mut |written| {
+                progress(
+                    arrived(60, 76, written, request.maximum_output_tokens),
+                    "generating_protocol",
+                )
+            },
         )?;
         let structured: StructuredProtocol = parse_structured(&generated)?;
         validate_markdown(&structured.protocol_markdown)?;
@@ -806,7 +827,7 @@ impl OllamaProvider {
                 num_predict,
             },
             cancelled,
-            &mut |_| progress(70, "generating_protocol"),
+            &mut |written| progress(arrived(70, 76, written, num_predict), "generating_protocol"),
         )?;
         let structured: StructuredProtocol = serde_json::from_str(&generated)
             .map_err(|error| ProviderError::InvalidResponse(truncate(&error.to_string(), 280)))?;
@@ -855,7 +876,7 @@ impl OllamaProvider {
         request: &GenerationRequest,
         call: Completion<'_>,
         cancelled: &AtomicBool,
-        tick: &mut dyn FnMut(()) -> Result<()>,
+        tick: &mut dyn FnMut(usize) -> Result<()>,
     ) -> Result<String> {
         let body = OllamaRequest {
             model: &request.model,
@@ -895,9 +916,21 @@ impl OllamaProvider {
         let mut generated = String::new();
         let mut done = false;
         let mut last_progress = Instant::now() - Duration::from_millis(100);
+        // When the last token arrived, so a model that has stopped answering can be
+        // told from one that is still working.
+        //
+        // There was no deadline here at all: the global timeout is off and the
+        // thirty-minute one covers receiving the response headers, not the stream
+        // that follows. A model that stalled after its first token would have been
+        // waited on indefinitely while the interface showed a fixed seventy per cent
+        // — which is exactly the state somebody cannot distinguish from progress.
+        let mut last_chunk = Instant::now();
         loop {
             if cancelled.load(Ordering::Acquire) {
                 return Err(ProviderError::Cancelled);
+            }
+            if last_chunk.elapsed() >= SILENCE_BEFORE_GIVING_UP {
+                return Err(ProviderError::Stalled);
             }
             line.clear();
             let read = reader
@@ -909,20 +942,13 @@ impl OllamaProvider {
             if line.len() > MAX_RESPONSE_BYTES {
                 return Err(ProviderError::ResponseTooLarge);
             }
-            let chunk: StreamChunk =
-                match serde_json::from_str(line.trim()) {
-                    Ok(chunk) => chunk,
-                    // A raw control character inside a JSON string is invalid JSON, and
-                    // the provider has been observed to emit one: a generation of the
-                    // reference meeting failed after minutes with `control character
-                    // found while parsing a string`. Losing a fourteen-minute run over
-                    // one byte the model happened to type is not a trade worth making,
-                    // so the line is repaired and parsed again. Only on failure, so
-                    // nothing normal pays for it.
-                    Err(_) => serde_json::from_str(&escape_raw_controls(line.trim())).map_err(
-                        |error| ProviderError::InvalidResponse(truncate(&error.to_string(), 280)),
-                    )?,
-                };
+            // One JSON object per line, and the provider escapes what it sends. The
+            // model's own answer is the thing that needs repairing, and that is done
+            // where it is parsed rather than here.
+            let chunk: StreamChunk = serde_json::from_str(line.trim()).map_err(|error| {
+                ProviderError::InvalidResponse(truncate(&error.to_string(), 280))
+            })?;
+            last_chunk = Instant::now();
             generated.push_str(if chunk.response.is_empty() {
                 &chunk.thinking
             } else {
@@ -932,7 +958,7 @@ impl OllamaProvider {
                 return Err(ProviderError::ResponseTooLarge);
             }
             if last_progress.elapsed() >= Duration::from_millis(100) {
-                tick(())?;
+                tick(generated.len())?;
                 last_progress = Instant::now();
             }
             if chunk.done {
@@ -976,6 +1002,25 @@ fn parse_structured<T: serde::de::DeserializeOwned>(generated: &str) -> Result<T
             ProviderError::InvalidResponse(truncate(&first.to_string(), 280))
         }),
     }
+}
+
+/// Move a progress figure as an answer arrives, so a person can tell a model that
+/// is working from one that has stopped.
+///
+/// It was a constant. A generation of the reference meeting shows seventy per cent
+/// for fourteen minutes and then either finishes or does not, which is
+/// indistinguishable from a stall and is the state this project spent nine hours in
+/// while watching its own harness.
+///
+/// The estimate is rough on purpose: what fraction of the tokens the model was
+/// allowed has arrived, counted in characters at roughly four to a token. A figure
+/// that moves is worth more here than a figure that is exact, and it never reaches
+/// the end of its band, because arriving there while still writing would be its own
+/// kind of lie.
+fn arrived(from: u64, to: u64, written: usize, allowed_tokens: u32) -> u64 {
+    let expected = (allowed_tokens as usize).saturating_mul(4).max(1);
+    let through = (written as f64 / expected as f64).clamp(0.0, 0.95);
+    from + ((to - from) as f64 * through) as u64
 }
 
 /// Make a nearly-JSON answer readable, without changing what it says.
@@ -1393,6 +1438,30 @@ fn truncate(value: &str, max_chars: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A progress figure that does not move cannot be told from a stalled one, and
+    /// this project spent nine hours in exactly that state watching its own harness.
+    #[test]
+    fn progress_moves_as_the_answer_arrives() {
+        // 8,192 tokens allowed is roughly 32,768 characters expected.
+        let allowed = 8_192;
+        let start = arrived(60, 76, 0, allowed);
+        let quarter = arrived(60, 76, 8_000, allowed);
+        let most = arrived(60, 76, 30_000, allowed);
+        assert_eq!(start, 60);
+        assert!(quarter > start, "it must move: {start} then {quarter}");
+        assert!(most > quarter, "and keep moving: {quarter} then {most}");
+        // Never the end of its band while still writing, which would be its own lie.
+        assert!(most < 76);
+        assert!(arrived(60, 76, usize::MAX, allowed) < 76);
+    }
+
+    /// A model that writes nothing at all must not make the arithmetic divide by it.
+    #[test]
+    fn progress_survives_a_model_allowed_no_tokens() {
+        assert_eq!(arrived(60, 76, 0, 0), 60);
+        assert!(arrived(60, 76, 1_000, 0) <= 76);
+    }
 
     /// Both faults exactly as they arrived in one answer from ministral-3:8b: raw
     /// newlines inside the string because a protocol is multi-line, and a backslash
