@@ -20,6 +20,31 @@ Last reviewed: 16 August 2026.
 
 **On guards:** a hard cap set equal to the soft check it accompanies makes the correction unreachable, and a per-section fatal check aborted a twenty-three-minute run over 198 characters. Limits must be proportionate to what actually goes wrong.
 
+## What to do next, in order
+
+Written 17 August 2026. The order is by what it settles, not by what is quickest.
+
+### Finish what is open
+
+1. **Run the correction panel against the real backend.** Commands are registered, the store is wired and the binary builds, but everything exercised so far went through the fake bridge. It is a shipped feature tested only by unit tests and the evaluation harness. Click it once in the application.
+2. **Move the by-topic budget check to the total, and make it advisory.** Per-section and fatal, it aborted a twenty-three-minute run over 198 characters. Evaluation-only code, so contained — but it also left the 8,192 by-topic run unanswered, which was the question that experiment existed to settle.
+
+### Then: find out where milestone 1 actually stands
+
+3. **Generate a protocol with everything now in place and read it against the written one.** The corrected transcript, the action-table check, the tidying pass, the marked gaps. The comparison that opened all of this found three faults: no actions table, ends early with nothing saying so, and every proper noun wrong. All three have answers now, and nobody has looked at the result. Reading it is the acceptance test; counting it is not.
+4. **Ask for the names.** See 1z below. Until the application asks, a real person gets the transcript this project spent weeks measuring against — the mechanism has existed the whole time and nothing points anybody at it. The largest gap between what is built and what somebody would experience.
+
+### Then: the decisions already recorded
+
+5. **Density becomes a choice, and the style's own length instruction goes.** Three options exist and are correct. The shipped style separately tells the model not to compress, which contradicts two of the three the moment somebody can pick one. Measure the comprehensive setting before and after.
+6. **Style authoring**, along the four axes: voice and structure authorable, density already a setting, fidelity never authorable. Replace `required_sections` with structural expectations that can be checked in any language, as the action table now is.
+7. **Wire the recorder into the application.** Every part works in the spike. It must tear down its taps on abnormal exit and sweep for orphans at startup, because leaving them running breaks the machine's audio.
+8. **The M1 / 8 GB baseline**, on the hardware it describes. Every figure in this document comes from a 16 GB machine.
+
+### Parked, with reasons
+
+Writing by topic, until there is an idea for structure that per-section rules cannot supply — it controls length and coverage and produces a document ordered by when things were said. The model that proposes corrections for the two or three ragged words a meeting leaves. The visual pass over the interface, which is a different job from the interaction and was deliberately not done with it.
+
 ## The direction
 
 The first meaningful product path remains:
