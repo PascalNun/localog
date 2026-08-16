@@ -8,6 +8,9 @@
     ProtocolStyle,
     TranscriptDocument,
     TranscriptSegment,
+    NameCandidate,
+    CorrectionMatch,
+    AppliedCorrection,
   } from '../workflow/types';
   import { COMMON_MEETING_LANGUAGES } from '../workflow/languages';
   import Icon from './Icon.svelte';
@@ -32,6 +35,77 @@
   export let onLoadAudio: (
     meetingId: string,
   ) => Promise<{ source: string; durationMs: number | null } | null>;
+  export let onFindNameCandidates: (meetingId: string) => Promise<NameCandidate[]> = async () => [];
+  export let onPreviewCorrection: (
+    meetingId: string,
+    wrong: string,
+    right: string,
+  ) => Promise<CorrectionMatch[]> = async () => [];
+  export let onApplyCorrection: (
+    meetingId: string,
+    correction: AppliedCorrection,
+  ) => Promise<void> = async () => undefined;
+
+  /// Correcting a name the transcriber never heard right.
+  ///
+  /// The panel this replaces said "322 to check" on a real meeting, which is not a
+  /// task anybody starts. These are the words it was never sure of — a handful, not
+  /// a third of the transcript.
+  let candidates: NameCandidate[] = [];
+  let candidatesFor = '';
+  $: if (transcript && candidatesFor !== meeting.id) {
+    candidatesFor = meeting.id;
+    correcting = null;
+    void onFindNameCandidates(meeting.id).then((found) => (candidates = found));
+  }
+
+  /** The candidate being corrected, and what somebody is typing for it. */
+  let correcting: { heard: string; spelling: string } | null = null;
+  let matches: CorrectionMatch[] = [];
+  /** Occurrences to leave alone, because a wrong spelling can be an ordinary word. */
+  let declined = new Set<string>();
+  let remember = true;
+  let applying = false;
+  let applied = '';
+
+  async function startCorrecting(candidate: NameCandidate) {
+    applied = '';
+    correcting = { heard: candidate.heard, spelling: candidate.heard };
+    declined = new Set();
+    matches = await onPreviewCorrection(meeting.id, candidate.heard, candidate.heard);
+  }
+
+  function toggleDeclined(segmentId: string) {
+    const next = new Set(declined);
+    if (next.has(segmentId)) next.delete(segmentId);
+    else next.add(segmentId);
+    declined = next;
+  }
+
+  $: keptMatches = matches.filter((match) => !declined.has(match.segmentId));
+
+  async function applyCorrection() {
+    if (!correcting || !correcting.spelling.trim() || !keptMatches.length) return;
+    applying = true;
+    const wrong = correcting.heard;
+    const right = correcting.spelling.trim();
+    try {
+      await onApplyCorrection(meeting.id, {
+        wrong,
+        right,
+        keptSegmentIds: declined.size ? keptMatches.map((match) => match.segmentId) : [],
+        remember,
+      });
+      applied = `${wrong} → ${right} in ${keptMatches.length} ${
+        keptMatches.length === 1 ? 'place' : 'places'
+      }${remember ? ', and kept for this project' : ''}.`;
+      candidates = candidates.filter((candidate) => candidate.heard !== wrong);
+      correcting = null;
+      matches = [];
+    } finally {
+      applying = false;
+    }
+  }
 
   let isPlaying = false;
   let currentSeconds = 0;
@@ -462,12 +536,84 @@
           {#if rerunError}<p class="setting-error" role="alert">{rerunError}</p>{/if}
         </div>
         <div class="inspector-section">
-          <p class="eyebrow">Unclear terms</p>
-          <h3>{unclearCount ? `${unclearCount} to check` : 'None remaining'}</h3>
-          <p>
-            Editing a flagged segment marks it reviewed. A name the transcriber never got right is
-            worth adding under Names &amp; terms, so the next meeting spells it correctly.
-          </p>
+          <p class="eyebrow">Names the transcriber was unsure of</p>
+
+          {#if correcting}
+            {@const editing = correcting}
+            <h3>What should it say?</h3>
+            <label class="correction-field">
+              <span>Heard as “{editing.heard}”</span>
+              <input
+                type="text"
+                bind:value={editing.spelling}
+                placeholder="Correct spelling"
+                onkeydown={(event) => {
+                  if (event.key === 'Enter') void applyCorrection();
+                  if (event.key === 'Escape') correcting = null;
+                }}
+              />
+            </label>
+
+            {#if matches.length}
+              <p class="correction-note">
+                Found in {matches.length}
+                {matches.length === 1 ? 'place' : 'places'}. Untick any that should stay as they are.
+              </p>
+              <ul class="correction-matches">
+                {#each matches as match (match.segmentId)}
+                  <li>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={!declined.has(match.segmentId)}
+                        onchange={() => toggleDeclined(match.segmentId)}
+                      />
+                      <span>{match.context}</span>
+                    </label>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+
+            <label class="correction-remember">
+              <input type="checkbox" bind:checked={remember} />
+              <span>Remember for this project, so the next meeting spells it correctly</span>
+            </label>
+
+            <div class="correction-actions">
+              <button
+                class="secondary-action"
+                disabled={applying || !keptMatches.length || !editing.spelling.trim()}
+                onclick={applyCorrection}
+              >
+                {applying ? 'Correcting…' : `Correct ${keptMatches.length}`}
+              </button>
+              <button class="text-action" onclick={() => (correcting = null)}>Cancel</button>
+            </div>
+          {:else if candidates.length}
+            <h3>{candidates.length} never got right</h3>
+            <p>Are any of these names? Correcting one repairs this transcript and remembers it.</p>
+            <ul class="correction-candidates">
+              {#each candidates as candidate (candidate.heard)}
+                <li>
+                  <button class="candidate" onclick={() => startCorrecting(candidate)}>
+                    <span class="candidate-word">{candidate.heard}</span>
+                    <span class="candidate-count">{candidate.occurrences}×</span>
+                    <span class="candidate-context">{candidate.context}</span>
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <h3>Nothing to check</h3>
+            <p>
+              Every name the transcriber was unsure of has been dealt with. {unclearCount
+                ? `${unclearCount} passages are still flagged as unclear for other reasons.`
+                : ''}
+            </p>
+          {/if}
+
+          {#if applied}<p class="correction-applied" role="status">{applied}</p>{/if}
         </div>
         {#if protocolStyle}
           <div class="inspector-section">
