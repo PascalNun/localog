@@ -70,14 +70,77 @@ fn output_tokens_for(density: crate::domain::ProtocolDensity) -> u32 {
 /// been run. 40,960 is that width — it holds a whole meeting in one pass and
 /// measured 4.70 GB resident. Sizing the cap to the machine's own memory rather
 /// than to this one is the next step, and is tracked in the plan.
-fn affordable_context(provider: &provider::OllamaProvider, model: &str) -> u32 {
+/// How much context this machine can actually give this model.
+///
+/// A context length is a memory decision before it is a quality one, and this used
+/// to ignore that: it asked for 40,960 tokens of everything, a figure measured
+/// against one model. Qwen needs about 4.7 GB there. `mistral-nemo` needs 14 GB at
+/// the same setting — three times as much for the same number — so on a 16 GB
+/// machine Ollama put 18 % of it on the CPU and the request had not returned after
+/// thirty minutes, at which point the person waiting was told `timeout: receive
+/// response`.
+///
+/// That is the failure this exists to make impossible. A model that will not fit
+/// should be given a context that does, before anybody waits for it.
+///
+/// The arithmetic is deliberately pessimistic, because being wrong downwards costs
+/// a shorter context and being wrong upwards costs half an hour and a meaningless
+/// error. Weights are taken as their size on disk, a fixed amount is left for the
+/// operating system and the application, and what remains is divided by a per-token
+/// cost taken from the most expensive model measured rather than the cheapest.
+fn affordable_context(
+    provider: &provider::OllamaProvider,
+    model: &str,
+    model_bytes: u64,
+    machine_bytes: u64,
+) -> u32 {
+    /// Measured on the reference meeting and not exceeded since.
     const MEASURED_AFFORDABLE: u32 = 40_960;
     const WHEN_UNREPORTED: u32 = 8_192;
-    provider
+    /// `mistral-nemo` spends about 170 KB of key-value cache per token where Qwen
+    /// spends about 32. The larger is used for every model, because a context that
+    /// turns out to fit easily is a smaller disappointment than one that does not
+    /// fit at all.
+    const BYTES_PER_TOKEN: u64 = 176 * 1024;
+    /// For everything that is not this model: the application, the interface, the
+    /// transcription runtime that may still be resident, and the operating system.
+    const RESERVED: u64 = 3 * 1024 * 1024 * 1024;
+    /// Below this a context is too short to hold a meeting section usefully, so a
+    /// machine that cannot afford it is told rather than quietly given a stub.
+    const LEAST_USEFUL: u32 = 4_096;
+
+    let supported = provider
         .model_context_length(model)
-        .map_or(WHEN_UNREPORTED, |supported| {
-            supported.min(MEASURED_AFFORDABLE)
-        })
+        .unwrap_or(WHEN_UNREPORTED)
+        .min(MEASURED_AFFORDABLE);
+    if machine_bytes == 0 || model_bytes == 0 {
+        return supported;
+    }
+    let spare = machine_bytes
+        .saturating_sub(RESERVED)
+        .saturating_sub(model_bytes);
+    let affordable = u32::try_from(spare / BYTES_PER_TOKEN).unwrap_or(u32::MAX);
+    supported.min(affordable).max(LEAST_USEFUL)
+}
+
+/// How much memory this machine has, or zero where that cannot be established —
+/// in which case nothing is inferred from it.
+fn machine_memory_bytes() -> u64 {
+    #[cfg(target_os = "macos")]
+    {
+        let output = std::process::Command::new("sysctl")
+            .args(["-n", "hw.memsize"])
+            .output()
+            .ok();
+        return output
+            .and_then(|out| String::from_utf8(out.stdout).ok())
+            .and_then(|text| text.trim().parse().ok())
+            .unwrap_or(0);
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        0
+    }
 }
 
 /// Whether this build should use the deterministic adapters instead of the real
@@ -722,6 +785,14 @@ fn generation_metadata(
     let runtime_version = status
         .runtime_version
         .unwrap_or_else(|| "unknown".to_string());
+    // The model's own size, which with the machine's memory decides how much
+    // context it can be given without spilling onto the CPU.
+    let model_bytes = status
+        .models
+        .iter()
+        .find(|candidate| candidate.name == model)
+        .map(|candidate| candidate.size)
+        .unwrap_or_default();
     let config = QueuedGenerationConfig {
         model: model.clone(),
         model_digest: model_digest.clone(),
@@ -742,7 +813,12 @@ fn generation_metadata(
             .collect(),
         seed: 42,
         temperature_milli: 200,
-        context_tokens: affordable_context(&provider::OllamaProvider::loopback(), &model),
+        context_tokens: affordable_context(
+            &provider::OllamaProvider::loopback(),
+            &model,
+            model_bytes,
+            machine_memory_bytes(),
+        ),
         maximum_output_tokens: output_tokens_for(inputs.style.density),
     };
     let runtime_config_json = serde_json::to_string(&config).map_err(|_| {
@@ -3099,6 +3175,43 @@ fn processing_to_storage(error: ProcessingError) -> StorageError {
 
 #[cfg(test)]
 mod tests {
+
+    /// The failure this arithmetic exists to prevent, as numbers.
+    ///
+    /// `mistral-nemo` is 7.1 GB on disk and needs 14 GB at 40,960 tokens. Asked for
+    /// that on a 16 GB machine it ran 18 % on the CPU, never returned, and wedged
+    /// Ollama in `Stopping...` while still holding the memory. Nothing saw it
+    /// coming, because the context was a constant measured against a smaller model.
+    #[test]
+    fn a_model_is_not_given_more_context_than_the_machine_can_hold() {
+        let sixteen_gb = 16 * 1024 * 1024 * 1024u64;
+        let eight_gb = 8 * 1024 * 1024 * 1024u64;
+        let nemo = 7_100_000_000u64;
+        let qwen = 3_400_000_000u64;
+        // No Ollama is needed: an unreachable provider reports no context length and
+        // the arithmetic still applies to the fallback.
+        let provider = provider::OllamaProvider::loopback();
+
+        let for_nemo = affordable_context(&provider, "mistral-nemo:latest", nemo, sixteen_gb);
+        let for_qwen = affordable_context(&provider, "qwen3.5:4b", qwen, sixteen_gb);
+        assert!(
+            for_nemo < for_qwen,
+            "the larger model must be given less: {for_nemo} vs {for_qwen}"
+        );
+
+        let cramped = affordable_context(&provider, "mistral-nemo:latest", nemo, eight_gb);
+        assert!(
+            cramped <= for_nemo,
+            "less memory must never buy more context"
+        );
+        assert!(cramped >= 4_096, "and never fall below a usable floor");
+
+        // What cannot be established is not guessed at.
+        assert_eq!(
+            affordable_context(&provider, "qwen3.5:4b", qwen, 0),
+            affordable_context(&provider, "qwen3.5:4b", 0, sixteen_gb),
+        );
+    }
 
     /// Token shapes taken from real whisper `--output-json-full` output, with the
     /// strings replaced: a rare all-capitals firm name arrives in pieces, and the
