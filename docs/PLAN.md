@@ -509,7 +509,7 @@ the context as an environment variable, so it needs no code.
 
 #### First measurements, 16 August 2026
 
-`gemma4:12b`, seed 7, one draw at each point:
+`gemma4:12b`, seed 7. One draw at each point, which is why the reading below is corrected further down:
 
 | Context | Sections | Seconds | Headings | Table rows | Figures |
 | ------: | -------: | ------: | -------: | ---------: | ------: |
@@ -530,12 +530,29 @@ the point has to be measured again.
 Figures kept did not move: 29 of 35 at every context that worked. Whatever a smaller
 context costs, it is not the quantities.
 
-**The only run that produced a table of tasks and owners was the one with the most
-sections.** No 40,960 run ever has. The written protocol for this meeting closes with
-seventeen rows of task and owner, and a draft without them does not do a protocol's
-main job, so this is the most valuable thread here. It is also one draw against one
-draw, which is worth nothing on its own — `granite4.1:8b` scored 22, 19 and 6 on
-three seeds of the same comparison. Being repeated at further seeds.
+**The table of tasks and owners does not depend on the context, and the claim that it
+did was wrong.** Repeating each point at further seeds settled it:
+
+| Context | Runs producing a table |
+| ------: | ---------------------- |
+|  24,576 | 3 of 3                 |
+|  32,768 | 1 of 2                 |
+|  40,960 | 2 of 3                 |
+
+Six of eight, spread across every context. The seed-7 run at 40,960 is the outlier
+that lacks one — and it is the draft that was read against the written protocol, so
+"the draft has no actions table" became "this context produces no actions table" on
+the strength of a single draw. That is the same error this document had already
+recorded once, when `granite4.1:8b` scored 22, 19 and 6 on three seeds of one
+comparison. Knowing about the trap is not the same as being out of it.
+
+What survives is a useful negative: **between 24,576 and 40,960 nothing measurable
+changes** — not figures kept, not whether the protocol carries its table. The window
+can be chosen for what the machine can hold rather than for quality, which is the
+answer the 8 GB target needed.
+
+What remains genuinely open is why one draw in eight omits the table entirely, since
+that is the failure a reader would notice first.
 
 One distinction to keep. The first phase currently **condenses** — it writes detailed
 notes keeping every point — rather than **indexing**, which is what a person does
