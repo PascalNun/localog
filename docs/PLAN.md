@@ -305,6 +305,50 @@ Work in this order:
    characters to 2,747. Matching "Actions" against "Aufgaben" needs something the application does
    not have.
 
+   The action table is now checked structurally instead, which sidesteps the language entirely: a
+   markdown delimiter row looks the same in German. Measured across nine runs, about one draw in
+   five omitted the table having been told twice to produce one, and the rejection is fed back
+   through the existing correcting retry.
+
+### 1b. What a style is, before anybody can author one
+
+Decision 7 says a person authors their own styles. Before that is built, the object needs taking
+apart, because what it currently holds is four different things under one name.
+
+Sorting the shipped style's fourteen instructions:
+
+| Kind          | Count | Example                                                   |
+| ------------- | ----: | --------------------------------------------------------- |
+| **Structure** |     6 | "End with a table of agreed next steps"                   |
+| **Fidelity**  |     5 | "Never invent a decision, an action, an owner, or a date" |
+| **Voice**     |     1 | "Write discussion as calm, factual prose"                 |
+| Density       |     1 | "Write at whatever length the material requires"          |
+| Language      |     1 | "Write the entire protocol in the meeting's language"     |
+
+**One instruction of fourteen concerns how language is used**, which is the thing the owner means
+by style — direct or lofty, plain or formal. The rest is document shape and rules about telling the
+truth, both wearing the name "style".
+
+That suggests four axes rather than one, and they do not all belong to the author:
+
+- **Fidelity is invariant and not authorable.** "Never invent a decision", "reproduce every figure
+  exactly", "never leave a placeholder", "cover every topic". A person authoring a house style is
+  choosing how their firm writes, not whether the record may be wrong. These belong to the
+  application and should be applied to every style, including authored ones.
+- **Structure is authorable and checkable.** Numbered sections, participants first, ends with a
+  table of tasks and owners. Declared as structure rather than as prose, each one becomes a check
+  that plugs into the correcting retry — which is exactly how the action table now works, and it
+  needed no translation to do it.
+- **Density is already a separate setting** and should stay one. `ProtocolDensity` exists, is
+  applied by `with_density`, and is not stylistic: it is how much of the meeting a reader wants.
+- **Voice is the remaining thing, and is the smallest part of the object today.** It is also the
+  part that most needs prose rather than structure, because "calm and factual" cannot be expressed
+  as a field.
+
+The immediate consequence is that `required_sections` should be replaced rather than repaired.
+Structural expectations in a checkable form are what it was reaching for; English section names
+were the wrong shape for a document written in German.
+
 4. Retry one failed section or pass rather than discarding the complete run.
 5. Compare the result with the existing human reference on completeness, correctness, attribution, length, and editing effort—not length alone.
 6. Repeat the same workflow with an English meeting or synthetic equivalent.
