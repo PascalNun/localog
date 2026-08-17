@@ -32,6 +32,16 @@ Verified at the seed that showed the fault most clearly: three labels named as p
 
 The asymmetry that let one seed settle this is worth keeping in mind next to the rule about three seeds. A fault _absent_ at one seed proves nothing — the seed may never have had it. A fault _present_ at one seed proves the fix does not reliably work. Scores need repetition; a fault reproducing does not.
 
+### Comparing across a change you made yourself
+
+Noticed 17 August 2026 while the runs were still going, which is the only reason it is worth recording rather than withdrawing.
+
+The style's own length instruction was being measured by running three seeds without it and comparing against earlier drafts. Between those earlier drafts and this experiment, speaker labels stopped being sent — a separate fix, made the same morning. Comparing the two would have measured two changes and attributed both to one, and the numbers moved enough to make a confident wrong answer easy: 19 headings against 16, four table rows against two.
+
+The baseline arm is being re-run with labels already gone, so both arms differ in one thing.
+
+Worth stating as a rule alongside the others here, because it is not the same mistake as a single seed: **a baseline expires when the code changes.** Every measurement in this document names a date for that reason, and a comparison whose arms come from different days is a comparison of the days.
+
 ## The reference meeting
 
 The main evaluation used an 81-minute German construction-project meeting:
