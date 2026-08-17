@@ -2056,6 +2056,25 @@ fn tidy_protocol(markdown: &str) -> String {
         text.truncate(kept);
     }
 
+    // A backslash ending a block, which is a hard line break with nothing to break
+    // before it. Kept where it separates two lines of text, which is what it is for;
+    // removed at the end of a paragraph or list item, where it does nothing in a
+    // strict renderer and shows as a stray mark in a lenient one. Eight of them
+    // appeared in one measured draft, all at the ends of bullets.
+    let lines: Vec<&str> = text.lines().collect();
+    let trimmed: Vec<String> = lines
+        .iter()
+        .enumerate()
+        .map(|(at, line)| {
+            let ends_a_block = lines.get(at + 1).is_none_or(|next| next.trim().is_empty());
+            match line.strip_suffix('\\') {
+                Some(without) if ends_a_block => without.trim_end().to_string(),
+                _ => (*line).to_string(),
+            }
+        })
+        .collect();
+    text = trimmed.join("\n");
+
     // A heading marked twice, which happens when the model writes its own hashes into
     // a field that already carries them. Renders as literal hashes in the heading.
     let doubled = |line: &str| -> Option<String> {
@@ -2586,12 +2605,29 @@ mod tests {
         assert!(!tidied.contains("### ##"), "{tidied}");
     }
 
-    /// A trailing backslash is a legitimate CommonMark hard line break. It looks like
-    /// leakage, which is not the same as being it.
+    /// A trailing backslash between two lines of text is a hard line break and means
+    /// something. This is why they are not all stripped.
     #[test]
     fn a_hard_line_break_is_left_where_the_model_put_it() {
         let hard_break = "Erste Zeile.\\\nZweite Zeile.";
         assert_eq!(tidy_protocol(hard_break), hard_break);
+    }
+
+    /// At the end of a block it breaks nothing. Eight appeared in one measured draft,
+    /// every one at the end of a bullet, where a strict renderer shows nothing and a
+    /// lenient one shows a stray mark.
+    #[test]
+    fn a_backslash_ending_a_block_is_removed() {
+        let ending = "* Ein Punkt.\\\n\n## Nächster Abschnitt";
+        let tidied = tidy_protocol(ending);
+        assert!(tidied.starts_with("* Ein Punkt."), "{tidied}");
+        assert!(!tidied.contains("Punkt.\\"), "{tidied}");
+        assert!(tidied.contains("## Nächster Abschnitt"));
+    }
+
+    #[test]
+    fn a_backslash_ending_the_document_is_removed() {
+        assert_eq!(tidy_protocol("Der letzte Satz.\\"), "Der letzte Satz.");
     }
 
     #[test]
