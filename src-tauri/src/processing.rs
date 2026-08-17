@@ -3190,6 +3190,83 @@ fn processing_to_storage(error: ProcessingError) -> StorageError {
     }
 }
 
+/// Who introduced themselves in a meeting's opening, as the transcript spells them.
+///
+/// A light path: this needs a model, a language and the first minutes of the
+/// transcript, not the style, the vocabulary or any of the rest a protocol run
+/// resolves. It is one small request, and it runs when somebody asks for it rather
+/// than automatically, because it is model work and this application runs one heavy
+/// task at a time.
+pub(crate) fn find_introductions(
+    root: &Path,
+    meeting_id: &str,
+) -> StorageResult<Vec<provider::Introduction>> {
+    let repository = WorkspaceRepository::open(root)?;
+    let artifact = working_transcript(root, &repository, meeting_id)?.1;
+    let language: String = repository
+        .connection
+        .query_row(
+            "SELECT language FROM meetings WHERE id = ?1",
+            [meeting_id],
+            |row| row.get(0),
+        )
+        .unwrap_or_else(|_| "German".to_string());
+
+    let selected = repository
+        .read_setting("generation.ollamaModel")?
+        .filter(|value| !value.is_empty());
+    let status = provider::OllamaProvider::loopback().status(selected);
+    if !status.server_reachable {
+        return Err(StorageError::InvalidData(
+            "Start your existing Ollama installation before reading the introductions.",
+        ));
+    }
+    let model = status.selected_model.ok_or(StorageError::InvalidData(
+        "Choose an installed Ollama model in Settings → Protocol generation.",
+    ))?;
+    let model_digest = status.selected_model_digest.unwrap_or_default();
+
+    let request = provider::GenerationRequest {
+        model,
+        model_digest,
+        runtime_version: status.runtime_version.unwrap_or_else(|| "unknown".into()),
+        meeting_language: language,
+        style: provider::GenerationStyle {
+            id: "introductions".into(),
+            revision: "1".into(),
+            density: crate::domain::ProtocolDensity::Concise,
+            instructions: Vec::new(),
+            required_sections: Vec::new(),
+        },
+        vocabulary_revision: "introductions".into(),
+        vocabulary: Vec::new(),
+        transcript: artifact
+            .segments
+            .iter()
+            .map(|segment| provider::GenerationSegment {
+                start_ms: segment.start_ms,
+                speaker: segment.speaker.clone(),
+                text: segment.text.clone(),
+            })
+            .collect(),
+        seed: 7,
+        temperature_milli: 200,
+        context_tokens: 16_384,
+        maximum_output_tokens: 2_048,
+    };
+
+    provider::OllamaProvider::loopback()
+        .find_introductions(
+            &request,
+            &std::sync::atomic::AtomicBool::new(false),
+            &mut |_, _| Ok(()),
+        )
+        // The provider's own message is not passed on: these are bounded,
+        // content-free strings by convention, and a model's complaint can quote the
+        // meeting back at whoever reads the error.
+        .map_err(|_| StorageError::InvalidData("The meeting's opening could not be read."))
+}
+
 /// The words the transcriber was never sure of in a meeting's working transcript.
 pub(crate) fn name_candidates(
     root: &Path,
