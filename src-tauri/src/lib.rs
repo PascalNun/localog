@@ -16,6 +16,7 @@ mod media;
 mod models;
 mod processing;
 mod provider;
+mod recording;
 mod runtime;
 mod storage;
 /// Dividing a meeting into subjects, kept for evaluation while the decision in
@@ -54,6 +55,32 @@ fn app_identity() -> AppIdentity {
         version: env!("CARGO_PKG_VERSION"),
         local_only: true,
     }
+}
+
+/// The recording in progress, if there is one.
+///
+/// One at a time and held here rather than in the database, because a recorder is a
+/// process rather than a row: the thing that must not be lost is the handle that can
+/// stop it. Losing that is what leaves a tap open and a machine without sound.
+#[derive(Default)]
+struct RecordingState {
+    running: std::sync::Mutex<Option<(recording::Recording, String, String)>>,
+}
+
+/// What a person is shown while a meeting is being recorded.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RecordingStatus {
+    /// Whether a recorder is available at all on this machine.
+    available: bool,
+    recording: bool,
+    /// The meeting being recorded, so a window opened elsewhere can say so.
+    meeting_id: Option<String>,
+    seconds: u64,
+    system_peak: f32,
+    microphone_peak: f32,
+    /// Set when the recorder stopped without being asked to.
+    stopped_unexpectedly: bool,
 }
 
 #[derive(Clone)]
@@ -827,6 +854,111 @@ async fn delete_transcript_segment(
     .await
 }
 
+/// Whether this machine can record, and what a recording in progress is doing.
+///
+/// Polled while the record screen is open. Cheap: it reads a number the reader thread
+/// already put down, and asks the operating system nothing.
+#[tauri::command]
+fn recording_status(state: State<'_, RecordingState>) -> RecordingStatus {
+    let available = recording::recorder_path().is_some();
+    let mut held = match state.running.lock() {
+        Ok(held) => held,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let Some((recorder, meeting_id, _)) = held.as_mut() else {
+        return RecordingStatus {
+            available,
+            recording: false,
+            meeting_id: None,
+            seconds: 0,
+            system_peak: 0.0,
+            microphone_peak: 0.0,
+            stopped_unexpectedly: false,
+        };
+    };
+    let level = recorder.level();
+    // A recorder can die on its own — a permission revoked mid-meeting, a crash — and
+    // somebody who thinks they are recording has to be told rather than discovering
+    // it afterwards.
+    let running = recorder.still_running();
+    RecordingStatus {
+        available,
+        recording: running,
+        meeting_id: Some(meeting_id.clone()),
+        seconds: level.seconds,
+        system_peak: level.system_peak,
+        microphone_peak: level.microphone_peak,
+        stopped_unexpectedly: !running,
+    }
+}
+
+/// Begin recording a meeting.
+#[tauri::command]
+async fn start_recording(
+    storage: State<'_, StorageState>,
+    state: State<'_, RecordingState>,
+    meeting_id: String,
+) -> Result<(), String> {
+    {
+        let held = state
+            .running
+            .lock()
+            .map_err(|_| "The recorder is in an unknown state. Restart LocaLog.".to_string())?;
+        if held.is_some() {
+            return Err("A meeting is already being recorded.".into());
+        }
+    }
+    let root = storage.root.clone();
+    let for_meeting = meeting_id.clone();
+    let started = tauri::async_runtime::spawn_blocking(move || {
+        processing::begin_recording(&root, &for_meeting)
+    })
+    .await
+    .map_err(|_| "The recorder could not be started.".to_string())?
+    .map_err(|error| error.user_message())?;
+
+    let mut held = state
+        .running
+        .lock()
+        .map_err(|_| "The recorder is in an unknown state. Restart LocaLog.".to_string())?;
+    *held = Some((started.0, meeting_id, started.1));
+    Ok(())
+}
+
+/// Stop recording, finalise both files, and leave the meeting ready to transcribe.
+#[tauri::command]
+async fn stop_recording(
+    storage: State<'_, StorageState>,
+    state: State<'_, RecordingState>,
+) -> Result<WorkspaceSnapshot, String> {
+    let taken = {
+        let mut held = state
+            .running
+            .lock()
+            .map_err(|_| "The recorder is in an unknown state. Restart LocaLog.".to_string())?;
+        held.take()
+    };
+    let Some((recorder, meeting_id, recording_id)) = taken else {
+        return Err("Nothing is being recorded.".into());
+    };
+    let root = storage.root.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        // Stopping first and recording it second: a file finalised without a row is
+        // recoverable, a row without a finalised file is not.
+        let (system_path, _microphone_path) = recorder.stop()?;
+        let relative = system_path
+            .strip_prefix(&root)
+            .unwrap_or(&system_path)
+            .to_string_lossy()
+            .to_string();
+        let _ = meeting_id;
+        processing::finish_recording(&root, &recording_id, &relative)
+            .map_err(|error| error.user_message())
+    })
+    .await
+    .map_err(|_| "The recording could not be finished.".to_string())?
+}
+
 /// Who introduced themselves at the start of a meeting, as the transcript spells
 /// them. Model work, so it runs when somebody asks rather than automatically.
 #[tauri::command]
@@ -1207,8 +1339,14 @@ pub fn run() {
         .setup(|app| {
             // Resolving the OS-owned location is cheap; all filesystem and SQLite work stays off-thread.
             let root = app.path().app_data_dir()?;
+            // Before anything else touches audio. A recorder that survived a crash is
+            // still holding a tap, and on macOS that is the machine's sound gone until
+            // somebody finds the process by hand — which happened during this
+            // project's own study, with coreaudiod at 43% of a core.
+            recording::sweep_orphans(&root);
             app.manage(StorageState { root });
             app.manage(JobCoordinatorState::default());
+            app.manage(RecordingState::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -1240,6 +1378,9 @@ pub fn run() {
             start_transcription,
             start_generation,
             cancel_processing,
+            recording_status,
+            start_recording,
+            stop_recording,
             find_introductions,
             find_name_candidates,
             preview_correction,

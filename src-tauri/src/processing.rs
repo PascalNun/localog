@@ -3190,6 +3190,80 @@ fn processing_to_storage(error: ProcessingError) -> StorageError {
     }
 }
 
+/// Where a meeting's own recording is written while it happens.
+///
+/// Beside an imported original rather than somewhere separate: a recording made here
+/// and a file somebody sent are the same thing to everything downstream, and the one
+/// difference — that this one did not exist five minutes ago — stops mattering the
+/// moment it is finished.
+pub(crate) fn recording_paths(
+    root: &Path,
+    project_id: &str,
+    meeting_id: &str,
+    recording_id: &str,
+) -> (PathBuf, PathBuf) {
+    let directory = root
+        .join(meeting_root(project_id, meeting_id))
+        .join("recordings");
+    (
+        directory.join(format!("{recording_id}-system.wav")),
+        directory.join(format!("{recording_id}-microphone.wav")),
+    )
+}
+
+/// Start recording a meeting, and record that it is being recorded.
+///
+/// The row is written first. A recorder running with nothing in the database saying
+/// so is the state that leaves a tap open and a machine without sound, and the cost
+/// of the reverse — a row with no recorder — is a meeting somebody has to start
+/// again.
+pub(crate) fn begin_recording(
+    root: &Path,
+    meeting_id: &str,
+) -> StorageResult<(crate::recording::Recording, String)> {
+    let repository = WorkspaceRepository::open(root)?;
+    let project_id: String = repository.connection.query_row(
+        "SELECT project_id FROM meetings WHERE id = ?1",
+        [meeting_id],
+        |row| row.get(0),
+    )?;
+    let recording_id = new_id("recording");
+    let (system_path, microphone_path) =
+        recording_paths(root, &project_id, meeting_id, &recording_id);
+    if let Some(directory) = system_path.parent() {
+        std::fs::create_dir_all(directory).map_err(StorageError::Io)?;
+    }
+
+    repository.connection.execute(
+        "INSERT INTO recordings (id, meeting_id, kind, original_name, state, created_at_ms)
+         VALUES (?1, ?2, 'recorded', ?3, 'recording', ?4)",
+        rusqlite::params![
+            recording_id,
+            meeting_id,
+            format!("{recording_id}-system.wav"),
+            unix_time_millis()
+        ],
+    )?;
+
+    let recording = crate::recording::Recording::start(root, system_path, microphone_path)
+        .map_err(|_| StorageError::InvalidData("The recorder could not be started."))?;
+    Ok((recording, recording_id))
+}
+
+/// Mark a recording finished, so the meeting can be transcribed from it.
+pub(crate) fn finish_recording(
+    root: &Path,
+    recording_id: &str,
+    relative_system_path: &str,
+) -> StorageResult<WorkspaceSnapshot> {
+    let repository = WorkspaceRepository::open(root)?;
+    repository.connection.execute(
+        "UPDATE recordings SET state = 'ready', managed_path = ?2 WHERE id = ?1",
+        rusqlite::params![recording_id, relative_system_path],
+    )?;
+    repository.workspace_snapshot()
+}
+
 /// Who introduced themselves in a meeting's opening, as the transcript spells them.
 ///
 /// A light path: this needs a model, a language and the first minutes of the
