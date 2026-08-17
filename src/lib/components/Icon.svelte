@@ -18,7 +18,8 @@
     | 'settings'
     | 'sun'
     | 'upload'
-    | 'warning';
+    | 'warning'
+    | 'microphone';
 </script>
 
 <script lang="ts">
@@ -40,6 +41,9 @@
 >
   {#if name === 'arrow'}
     <path d="M5 12h14M14 7l5 5-5 5" />
+  {:else if name === 'microphone'}
+    <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z" />
+    <path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v2" />
   {:else if name === 'book'}
     <path
       d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5zM20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5z"

@@ -28,6 +28,7 @@ import type {
   FileDropEvent,
   NameCandidate,
   Introduction,
+  RecordingStatus,
   CorrectionMatch,
   AppliedCorrection,
 } from './types';
@@ -73,6 +74,9 @@ export interface WorkspaceStore {
     text: string,
   ): Promise<WorkspaceData>;
   deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<WorkspaceData>;
+  recordingStatus(): Promise<RecordingStatus>;
+  startRecording(meetingId: string): Promise<void>;
+  stopRecording(): Promise<WorkspaceData>;
   findIntroductions(meetingId: string): Promise<Introduction[]>;
   findNameCandidates(meetingId: string): Promise<NameCandidate[]>;
   previewCorrection(meetingId: string, wrong: string, right: string): Promise<CorrectionMatch[]>;
@@ -224,6 +228,18 @@ class TauriWorkspaceStore implements WorkspaceStore {
     text: string,
   ): Promise<WorkspaceData> {
     return invoke('update_transcript_segment', { meetingId, segmentId, text });
+  }
+
+  recordingStatus(): Promise<RecordingStatus> {
+    return invoke('recording_status');
+  }
+
+  startRecording(meetingId: string): Promise<void> {
+    return invoke('start_recording', { meetingId });
+  }
+
+  stopRecording(): Promise<WorkspaceData> {
+    return invoke('stop_recording');
   }
 
   findIntroductions(meetingId: string): Promise<Introduction[]> {

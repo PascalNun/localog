@@ -231,7 +231,7 @@
       <button class="secondary-action" type="button" onclick={onCancel}>Cancel</button><button
         class="primary-action"
         type="submit"
-        disabled={!projectId || !sourceName || submitting}
+        disabled={!projectId || (!sourceName && !title.trim()) || submitting}
         >{submitting ? 'Bringing the recording in…' : 'Create meeting and import'}
         <Icon name="arrow" /></button
       >

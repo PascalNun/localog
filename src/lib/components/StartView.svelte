@@ -34,6 +34,19 @@
       >
       <Icon name="arrow" />
     </button>
+
+    <button
+      class="import-hero-action is-secondary"
+      onclick={() => onNavigate({ name: 'new-meeting', projectId: null })}
+    >
+      <span class="import-icon"><Icon name="microphone" size={26} /></span>
+      <span
+        ><strong>Record a meeting</strong><small
+          >Capture the room and the call on this device, on separate tracks</small
+        ></span
+      >
+      <Icon name="arrow" />
+    </button>
   </div>
 
   <div class="local-promise">

@@ -389,21 +389,38 @@ impl WorkspaceRepository {
 
     pub fn create_meeting(&mut self, input: NewMeetingInput) -> Result<MeetingSummary> {
         let project_id = required_text(&input.project_id, 128, "Choose a valid project.")?;
-        let source_name = source_name(&input.source_name)?;
-        let title = if input.title.trim().is_empty() {
-            title_from_source(&source_name)
+        // A meeting about to be recorded has no source yet. Everything else about it
+        // is the same, so the absence of a file is the only difference: no recording
+        // row, no import job, and a title somebody has to give because there is no
+        // filename to take one from.
+        let to_record = input.source_name.trim().is_empty() && input.source_path.is_none();
+        let source_name = if to_record {
+            String::new()
         } else {
+            source_name(&input.source_name)?
+        };
+        let title = if !input.title.trim().is_empty() {
             required_text(&input.title, 240, "The meeting title is too long.")?
+        } else if to_record {
+            return Err(StorageError::InvalidData(
+                "Give the meeting a title. There is no file to take one from.",
+            ));
+        } else {
+            title_from_source(&source_name)
         };
         let occurred_at = meeting_date(&input.occurred_at)?;
         let language = required_text(&input.language, 64, "Choose a valid meeting language.")?;
         let style_id = required_text(&input.style_id, 128, "Choose a valid protocol style.")?;
-        let source_path = required_source_path(input.source_path.as_deref())?;
+        let source_path = if to_record {
+            String::new()
+        } else {
+            required_source_path(input.source_path.as_deref())?
+        };
 
         if !self.project_exists(&project_id)? {
             return Err(StorageError::MissingProject);
         }
-        if self.import_is_active()? {
+        if !to_record && self.import_is_active()? {
             return Err(StorageError::ImportBusy);
         }
 
@@ -429,21 +446,25 @@ impl WorkspaceRepository {
             ],
         )?;
         // Assignment is durable with the meeting; the later import job will add the managed path.
-        transaction.execute(
-            "INSERT INTO recordings (
-                id, meeting_id, kind, original_name, state, created_at_ms
-             ) VALUES (?1, ?2, 'imported', ?3, 'pending', ?4)",
-            params![recording_id, meeting_id, source_name, now],
-        )?;
-        transaction.execute(
-            "INSERT INTO jobs (
-                id, meeting_id, recording_id, kind, state, stage,
-                progress_bytes, attempt, source_path, duplicate_allowed,
-                created_at_ms, updated_at_ms
-             ) VALUES (?1, ?2, ?3, 'import', 'queued', 'ready_to_import',
-                       0, 1, ?4, 0, ?5, ?5)",
-            params![job_id, meeting_id, recording_id, source_path, now],
-        )?;
+        // A meeting about to be recorded has neither: the recording row is written when
+        // the recorder starts, and there is nothing to import.
+        if !to_record {
+            transaction.execute(
+                "INSERT INTO recordings (
+                    id, meeting_id, kind, original_name, state, created_at_ms
+                 ) VALUES (?1, ?2, 'imported', ?3, 'pending', ?4)",
+                params![recording_id, meeting_id, source_name, now],
+            )?;
+            transaction.execute(
+                "INSERT INTO jobs (
+                    id, meeting_id, recording_id, kind, state, stage,
+                    progress_bytes, attempt, source_path, duplicate_allowed,
+                    created_at_ms, updated_at_ms
+                 ) VALUES (?1, ?2, ?3, 'import', 'queued', 'ready_to_import',
+                           0, 1, ?4, 0, ?5, ?5)",
+                params![job_id, meeting_id, recording_id, source_path, now],
+            )?;
+        }
         transaction.commit()?;
 
         self.meeting_by_id(&meeting_id)?

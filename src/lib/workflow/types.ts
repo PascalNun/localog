@@ -15,6 +15,7 @@ export type AppRoute =
   | { name: 'new-meeting'; projectId: string | null }
   | { name: 'meeting'; meetingId: string }
   | { name: 'recording-review'; meetingId: string }
+  | { name: 'recording'; meetingId: string }
   | { name: 'transcript'; meetingId: string }
   | { name: 'protocol'; meetingId: string }
   | { name: 'styles' }
@@ -74,6 +75,20 @@ export interface Introduction {
   role: string;
   /** The sentence they said it in. */
   context: string;
+}
+
+/** What a recording in progress is doing. */
+export interface RecordingStatus {
+  /** Whether this machine has a recorder at all. */
+  available: boolean;
+  recording: boolean;
+  meetingId: string | null;
+  seconds: number;
+  /** Loudest sample in the last second, 0 to 1. */
+  systemPeak: number;
+  microphonePeak: number;
+  /** The recorder stopped without being asked to. */
+  stoppedUnexpectedly: boolean;
 }
 
 /** One place a correction would apply. */
@@ -376,6 +391,10 @@ export interface WorkflowBridge {
    * Who introduced themselves at the start of a meeting. Model work of about a
    * minute, so it runs when somebody asks for it.
    */
+  /** What a recording in progress is doing. Cheap; polled while the screen is open. */
+  recordingStatus(): Promise<RecordingStatus>;
+  startRecording(meetingId: string): Promise<void>;
+  stopRecording(): Promise<void>;
   findIntroductions(meetingId: string): Promise<Introduction[]>;
   /** Words the transcriber was never sure of, most likely first. */
   findNameCandidates(meetingId: string): Promise<NameCandidate[]>;
