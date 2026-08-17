@@ -445,7 +445,7 @@ pub(crate) fn formal_minutes_instructions() -> Vec<String> {
 }
 
 fn formal_minutes_style() -> GenerationStyle {
-    GenerationStyle {
+    let mut style = GenerationStyle {
         id: "style-formal".into(),
         revision: "formal-minutes@2".into(),
         density: crate::domain::ProtocolDensity::Comprehensive,
@@ -462,11 +462,21 @@ fn formal_minutes_style() -> GenerationStyle {
             "Never invent a decision, an action, an owner, or a date. If the source does not say who is responsible, leave it unattributed.".into(),
             "Cover every topic that was discussed. A protocol that silently omits a topic is incomplete, even if what remains reads well.".into(),
             "The table of next steps must list every action that was agreed, not a selection of the clearest ones.".into(),
+            // Density already says how long to write, and at two of its three
+            // settings this contradicts it. Removable under an environment variable
+            // so the question can be measured before prose is cut from the only
+            // thing that produces protocols.
             "Write at whatever length the material requires. Do not compress the meeting into a summary: this is a record, and a reader who was absent must be able to follow what was discussed and what follows from it.".into(),
             "Never leave a placeholder such as [Datum] or [Details]. If something is not in the source, omit the line instead.".into(),
         ],
         required_sections: vec!["Teilnehmende".into()],
+    };
+    if std::env::var("LOCALOG_EVAL_DROP_LENGTH_INSTRUCTION").is_ok() {
+        style
+            .instructions
+            .retain(|line| !line.starts_with("Write at whatever length"));
     }
+    style
 }
 
 /// Run the transcript corrections over a real transcript and report what they change.
