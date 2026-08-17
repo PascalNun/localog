@@ -137,6 +137,11 @@ pub struct GenerationStyle {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GenerationSegment {
     pub start_ms: u64,
+    /// Empty where separation did not run, and then not sent at all. A transcript
+    /// that labels every segment the same way says nothing about who spoke, and a
+    /// model given it writes that label into the participants list as a person —
+    /// twice, under two disciplines, on a real meeting.
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub speaker: String,
     pub text: String,
 }
@@ -453,7 +458,7 @@ impl OllamaProvider {
         // A library can hold everything a firm has ever written down, but a prompt
         // cannot. Narrowing it here — before sections are planned — keeps the space
         // reserved for vocabulary equal to what is actually sent.
-        let focused = focus_vocabulary(request);
+        let focused = drop_uninformative_speakers(focus_vocabulary(request));
         let request = &focused;
 
         // Said before the work starts rather than after three identical failures.
@@ -2107,6 +2112,32 @@ const _: () = {
 #[cfg(test)]
 const _: () = assert!(ROOM_TO_OVERRUN > ALLOWED_OVERRUN);
 
+/// Remove speaker labels that distinguish nobody.
+///
+/// Separation may not have run, or may have failed, and then every segment carries
+/// the same label. That is not evidence of a single speaker — it is an absence of
+/// evidence — but a model reading it cannot tell the difference, and on a real
+/// meeting wrote "Speaker 1" into the participants list as a person, once under
+/// electrical planning and once under fire safety.
+///
+/// Telling the model in the style that a label is not a name was tried and did not
+/// work: it does not supply the information the model is missing, so the model went
+/// on naming the label in a different format. Not sending it does.
+fn drop_uninformative_speakers(mut request: GenerationRequest) -> GenerationRequest {
+    let distinct = request
+        .transcript
+        .iter()
+        .map(|segment| segment.speaker.as_str())
+        .collect::<std::collections::HashSet<_>>()
+        .len();
+    if distinct <= 1 {
+        for segment in &mut request.transcript {
+            segment.speaker.clear();
+        }
+    }
+    request
+}
+
 /// Reject a section that grossly overruns the length it was given.
 ///
 /// Generous, because a model asked for 900 characters will not land on 900 and should
@@ -2762,6 +2793,49 @@ mod tests {
         let dump = r#"{"metadata": {"title": "x"}, "organisations": []}"#;
         assert!(validate_markdown(dump, spoken).is_err());
         assert!(validate_markdown("", spoken).is_err());
+    }
+
+    /// The fault: a transcript labelling every segment "Speaker 1" is an absence of
+    /// evidence about who spoke, and a model reading it wrote that label into the
+    /// participants list as a person, under two different disciplines.
+    #[test]
+    fn a_label_that_distinguishes_nobody_is_not_sent() {
+        let mut request = synthetic_request(4, 5);
+        for segment in &mut request.transcript {
+            segment.speaker = "Speaker 1".into();
+        }
+        let cleaned = drop_uninformative_speakers(request);
+
+        assert!(cleaned.transcript.iter().all(|s| s.speaker.is_empty()));
+        let sent = serde_json::to_string(&cleaned.transcript).unwrap();
+        assert!(!sent.contains("Speaker 1"), "{sent}");
+        assert!(
+            !sent.contains("speaker"),
+            "the field itself goes too: {sent}"
+        );
+    }
+
+    /// Where separation did run, the labels are evidence and are kept.
+    #[test]
+    fn labels_that_tell_speakers_apart_are_kept() {
+        let mut request = synthetic_request(4, 5);
+        for (index, segment) in request.transcript.iter_mut().enumerate() {
+            segment.speaker = format!("Speaker {}", index % 3 + 1);
+        }
+        let cleaned = drop_uninformative_speakers(request);
+
+        assert!(cleaned.transcript.iter().all(|s| !s.speaker.is_empty()));
+        assert!(
+            serde_json::to_string(&cleaned.transcript)
+                .unwrap()
+                .contains("Speaker 2")
+        );
+    }
+
+    #[test]
+    fn a_transcript_with_no_segments_is_left_alone() {
+        let request = synthetic_request(0, 0);
+        assert!(drop_uninformative_speakers(request).transcript.is_empty());
     }
 
     #[test]
