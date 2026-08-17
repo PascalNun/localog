@@ -24,7 +24,7 @@ Measured 17 August 2026, and worth recording because the wrong fix was tried fir
 
 Every draft named a speaker label as a person — "Speaker 1" listed twice in the participants list, once under electrical planning and once under fire safety. The transcript carries no speaker separation, so every segment holds that label, which is an absence of evidence about who spoke rather than evidence of one speaker. A model reading it cannot tell those apart.
 
-**The style instruction did not work.** Adding "a speaker label is not a person's name; describe them by role where no name was said" and measuring across seeds, the fault persisted — the model went on naming the label in a different format. It supplies no information the model was missing.
+**The style instruction did not work.** Adding "a speaker label is not a person's name; describe them by role where no name was said" and measuring at three seeds: the fault persisted at two of them, in new formats — `**Elektroplanung (HOAI):** Speaker 1` at one, `- Speaker 1 (Elektroplanung)` at another — and the third had never shown it, so it evidenced nothing either way. Figures were unaffected at 30 to 31 of 39, so the instruction was not harmful, merely useless: it supplies no information the model was missing.
 
 **Not sending the field does work**, deterministically: where every segment carries the same label, the label is dropped and the field is not serialised, so the string is not in the model's input and cannot be written out. Labels that do tell speakers apart are kept.
 
