@@ -702,3 +702,69 @@ fn does_writing_by_topic_stay_in_proportion() {
     println!("The previous attempt at writing by topic produced about 74,000.");
     println!("written to {}", path.display());
 }
+
+/// Who the opening of a real meeting says is in it.
+///
+/// The names come back wrong on a first meeting, which is the point: somebody who
+/// was there recognises each one instantly, and the wrong spelling is what a
+/// correction has to match to find it in the transcript.
+///
+///   LOCALOG_ADHERENCE_TRANSCRIPT=… \
+///     cargo test --lib -- --ignored --nocapture who_introduced_themselves
+#[test]
+#[ignore = "requires a real transcript and a running Ollama"]
+fn who_introduced_themselves() {
+    let path = std::env::var("LOCALOG_ADHERENCE_TRANSCRIPT").expect("a transcript");
+    let value: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).expect("readable")).expect("json");
+    let segments: Vec<crate::domain::TranscriptSegment> =
+        serde_json::from_value(value["segments"].clone()).expect("segments");
+    let transcript: Vec<GenerationSegment> = segments
+        .iter()
+        .map(|segment| GenerationSegment {
+            start_ms: segment.start_ms,
+            speaker: segment.speaker.clone(),
+            text: segment.text.clone(),
+        })
+        .collect();
+
+    let provider = OllamaProvider::loopback();
+    let runtime_version = provider.version().expect("ollama must be running");
+    let name = std::env::var("LOCALOG_ADHERENCE_MODELS").unwrap_or("gemma4:12b".into());
+    let model = provider
+        .installed_models()
+        .unwrap()
+        .into_iter()
+        .find(|candidate| candidate.name == name)
+        .expect("the model must be installed");
+
+    let request = GenerationRequest {
+        model: model.name.clone(),
+        model_digest: model.digest.clone(),
+        runtime_version,
+        meeting_language: "German".into(),
+        style: formal_minutes_style(),
+        vocabulary_revision: "introductions".into(),
+        vocabulary: Vec::new(),
+        transcript,
+        seed: 7,
+        temperature_milli: 200,
+        context_tokens: 40_960,
+        maximum_output_tokens: 8_192,
+    };
+
+    let started = Instant::now();
+    let found = provider
+        .find_introductions(&request, &AtomicBool::new(false), &mut |_, _| Ok(()))
+        .expect("the opening must be readable");
+
+    println!(
+        "\n{} introductions in {} s:\n",
+        found.len(),
+        started.elapsed().as_secs()
+    );
+    for person in &found {
+        println!("  {:<28} {}", person.heard, person.role);
+    }
+    println!("\nEvery spelling above is what the transcript says, not what is correct.");
+}
