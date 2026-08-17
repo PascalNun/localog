@@ -2829,3 +2829,70 @@ button.review-summary[aria-pressed='true'] {
   opacity: 0.65;
   line-height: 1.4;
 }
+
+/* A recording in progress, drawn as the sound mark rather than as an instrument
+   panel. One stroke a second of the recent past: the same thin-stroke rhythm as the
+   mark on the start page and the transcript scrubber, so levels, progress and
+   identity read as one idea seen in three places. Deliberately none of the recorder
+   vocabulary — no filled meters, no coloured bars, no pulsing red. */
+.recording-stage {
+  max-width: 640px;
+}
+.recording-mark svg {
+  width: 100%;
+  height: 96px;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.28;
+  transition: opacity 240ms ease;
+}
+.recording-mark.is-live svg {
+  opacity: 1;
+}
+.recording-elapsed {
+  margin: 6px 0 0;
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+.recording-tracks {
+  display: flex;
+  gap: 34px;
+  margin: 26px 0 0;
+}
+.recording-tracks dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+}
+.recording-tracks dd {
+  margin: 3px 0 0;
+  font-size: 0.9rem;
+}
+.recording-tracks dd.is-quiet {
+  opacity: 0.75;
+  font-style: italic;
+}
+.recording-warning {
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+.recording-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 28px;
+}
+
+/* Recording sits beside importing rather than under it: the same shape, a step
+   quieter, because most meetings still arrive as a file somebody sent. */
+.import-hero-action.is-secondary {
+  margin-top: 12px;
+  background: transparent;
+}

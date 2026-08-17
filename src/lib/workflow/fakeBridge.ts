@@ -21,6 +21,7 @@ import type {
   RecordingReview,
   NameCandidate,
   Introduction,
+  RecordingStatus,
   CorrectionMatch,
   AppliedCorrection,
 } from './types';
@@ -57,6 +58,21 @@ const initialMeetings: MeetingSummary[] = [
     sourceName: 'synthetic-access-review.wav',
     sourceByteCount: 72_400_000,
     sourceMediaType: 'audio/wav',
+    styleId: 'style-formal',
+  },
+  {
+    // A meeting created to be recorded rather than imported: no source, so the
+    // meeting screen offers the recorder instead of describing a copy in progress.
+    id: 'meeting-site-walk',
+    projectId: 'project-harbor-canopy',
+    title: 'Site walk',
+    occurredAt: '2026-08-17',
+    durationLabel: null,
+    lifecycle: 'draft',
+    language: 'English',
+    sourceName: null,
+    sourceByteCount: null,
+    sourceMediaType: null,
     styleId: 'style-formal',
   },
   {
@@ -541,6 +557,51 @@ export class FakeWorkflowBridge implements WorkflowBridge {
    * Shaped like the real thing measured on a long meeting: a handful of words, some
    * of them names worth keeping and some of them the transcriber simply fumbling.
    */
+  /** A recording nothing is actually capturing, so the screen can be looked at. */
+  private fakeRecording: { meetingId: string; startedAt: number } | null = null;
+
+  async recordingStatus(): Promise<RecordingStatus> {
+    if (this.workspaceStore) return this.workspaceStore.recordingStatus();
+    if (!this.fakeRecording) {
+      return {
+        available: true,
+        recording: false,
+        meetingId: null,
+        seconds: 0,
+        systemPeak: 0,
+        microphonePeak: 0,
+        stoppedUnexpectedly: false,
+      };
+    }
+    const seconds = Math.floor((Date.now() - this.fakeRecording.startedAt) / 1000);
+    // Speech-shaped rather than a smooth wave, so the mark looks like a meeting.
+    const shape = (offset: number) =>
+      Math.max(0, Math.sin(seconds / 1.7 + offset) * 0.45 + Math.sin(seconds / 0.6) * 0.3 + 0.3);
+    return {
+      available: true,
+      recording: true,
+      meetingId: this.fakeRecording.meetingId,
+      seconds,
+      systemPeak: shape(1.2),
+      microphonePeak: shape(0),
+      stoppedUnexpectedly: false,
+    };
+  }
+
+  async startRecording(meetingId: string): Promise<void> {
+    if (this.workspaceStore) return this.workspaceStore.startRecording(meetingId);
+    this.fakeRecording = { meetingId, startedAt: Date.now() };
+  }
+
+  async stopRecording(): Promise<void> {
+    if (this.workspaceStore) {
+      this.applyDurableWorkspace(await this.workspaceStore.stopRecording());
+      this.emit();
+      return;
+    }
+    this.fakeRecording = null;
+  }
+
   async findIntroductions(meetingId: string): Promise<Introduction[]> {
     if (this.workspaceStore) return this.workspaceStore.findIntroductions(meetingId);
     // Shaped like a first meeting: the spellings are what the transcriber heard.

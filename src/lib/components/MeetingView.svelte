@@ -145,7 +145,24 @@
     />{/if}
 
   <section class="meeting-stage">
-    {#if meeting.lifecycle === 'draft'}
+    {#if meeting.lifecycle === 'draft' && !meeting.sourceName}
+      <!-- A meeting created to be recorded rather than imported: no file was chosen,
+           so there is nothing being copied and the next step is the recorder. -->
+      <div class="stage-message">
+        <p class="eyebrow">Recording</p>
+        <h2>Nothing recorded yet</h2>
+        <p>
+          The room and the call will be captured on separate tracks, on this device. You can stop
+          whenever the meeting ends.
+        </p>
+        <button
+          class="primary-action"
+          onclick={() => onNavigate({ name: 'recording', meetingId: meeting.id })}
+        >
+          Record this meeting
+        </button>
+      </div>
+    {:else if meeting.lifecycle === 'draft'}
       <div class="stage-message">
         <p class="eyebrow">Source import</p>
         <h2>Your original remains unchanged</h2>

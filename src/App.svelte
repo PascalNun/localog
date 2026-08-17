@@ -10,6 +10,7 @@
   import Sidebar from './lib/components/Sidebar.svelte';
   import StartView from './lib/components/StartView.svelte';
   import RecordingReviewView from './lib/components/RecordingReviewView.svelte';
+  import RecordingView from './lib/components/RecordingView.svelte';
   import TranscriptView from './lib/components/TranscriptView.svelte';
   import Icon from './lib/components/Icon.svelte';
   import {
@@ -503,6 +504,14 @@
           onConfirmDuplicate={() => bridge.confirmDuplicateImport(meeting.id)}
           onReselectSource={() => bridge.reselectImportSource(meeting.id)}
           onRename={(title) => bridge.updateMeetingTitle(meeting.id, title)}
+        />
+      {:else if route.name === 'recording' && meeting}
+        <RecordingView
+          {meeting}
+          onNavigate={navigate}
+          onStatus={() => bridge.recordingStatus()}
+          onStart={(meetingId: string) => bridge.startRecording(meetingId)}
+          onStop={() => bridge.stopRecording()}
         />
       {:else if route.name === 'recording-review' && meeting}
         <RecordingReviewView
