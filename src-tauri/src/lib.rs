@@ -827,6 +827,19 @@ async fn delete_transcript_segment(
     .await
 }
 
+/// Who introduced themselves at the start of a meeting, as the transcript spells
+/// them. Model work, so it runs when somebody asks rather than automatically.
+#[tauri::command]
+async fn find_introductions(
+    state: State<'_, StorageState>,
+    meeting_id: String,
+) -> Result<Vec<provider::Introduction>, String> {
+    with_repository_root(state.root.clone(), move |root| {
+        processing::find_introductions(root, &meeting_id)
+    })
+    .await
+}
+
 /// The words the transcriber was never sure of, offered as possible names.
 #[tauri::command]
 async fn find_name_candidates(
@@ -1227,6 +1240,7 @@ pub fn run() {
             start_transcription,
             start_generation,
             cancel_processing,
+            find_introductions,
             find_name_candidates,
             preview_correction,
             apply_correction,
