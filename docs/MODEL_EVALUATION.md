@@ -28,6 +28,8 @@ Every draft named a speaker label as a person — "Speaker 1" listed twice in th
 
 **Not sending the field does work**, deterministically: where every segment carries the same label, the label is dropped and the field is not serialised, so the string is not in the model's input and cannot be written out. Labels that do tell speakers apart are kept.
 
+Verified at the seed that showed the fault most clearly: three labels named as people before, none after, and figures unchanged at 30 of 39. The participants list now describes an unnamed person by their role — "Elektroplanung (Ansprechpartner für alle Fragen zum Thema Elektrik)" — which is what the style asked for all along and could not get while a label was there to use instead.
+
 The asymmetry that let one seed settle this is worth keeping in mind next to the rule about three seeds. A fault _absent_ at one seed proves nothing — the seed may never have had it. A fault _present_ at one seed proves the fix does not reliably work. Scores need repetition; a fault reproducing does not.
 
 ## The reference meeting
