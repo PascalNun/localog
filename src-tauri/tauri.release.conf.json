@@ -2,12 +2,15 @@
   "$schema": "https://schema.tauri.app/config/2",
   "bundle": {
     "externalBin": [
+      "binaries/localog-record-meeting",
       "binaries/localog-whisper",
       "binaries/localog-speaker-diarization",
       "binaries/localog-speaker-embedding",
       "binaries/localog-ffmpeg",
       "binaries/localog-ffprobe"
     ],
-    "resources": ["binaries/licences/*"]
+    "resources": [
+      "binaries/licences/*"
+    ]
   }
 }
