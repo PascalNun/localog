@@ -20,6 +20,7 @@ import type {
   RecordingEdits,
   RecordingReview,
   NameCandidate,
+  Introduction,
   CorrectionMatch,
   AppliedCorrection,
 } from './types';
@@ -540,6 +541,28 @@ export class FakeWorkflowBridge implements WorkflowBridge {
    * Shaped like the real thing measured on a long meeting: a handful of words, some
    * of them names worth keeping and some of them the transcriber simply fumbling.
    */
+  async findIntroductions(meetingId: string): Promise<Introduction[]> {
+    if (this.workspaceStore) return this.workspaceStore.findIntroductions(meetingId);
+    // Shaped like a first meeting: the spellings are what the transcriber heard.
+    return [
+      {
+        heard: 'Kaulins Applinsky',
+        role: 'Projektleitung in der Planung',
+        context: 'Ich kann gerne anfangen, ich mache die Projektleitung-Kaulins Applinsky…',
+      },
+      {
+        heard: 'Marianne',
+        role: 'Planung und Versadenplanung für Gebäude A, C und D',
+        context: 'Marianne, ich mache hier mit meinen Kollegen zusammen die Planung…',
+      },
+      {
+        heard: 'Felix Bösch',
+        role: 'Büro PMI, Bauphysik',
+        context: 'Felix Bösch, der Name. Wir betreuen die Bauphysik…',
+      },
+    ];
+  }
+
   async findNameCandidates(meetingId: string): Promise<NameCandidate[]> {
     if (this.workspaceStore) return this.workspaceStore.findNameCandidates(meetingId);
     return [

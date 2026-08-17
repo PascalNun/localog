@@ -61,6 +61,21 @@ export interface NameCandidate {
   context: string;
 }
 
+/**
+ * Somebody who said their own name near the start of a meeting.
+ *
+ * The spelling is the transcript's, however wrong — that is what makes the list
+ * useful. Somebody who was there recognises "Kaulins Applinsky" at once, and the
+ * wrong spelling is what a correction has to match to find it.
+ */
+export interface Introduction {
+  heard: string;
+  /** What they said they do, in their own words. */
+  role: string;
+  /** The sentence they said it in. */
+  context: string;
+}
+
 /** One place a correction would apply. */
 export interface CorrectionMatch {
   segmentId: string;
@@ -357,6 +372,11 @@ export interface WorkflowBridge {
   updateSpeaker(meetingId: string, speaker: string, replacement: string): Promise<void>;
   /** Files dropped onto the window. Returns an unsubscribe function. */
   subscribeFileDrops(handler: (event: FileDropEvent) => void): () => void;
+  /**
+   * Who introduced themselves at the start of a meeting. Model work of about a
+   * minute, so it runs when somebody asks for it.
+   */
+  findIntroductions(meetingId: string): Promise<Introduction[]>;
   /** Words the transcriber was never sure of, most likely first. */
   findNameCandidates(meetingId: string): Promise<NameCandidate[]>;
   /** Every place a correction would apply, with enough sentence to judge it. */

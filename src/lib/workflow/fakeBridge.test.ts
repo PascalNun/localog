@@ -24,6 +24,7 @@ function mockStore(overrides: Partial<WorkspaceStore> = {}): WorkspaceStore {
     selectMediaSource: vi.fn<WorkspaceStore['selectMediaSource']>(),
     startImport: vi.fn<WorkspaceStore['startImport']>(),
     cancelImport: vi.fn<WorkspaceStore['cancelImport']>(),
+    findIntroductions: vi.fn<WorkspaceStore['findIntroductions']>().mockResolvedValue([]),
     findNameCandidates: vi.fn<WorkspaceStore['findNameCandidates']>().mockResolvedValue([]),
     previewCorrection: vi.fn<WorkspaceStore['previewCorrection']>().mockResolvedValue([]),
     applyCorrection: vi

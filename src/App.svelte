@@ -516,6 +516,10 @@
         <TranscriptView
           {protocolStyle}
           onLoadAudio={(meetingId: string) => bridge.getMeetingAudio(meetingId)}
+          onFindIntroductions={(meetingId: string) => bridge.findIntroductions(meetingId)}
+          projectHasNames={Boolean(
+            snapshot?.vocabulary.some((entry) => entry.projectId === project?.id),
+          )}
           onFindNameCandidates={(meetingId: string) => bridge.findNameCandidates(meetingId)}
           onPreviewCorrection={(meetingId: string, wrong: string, right: string) =>
             bridge.previewCorrection(meetingId, wrong, right)}
