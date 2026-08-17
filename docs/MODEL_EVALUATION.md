@@ -2,6 +2,22 @@
 
 This is the evidence behind the current protocol-generation direction. It describes what was measured, what the measurements mean, and where they stop being reliable.
 
+## The recording stops before the meeting does
+
+Found 17 August 2026, and it corrects the baseline every measurement in this document rests on.
+
+The recording ends at 81 minutes 43 seconds, in the middle of a discussion of balcony dividing walls and the planting carried over from the competition. That is where section 7.5 of the written protocol ends. Everything after it in that document — the appointment with the district office, the section on specialist planning and working arrangements, the seventeen agreed next steps, and the dates — was said after the recording stopped.
+
+**About 22% of the written protocol describes a meeting the recording does not contain.**
+
+Three consequences, and the first two invalidate work already done here:
+
+- **Coverage against the written protocol has been measured against a document that covers more than the source.** Every "the draft omits this subject" finding needs re-reading with that in mind; one such finding was made and withdrawn on 17 August for a related reason, and the withdrawal did not go far enough.
+- **The seventeen actions the written protocol records were never all available.** A draft producing four or seven of them is not recording a quarter of the meeting's actions; it is recording what was agreed before the recording ended. How many that is has not been counted.
+- **Nothing tells a person their recording stopped early.** This one is a product finding rather than an evaluation one. A protocol generated from a partial recording is silently partial, reads as complete, and has no way to say otherwise. The transcript's last words being mid-subject is visible to anybody who looks and is looked at by nobody.
+
+It also explains something that had been read as a model failure: drafts that "thin out towards the end" are following a recording that thins out towards the end.
+
 ## The reference meeting
 
 The main evaluation used an 81-minute German construction-project meeting:
