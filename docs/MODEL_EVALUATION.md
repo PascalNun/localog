@@ -18,6 +18,18 @@ Three consequences, and the first two invalidate work already done here:
 
 It also explains something that had been read as a model failure: drafts that "thin out towards the end" are following a recording that thins out towards the end.
 
+## A prompt cannot supply what the input lacks
+
+Measured 17 August 2026, and worth recording because the wrong fix was tried first and looked plausible.
+
+Every draft named a speaker label as a person — "Speaker 1" listed twice in the participants list, once under electrical planning and once under fire safety. The transcript carries no speaker separation, so every segment holds that label, which is an absence of evidence about who spoke rather than evidence of one speaker. A model reading it cannot tell those apart.
+
+**The style instruction did not work.** Adding "a speaker label is not a person's name; describe them by role where no name was said" and measuring across seeds, the fault persisted — the model went on naming the label in a different format. It supplies no information the model was missing.
+
+**Not sending the field does work**, deterministically: where every segment carries the same label, the label is dropped and the field is not serialised, so the string is not in the model's input and cannot be written out. Labels that do tell speakers apart are kept.
+
+The asymmetry that let one seed settle this is worth keeping in mind next to the rule about three seeds. A fault _absent_ at one seed proves nothing — the seed may never have had it. A fault _present_ at one seed proves the fix does not reliably work. Scores need repetition; a fault reproducing does not.
+
 ## The reference meeting
 
 The main evaluation used an 81-minute German construction-project meeting:
