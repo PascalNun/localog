@@ -265,6 +265,27 @@ struct SynthesisPayload<'a> {
     correction: Option<&'a str>,
 }
 
+/// Somebody who said their own name near the start of a meeting.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Introduction {
+    /// The name exactly as the transcript spells it, however wrongly. Wrong is the
+    /// point: a person recognises "Person A" as themselves at once, and the
+    /// spelling has to match the transcript for a correction to find it.
+    pub heard: String,
+    /// What they said they do, where they said it.
+    #[serde(default)]
+    pub role: String,
+    /// The sentence they said it in, so a reader sees what was actually heard.
+    #[serde(default)]
+    pub context: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct StructuredIntroductions {
+    introductions: Vec<Introduction>,
+}
+
 #[derive(Debug, Deserialize)]
 struct StructuredNotes {
     notes_markdown: String,
@@ -907,6 +928,72 @@ impl OllamaProvider {
         Ok(protocol)
     }
 
+    /// Who introduced themselves at the start of the meeting, as the transcript
+    /// spells them.
+    ///
+    /// A first meeting has no names list, and asking somebody to write one from
+    /// memory before they have heard the recording is asking for the wrong thing at
+    /// the wrong time. Most meetings open with people saying who they are: on the
+    /// reference meeting, ten of the twelve people its written protocol names
+    /// introduce themselves inside eight minutes.
+    ///
+    /// Every name comes back wrong on a first meeting — "Person A",
+    /// "Person B", "Johannes Halle von Kau, drei" — and that is what makes this
+    /// work. Somebody who was there recognises each one instantly and is correcting
+    /// a list rather than composing one, and the wrong spelling is what a correction
+    /// has to match to find it in the transcript.
+    ///
+    /// It also reaches errors the candidate extractor cannot: that offers words the
+    /// transcriber was unsure of, and it was perfectly confident about "Person C".
+    pub(crate) fn find_introductions(
+        &self,
+        request: &GenerationRequest,
+        cancelled: &AtomicBool,
+        progress: &mut dyn FnMut(u64, &str) -> Result<()>,
+    ) -> Result<Vec<Introduction>> {
+        let opening: Vec<GenerationSegment> = request
+            .transcript
+            .iter()
+            .filter(|segment| segment.start_ms < INTRODUCTIONS_WINDOW_MS)
+            .cloned()
+            .collect();
+        if opening.is_empty() {
+            return Ok(Vec::new());
+        }
+        progress(10, "reading_introductions")?;
+
+        let payload = IntroductionsPayload {
+            meeting_language: &request.meeting_language,
+            transcript: &opening,
+        };
+        let prompt = encode_prompt(&payload)?;
+        let generated = self.complete(
+            request,
+            Completion {
+                system: INTRODUCTIONS_SYSTEM,
+                prompt: &prompt,
+                format: introductions_schema(),
+                num_predict: answer_budget(request.context_tokens, prompt.len(), 2_048),
+            },
+            cancelled,
+            &mut |_| progress(10, "reading_introductions"),
+        )?;
+        let structured: StructuredIntroductions = parse_structured(&generated)?;
+
+        // A name the transcript does not contain is one the model tidied on its way
+        // out, and correcting it would find nothing to change.
+        let spoken: String = opening
+            .iter()
+            .map(|segment| segment.text.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+        Ok(structured
+            .introductions
+            .into_iter()
+            .filter(|found| !found.heard.trim().is_empty() && spoken.contains(found.heard.trim()))
+            .collect())
+    }
+
     fn generate_from_sections(
         &self,
         request: &GenerationRequest,
@@ -1391,6 +1478,23 @@ const SYNTHESIS_SYSTEM: &str = "Write a reviewable professional meeting protocol
 #[cfg(test)]
 const TOPIC_SECTION_SYSTEM: &str = "Write one section of a professional meeting protocol, in the meeting's language, from the passages supplied. They are the only source. Never invent decisions, actions, owners or dates, and reproduce every number, measurement, area, date and proper name exactly as stated. Write about this section's own subject only: the outline names what the other sections cover, and repeating them is a fault. Keep close to the character budget given — it is this subject's share of the whole protocol, and overrunning it is the failure this format exists to prevent. Begin with a heading for the subject. Do not write an introduction, a participants list or a table of actions; those are written separately. Return only schema-valid JSON. If the payload carries a correction, your previous answer was rejected for the reason it gives; fix exactly that and return the whole answer again.";
 
+const INTRODUCTIONS_SYSTEM: &str = "List the people who introduce themselves in this opening of a meeting: somebody saying their own name, usually alongside what they do or who they work for. Give each one their role or organisation as they stated it, and the sentence they said it in. Copy each name exactly as it appears in the text, character for character, even where it is plainly misspelt — the text is a transcript, that spelling is what has to be corrected afterwards, and correcting it here destroys the only thing this list is for. Skip anybody who is merely mentioned rather than introducing themselves. Return only schema-valid JSON.";
+
+/// The opening of a meeting, for reading who is in it.
+#[derive(Serialize)]
+struct IntroductionsPayload<'a> {
+    meeting_language: &'a str,
+    transcript: &'a [GenerationSegment],
+}
+
+/// How much of a meeting counts as its opening.
+///
+/// Eight minutes on the reference meeting holds ten of the twelve introductions and
+/// about 6,500 characters, which is a small enough request to be free beside the work
+/// around it. A meeting that introduces somebody at minute forty is not one this can
+/// help, and the candidate extractor covers what it misses.
+const INTRODUCTIONS_WINDOW_MS: u64 = 8 * 60 * 1000;
+
 const MERGE_SYSTEM: &str = "Combine consecutive sets of meeting notes into one set, in the meeting's language. Keep every decision, action, owner, open question, number, measurement, date and proper name. Remove only exact repetition between the sets. Do not shorten anything that is stated once. Return only schema-valid JSON. If a correction field is present, the previous attempt was rejected for the reason it gives; fix that and return the notes again.";
 
 fn encode_prompt<T: Serialize>(payload: &T) -> Result<String> {
@@ -1715,6 +1819,34 @@ pub(crate) fn sizing_probe(context_tokens: u32, maximum_output_tokens: u32) -> (
 fn segment_chars(segment: &GenerationSegment) -> usize {
     // Speaker and timestamp are serialised alongside the text.
     segment.text.len() + segment.speaker.len() + 40
+}
+
+/// The people who said their own name, and what they said they do.
+fn introductions_schema() -> serde_json::Value {
+    serde_json::json!({
+        "type": "object",
+        "required": ["introductions"],
+        "properties": {
+            "introductions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    // All three required, because a name alone is not always enough
+                    // to recognise: "Person C" could be anybody, and "Person C, die
+                    // Planung Haus B und Fassadenplanung macht" is one person. Left
+                    // optional first, and the model then returned none of them.
+                    "required": ["heard", "role", "context"],
+                    "properties": {
+                        "heard": { "type": "string" },
+                        "role": { "type": "string" },
+                        "context": { "type": "string" }
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "additionalProperties": false
+    })
 }
 
 fn notes_schema() -> serde_json::Value {
