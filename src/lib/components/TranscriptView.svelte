@@ -186,6 +186,19 @@
         !query.trim() ||
         `${segment.speaker} ${segment.text}`.toLowerCase().includes(query.toLowerCase()),
     );
+  /// Where the recording stops, and what it was in the middle of.
+  ///
+  /// A recording can end before the meeting does — the project's own reference
+  /// recording stops mid-discussion, and about a fifth of the protocol written for
+  /// that meeting describes what was said afterwards. A protocol generated from it
+  /// is silently partial and reads as complete.
+  ///
+  /// No attempt is made to detect this. Whether a meeting had finished is a judgement
+  /// about a room, and the person who was in it can make it in a second from the last
+  /// thing that was said. Guessing at it in the application would be a heuristic in
+  /// one language that is wrong in others.
+  $: lastSegment = segments.length ? segments[segments.length - 1] : null;
+
   $: speakers = [...new Set(segments.map((segment) => segment.speaker))];
   $: speakerResolution = transcript?.speakerResolution ?? 'unavailable';
   $: speakerResolutionCopy =
@@ -502,6 +515,18 @@
             >
           {/each}
         </div>
+        {#if lastSegment}
+          <div class="inspector-section">
+            <p class="eyebrow">Where the recording stops</p>
+            <h3>{timeLabel(lastSegment.endMs / 1000)}</h3>
+            <p class="recording-last-words">“{lastSegment.text}”</p>
+            <p>
+              If the meeting carried on past this, the recording did not capture it and the protocol
+              will not contain it.
+            </p>
+          </div>
+        {/if}
+
         <div class="inspector-section">
           <p class="eyebrow">Transcription input</p>
           <h3>Language</h3>

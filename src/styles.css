@@ -2795,3 +2795,15 @@ button.review-summary[aria-pressed='true'] {
   font-size: 0.78rem;
   opacity: 0.8;
 }
+
+/* The last thing a recording caught. Quoted rather than paraphrased, because the
+   judgement being asked for — had the meeting finished? — is one only somebody who
+   was there can make, and they can make it from the words in a second. */
+.recording-last-words {
+  margin: 8px 0 10px;
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  opacity: 0.8;
+}
