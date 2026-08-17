@@ -423,10 +423,33 @@ density's; a "this is a record, not a summary" rule, which is fidelity's and is 
 "Cover every topic that was discussed"; and a justification for both. Split along those lines it can
 be deleted without losing anything.
 
-Not done yet, deliberately. It is prose in the only thing that produces protocols, it needs a style
-revision and a migration, and the change should be measured rather than assumed — the value of
-these instructions has been wrong before. Do it with the density-selection work, and measure the
-comprehensive setting before and after.
+**Measured, 17 August 2026, and the answer is not to delete it.** Three seeds with the
+instruction and three without, speaker labels already removed in both arms so they
+differ in one thing:
+
+| Seed       |    With |   Without |
+| ---------- | ------: | --------: |
+| 7          |  12,384 |    10,219 |
+| 101        |  12,276 |    10,141 |
+| 202        |  12,465 |    11,192 |
+| **Spread** | **189** | **1,051** |
+
+It adds between 1,273 and 2,165 characters — the direction reliable at every seed, the
+magnitude not. The more useful number is the spread: **with the instruction three
+drafts land within 189 characters of one another, and without it they scatter across
+1,051.** It does not merely lengthen the protocol, it anchors it, and five times less
+variation between draws is the most stable behaviour measured anywhere in this
+project.
+
+So the instruction earns its place at the comprehensive setting. What remains wrong
+is that it lives in the style, where it will contradict the two density settings
+nobody can select yet. The change is to **move its content into the comprehensive
+density directive** rather than to remove it: then "do not compress this into a
+summary" travels with the setting that means it, and terse stops carrying an
+instruction that fights itself.
+
+Not done here, because it needs a style revision and a migration, and it belongs with
+the density-selection work rather than ahead of it.
 
 4. Retry one failed section or pass rather than discarding the complete run.
 5. Compare the result with the existing human reference on completeness, correctness, attribution, length, and editing effort—not length alone.
