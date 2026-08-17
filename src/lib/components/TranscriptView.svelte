@@ -9,6 +9,7 @@
     TranscriptDocument,
     TranscriptSegment,
     NameCandidate,
+    Introduction,
     CorrectionMatch,
     AppliedCorrection,
   } from '../workflow/types';
@@ -45,6 +46,68 @@
     meetingId: string,
     correction: AppliedCorrection,
   ) => Promise<number> = async () => 0;
+
+  /// Reading who is in the meeting, once per project.
+  ///
+  /// A first meeting has no names, and asking somebody to write them from memory
+  /// before they have heard the recording asks for the wrong thing at the wrong
+  /// time. Most meetings open with people saying who they are, and every name comes
+  /// back misspelt — which is what makes this work: correcting a list you recognise
+  /// is easier than composing one you have to remember.
+  ///
+  /// Behind a button rather than automatic: it is a minute of model work, and this
+  /// application runs one heavy task at a time.
+  export let projectHasNames = false;
+  export let onFindIntroductions: (meetingId: string) => Promise<Introduction[]> = async () => [];
+
+  let introductions: Introduction[] | null = null;
+  let spellings: Record<string, string> = {};
+  let reading = false;
+  let readError = '';
+  let introductionsSaved = '';
+
+  async function readIntroductions() {
+    reading = true;
+    readError = '';
+    try {
+      const found = await onFindIntroductions(meeting.id);
+      introductions = found;
+      spellings = Object.fromEntries(found.map((person) => [person.heard, person.heard]));
+    } catch (cause) {
+      readError = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      reading = false;
+    }
+  }
+
+  /** Only the ones somebody actually changed are worth applying. */
+  $: correctedNames = (introductions ?? []).filter((person) => {
+    const corrected = spellings[person.heard]?.trim();
+    return Boolean(corrected) && corrected !== person.heard;
+  });
+
+  async function saveIntroductions() {
+    reading = true;
+    try {
+      let changed = 0;
+      for (const person of correctedNames) {
+        const corrected = spellings[person.heard]?.trim();
+        if (!corrected) continue;
+        changed += await onApplyCorrection(meeting.id, {
+          wrong: person.heard,
+          right: corrected,
+          keptSegmentIds: [],
+          remember: true,
+        });
+      }
+      introductionsSaved = `${correctedNames.length} ${
+        correctedNames.length === 1 ? 'name' : 'names'
+      } corrected in ${changed} ${changed === 1 ? 'place' : 'places'}, and kept for this project.`;
+      introductions = null;
+    } finally {
+      reading = false;
+    }
+  }
 
   /// Correcting a name the transcriber never heard right.
   ///
@@ -570,6 +633,57 @@
           >
           {#if rerunError}<p class="setting-error" role="alert">{rerunError}</p>{/if}
         </div>
+        {#if !projectHasNames || introductions}
+          <div class="inspector-section">
+            <p class="eyebrow">Who is in this meeting</p>
+            {#if introductions}
+              <h3>{introductions.length} introduced themselves</h3>
+              <p>
+                Spelt as the transcriber heard them. Correct any that are wrong — they will be fixed
+                here and remembered for this project.
+              </p>
+              <ul class="introduction-list">
+                {#each introductions as person (person.heard)}
+                  <li>
+                    <input
+                      type="text"
+                      bind:value={spellings[person.heard]}
+                      aria-label="Name heard as {person.heard}"
+                    />
+                    <span class="introduction-role">{person.role}</span>
+                  </li>
+                {/each}
+              </ul>
+              <div class="correction-actions">
+                <button
+                  class="secondary-action"
+                  disabled={reading || !correctedNames.length}
+                  onclick={saveIntroductions}
+                >
+                  {correctedNames.length
+                    ? `Correct ${correctedNames.length}`
+                    : 'Nothing changed yet'}
+                </button>
+                <button class="text-action" onclick={() => (introductions = null)}>Close</button>
+              </div>
+            {:else}
+              <h3>No names yet for {project.name}</h3>
+              <p>
+                Meetings usually open with people saying who they are. Reading that gives this
+                project its names, which is what transcription cannot guess.
+              </p>
+              <button class="secondary-action" disabled={reading} onclick={readIntroductions}>
+                {reading ? 'Reading the opening…' : 'Read who is in this meeting'}
+              </button>
+              <small class="inspector-note">About a minute. Nothing else can run meanwhile.</small>
+            {/if}
+            {#if readError}<p class="setting-error" role="alert">{readError}</p>{/if}
+            {#if introductionsSaved}<p class="correction-applied" role="status">
+                {introductionsSaved}
+              </p>{/if}
+          </div>
+        {/if}
+
         <div class="inspector-section">
           <p class="eyebrow">Names the transcriber was unsure of</p>
 

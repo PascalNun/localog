@@ -2807,3 +2807,25 @@ button.review-summary[aria-pressed='true'] {
   line-height: 1.5;
   opacity: 0.8;
 }
+
+/* The people a meeting opened with, for correcting rather than composing. The name
+   is a field because it is the thing to change; the role sits beside it because
+   "Person C" alone could be anybody. */
+.introduction-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.introduction-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.introduction-role {
+  font-size: 0.75rem;
+  opacity: 0.65;
+  line-height: 1.4;
+}

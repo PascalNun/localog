@@ -27,6 +27,7 @@ import type {
   VocabularyEntry,
   FileDropEvent,
   NameCandidate,
+  Introduction,
   CorrectionMatch,
   AppliedCorrection,
 } from './types';
@@ -72,6 +73,7 @@ export interface WorkspaceStore {
     text: string,
   ): Promise<WorkspaceData>;
   deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<WorkspaceData>;
+  findIntroductions(meetingId: string): Promise<Introduction[]>;
   findNameCandidates(meetingId: string): Promise<NameCandidate[]>;
   previewCorrection(meetingId: string, wrong: string, right: string): Promise<CorrectionMatch[]>;
   applyCorrection(
@@ -222,6 +224,10 @@ class TauriWorkspaceStore implements WorkspaceStore {
     text: string,
   ): Promise<WorkspaceData> {
     return invoke('update_transcript_segment', { meetingId, segmentId, text });
+  }
+
+  findIntroductions(meetingId: string): Promise<Introduction[]> {
+    return invoke('find_introductions', { meetingId });
   }
 
   findNameCandidates(meetingId: string): Promise<NameCandidate[]> {
