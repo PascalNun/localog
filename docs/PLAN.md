@@ -4,7 +4,7 @@ This is the short answer to “where is LocaLog now, and what should happen next
 
 The product and architecture documents describe the destination. The decision log records choices. This document describes what the code can honestly claim today.
 
-Last reviewed: 16 August 2026.
+Last reviewed: 17 August 2026.
 
 ## What 16 August established
 
@@ -36,7 +36,7 @@ Written 17 August 2026. The order is by what it settles, not by what is quickest
 
 ### Then: the decisions already recorded
 
-5. **Density becomes a choice, and the style's own length instruction goes.** Three options exist and are correct. The shipped style separately tells the model not to compress, which contradicts two of the three the moment somebody can pick one. Measure the comprehensive setting before and after.
+5. **Density becomes a choice, and the style's own length instruction moves into it.** Three options exist and are correct. The shipped style separately tells the model not to compress, which contradicts two of the three the moment somebody can pick one. Measured on 17 August: that instruction earns its place at the comprehensive setting — it holds three drafts within 189 characters of one another where removing it scatters them across 1,051 — so it moves into the comprehensive directive rather than being deleted.
 6. **Style authoring**, along the four axes: voice and structure authorable, density already a setting, fidelity never authorable. Replace `required_sections` with structural expectations that can be checked in any language, as the action table now is.
 7. **Wire the recorder into the application.** Every part works in the spike. It must tear down its taps on abnormal exit and sweep for orphans at startup, because leaving them running breaks the machine's audio.
 8. **The M1 / 8 GB baseline**, on the hardware it describes. Every figure in this document comes from a 16 GB machine.
