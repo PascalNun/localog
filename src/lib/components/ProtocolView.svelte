@@ -50,6 +50,25 @@
         ? 'Reviewed'
         : 'Draft';
 
+  /// Let the document be as long as it is, and let the page do the scrolling.
+  ///
+  /// A textarea is a fixed box with its own scrollbar, so the editor scrolled inside
+  /// a page that also scrolled: two bars for one document, and no way to see how long
+  /// the protocol actually is. A textarea cannot grow by itself, so its height is set
+  /// from its own content — reset to auto first, because scrollHeight never shrinks
+  /// below the height already set.
+  function growToFit(area: HTMLTextAreaElement | null) {
+    if (!area) return;
+    area.style.height = 'auto';
+    area.style.height = `${area.scrollHeight}px`;
+  }
+
+  // On load, when the draft is replaced by another revision, and when the text size
+  // changes — each of which changes how tall the same words are.
+  $: if (editor && markdown !== undefined && textScale) {
+    queueMicrotask(() => growToFit(editor));
+  }
+
   function scheduleSave() {
     saveState = 'saving';
     if (saveTimer) clearTimeout(saveTimer);
@@ -166,7 +185,10 @@
         ><span class="sr-only">Protocol Markdown</span><textarea
           bind:this={editor}
           bind:value={markdown}
-          oninput={scheduleSave}
+          oninput={(event) => {
+            growToFit(event.currentTarget);
+            scheduleSave();
+          }}
           style={`font-size: ${textScale}rem`}
           spellcheck="true"></textarea></label
       >

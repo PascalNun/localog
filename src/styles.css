@@ -1511,10 +1511,14 @@ button.review-summary[aria-pressed='true'] {
 
 .protocol-layout {
   min-height: calc(100vh - 210px);
+  align-items: start;
 }
 .protocol-main {
   display: grid;
-  grid-template-rows: auto auto minmax(540px, 1fr);
+  /* The document row is auto, not a stretched minimum: the editor is as tall as its
+     own text and the page scrolls, rather than a fixed box scrolling inside a page
+     that also scrolls. */
+  grid-template-rows: auto auto auto;
   background: var(--raised);
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1568,8 +1572,10 @@ button.review-summary[aria-pressed='true'] {
   min-height: 0;
 }
 .protocol-editor textarea {
-  height: 100%;
+  /* Height is set from the content in ProtocolView; this is the floor for an empty
+     draft. overflow-y is hidden because the page is what scrolls now. */
   min-height: 540px;
+  overflow-y: hidden;
   padding: clamp(28px, 5vw, 68px);
   background: transparent;
   border: 0;
