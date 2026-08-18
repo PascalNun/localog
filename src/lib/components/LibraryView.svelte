@@ -2,6 +2,7 @@
   import type {
     ProjectSummary,
     ProtocolStyle,
+    ProtocolStyleDetail,
     VocabularyDraft,
     VocabularyEntry,
   } from '../workflow/types';
@@ -11,6 +12,9 @@
   export let styles: ProtocolStyle[];
   export let vocabulary: VocabularyEntry[];
   export let projects: ProjectSummary[];
+  export let onOpenStyle: (styleId: string) => Promise<ProtocolStyleDetail> = async () => {
+    throw new Error('Styles cannot be read here.');
+  };
   export let onSaveTerm: (entry: VocabularyDraft) => Promise<void> = async () => undefined;
   export let onDeleteTerm: (entryId: string) => Promise<void> = async () => undefined;
 
@@ -33,6 +37,39 @@
     'Technical term',
     'Other',
   ] as const;
+
+  /// The style being read, and what it took to get it.
+  ///
+  /// Opened rather than expanded in place: the instructions are long enough that
+  /// three of them open at once would be a wall, and short enough that a separate
+  /// page would be ceremony.
+  let openStyle: ProtocolStyleDetail | null = null;
+  let openingStyleId = '';
+  let styleError = '';
+
+  async function openStyleDetail(styleId: string) {
+    if (openStyle?.id === styleId) {
+      openStyle = null;
+      return;
+    }
+    openingStyleId = styleId;
+    styleError = '';
+    try {
+      openStyle = await onOpenStyle(styleId);
+    } catch (cause) {
+      openStyle = null;
+      styleError = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      openingStyleId = '';
+    }
+  }
+
+  /// What a density setting means where somebody is deciding between them.
+  const DENSITY_MEANING: Record<string, string> = {
+    comprehensive: 'Full prose. A reader who was absent can follow the discussion.',
+    concise: 'Plain statements. What was said, without the retelling.',
+    terse: 'A line per point. The record, and nothing around it.',
+  };
 
   let draft: VocabularyDraft | null = null;
   let error = '';
@@ -139,15 +176,71 @@
   </header>
 
   {#if kind === 'styles'}
+    {#if styleError}<p class="setting-error" role="alert">{styleError}</p>{/if}
     <section class="library-list" aria-label="Protocol styles">
-      {#each styles as style (style.id)}<article>
-          <div class="library-icon"><Icon name="document" /></div>
-          <div>
-            <h2>{style.name}</h2>
-            <p>{style.description}</p>
-          </div>
-          <span class="meta">{DENSITY_LABEL[style.density] ?? style.language}</span>
-        </article>{/each}
+      {#each styles as style (style.id)}
+        {@const isOpen = openStyle?.id === style.id}
+        <article class:open={isOpen}>
+          <button
+            class="library-open"
+            aria-expanded={isOpen}
+            onclick={() => void openStyleDetail(style.id)}
+          >
+            <div class="library-icon"><Icon name="document" /></div>
+            <div>
+              <h2>{style.name}</h2>
+              <p>{style.description}</p>
+            </div>
+            <span class="meta"
+              >{openingStyleId === style.id
+                ? 'Reading…'
+                : (DENSITY_LABEL[style.density] ?? style.language)}</span
+            >
+            <Icon name={isOpen ? 'chevron-down' : 'chevron'} size={15} />
+          </button>
+
+          {#if isOpen && openStyle}
+            {@const detail = openStyle}
+            <div class="style-detail">
+              <div class="style-density">
+                <h3>Length</h3>
+                <p>{DENSITY_MEANING[detail.density] ?? detail.density}</p>
+              </div>
+
+              <div class="style-instructions">
+                <h3>What this style asks for</h3>
+                <p class="style-note">
+                  These are the instructions the model is given, in the order it is given them{detail.asShipped
+                    ? ', exactly as this style shipped'
+                    : ''}.
+                </p>
+                <ol>
+                  {#each detail.instructions as instruction, at (at)}
+                    <li>{instruction}</li>
+                  {/each}
+                </ol>
+              </div>
+
+              {#if detail.requiredSections.length > 0}
+                <div class="style-sections">
+                  <h3>Sections it must produce</h3>
+                  <ul>
+                    {#each detail.requiredSections as section (section)}
+                      <li>{section}</li>
+                    {/each}
+                  </ul>
+                </div>
+              {/if}
+
+              <p class="style-note">
+                Editing a style is not built yet. When it is, how a thing is said will be yours to
+                change and whether it is true will not: reproducing every number exactly, never
+                inventing a decision, and never leaving a placeholder stay fixed in every style.
+              </p>
+            </div>
+          {/if}
+        </article>
+      {/each}
     </section>
   {:else}
     <div class="library-scope-note">

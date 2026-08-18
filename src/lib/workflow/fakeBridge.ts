@@ -1,4 +1,5 @@
 import type {
+  ProtocolStyleDetail,
   ActiveJob,
   FakeJobOutcome,
   JobKind,
@@ -557,6 +558,26 @@ export class FakeWorkflowBridge implements WorkflowBridge {
    * Shaped like the real thing measured on a long meeting: a handful of words, some
    * of them names worth keeping and some of them the transcriber simply fumbling.
    */
+  /**
+   * A style read in full. Real when there is a workspace, and otherwise the
+   * instructions the application actually ships, so the screen is not designed
+   * against invented text.
+   */
+  async protocolStyleDetail(styleId: string): Promise<ProtocolStyleDetail> {
+    if (this.workspaceStore) return this.workspaceStore.protocolStyleDetail(styleId);
+    const style = this.snapshot.styles.find((candidate) => candidate.id === styleId);
+    if (!style) throw new Error('The selected protocol style is unavailable.');
+    return {
+      id: style.id,
+      name: style.name,
+      description: style.description,
+      density: style.density,
+      instructions: SEEDED_INSTRUCTIONS[style.id] ?? [],
+      requiredSections: [],
+      asShipped: true,
+    };
+  }
+
   /** A recording nothing is actually capturing, so the screen can be looked at. */
   private fakeRecording: { meetingId: string; startedAt: number } | null = null;
 
@@ -1145,3 +1166,28 @@ function errorMessage(error: unknown): string {
       ? error.message
       : 'LocaLog could not prepare its local workspace.';
 }
+
+/**
+ * What the shipped styles actually ask for, copied from the migration that set them.
+ *
+ * Only used when there is no workspace behind the interface. Designing a screen
+ * against invented instructions would make it look better than it is.
+ */
+const SEEDED_INSTRUCTIONS: Record<string, string[]> = {
+  'style-formal': [
+    "Write the entire protocol in the meeting's language.",
+    'Organise the protocol by topic, not in the order things were discussed. Gather everything said about one subject into a single numbered section, even if it came up several times.',
+    'Begin with the participants, grouped by the organisation they belong to, and give a role only where it was stated.',
+    'Use numbered sections with descriptive headings, and sub-numbered subsections where a topic has distinct parts.',
+    'Write discussion as calm, factual prose. Use lists only for options, criteria, and open questions.',
+    'Reproduce every number, measurement, area, date, and proper name exactly as stated. Never round or approximate them.',
+    'Separate what was decided from what remains open. Where no decision was reached, say so plainly rather than implying one.',
+    'Mark uncertainty in the words the meeting used, such as an intention, an estimate, or a matter still to be confirmed.',
+    'End with a table of agreed next steps with two columns, the task and the responsible party, followed by a short section for dates and appointments.',
+    'Never invent a decision, an action, an owner, or a date. If the source does not say who is responsible, leave it unattributed.',
+    'Cover every topic that was discussed. A protocol that silently omits a topic is incomplete, even if what remains reads well.',
+    'The table of next steps must list every action that was agreed, not a selection of the clearest ones.',
+    'Write at whatever length the material requires. Do not compress the meeting into a summary: this is a record, and a reader who was absent must be able to follow what was discussed and what follows from it.',
+    'Never leave a placeholder such as [Datum] or [Details]. If something is not in the source, omit the line instead.',
+  ],
+};

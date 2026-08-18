@@ -2968,3 +2968,87 @@ button.review-summary[aria-pressed='true'] {
   background: var(--surface);
   box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
 }
+
+/* A style opened where it sits, rather than on a page of its own: the instructions
+   are long enough that three open at once would be a wall, and short enough that a
+   separate page would be ceremony. */
+/* A row that opens is one column holding a header and a body, not the three-column
+   row the closed ones are — the article's own grid would otherwise put the header in
+   the 48px icon column and the detail beside it. */
+.library-list article:has(.library-open) {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0;
+  padding: 0 8px 0;
+}
+
+.library-list article:has(.library-open) .library-open {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto auto;
+  gap: 18px;
+  align-items: center;
+  width: 100%;
+  min-height: 92px;
+  padding: 18px 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+}
+
+.library-list article.open {
+  padding-bottom: 24px;
+}
+
+.library-open .meta {
+  white-space: nowrap;
+}
+
+.library-open > .icon {
+  color: var(--faint);
+}
+
+.library-list article.open {
+  background: var(--subtle);
+}
+
+.style-detail {
+  display: grid;
+  gap: 22px;
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.style-detail h3 {
+  margin-bottom: 6px;
+  color: var(--faint);
+  font-size: 0.67rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.style-detail ol,
+.style-detail ul {
+  display: grid;
+  gap: 9px;
+  /* Instructions are prose and read as prose: a line of a hundred characters is
+     where the eye loses its place coming back to the left. */
+  max-width: 78ch;
+  margin: 0;
+  padding-left: 22px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.style-note {
+  max-width: 68ch;
+  color: var(--faint);
+  font-size: 0.83rem;
+  line-height: 1.6;
+}
+
+.style-instructions .style-note {
+  margin-bottom: 12px;
+}

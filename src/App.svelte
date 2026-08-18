@@ -631,6 +631,7 @@
           styles={snapshot.styles}
           vocabulary={snapshot.vocabulary}
           projects={snapshot.projects}
+          onOpenStyle={(styleId: string) => bridge.protocolStyleDetail(styleId)}
           onSaveTerm={(entry) => bridge.saveVocabularyEntry(entry)}
           onDeleteTerm={(entryId) => bridge.deleteVocabularyEntry(entryId)}
         />

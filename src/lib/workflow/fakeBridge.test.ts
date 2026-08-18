@@ -24,6 +24,7 @@ function mockStore(overrides: Partial<WorkspaceStore> = {}): WorkspaceStore {
     selectMediaSource: vi.fn<WorkspaceStore['selectMediaSource']>(),
     startImport: vi.fn<WorkspaceStore['startImport']>(),
     cancelImport: vi.fn<WorkspaceStore['cancelImport']>(),
+    protocolStyleDetail: vi.fn<WorkspaceStore['protocolStyleDetail']>(),
     recordingStatus: vi.fn<WorkspaceStore['recordingStatus']>().mockResolvedValue({
       available: false,
       recording: false,

@@ -967,6 +967,23 @@ async fn find_introductions(
     .await
 }
 
+/// One protocol style, in full.
+///
+/// The list carries three sentences; this carries what the style actually asks the
+/// model for, so that choosing a style is a decision somebody can make with their
+/// eyes open.
+#[tauri::command]
+async fn protocol_style_detail(
+    state: State<'_, StorageState>,
+    style_id: String,
+) -> Result<storage::ProtocolStyleDetail, String> {
+    with_repository_root(state.root.clone(), move |root| {
+        let repository = storage::WorkspaceRepository::open(root)?;
+        repository.protocol_style_detail(&style_id)
+    })
+    .await
+}
+
 /// The words the transcriber was never sure of, offered as possible names.
 #[tauri::command]
 async fn find_name_candidates(
@@ -1373,6 +1390,7 @@ pub fn run() {
             start_transcription,
             start_generation,
             cancel_processing,
+            protocol_style_detail,
             recording_status,
             start_recording,
             stop_recording,
