@@ -107,24 +107,95 @@ broken, then wrong, then missing.
 
 ## What to do next, in order
 
-Written 17 August 2026. The order is by what it settles, not by what is quickest.
+Rewritten 18 August 2026, after a day of using the application. The previous ordering
+was written before recording had ever been tried and is superseded.
 
-### Finish what is open
+The principle: **prove what is claimed, then finish what the product hands over, then
+make it authorable, then the small frictions.** Each item is finishable on its own —
+none of them leaves the application half-changed if the next one never happens.
 
-1. ~~**Run the correction panel against the real backend.**~~ Done, 17 August. The commands read the transcript the application stores, write one it can load again, and leave the workspace openable — exercised against the real workspace rather than a fixture, correcting a word to itself so nothing a person typed changed. What remains untested is the Tauri IPC layer itself, which the binary building and the commands being registered makes thin.
-2. ~~**Move the by-topic budget check to the total.**~~ Done, 17 August. A section that will not shorten is kept and counted rather than discarded, because losing it takes a subject out of the meeting while keeping it makes the document slightly long. The whole protocol fails only past three times the target — which 26,100 is not and 74,000 is. **The 8,192 by-topic run can now be answered and has not been.**
+### 0. Prove a recording works from end to end
 
-### Then: find out where milestone 1 actually stands
+Recording could not start at all until today, and fixing the statement that failed is
+not the same as recording working. Nobody has yet recorded a meeting in this
+application and transcribed it. The system-audio tap depends on a permission macOS
+grants silently: an application that does not have it is handed silence rather than an
+error, so the failure looks exactly like a quiet room. Until one real recording becomes
+a transcript, half of milestone 1 is unproven.
 
-3. **Generate a protocol with everything now in place and read it against the written one.** The corrected transcript, the action-table check, the tidying pass, the marked gaps. The comparison that opened all of this found three faults: no actions table, ends early with nothing saying so, and every proper noun wrong. All three have answers now, and nobody has looked at the result. Reading it is the acceptance test; counting it is not.
-4. **Ask for the names.** See 1z below. Until the application asks, a real person gets the transcript this project spent weeks measuring against — the mechanism has existed the whole time and nothing points anybody at it. The largest gap between what is built and what somebody would experience.
+Cheap, and it gates everything else — there is no point polishing a recording screen
+for a path that does not run.
 
-### Then: the decisions already recorded
+### 1. Stop the interface jumping between Source, Transcript and Protocol
 
-5. **Density becomes a choice, and the style's own length instruction moves into it.** Three options exist and are correct. The shipped style separately tells the model not to compress, which contradicts two of the three the moment somebody can pick one. Measured on 17 August: that instruction earns its place at the comprehensive setting — it holds three drafts within 189 characters of one another where removing it scatters them across 1,051 — so it moves into the comprehensive directive rather than being deleted.
-6. **Style authoring**, along the four axes: voice and structure authorable, density already a setting, fidelity never authorable. Replace `required_sections` with structural expectations that can be checked in any language, as the action table now is.
-7. **Wire the recorder into the application.** Every part works in the spike. It must tear down its taps on abnormal exit and sweep for orphans at startup, because leaving them running breaks the machine's audio.
-8. **The M1 / 8 GB baseline**, on the hardware it describes. Every figure in this document comes from a 16 GB machine.
+An hour or two. The three stages are coherent to edit in; getting between them throws
+the page around. It is the most-repeated irritation in a day of use, and it makes the
+next item pleasant rather than annoying to work on.
+
+### 2. Let a protocol style be opened and read
+
+Small, and it removes a page that currently states a promise and offers nothing. Today
+a style cannot be opened at all: the type the interface receives carries a name, a
+description, a language and a density, and not one of the instructions that actually
+shape the document. Somebody choosing between three styles is choosing between three
+sentences.
+
+This step is reading only — open a style, see what it asks for, see its density and its
+required sections. Authoring is step 5, and is much larger.
+
+### 3. The document arc — the protocol is what this is all for
+
+The largest piece, and four steps that share one foundation, so they are worth doing in
+this order rather than separately:
+
+- **a. One Markdown-to-HTML renderer**, used by the editor and by every export. Written
+  once. Everything below depends on it and nothing below duplicates it.
+- **b. A rendered editor** with a formatting bar — headings, lists, emphasis, tables —
+  and a switch to the Markdown source for anybody who wants it. Markdown stays the
+  stored form. What is missing today is that somebody editing a professional document
+  should not have to know what `##` means.
+- **c. PDF on A4**, by printing the rendered document with `@page` rules. Nearly free
+  once (a) and (b) exist, and it needs no PDF library and no new dependency.
+- **d. A header and footer somebody can edit**, in the same rendered surface — the
+  firm's name, the project, a page number.
+
+### 4. DOCX
+
+Independent of step 3 and does not wait for it. A `.docx` is a zip holding one XML
+document, and the mapping from the same document structure is direct. One dependency, a
+zip writer. It goes after the arc because the arc gives it a settled structure to map
+from, not because it matters less: it is what a client edits and returns.
+
+### 5. Let a protocol style be authored
+
+The real version, and bigger than the page suggests. There are no style commands at
+all — nothing creates, updates, duplicates or deletes one — so this is a vertical
+through storage, commands and interface.
+
+- Duplicate a built-in style; edit its voice, its structure, its density.
+- Fidelity rules shown and locked, with the reason given rather than hidden: never
+  invent a decision, reproduce every number exactly, never leave a placeholder. A style
+  is how a thing is said, never whether it is true.
+- Replace `required_sections` with structural expectations that can be checked in any
+  language, as the action table now is.
+
+### 6. The recording screen against the reference images
+
+Last, because it is the only item on this list that is purely how something looks, and
+because step 0 may well change what it needs to show.
+
+### The two questions that were the owner's, answered
+
+**Should the editor show pages?** Not yet — but at a page's width. A flowing document
+set to A4's text measure gives the thing a page layout is actually wanted for: what is
+edited and what prints break at the same place. Pagination inside an editable surface
+is genuinely hard, and its remaining value is at export time, where the print step
+already supplies it. Worth reconsidering once the header and footer exist, since those
+are the parts that really want a page to sit on.
+
+**Rendered editor before the exports, or after?** Before. A PDF is a rendered document
+printed; doing the editor first makes the PDF nearly free, and doing the PDF first
+means writing the renderer twice. DOCX does not depend on it either way.
 
 ### Parked, with reasons
 
