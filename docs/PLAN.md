@@ -75,8 +75,13 @@ broken, then wrong, then missing.
    looking at. The editor was a fixed box with its own scrollbar inside a scrolling
    workspace: two bars for one document, and no way to see how long the protocol is.
    The editor now grows to its content and only the page scrolls.
-9. **The interface jumps when moving between Source, Transcript and Protocol.** The
-   three stages are coherent to edit in; getting between them is not.
+9. ~~**The interface jumps when moving between Source, Transcript and Protocol.**~~
+   Fixed. Source kept the standard page padding while the other two had been made
+   denser, so every move between the stages shifted the whole page sideways — 23px at
+   1280 wide, 20px at 1600. The three stages of one meeting now share one column by
+   construction rather than by coincidence, so it cannot drift apart again. Measured
+   before and after at both widths. Scroll position was suspected first and cleared:
+   it already resets correctly on every stage change.
 10. ~~**The `+` beside Projects does not line up with the meeting counts below it,
     and the one beside "New project" sits inside the project names.**~~ Fixed, and
     measured rather than eyeballed: a glyph centred in a hit target is not where the
@@ -144,6 +149,13 @@ for a path that does not run.
 
 The lesson is narrow and worth keeping: **the shipped build's filter list is a contract
 with the code, and nothing checked it.** A test now does.
+
+A recording now goes the whole way in a test: two tracks in, one combined file
+committed with a checksum, at a path that exists. What is still unproven is the last
+inch — clicking Record in the window and getting a meeting that transcribes. That
+needs the macOS system-audio permission dialog, which only appears to somebody sitting
+at the machine, so it is the owner's to confirm and not something a test can stand in
+for.
 
 ### 1. Stop the interface jumping between Source, Transcript and Protocol
 
