@@ -387,7 +387,7 @@
   onDestroy(() => audioElement?.pause());
 </script>
 
-<main class="workspace dense-workspace" id="main-content">
+<main class="workspace stage-workspace" id="main-content">
   <header class="workspace-header meeting-header">
     <div>
       <p class="breadcrumb">{project.name} <span>›</span> {meeting.title}</p>

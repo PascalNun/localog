@@ -487,7 +487,12 @@ body.sidebar-resizing * {
   margin-left: auto;
 }
 
-.dense-workspace {
+/* The three stages of one meeting — source, transcript, protocol — are one place,
+   and share one column. They did not: source kept the standard padding while the
+   other two were denser, so every move between them shifted the whole page sideways
+   by 23px at a typical window width. Whatever this measure becomes, all three take
+   it together. */
+.stage-workspace {
   padding-right: clamp(24px, 3.2vw, 52px);
   padding-left: clamp(24px, 3.2vw, 52px);
 }

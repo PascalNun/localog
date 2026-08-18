@@ -92,7 +92,7 @@
   }
 </script>
 
-<main class="workspace" id="main-content">
+<main class="workspace stage-workspace" id="main-content">
   <header class="workspace-header meeting-header">
     <div>
       <p class="breadcrumb">{project.name} <span>›</span> Meeting</p>
