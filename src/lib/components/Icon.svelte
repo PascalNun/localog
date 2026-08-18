@@ -10,6 +10,7 @@
     | 'folder'
     | 'info'
     | 'menu'
+    | 'monitor'
     | 'moon'
     | 'pause'
     | 'play'
@@ -64,6 +65,9 @@
     <circle cx="12" cy="12" r="9" /><path d="M12 10v6M12 7h.01" />
   {:else if name === 'menu'}
     <path d="M4 7h16M4 12h16M4 17h16" />
+  {:else if name === 'monitor'}
+    <rect x="2" y="4" width="20" height="13" rx="2" />
+    <path d="M8 21h8M12 17v4" />
   {:else if name === 'moon'}
     <path d="M19 15.5A8 8 0 0 1 8.5 5 8 8 0 1 0 19 15.5" />
   {:else if name === 'pause'}

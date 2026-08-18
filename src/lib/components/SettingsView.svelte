@@ -16,10 +16,20 @@
     recommendationFor,
   } from '../models/modelCatalog';
   import Icon from './Icon.svelte';
+  import type { IconName } from './Icon.svelte';
 
   export let theme: 'light' | 'dark';
+  export let themeChoice: 'auto' | 'light' | 'dark' = 'auto';
   export let nextJobOutcome: FakeJobOutcome;
-  export let onToggleTheme: () => void;
+  export let onChooseTheme: (choice: 'auto' | 'light' | 'dark') => void;
+
+  /// The three states the theme can be in, named. Automatic is first because it is
+  /// what the application does unless somebody says otherwise.
+  const THEME_CHOICES: { id: 'auto' | 'light' | 'dark'; label: string; icon: IconName }[] = [
+    { id: 'auto', label: 'Automatic', icon: 'monitor' },
+    { id: 'light', label: 'Light', icon: 'sun' },
+    { id: 'dark', label: 'Dark', icon: 'moon' },
+  ];
   export let onSetNextJobOutcome: (outcome: FakeJobOutcome) => Promise<void>;
   export let runtimeStatus: TranscriptionRuntimeStatus;
   export let runtimeError: string | null = null;
@@ -436,13 +446,23 @@
         <div class="setting-row">
           <div>
             <h3>Theme</h3>
-            <p>Warm cream light mode or designed warm-charcoal dark mode.</p>
+            <p>
+              {themeChoice === 'auto'
+                ? `Following this Mac, which is set to ${theme}.`
+                : 'Set here, whatever this Mac is set to.'}
+            </p>
           </div>
-          <button class="secondary-action" onclick={onToggleTheme}
-            ><Icon name={theme === 'light' ? 'moon' : 'sun'} size={16} /> Use {theme === 'light'
-              ? 'dark'
-              : 'light'}</button
-          >
+          <div class="choice-row" role="group" aria-label="Theme">
+            {#each THEME_CHOICES as option (option.id)}
+              <button
+                class="choice"
+                class:chosen={themeChoice === option.id}
+                aria-pressed={themeChoice === option.id}
+                onclick={() => onChooseTheme(option.id)}
+                ><Icon name={option.icon} size={15} /> {option.label}</button
+              >
+            {/each}
+          </div>
         </div>
         <div class="setting-row">
           <div>

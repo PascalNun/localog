@@ -287,7 +287,10 @@ small {
   align-items: center;
   justify-content: space-between;
   min-height: 32px;
-  padding: 0 9px;
+  /* The insets are the icon's, not the box's: a 15px glyph centred in a 32px hit
+     target sits 8.5px inside its own right edge, so the box has to hang further out
+     for the plus to land in the same column as the meeting counts below it. */
+  padding: 0 0 0 10px;
   color: var(--faint);
   font-size: 0.67rem;
   font-weight: 600;
@@ -351,7 +354,9 @@ small {
 }
 
 .sidebar-action {
-  margin: 7px 0 0 4px;
+  /* Pulled left by the plus glyph's own inset, so its ink starts where the project
+     names above it start rather than three pixels inside them. */
+  margin: 7px 0 0 1px;
 }
 
 .sidebar-footer {
@@ -577,6 +582,12 @@ body.sidebar-resizing * {
 .icon-button.compact {
   width: 32px;
   min-height: 32px;
+}
+
+/* The last pixel of the same alignment: the hit target stays 32px, and only the
+   glyph inside it is brought out to the column the counts are right-aligned on. */
+.nav-section-heading .icon-button {
+  margin-right: -1px;
 }
 
 .primary-action {
@@ -2911,4 +2922,44 @@ button.review-summary[aria-pressed='true'] {
 .icon-button.is-following:hover,
 .icon-button.is-following:focus-visible {
   opacity: 1;
+}
+
+/* A small set of named states where one is in force, rather than a control that
+   cycles and can only name where it is going next. */
+.choice-row {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 2px;
+  background: var(--subtle);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.choice {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 11px;
+  color: var(--muted);
+  background: transparent;
+  border-radius: 4px;
+  font-size: 0.83rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background 130ms ease,
+    color 130ms ease;
+}
+
+.choice:hover:not(.chosen) {
+  color: var(--ink);
+}
+
+.choice.chosen {
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
 }
