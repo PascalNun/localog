@@ -355,17 +355,27 @@
   /// Re-settles the theme when the system changes, while the choice is auto.
   let followSystem: (() => void) | null = null;
 
-  /// Auto, then light, then dark, then back. Three states on one control because a
-  /// fourth thing to click for something this small would cost more than it saves.
+  /// The sidebar's one-key cycle through the same three states, which names the one
+  /// it is in rather than only the one it would move to.
   function toggleTheme() {
-    themeChoice = themeChoice === 'auto' ? 'light' : themeChoice === 'light' ? 'dark' : 'auto';
-    if (themeChoice === 'auto') {
+    chooseTheme(themeChoice === 'auto' ? 'light' : themeChoice === 'light' ? 'dark' : 'auto');
+  }
+
+  /// Choose the theme, including letting the system choose it.
+  ///
+  /// This was a button that cycled through the three, labelled only with the one it
+  /// would move to next — so somebody on automatic was never told they were on it,
+  /// and clicking twice to get back to it looked like the control was stuck. Three
+  /// named states, one of them showing as chosen, says what the application is doing.
+  function chooseTheme(choice: 'auto' | 'light' | 'dark') {
+    themeChoice = choice;
+    if (choice === 'auto') {
       localStorage.removeItem('localog-theme');
       followSystem?.();
       return;
     }
-    theme = themeChoice;
-    localStorage.setItem('localog-theme', themeChoice);
+    theme = choice;
+    localStorage.setItem('localog-theme', choice);
     applyTheme();
   }
 
@@ -627,6 +637,7 @@
       {:else if route.name === 'settings'}
         <SettingsView
           {theme}
+          {themeChoice}
           {runtimeStatus}
           {runtimeError}
           {speakerStatus}
@@ -637,7 +648,7 @@
           {modelError}
           {providerError}
           nextJobOutcome={snapshot.nextJobOutcome}
-          onToggleTheme={toggleTheme}
+          onChooseTheme={chooseTheme}
           onSetNextJobOutcome={(outcome: FakeJobOutcome) => bridge.setNextJobOutcome(outcome)}
           onSelectPreset={async (preset: TranscriptionPreset) => {
             try {

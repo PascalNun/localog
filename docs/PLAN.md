@@ -77,8 +77,23 @@ broken, then wrong, then missing.
    The editor now grows to its content and only the page scrolls.
 9. **The interface jumps when moving between Source, Transcript and Protocol.** The
    three stages are coherent to edit in; getting between them is not.
-10. **The `+` beside Projects does not line up with the meeting counts below it.** The
-    two belong to the same column and are a few pixels apart.
+10. ~~**The `+` beside Projects does not line up with the meeting counts below it,
+    and the one beside "New project" sits inside the project names.**~~ Fixed, and
+    measured rather than eyeballed: a glyph centred in a hit target is not where the
+    hit target is, so both are now aligned on their ink — 219.9 against 220 on the
+    right, 27.6 against 28 on the left.
+
+11. ~~**Recording could never start.**~~ Fixed. The row written when a recording
+    begins used a kind and a state the table's CHECK constraints forbade, so every
+    attempt failed and the person was told the workspace was unreachable.
+12. ~~**The theme control never admitted that following the system was one of its
+    states.**~~ Fixed. Automatic was implemented and worked, but the control cycled
+    through three states while naming only the one it would move to next, so somebody
+    on automatic was never told. It is now three named states with the one in force
+    shown, and it says which theme the Mac is set to.
+13. **The Protocol styles page does nothing.** It lists the three styles and stops:
+    they cannot be opened, read, edited, copied or added to. The page states that
+    styles are presets rather than prompts and then offers no way to hold one.
 
 ### Open questions, which are the owner's
 
