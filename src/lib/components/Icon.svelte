@@ -4,6 +4,7 @@
     | 'book'
     | 'check'
     | 'chevron'
+    | 'chevron-down'
     | 'close'
     | 'document'
     | 'download'
@@ -53,6 +54,8 @@
     <path d="m5 12 4 4L19 6" />
   {:else if name === 'chevron'}
     <path d="m9 18 6-6-6-6" />
+  {:else if name === 'chevron-down'}
+    <path d="m6 9 6 6 6-6" />
   {:else if name === 'close'}
     <path d="m6 6 12 12M18 6 6 18" />
   {:else if name === 'document'}

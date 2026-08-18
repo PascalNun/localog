@@ -28,6 +28,7 @@ import type {
   FileDropEvent,
   NameCandidate,
   Introduction,
+  ProtocolStyleDetail,
   RecordingStatus,
   CorrectionMatch,
   AppliedCorrection,
@@ -74,6 +75,7 @@ export interface WorkspaceStore {
     text: string,
   ): Promise<WorkspaceData>;
   deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<WorkspaceData>;
+  protocolStyleDetail(styleId: string): Promise<ProtocolStyleDetail>;
   recordingStatus(): Promise<RecordingStatus>;
   startRecording(meetingId: string): Promise<void>;
   stopRecording(): Promise<WorkspaceData>;
@@ -228,6 +230,10 @@ class TauriWorkspaceStore implements WorkspaceStore {
     text: string,
   ): Promise<WorkspaceData> {
     return invoke('update_transcript_segment', { meetingId, segmentId, text });
+  }
+
+  protocolStyleDetail(styleId: string): Promise<ProtocolStyleDetail> {
+    return invoke('protocol_style_detail', { styleId });
   }
 
   recordingStatus(): Promise<RecordingStatus> {

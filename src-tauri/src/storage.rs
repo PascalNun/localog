@@ -155,6 +155,20 @@ pub(crate) struct ResolvedProtocolStyle {
     pub density: ProtocolDensity,
 }
 
+/// A protocol style as somebody reading it needs to see it.
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProtocolStyleDetail {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub density: ProtocolDensity,
+    /// What the style asks the model for, in the order it asks.
+    pub instructions: Vec<String>,
+    pub required_sections: Vec<String>,
+    pub as_shipped: bool,
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub(crate) struct ResolvedVocabularyEntry {
     pub term: String,
@@ -923,6 +937,44 @@ impl WorkspaceRepository {
             return Err(StorageError::MissingMeeting);
         }
         Ok(())
+    }
+
+    /// One style, read in full.
+    ///
+    /// The list a person browses carries a name, a description and a density, and
+    /// none of what the style actually asks the model for. Choosing between three
+    /// styles was therefore choosing between three sentences. This is what is really
+    /// being chosen.
+    pub fn protocol_style_detail(&self, style_id: &str) -> Result<ProtocolStyleDetail> {
+        let style = self
+            .connection
+            .query_row(
+                "SELECT id, name, description, language_scope, instructions_json,
+                        required_sections_json, revision, density
+                 FROM protocol_styles WHERE id = ?1 AND enabled = 1",
+                [style_id],
+                protocol_style_from_row,
+            )
+            .optional()?
+            .ok_or(StorageError::InvalidData(
+                "The selected protocol style is unavailable.",
+            ))?;
+        let (name, description, edited): (String, String, i64) = self.connection.query_row(
+            "SELECT name, description, revision FROM protocol_styles WHERE id = ?1",
+            [style_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
+        Ok(ProtocolStyleDetail {
+            id: style.id,
+            name,
+            description,
+            density: style.density,
+            instructions: style.instructions,
+            required_sections: style.required_sections,
+            // A style that has never been edited is the one that shipped. The
+            // distinction matters to somebody deciding whether they may change it.
+            as_shipped: edited == 1,
+        })
     }
 
     fn list_protocol_styles(&self) -> Result<Vec<ProtocolStyle>> {

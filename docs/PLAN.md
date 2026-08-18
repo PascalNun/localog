@@ -163,7 +163,7 @@ An hour or two. The three stages are coherent to edit in; getting between them t
 the page around. It is the most-repeated irritation in a day of use, and it makes the
 next item pleasant rather than annoying to work on.
 
-### 2. Let a protocol style be opened and read
+### 2. Let a protocol style be opened and read — done, 18 August
 
 Small, and it removes a page that currently states a promise and offers nothing. Today
 a style cannot be opened at all: the type the interface receives carries a name, a
@@ -173,6 +173,13 @@ sentences.
 
 This step is reading only — open a style, see what it asks for, see its density and its
 required sections. Authoring is step 5, and is much larger.
+
+Built. A style opens where it sits and shows what it actually asks the model for, in
+the order it asks: fourteen instructions for the formal style, against the one
+sentence the list used to carry. What the density setting means is said in words
+rather than as a label. The page also says plainly that editing is not built yet, and
+what will and will not be editable when it is, so the boundary is learned before
+somebody goes looking for it.
 
 ### 3. The document arc — the protocol is what this is all for
 

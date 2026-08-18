@@ -198,6 +198,22 @@ export interface ProtocolStyle {
   density: ProtocolDensity;
 }
 
+/**
+ * A protocol style read in full, rather than the three sentences the list carries.
+ *
+ * `instructions` is what the style actually asks the model for, in the order it asks.
+ * `asShipped` says the style is still the one that came with the application.
+ */
+export interface ProtocolStyleDetail {
+  id: string;
+  name: string;
+  description: string;
+  density: ProtocolDensity;
+  instructions: string[];
+  requiredSections: string[];
+  asShipped: boolean;
+}
+
 /** A file being dragged over the window, or let go of. */
 export type FileDropEvent =
   { kind: 'over' } | { kind: 'leave' } | { kind: 'dropped'; paths: string[] };
@@ -397,6 +413,7 @@ export interface WorkflowBridge {
    * minute, so it runs when somebody asks for it.
    */
   /** What a recording in progress is doing. Cheap; polled while the screen is open. */
+  protocolStyleDetail(styleId: string): Promise<ProtocolStyleDetail>;
   recordingStatus(): Promise<RecordingStatus>;
   startRecording(meetingId: string): Promise<void>;
   stopRecording(): Promise<void>;
