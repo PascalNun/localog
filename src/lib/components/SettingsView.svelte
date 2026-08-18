@@ -61,7 +61,14 @@
   // The synthetic-failure control only affects the browser preview's fake adapter.
   const isNative = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
   let selectedProviderModel = '';
-  const memoryGb = browserMemoryGb();
+  /// What the backend measured, and only then what the browser guessed.
+  ///
+  /// The browser is asked last because in this shell it cannot answer:
+  /// `navigator.deviceMemory` is not implemented in WebKit, so every macOS machine
+  /// reported nothing, nothing was treated as the weakest supported machine, and a
+  /// 16 GB laptop was recommended a model measured at 20 figures against the
+  /// baseline's 31.
+  $: memoryGb = providerStatus?.machineMemoryGb ?? browserMemoryGb();
   const memoryLabel = memoryGb
     ? `${memoryGb} GB memory reported`
     : 'Using the conservative 8 GB baseline';

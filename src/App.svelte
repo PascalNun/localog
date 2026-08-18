@@ -110,6 +110,7 @@
     selectedModelDigest: null,
     selectedModelReady: false,
     message: 'Ollama has not been checked yet.',
+    machineMemoryGb: null,
   };
 
   // Route-derived context keeps project and meeting selection in one predictable place.
