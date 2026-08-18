@@ -30,17 +30,19 @@ broken, then wrong, then missing.
 1. ~~**"Record a meeting" led to a form whose button did nothing.**~~ Fixed. The
    button's `disabled` was changed and the submit guard was not, so it enabled and
    silently returned.
-2. **Export Markdown does nothing.** A button that claims to export and does not is
-   worse than no button: somebody believes they have a copy of the protocol.
+2. ~~**Export Markdown does nothing.**~~ Fixed. The capability granted
+   `dialog:allow-open` and not `dialog:allow-save`, so the save dialog never opened,
+   the call threw, and the code fell through to a browser download the desktop shell
+   blocks. A failure now says so rather than trying a fallback that cannot work.
 
 ### Wrong — it says something that is not true
 
-3. **Settings recommends a model measured to be worse.** It suggests `qwen3.5:4b`
-   as "recommended for this machine", and `gemma4:12b` is the measured baseline —
-   the difference was 20 figures against 31. There is no guard-rail behind the
-   recommendation at all: it appears to be a machine-size heuristic that has never
-   been reconciled with what this project actually measured. Curate the catalogue,
-   and make the recommendation say what it is based on.
+3. ~~**Settings recommends a model measured to be worse.**~~ Fixed, and the cause was
+   not the catalogue — that was already ordered by what was measured. The picker asked
+   `navigator.deviceMemory`, which WebKit does not implement and this shell is WebKit,
+   so every macOS machine reported nothing, nothing was read as the weakest supported
+   machine, and everything larger was filtered out. The backend already knew the answer
+   exactly and now reports it.
 4. **The protocol editor's text is narrower than its frame.** A layout fault, small
    and visible every time somebody edits.
 
@@ -51,9 +53,21 @@ broken, then wrong, then missing.
    between that and the Markdown source. Markdown stays the stored form; what is
    missing is that somebody editing a professional document should not have to know
    what `##` means.
-6. **Exporting needs more than Markdown.** The protocol is the product, and the
-   formats a professional actually sends are not this list. Which ones is a decision
-   nobody has made.
+6. **Exporting needs more than Markdown.** The protocol is the product and Markdown
+   is not what a professional sends. Wanted, in the owner's order:
+
+   - **DOCX**, because it is what a client edits and returns.
+   - **PDF**, on a stated page size — A4 first, since the audience is German. Likely
+     easiest as Markdown to HTML to print, rather than a PDF library: the styling then
+     comes from the same stylesheet the editor uses, and page size is one CSS rule.
+   - **A header and footer somebody can set**, edited rather than configured — the
+     firm's name, the project, a page number. HTML is a plausible form for it, so the
+     same content can serve the PDF and whatever follows.
+
+   None of these is started. The order matters: DOCX and PDF are the deliverable, the
+   header and footer are what make it look like the firm's document rather than the
+   application's.
+
 7. **The recording screen does not match the reference layout.** The interaction was
    built from the written direction; the reference images are the standard and it has
    not been held against them.
