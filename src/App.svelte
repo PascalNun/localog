@@ -37,6 +37,11 @@
     AppliedCorrection,
   } from './lib/workflow/types';
 
+  /// Whether this is the desktop shell rather than a browser preview. A browser can
+  /// fall back to a download; the desktop shell blocks it, so a failure there has to
+  /// be said out loud rather than quietly retried.
+  const isDesktop = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
   // The shell already depends on the boundary that future Rust-backed adapters will implement.
   const workspaceStore = createNativeWorkspaceStore();
   const bridge = new FakeWorkflowBridge({ workspaceStore });
@@ -406,9 +411,21 @@
     if (!meeting || !snapshot) return;
     const protocol = snapshot.protocols[meeting.id];
     if (!protocol) return;
-    const nativeExported = await bridge.exportProtocol(meeting.id, format, meeting.title);
-    if (nativeExported) {
-      announcement = `${format === 'markdown' ? 'Markdown' : 'Plain text'} export saved`;
+    const name = format === 'markdown' ? 'Markdown' : 'Plain text';
+    // Saying what went wrong rather than falling quietly through to a browser
+    // download the desktop shell blocks. Exporting was silently doing nothing for
+    // exactly that reason: the save dialog needed a permission it had not been
+    // granted, the call threw, and the fallback could not run either.
+    try {
+      const nativeExported = await bridge.exportProtocol(meeting.id, format, meeting.title);
+      if (nativeExported) {
+        announcement = `${name} export saved`;
+        return;
+      }
+      // A cancelled dialog is a choice, not a failure, and says nothing.
+      if (isDesktop) return;
+    } catch (cause) {
+      announcement = `${name} export failed: ${cause instanceof Error ? cause.message : String(cause)}`;
       return;
     }
     const content =
