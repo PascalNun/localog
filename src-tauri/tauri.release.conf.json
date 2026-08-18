@@ -9,8 +9,6 @@
       "binaries/localog-ffmpeg",
       "binaries/localog-ffprobe"
     ],
-    "resources": [
-      "binaries/licences/*"
-    ]
+    "resources": ["binaries/licences/*"]
   }
 }
