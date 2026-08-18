@@ -20,6 +20,44 @@ Last reviewed: 17 August 2026.
 
 **On guards:** a hard cap set equal to the soft check it accompanies makes the correction unreachable, and a per-section fatal check aborted a twenty-three-minute run over 198 characters. Limits must be proportionate to what actually goes wrong.
 
+## Found by using it, 17 August 2026
+
+The owner ran the application and reported these. Ordered by whether the thing is
+broken, then wrong, then missing.
+
+### Broken — it does something other than what it says
+
+1. ~~**"Record a meeting" led to a form whose button did nothing.**~~ Fixed. The
+   button's `disabled` was changed and the submit guard was not, so it enabled and
+   silently returned.
+2. **Export Markdown does nothing.** A button that claims to export and does not is
+   worse than no button: somebody believes they have a copy of the protocol.
+
+### Wrong — it says something that is not true
+
+3. **Settings recommends a model measured to be worse.** It suggests `qwen3.5:4b`
+   as "recommended for this machine", and `gemma4:12b` is the measured baseline —
+   the difference was 20 figures against 31. There is no guard-rail behind the
+   recommendation at all: it appears to be a machine-size heuristic that has never
+   been reconciled with what this project actually measured. Curate the catalogue,
+   and make the recommendation say what it is based on.
+4. **The protocol editor's text is narrower than its frame.** A layout fault, small
+   and visible every time somebody edits.
+
+### Missing — the thing it should do and does not
+
+5. **The protocol editor should read as a word processor, not a text box.** Either a
+   rendered view with a formatting bar — headings, lists, emphasis — or a switch
+   between that and the Markdown source. Markdown stays the stored form; what is
+   missing is that somebody editing a professional document should not have to know
+   what `##` means.
+6. **Exporting needs more than Markdown.** The protocol is the product, and the
+   formats a professional actually sends are not this list. Which ones is a decision
+   nobody has made.
+7. **The recording screen does not match the reference layout.** The interaction was
+   built from the written direction; the reference images are the standard and it has
+   not been held against them.
+
 ## What to do next, in order
 
 Written 17 August 2026. The order is by what it settles, not by what is quickest.
