@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 13;
+const CURRENT_SCHEMA_VERSION: i64 = 15;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -1913,6 +1913,61 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             rebuild?;
         }
         connection.pragma_update(None, "user_version", 13)?;
+        version = 13;
+    }
+    if version == 13 {
+        // Repairing the migration above. Its first version listed the columns from
+        // the table's original definition and so rebuilt it without `media_type`,
+        // which a later migration had added -- and every query that reads a meeting
+        // asks for that column, so the workspace stopped opening entirely. The value
+        // is written beside the job that produced the recording, so what was dropped
+        // can be put back rather than merely re-declared.
+        if !has_column(connection, "recordings", "media_type")? {
+            connection.execute_batch(
+                r#"
+                BEGIN IMMEDIATE;
+                ALTER TABLE recordings ADD COLUMN media_type TEXT;
+                UPDATE recordings
+                   SET media_type = (
+                        SELECT j.result_media_type FROM jobs j
+                         WHERE j.recording_id = recordings.id
+                           AND j.kind = 'import'
+                           AND j.result_media_type IS NOT NULL
+                         ORDER BY j.created_at_ms DESC LIMIT 1
+                   )
+                 WHERE media_type IS NULL;
+                COMMIT;
+                "#,
+            )?;
+        }
+        connection.pragma_update(None, "user_version", 14)?;
+        version = 14;
+    }
+    if version == 14 {
+        // Repairing the repair. The backfill above first took the newest job of any
+        // kind, so a recording that had since been transcribed and written up was
+        // restored as `text/markdown` -- the media type of the protocol, not of the
+        // audio. Only the import job carries the media type of the file that arrived.
+        // Written as an overwrite rather than a fill so that a database which already
+        // took the wrong value is corrected rather than left holding it.
+        connection.execute(
+            "UPDATE recordings
+                SET media_type = (
+                     SELECT j.result_media_type FROM jobs j
+                      WHERE j.recording_id = recordings.id
+                        AND j.kind = 'import'
+                        AND j.result_media_type IS NOT NULL
+                      ORDER BY j.created_at_ms DESC LIMIT 1
+                )
+              WHERE EXISTS (
+                     SELECT 1 FROM jobs j
+                      WHERE j.recording_id = recordings.id
+                        AND j.kind = 'import'
+                        AND j.result_media_type IS NOT NULL
+              )",
+            [],
+        )?;
+        connection.pragma_update(None, "user_version", 15)?;
     }
     Ok(())
 }
@@ -3159,3 +3214,4 @@ mod tests {
         assert_eq!(recovered.jobs[0].state, JobState::Queued);
     }
 }
+
