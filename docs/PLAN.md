@@ -126,6 +126,25 @@ a transcript, half of milestone 1 is unproven.
 Cheap, and it gates everything else — there is no point polishing a recording screen
 for a path that does not run.
 
+**Underway, 18 August.** Three things are now known, and two of them were faults:
+
+- The recorder itself works. Run for a minute it writes both tracks, reports a level
+  every second, stops on `SIGTERM` and leaves no orphan behind.
+- The system tap works, and this was worth proving rather than assuming, because an
+  application without the permission is handed silence rather than an error. Played a
+  tone at four percent, the system peak went from `0.000` to `0.005` for exactly as
+  long as the tone lasted.
+- **The FFmpeg LocaLog ships cannot combine the two tracks.** It is configured down to
+  the filters the application uses — deliberately, and that is the right instinct —
+  but the list was written before the recorder existed and does not include `amix`,
+  which is precisely what combining a recording asks for. On this machine the failure
+  was invisible: a full FFmpeg is installed and was found instead. On a machine that
+  has only what LocaLog ships, every recording would have failed at the last step,
+  after the meeting. Fixed by adding the one filter to the build and rebuilding.
+
+The lesson is narrow and worth keeping: **the shipped build's filter list is a contract
+with the code, and nothing checked it.** A test now does.
+
 ### 1. Stop the interface jumping between Source, Transcript and Protocol
 
 An hour or two. The three stages are coherent to edit in; getting between them throws

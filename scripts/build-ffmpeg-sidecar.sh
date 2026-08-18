@@ -97,7 +97,7 @@ cp "$opus_archive" "$static_first/"
   --enable-encoder="$encoders" \
   --enable-muxer="$muxers" \
   --enable-parser=aac,mpegaudio,flac,vorbis,opus,ac3 \
-  --enable-filter=aresample,aformat,anull,atrim,aselect,anullsrc,concat,volume \
+  --enable-filter=aresample,aformat,anull,atrim,aselect,anullsrc,concat,volume,amix \
   --enable-bsf=null
 
 make -j"${MAKE_PARALLEL_LEVEL:-4}"
