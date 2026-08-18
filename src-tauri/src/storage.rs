@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 12;
+const CURRENT_SCHEMA_VERSION: i64 = 13;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -1867,8 +1867,69 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             )?;
         }
         connection.pragma_update(None, "user_version", 12)?;
+        version = 12;
+    }
+    if version == 12 {
+        // A recording made inside LocaLog is neither an import nor a single track,
+        // and while it is being made it is in neither of the states an import can be
+        // in. The table said otherwise, so starting a recording failed against its
+        // own CHECK constraints and the person was told the workspace was
+        // unreachable. SQLite cannot alter a constraint, so the table is rebuilt.
+        //
+        // Foreign keys are turned off around the rebuild because `jobs` points at
+        // this table, and they are turned off outside the transaction because SQLite
+        // ignores the pragma inside one.
+        let widened = recordings_allows(connection, "recorded")?;
+        if !widened {
+            connection.pragma_update(None, "foreign_keys", "OFF")?;
+            let rebuild = connection.execute_batch(
+                r#"
+                BEGIN IMMEDIATE;
+                CREATE TABLE recordings_widened (
+                    id TEXT PRIMARY KEY,
+                    meeting_id TEXT NOT NULL REFERENCES meetings(id),
+                    kind TEXT NOT NULL
+                        CHECK (kind IN ('imported', 'microphone', 'system_audio', 'recorded')),
+                    original_name TEXT NOT NULL,
+                    state TEXT NOT NULL
+                        CHECK (state IN ('pending', 'recording', 'committed', 'failed')),
+                    managed_path TEXT,
+                    checksum TEXT,
+                    byte_count INTEGER CHECK (byte_count IS NULL OR byte_count >= 0),
+                    created_at_ms INTEGER NOT NULL,
+                    media_type TEXT
+                );
+                INSERT INTO recordings_widened
+                    SELECT id, meeting_id, kind, original_name, state, managed_path,
+                           checksum, byte_count, created_at_ms, media_type
+                      FROM recordings;
+                DROP TABLE recordings;
+                ALTER TABLE recordings_widened RENAME TO recordings;
+                CREATE INDEX recordings_meeting ON recordings(meeting_id);
+                COMMIT;
+                "#,
+            );
+            connection.pragma_update(None, "foreign_keys", "ON")?;
+            rebuild?;
+        }
+        connection.pragma_update(None, "user_version", 13)?;
     }
     Ok(())
+}
+
+/// Whether the recordings table already accepts a value for `kind`.
+///
+/// Read from the stored DDL rather than attempted with a write, so that a database
+/// already carrying the wider constraint is left untouched.
+fn recordings_allows(connection: &Connection, kind: &str) -> Result<bool> {
+    let ddl: Option<String> = connection
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'recordings'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()?;
+    Ok(ddl.map(|sql| sql.contains(kind)).unwrap_or(false))
 }
 
 fn project_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ProjectSummary> {
@@ -2413,6 +2474,41 @@ mod tests {
         assert!(joined.contains("next steps"), "must end in an action table");
         assert!(joined.contains("Never invent"), "must forbid invention");
         assert!(joined.contains("placeholder"), "must forbid placeholders");
+    }
+
+    /// Starting a recording, against the real table rather than against a reading of
+    /// it.
+    ///
+    /// The statement and the constraint were written weeks apart and disagreed: a
+    /// recording made inside LocaLog is a fourth kind and passes through a fifth
+    /// state, and the table admitted neither. Every attempt to record failed, and
+    /// because a constraint failure is an SQLite error like any other, the person was
+    /// told LocaLog could not reach its own workspace. A test that reads the source
+    /// cannot see this; only the database can.
+    #[test]
+    fn a_recording_can_be_started_in_a_real_workspace() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        let mut repository = WorkspaceRepository::open(root).unwrap();
+        let (_, meeting_id) = project_with_meeting(&mut repository, root);
+
+        repository
+            .connection
+            .execute(
+                crate::processing::START_RECORDING_ROW,
+                rusqlite::params!["recording-live", meeting_id, "recording-live-system.wav", 1],
+            )
+            .expect("the table must accept a recording that is being made");
+
+        // And it must still be reachable by the update that finishes it.
+        let finished = repository
+            .connection
+            .execute(
+                "UPDATE recordings SET state = 'committed' WHERE id = ?1",
+                ["recording-live"],
+            )
+            .unwrap();
+        assert_eq!(finished, 1, "a started recording must be finishable");
     }
 
     /// A project and a meeting, since vocabulary is always resolved through one.

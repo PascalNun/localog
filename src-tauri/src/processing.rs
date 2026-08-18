@@ -3211,6 +3211,16 @@ pub(crate) fn recording_paths(
     )
 }
 
+/// The row a recording in progress is written as.
+///
+/// Named rather than inline so that a test can put it to a real database. It once
+/// used a kind and a state the table forbade, which SQLite reported as a constraint
+/// failure, which the person starting a meeting was shown as the workspace being
+/// unreachable.
+pub(crate) const START_RECORDING_ROW: &str =
+    "INSERT INTO recordings (id, meeting_id, kind, original_name, state, created_at_ms)
+     VALUES (?1, ?2, 'recorded', ?3, 'recording', ?4)";
+
 /// Start recording a meeting, and record that it is being recorded.
 ///
 /// The row is written first. A recorder running with nothing in the database saying
@@ -3235,8 +3245,7 @@ pub(crate) fn begin_recording(
     }
 
     repository.connection.execute(
-        "INSERT INTO recordings (id, meeting_id, kind, original_name, state, created_at_ms)
-         VALUES (?1, ?2, 'recorded', ?3, 'recording', ?4)",
+        START_RECORDING_ROW,
         rusqlite::params![
             recording_id,
             meeting_id,
