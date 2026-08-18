@@ -362,6 +362,11 @@ export interface ProtocolProviderStatus {
   selectedModelDigest: string | null;
   selectedModelReady: boolean;
   message: string;
+  /**
+   * What the machine actually has, read by the backend. Null where it cannot be
+   * established — never from the browser, which cannot tell in this shell.
+   */
+  machineMemoryGb: number | null;
 }
 
 // UI code depends on this contract; fake and real adapters must preserve the same semantics.

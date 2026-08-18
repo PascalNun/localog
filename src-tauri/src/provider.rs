@@ -105,6 +105,16 @@ pub struct OllamaStatus {
     pub selected_model_digest: Option<String>,
     pub selected_model_ready: bool,
     pub message: String,
+    /// What this machine actually has, in gigabytes, or none where it cannot be
+    /// established.
+    ///
+    /// Read here rather than in the interface because the interface cannot. It asked
+    /// `navigator.deviceMemory`, which WebKit does not implement and this shell is
+    /// WebKit, so every macOS machine reported nothing, nothing was treated as the
+    /// weakest supported machine, and the model picker recommended accordingly — a
+    /// 16 GB laptop was offered a model measured at 20 figures against the
+    /// baseline's 31.
+    pub machine_memory_gb: Option<u32>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -324,6 +334,32 @@ pub struct OllamaProvider {
     generation_agent: ureq::Agent,
 }
 
+/// How much memory this machine has, in gigabytes, or none where it cannot be read.
+///
+/// The interface used to ask the browser and was told nothing on every macOS machine,
+/// because `navigator.deviceMemory` is not implemented in WebKit. Nothing was then
+/// read as the weakest supported machine and the model picker recommended for one.
+fn machine_memory_gb() -> Option<u32> {
+    #[cfg(target_os = "macos")]
+    {
+        let bytes: u64 = std::process::Command::new("sysctl")
+            .args(["-n", "hw.memsize"])
+            .output()
+            .ok()
+            .and_then(|out| String::from_utf8(out.stdout).ok())
+            .and_then(|text| text.trim().parse().ok())?;
+        u32::try_from(bytes / (1024 * 1024 * 1024))
+            .ok()
+            .filter(|gb| *gb > 0)
+    }
+    // Windows and Linux report this differently. Until each is read properly, saying
+    // nothing is honest and the interface treats it conservatively.
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
+}
+
 impl OllamaProvider {
     pub fn loopback() -> Self {
         Self::at_port(DEFAULT_PORT)
@@ -363,6 +399,7 @@ impl OllamaProvider {
         let mut status = OllamaStatus {
             endpoint: self.base_url.clone(),
             selected_model,
+            machine_memory_gb: machine_memory_gb(),
             ..OllamaStatus::default()
         };
         let version = match self.version() {
