@@ -12,7 +12,7 @@ export type AppRoute =
   | { name: 'start' }
   | { name: 'project'; projectId: string }
   | { name: 'new-project'; returnToImport: boolean }
-  | { name: 'new-meeting'; projectId: string | null }
+  | { name: 'new-meeting'; projectId: string | null; forRecording?: boolean }
   | { name: 'meeting'; meetingId: string }
   | { name: 'recording-review'; meetingId: string }
   | { name: 'recording'; meetingId: string }

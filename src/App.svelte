@@ -42,6 +42,13 @@
   const bridge = new FakeWorkflowBridge({ workspaceStore });
   let snapshot: WorkflowSnapshot | null = null;
   let route: AppRoute = { name: 'start' };
+  /// What the person chose, which is not the same as what is on screen.
+  ///
+  /// Most systems switch themselves between light and dark during the day, and an
+  /// application that picked one at launch and kept it is out of step by the evening.
+  /// So "auto" is a real choice and the default, and following the system means
+  /// listening rather than reading once.
+  let themeChoice: 'auto' | 'light' | 'dark' = 'auto';
   let theme: 'light' | 'dark' = 'light';
   let sidebarOpen = false;
   let sidebarWidth = DEFAULT_SIDEBAR_WIDTH;
@@ -159,10 +166,17 @@
 
     sidebarWidth = parseStoredSidebarWidth(localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
 
-    const savedTheme = localStorage.getItem('localog-theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    theme = savedTheme === 'dark' || (!savedTheme && prefersDark) ? 'dark' : 'light';
-    applyTheme();
+    const saved = localStorage.getItem('localog-theme');
+    themeChoice = saved === 'light' || saved === 'dark' ? saved : 'auto';
+    const system = window.matchMedia('(prefers-color-scheme: dark)');
+    const settle = () => {
+      theme = themeChoice === 'auto' ? (system.matches ? 'dark' : 'light') : themeChoice;
+      applyTheme();
+    };
+    settle();
+    // Following the system means following it, not sampling it once at launch.
+    system.addEventListener('change', settle);
+    followSystem = settle;
     bridge.getTranscriptionRuntimeStatus().then((status) => (runtimeStatus = status));
     bridge.getSpeakerSeparationStatus().then((status) => (speakerStatus = status));
     bridge.getProtocolProviderStatus().then((status) => (providerStatus = status));
@@ -332,9 +346,20 @@
     document.documentElement.style.colorScheme = theme;
   }
 
+  /// Re-settles the theme when the system changes, while the choice is auto.
+  let followSystem: (() => void) | null = null;
+
+  /// Auto, then light, then dark, then back. Three states on one control because a
+  /// fourth thing to click for something this small would cost more than it saves.
   function toggleTheme() {
-    theme = theme === 'light' ? 'dark' : 'light';
-    localStorage.setItem('localog-theme', theme);
+    themeChoice = themeChoice === 'auto' ? 'light' : themeChoice === 'light' ? 'dark' : 'auto';
+    if (themeChoice === 'auto') {
+      localStorage.removeItem('localog-theme');
+      followSystem?.();
+      return;
+    }
+    theme = themeChoice;
+    localStorage.setItem('localog-theme', themeChoice);
     applyTheme();
   }
 
@@ -357,8 +382,14 @@
     );
   }
 
-  async function createMeeting(input: NewMeetingInput) {
+  async function createMeeting(input: NewMeetingInput, forRecording = false) {
     const created = await bridge.createMeeting(input);
+    if (forRecording) {
+      // Nothing to import: the recorder writes the source. Straight to it, because
+      // somebody who chose "Record a meeting" is standing in front of the meeting.
+      navigate({ name: 'recording', meetingId: created.id });
+      return;
+    }
     await bridge.importRecording(created.id);
     navigate({ name: 'meeting', meetingId: created.id });
   }
@@ -413,6 +444,7 @@
       width={sidebarWidth}
       open={sidebarOpen}
       {theme}
+      {themeChoice}
       onNavigate={navigate}
       onClose={() => (sidebarOpen = false)}
       onToggleTheme={toggleTheme}
@@ -458,13 +490,15 @@
         />
       {:else if route.name === 'new-meeting'}
         <NewMeetingView
+          forRecording={route.name === 'new-meeting' && route.forRecording === true}
           projects={snapshot.projects}
           initialProjectId={route.projectId}
           styles={snapshot.styles}
           onCancel={() => cancelNewMeeting(route.name === 'new-meeting' ? route.projectId : null)}
           onCreateProject={() => navigate({ name: 'new-project', returnToImport: true })}
           onSelectNativeSource={workspaceStore?.selectMediaSource.bind(workspaceStore)}
-          onCreate={createMeeting}
+          onCreate={(input: NewMeetingInput) =>
+            createMeeting(input, route.name === 'new-meeting' && route.forRecording === true)}
           {draggingFile}
           {droppedRecording}
           {droppedRefusal}
