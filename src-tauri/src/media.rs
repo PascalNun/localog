@@ -601,6 +601,72 @@ pub(crate) fn parse_whisper_progress(line: &str) -> Option<u8> {
     number.parse::<u8>().ok().map(|value| value.min(100))
 }
 
+/// Combine a recording's two tracks into the one file everything downstream expects.
+///
+/// A meeting recorded here arrives as two: the room and the call. Everything after
+/// this point — normalising, transcribing, separating speakers — takes one source,
+/// and a person wants one transcript of one meeting rather than two of halves.
+///
+/// Mixed rather than concatenated, obviously, since the tracks are simultaneous. The
+/// inputs are the same length by construction, but `amix` is told the longest anyway:
+/// a recorder killed mid-second finalises its two files independently and they can
+/// differ by a checkpoint, and truncating to the shorter would silently drop the end
+/// of a meeting.
+///
+/// Both originals are kept. Mixing is the only step in this pipeline that cannot be
+/// undone from what it produces, and the tracks are worth keeping for their own sake:
+/// knowing which words came from the room and which from the call is speaker
+/// separation of the coarsest and most reliable kind, and nothing uses it yet.
+pub(crate) fn combine_tracks(
+    ffmpeg: &Path,
+    system: &Path,
+    microphone: &Path,
+    destination: &Path,
+    cancellation: &AtomicBool,
+) -> Result<(), String> {
+    let parent = destination
+        .parent()
+        .ok_or("The combined recording path is invalid.")?;
+    fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    let temporary = destination.with_extension("wav.part");
+    let _ = fs::remove_file(&temporary);
+
+    let mut command = Command::new(ffmpeg);
+    command
+        .args(["-hide_banner", "-nostdin", "-y", "-i"])
+        .arg(microphone)
+        .arg("-i")
+        .arg(system)
+        .args([
+            "-filter_complex",
+            // normalize=0 keeps each track at its own level. Averaging them, which is
+            // the default, halves a room that is already the quieter of the two.
+            "[0:a][1:a]amix=inputs=2:duration=longest:normalize=0[out]",
+            "-map",
+            "[out]",
+            "-ac",
+            "1",
+            "-c:a",
+            "pcm_s16le",
+            "-f",
+            "wav",
+        ])
+        .arg(&temporary);
+
+    if let Err(error) = run_process(
+        command,
+        cancellation,
+        ProcessLimits::with_max_output(512 * 1024),
+    ) {
+        let _ = fs::remove_file(&temporary);
+        return Err(error.to_string());
+    }
+    fs::rename(&temporary, destination).map_err(|error| {
+        let _ = fs::remove_file(&temporary);
+        error.to_string()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     /// Write a WAV where every frame's value is the millisecond it belongs to, so

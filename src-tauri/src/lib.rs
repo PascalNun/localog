@@ -945,14 +945,9 @@ async fn stop_recording(
     tauri::async_runtime::spawn_blocking(move || {
         // Stopping first and recording it second: a file finalised without a row is
         // recoverable, a row without a finalised file is not.
-        let (system_path, _microphone_path) = recorder.stop()?;
-        let relative = system_path
-            .strip_prefix(&root)
-            .unwrap_or(&system_path)
-            .to_string_lossy()
-            .to_string();
+        let (system_path, microphone_path) = recorder.stop()?;
         let _ = meeting_id;
-        processing::finish_recording(&root, &recording_id, &relative)
+        processing::finish_recording(&root, &recording_id, &system_path, &microphone_path)
             .map_err(|error| error.user_message())
     })
     .await

@@ -3250,16 +3250,54 @@ pub(crate) fn begin_recording(
     Ok((recording, recording_id))
 }
 
-/// Mark a recording finished, so the meeting can be transcribed from it.
+/// Finish a recording: combine its two tracks, check the result, and hand the
+/// meeting to the rest of the pipeline.
+///
+/// The state written here is `committed` rather than `ready`, and a checksum is
+/// recorded, because that is what transcription looks for — a recording finished any
+/// other way is a file nothing will ever read. Getting that wrong is how the first
+/// version of this shipped: it recorded perfectly and produced a meeting that could
+/// not be transcribed.
 pub(crate) fn finish_recording(
     root: &Path,
     recording_id: &str,
-    relative_system_path: &str,
+    system_path: &Path,
+    microphone_path: &Path,
 ) -> StorageResult<WorkspaceSnapshot> {
     let repository = WorkspaceRepository::open(root)?;
+    let ffmpeg = find_tool("ffmpeg").ok_or(StorageError::InvalidData(
+        "FFmpeg is needed to finish a recording and could not be found.",
+    ))?;
+
+    let combined = system_path.with_file_name(format!("{recording_id}.wav"));
+    crate::media::combine_tracks(
+        &ffmpeg,
+        system_path,
+        microphone_path,
+        &combined,
+        &std::sync::atomic::AtomicBool::new(false),
+    )
+    .map_err(|_| StorageError::InvalidData("The recording's tracks could not be combined."))?;
+
+    let bytes = std::fs::read(&combined).map_err(StorageError::Io)?;
+    let checksum = checksum_bytes(&bytes);
+    let relative = combined
+        .strip_prefix(root)
+        .unwrap_or(&combined)
+        .to_string_lossy()
+        .to_string();
+
     repository.connection.execute(
-        "UPDATE recordings SET state = 'ready', managed_path = ?2 WHERE id = ?1",
-        rusqlite::params![recording_id, relative_system_path],
+        "UPDATE recordings
+            SET state = 'committed', managed_path = ?2, checksum = ?3, byte_count = ?4
+          WHERE id = ?1",
+        rusqlite::params![recording_id, relative, checksum, bytes.len() as i64],
+    )?;
+    // The meeting has a source now, which is what every screen keys off.
+    repository.connection.execute(
+        "UPDATE meetings SET lifecycle = 'source_ready'
+          WHERE id = (SELECT meeting_id FROM recordings WHERE id = ?1)",
+        [recording_id],
     )?;
     repository.workspace_snapshot()
 }
@@ -3466,6 +3504,34 @@ fn working_transcript(
     let artifact: TranscriptArtifact = serde_json::from_slice(&bytes)
         .map_err(|_| StorageError::InvalidData("The saved transcript is invalid."))?;
     Ok((path, artifact))
+}
+
+#[cfg(test)]
+mod recording_contract {
+    /// What transcription reads before it will touch a recording.
+    ///
+    /// Pinned as text because the two ends are three hundred lines apart and were
+    /// written weeks apart: the first version of the recorder wrote `ready` with no
+    /// checksum, and produced meetings that recorded perfectly and could never be
+    /// transcribed. Nothing in the type system connects a string in one SQL statement
+    /// to a string in another.
+    #[test]
+    fn a_finished_recording_is_in_the_state_transcription_looks_for() {
+        let source = include_str!("processing.rs");
+
+        let wanted = source.contains("WHERE r.id = ?1 AND r.state = 'committed'");
+        assert!(
+            wanted,
+            "transcription's own query has changed; update this test"
+        );
+
+        let written = source.contains("SET state = 'committed', managed_path = ?2, checksum = ?3");
+        assert!(
+            written,
+            "a finished recording must be left in the state transcription requires, \
+             with the checksum it verifies"
+        );
+    }
 }
 
 #[cfg(test)]
