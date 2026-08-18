@@ -1213,3 +1213,42 @@ mod tests {
         assert_eq!(parse_whisper_progress("progress = 50"), None);
     }
 }
+
+#[cfg(test)]
+mod shipped_build {
+    /// Every filter the application asks FFmpeg for, in one place.
+    ///
+    /// The build LocaLog ships is configured down to what is used, which is right and
+    /// is also a contract nobody was checking. `amix` was left out of it — the list
+    /// predates the recorder — so combining a recording's two tracks failed on any
+    /// machine that did not happen to have a full FFmpeg installed. This machine did,
+    /// and found it instead, which is why nothing noticed.
+    const FILTERS_THE_CODE_USES: &[&str] = &["aresample", "aformat", "atrim", "volume", "amix"];
+
+    #[test]
+    fn the_ffmpeg_we_ship_has_every_filter_we_ask_it_for() {
+        let Some(ffmpeg) = crate::runtime::discover_executable(crate::runtime::FFMPEG_NAMES) else {
+            // Nothing to check against; the sidecar is built by a script, not by cargo.
+            return;
+        };
+        let listed = std::process::Command::new(&ffmpeg)
+            .args(["-hide_banner", "-filters"])
+            .output()
+            .expect("the FFmpeg we ship must run");
+        let listed = String::from_utf8_lossy(&listed.stdout);
+        let present: Vec<&str> = listed
+            .lines()
+            .filter_map(|line| line.split_whitespace().nth(1))
+            .collect();
+
+        let missing: Vec<&&str> = FILTERS_THE_CODE_USES
+            .iter()
+            .filter(|filter| !present.contains(*filter))
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "{} is missing {missing:?}; add them to scripts/build-ffmpeg-sidecar.sh and rebuild",
+            ffmpeg.display()
+        );
+    }
+}

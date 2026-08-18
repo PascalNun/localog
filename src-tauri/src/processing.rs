@@ -3517,6 +3517,119 @@ fn working_transcript(
 
 #[cfg(test)]
 mod recording_contract {
+    use super::*;
+
+    /// A one-second 16 kHz mono PCM tone, written as a WAV by hand.
+    fn write_tone(path: &std::path::Path, hertz: f32, amplitude: f32) {
+        const RATE: u32 = 16_000;
+        let frames: Vec<i16> = (0..RATE)
+            .map(|frame| {
+                let phase = frame as f32 / RATE as f32 * hertz * std::f32::consts::TAU;
+                (phase.sin() * amplitude * i16::MAX as f32) as i16
+            })
+            .collect();
+        let data: Vec<u8> = frames.iter().flat_map(|s| s.to_le_bytes()).collect();
+        let mut wav = Vec::new();
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(36 + data.len() as u32).to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&16u32.to_le_bytes());
+        wav.extend_from_slice(&1u16.to_le_bytes()); // PCM
+        wav.extend_from_slice(&1u16.to_le_bytes()); // mono
+        wav.extend_from_slice(&RATE.to_le_bytes());
+        wav.extend_from_slice(&(RATE * 2).to_le_bytes()); // byte rate
+        wav.extend_from_slice(&2u16.to_le_bytes()); // block align
+        wav.extend_from_slice(&16u16.to_le_bytes()); // bits
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&(data.len() as u32).to_le_bytes());
+        wav.extend_from_slice(&data);
+        std::fs::write(path, wav).unwrap();
+    }
+
+    /// A recording carried the whole way: two tracks in, one committed recording out.
+    ///
+    /// The two pinned strings below are the reason this exists, and they were not
+    /// enough. They check that the source says the right words; they cannot check that
+    /// the database accepts the row, that FFmpeg accepts the two tracks, or that what
+    /// is written can be found again. Every one of those has been broken at least
+    /// once. Needs FFmpeg, so it is asked for rather than assumed.
+    #[test]
+    #[ignore = "requires ffmpeg on this machine"]
+    fn two_tracks_become_one_committed_recording() {
+        find_tool("ffmpeg").expect("the FFmpeg sidecar must be built to run this");
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+
+        let mut repository = crate::storage::WorkspaceRepository::open(root).unwrap();
+        let project = repository
+            .create_project(crate::domain::NewProjectInput {
+                name: "Recorded here".to_string(),
+                description: String::new(),
+                default_language: "German".to_string(),
+            })
+            .unwrap();
+        let placeholder = root.join("placeholder.wav");
+        std::fs::write(&placeholder, b"placeholder").unwrap();
+        let meeting = repository
+            .create_meeting(crate::domain::NewMeetingInput {
+                project_id: project.id.clone(),
+                title: "Aufnahme".to_string(),
+                occurred_at: "2026-08-18".to_string(),
+                language: "German".to_string(),
+                source_name: "placeholder.wav".to_string(),
+                source_path: Some(placeholder.to_string_lossy().into_owned()),
+                style_id: "style-formal".to_string(),
+            })
+            .unwrap();
+
+        // Two real tracks of the kind the recorder writes, written here rather than
+        // generated: the shipped FFmpeg has no synthetic sources, on purpose, and a
+        // test that reaches for one is testing a build nobody gets.
+        let recording_id = "recording-carried";
+        let (system_path, microphone_path) =
+            recording_paths(root, &project.id, &meeting.id, recording_id);
+        std::fs::create_dir_all(system_path.parent().unwrap()).unwrap();
+        write_tone(&system_path, 440.0, 0.30);
+        write_tone(&microphone_path, 660.0, 0.20);
+
+        repository
+            .connection
+            .execute(
+                START_RECORDING_ROW,
+                rusqlite::params![
+                    recording_id,
+                    meeting.id,
+                    format!("{recording_id}-system.wav"),
+                    1
+                ],
+            )
+            .expect("the row a recording in progress is written as");
+        drop(repository);
+
+        finish_recording(root, recording_id, &system_path, &microphone_path)
+            .expect("a recording must finish");
+
+        let repository = crate::storage::WorkspaceRepository::open(root).unwrap();
+        let (state, checksum, relative): (String, Option<String>, Option<String>) = repository
+            .connection
+            .query_row(
+                "SELECT state, checksum, managed_path FROM recordings WHERE id = ?1",
+                [recording_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+
+        assert_eq!(state, "committed", "transcription only reads committed rows");
+        let checksum = checksum.expect("transcription verifies a checksum");
+        assert_eq!(checksum.len(), 64, "a sha-256 digest, as everywhere else");
+        let combined = root.join(relative.expect("a committed recording has a path"));
+        assert!(combined.is_file(), "the file the row points at must exist");
+        assert!(
+            combined.metadata().unwrap().len() > 1024,
+            "a two-second mix of two tracks is not a stub"
+        );
+    }
+
     /// What transcription reads before it will touch a recording.
     ///
     /// Pinned as text because the two ends are three hundred lines apart and were
