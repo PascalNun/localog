@@ -71,6 +71,24 @@ broken, then wrong, then missing.
 7. **The recording screen does not match the reference layout.** The interaction was
    built from the written direction; the reference images are the standard and it has
    not been held against them.
+8. ~~**The protocol editor scrolls inside a page that also scrolls.**~~ Fixed, needs
+   looking at. The editor was a fixed box with its own scrollbar inside a scrolling
+   workspace: two bars for one document, and no way to see how long the protocol is.
+   The editor now grows to its content and only the page scrolls.
+9. **The interface jumps when moving between Source, Transcript and Protocol.** The
+   three stages are coherent to edit in; getting between them is not.
+10. **The `+` beside Projects does not line up with the meeting counts below it.** The
+    two belong to the same column and are a few pixels apart.
+
+### Open questions, which are the owner's
+
+- **Should the editor show the document as pages?** An A4 page layout would make the
+  editor and the PDF export the same thing seen twice, and would give the header and
+  footer somewhere to live. It is also a much larger change than a flowing document,
+  and it only makes sense alongside the rendered editor rather than before it.
+- **Which comes first: the rendered editor, or the export formats?** They meet in the
+  same place — a rendered document is what a PDF is printed from — so doing the
+  editor first may make the exports nearly free, or may delay them by a week.
 
 ## What to do next, in order
 
