@@ -16,6 +16,9 @@
   export let onNavigate: (route: AppRoute) => void;
   export let onClose: () => void;
   export let onToggleTheme: () => void;
+  /// What was chosen, as against what is on screen. "Auto" looks like whichever the
+  /// system is showing, so the control has to say which of the two it is.
+  export let themeChoice: 'auto' | 'light' | 'dark' = 'auto';
   export let onResize: (width: number) => void;
   export let onResizeEnd: (width: number) => void;
 
@@ -157,7 +160,13 @@
     <button
       class="icon-button"
       onclick={onToggleTheme}
-      aria-label={`Use ${theme === 'light' ? 'dark' : 'light'} theme`}
+      aria-label={themeChoice === 'auto'
+        ? 'Following the system theme. Switch to always light.'
+        : themeChoice === 'light'
+          ? 'Always light. Switch to always dark.'
+          : 'Always dark. Switch to following the system.'}
+      title={themeChoice === 'auto' ? 'Following the system' : `Always ${themeChoice}`}
+      class:is-following={themeChoice === 'auto'}
       ><Icon name={theme === 'light' ? 'moon' : 'sun'} /></button
     >
   </div>

@@ -2896,3 +2896,13 @@ button.review-summary[aria-pressed='true'] {
   margin-top: 12px;
   background: transparent;
 }
+
+/* Following the system is the default and the quietest of the three states, so it
+   reads as unset rather than as a third setting somebody has to think about. */
+.icon-button.is-following {
+  opacity: 0.55;
+}
+.icon-button.is-following:hover,
+.icon-button.is-following:focus-visible {
+  opacity: 1;
+}

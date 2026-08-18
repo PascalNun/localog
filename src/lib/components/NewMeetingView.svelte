@@ -19,6 +19,10 @@
   /// drop a recording is before this step exists — on the start screen, with
   /// nothing open yet.
   export let draggingFile = false;
+  /// Somebody who came here from "Record a meeting" has no file and is not going to
+  /// choose one. The form asked for one anyway, and its submit guard silently
+  /// refused — the button was enabled and pressing it did nothing at all.
+  export let forRecording = false;
   export let droppedRecording: string | null = null;
   export let droppedRefusal = '';
 
@@ -83,7 +87,9 @@
 
   async function submit(event: SubmitEvent) {
     event.preventDefault();
-    if (!projectId || !sourceName || submitting) return;
+    if (!projectId || submitting) return;
+    if (!forRecording && !sourceName) return;
+    if (forRecording && !title.trim()) return;
     submitting = true;
     submitError = '';
     try {
@@ -98,9 +104,13 @@
 <main class="workspace" id="main-content">
   <header class="workspace-header compact-header">
     <div>
-      <p class="eyebrow">Structured import</p>
+      <p class="eyebrow">{forRecording ? 'Recording' : 'Structured import'}</p>
       <h1 tabindex="-1">New meeting</h1>
-      <p>Choose the recording, confirm the details, and LocaLog takes it from there.</p>
+      <p>
+        {forRecording
+          ? 'Name the meeting and choose its project. Recording starts on the next screen.'
+          : 'Choose the recording, confirm the details, and LocaLog takes it from there.'}
+      </p>
     </div>
   </header>
 
@@ -129,50 +139,52 @@
       </div>
     </section>
 
-    <section class="form-step" aria-labelledby="source-heading">
-      <div class="step-number">2</div>
-      <div class="step-content">
-        <div class="section-heading-row">
-          <div>
-            <p class="eyebrow">Source</p>
-            <h2 id="source-heading">Import recording</h2>
+    {#if !forRecording}
+      <section class="form-step" aria-labelledby="source-heading">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <div class="section-heading-row">
+            <div>
+              <p class="eyebrow">Source</p>
+              <h2 id="source-heading">Import recording</h2>
+            </div>
+            <span class="privacy-note">Your original stays where it is</span>
           </div>
-          <span class="privacy-note">Your original stays where it is</span>
+          {#if onSelectNativeSource}<button
+              class:has-source={sourceName}
+              class:dragging={draggingOver}
+              class="drop-zone"
+              type="button"
+              onclick={chooseNativeSource}
+            >
+              <span class="drop-icon"><Icon name="upload" size={30} /></span>
+              {#if sourceName}<strong>{sourceName}</strong><small
+                  >Ready to copy after you confirm this meeting</small
+                >{:else if draggingOver}<strong>Let go to import</strong><small
+                  >The original stays where it is.</small
+                >{:else}<strong>Drop a recording here, or click to choose one</strong><small
+                  >MP3, M4A, WAV, MP4, MOV and others. The original remains untouched — LocaLog
+                  copies it into its own storage.</small
+                >{/if}
+            </button>{:else}<label class:has-source={sourceName} class="drop-zone">
+              <input type="file" accept="audio/*,video/*" onchange={selectFile} />
+              <span class="drop-icon"><Icon name="upload" size={30} /></span>
+              {#if sourceName}<strong>{sourceName}</strong><small
+                  >Ready to assign to this meeting</small
+                >{:else}<strong>Choose an audio or video file</strong><small
+                  >The browser preview demonstrates the workflow without storing the file.</small
+                >{/if}
+            </label>
+          {/if}
+          {#if dropError}<p class="drop-error" role="alert">{dropError}</p>{/if}
+          {#if !onSelectNativeSource}<button
+              class="text-action demo-fixture-action"
+              type="button"
+              onclick={useFixture}>Use the synthetic demo recording</button
+            >{/if}
         </div>
-        {#if onSelectNativeSource}<button
-            class:has-source={sourceName}
-            class:dragging={draggingOver}
-            class="drop-zone"
-            type="button"
-            onclick={chooseNativeSource}
-          >
-            <span class="drop-icon"><Icon name="upload" size={30} /></span>
-            {#if sourceName}<strong>{sourceName}</strong><small
-                >Ready to copy after you confirm this meeting</small
-              >{:else if draggingOver}<strong>Let go to import</strong><small
-                >The original stays where it is.</small
-              >{:else}<strong>Drop a recording here, or click to choose one</strong><small
-                >MP3, M4A, WAV, MP4, MOV and others. The original remains untouched — LocaLog copies
-                it into its own storage.</small
-              >{/if}
-          </button>{:else}<label class:has-source={sourceName} class="drop-zone">
-            <input type="file" accept="audio/*,video/*" onchange={selectFile} />
-            <span class="drop-icon"><Icon name="upload" size={30} /></span>
-            {#if sourceName}<strong>{sourceName}</strong><small
-                >Ready to assign to this meeting</small
-              >{:else}<strong>Choose an audio or video file</strong><small
-                >The browser preview demonstrates the workflow without storing the file.</small
-              >{/if}
-          </label>
-        {/if}
-        {#if dropError}<p class="drop-error" role="alert">{dropError}</p>{/if}
-        {#if !onSelectNativeSource}<button
-            class="text-action demo-fixture-action"
-            type="button"
-            onclick={useFixture}>Use the synthetic demo recording</button
-          >{/if}
-      </div>
-    </section>
+      </section>
+    {/if}
 
     <section class="form-step" aria-labelledby="details-heading">
       <div class="step-number">3</div>
@@ -231,8 +243,14 @@
       <button class="secondary-action" type="button" onclick={onCancel}>Cancel</button><button
         class="primary-action"
         type="submit"
-        disabled={!projectId || (!sourceName && !title.trim()) || submitting}
-        >{submitting ? 'Bringing the recording in…' : 'Create meeting and import'}
+        disabled={!projectId || (forRecording ? !title.trim() : !sourceName) || submitting}
+        >{submitting
+          ? forRecording
+            ? 'Preparing…'
+            : 'Bringing the recording in…'
+          : forRecording
+            ? 'Create meeting and record'
+            : 'Create meeting and import'}
         <Icon name="arrow" /></button
       >
     </footer>

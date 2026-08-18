@@ -37,7 +37,7 @@
 
     <button
       class="import-hero-action is-secondary"
-      onclick={() => onNavigate({ name: 'new-meeting', projectId: null })}
+      onclick={() => onNavigate({ name: 'new-meeting', projectId: null, forRecording: true })}
     >
       <span class="import-icon"><Icon name="microphone" size={26} /></span>
       <span
