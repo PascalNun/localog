@@ -26,15 +26,14 @@ export interface PrintableProtocol {
 /**
  * Put the protocol on paper.
  *
- * Resolves once the print dialog has been dismissed, which is also when the sheet
- * is removed. Whether a PDF was actually saved is not knowable from here: the
- * dialog does not report back, and claiming success would be a guess.
+ * Whether a PDF was actually saved is not knowable from here: the dialog does not
+ * report back, and claiming success would be a guess.
  */
-export async function printProtocol(protocol: PrintableProtocol): Promise<void> {
-  if (typeof window === 'undefined' || typeof window.print !== 'function') {
-    throw new Error('This window cannot print.');
-  }
-
+export async function printProtocol(
+  protocol: PrintableProtocol,
+  /** How to reach the platform's own print panel, where there is one. */
+  nativePrint?: () => Promise<void>,
+): Promise<void> {
   const existing = document.getElementById(ROOT_ID);
   if (existing) existing.remove();
 
@@ -50,16 +49,20 @@ export async function printProtocol(protocol: PrintableProtocol): Promise<void> 
   ].join('');
   document.body.append(root);
 
-  try {
-    // Printing is synchronous in every engine this runs on: the call returns once
-    // the dialog closes. The await exists so callers can sequence around it.
-    await new Promise<void>((resolve) => {
-      window.print();
-      resolve();
-    });
-  } finally {
-    root.remove();
+  // The sheet is left in place rather than taken down when this returns. The
+  // macOS print panel is detached from this thread and renders the page after
+  // the call has already come back, so removing it here would print nothing. It
+  // costs nothing to leave: the sheet is hidden on screen, and the next export
+  // replaces it.
+  if (nativePrint) {
+    await nativePrint();
+    return;
   }
+
+  if (typeof window === 'undefined' || typeof window.print !== 'function') {
+    throw new Error('This window cannot print.');
+  }
+  window.print();
 }
 
 const ESCAPES: Record<string, string> = {

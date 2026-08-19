@@ -1008,6 +1008,13 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     return false;
   }
 
+  /** The platform's print panel, where there is one; the browser has its own. */
+  nativePrint(): (() => Promise<void>) | undefined {
+    const store = this.workspaceStore;
+    if (!store?.printWindow) return undefined;
+    return () => store.printWindow!();
+  }
+
   async getProtocolProviderStatus(): Promise<import('./types').ProtocolProviderStatus> {
     if (this.workspaceStore?.getProtocolProviderStatus) {
       return this.workspaceStore.getProtocolProviderStatus();

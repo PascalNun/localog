@@ -3059,9 +3059,15 @@ button.review-summary[aria-pressed='true'] {
    two different documents. 21cm less 2×2.5cm margins is 16cm, which at a
    comfortable reading size is about the 78 characters set here. */
 .protocol-document {
-  max-width: 40em;
-  padding: 8px 0 40px;
+  /* A sheet, not a column of text against the frame. The width is A4's text
+     measure and the padding is its margin, so what is edited sits on the page it
+     will be printed on rather than starting hard against the left edge. */
+  max-width: 46em;
+  padding: 40px 44px 56px;
   color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 3px;
   line-height: 1.62;
 }
 
