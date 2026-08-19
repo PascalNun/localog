@@ -52,15 +52,11 @@ describe('reading an edited document back to Markdown', () => {
   it('writes both kinds of list', () => {
     const bulleted = node('UL', [node('LI', ['Erster']), node('LI', ['Zweiter'])]);
     const numbered = node('OL', [node('LI', ['Eins']), node('LI', ['Zwei'])]);
-    expect(toMarkdown(root(bulleted, numbered))).toBe(
-      '- Erster\n- Zweiter\n\n1. Eins\n2. Zwei\n',
-    );
+    expect(toMarkdown(root(bulleted, numbered))).toBe('- Erster\n- Zweiter\n\n1. Eins\n2. Zwei\n');
   });
 
   it('indents a list inside a list rather than losing it', () => {
-    const nested = node('UL', [
-      node('LI', ['Oben', node('UL', [node('LI', ['Darunter'])])]),
-    ]);
+    const nested = node('UL', [node('LI', ['Oben', node('UL', [node('LI', ['Darunter'])])])]);
     expect(toMarkdown(root(nested))).toBe('- Oben\n  - Darunter\n');
   });
 
