@@ -143,6 +143,17 @@
       return;
     }
     currentBlock = blockOf(range.startContainer);
+
+    // Table controls follow the caret rather than a selection: nobody selects text
+    // in order to add a row.
+    const cell = cellAt(range.startContainer);
+    const table = cell?.closest('table');
+    if (table) {
+      const rect = table.getBoundingClientRect();
+      tableBox = { top: rect.top, left: rect.left };
+    } else {
+      tableBox = null;
+    }
     marks = {
       bold: document.queryCommandState('bold'),
       italic: document.queryCommandState('italic'),
@@ -169,7 +180,147 @@
 
   $: if (view !== 'document') {
     selectionBox = null;
+    tableBox = null;
     moreOpen = false;
+  }
+
+  /// Tables, which are the one thing `execCommand` has no answer for at all.
+  ///
+  /// The formal style ends in an actions table, so this is the most-used structure
+  /// in a protocol and was the least editable: the cells could be typed into and
+  /// nothing else. Adding a row is the operation somebody actually wants — one more
+  /// action agreed, one struck — so these work on the document directly and the
+  /// result is read back to Markdown like every other edit.
+  let tableBox: { top: number; left: number } | null = null;
+
+  function cellAt(node: Node | null): HTMLTableCellElement | null {
+    let at: Node | null = node;
+    while (at && at !== documentSurface) {
+      if (at.nodeType === 1) {
+        const element = at as Element;
+        if (element.tagName === 'TD' || element.tagName === 'TH') {
+          return element as HTMLTableCellElement;
+        }
+      }
+      at = at.parentNode;
+    }
+    return null;
+  }
+
+  function currentCell(): HTMLTableCellElement | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+    return cellAt(selection.getRangeAt(0).startContainer);
+  }
+
+  /// A cell that can be clicked into even when it is empty.
+  function blankCell(tag: 'td' | 'th'): HTMLTableCellElement {
+    const cell = document.createElement(tag);
+    cell.append(document.createElement('br'));
+    return cell;
+  }
+
+  function putCaretIn(cell: HTMLElement) {
+    const range = document.createRange();
+    range.selectNodeContents(cell);
+    range.collapse(true);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }
+
+  function tableCommand(
+    command:
+      'row-above' | 'row-below' | 'row-delete' | 'column-left' | 'column-right' | 'column-delete',
+  ) {
+    const cell = currentCell();
+    const row = cell?.closest('tr');
+    const table = cell?.closest('table');
+    if (!cell || !row || !table) return;
+    const column = cell.cellIndex;
+    const rows = Array.from(table.rows);
+
+    switch (command) {
+      case 'row-above':
+      case 'row-below': {
+        const fresh = document.createElement('tr');
+        for (let index = 0; index < row.cells.length; index += 1) fresh.append(blankCell('td'));
+        // A new row never goes above the header, because the first row is the
+        // header when this is read back to Markdown.
+        const isHeaderRow = row.parentElement?.tagName === 'THEAD';
+        if (command === 'row-above' && !isHeaderRow) row.before(fresh);
+        else row.after(fresh);
+        // An inserted row must land in the body even when the header was the anchor.
+        if (isHeaderRow && fresh.parentElement?.tagName === 'THEAD') {
+          const body = table.tBodies[0] ?? table.createTBody();
+          body.prepend(fresh);
+        }
+        putCaretIn(fresh.cells[0] ?? fresh);
+        break;
+      }
+      case 'row-delete': {
+        if (rows.length <= 1) {
+          table.remove();
+          break;
+        }
+        const next = rows[rows.indexOf(row) + 1] ?? rows[rows.indexOf(row) - 1];
+        row.remove();
+        if (next) putCaretIn(next.cells[Math.min(column, next.cells.length - 1)] ?? next);
+        break;
+      }
+      case 'column-left':
+      case 'column-right': {
+        const at = command === 'column-left' ? column : column + 1;
+        for (const each of rows) {
+          const tag = each.parentElement?.tagName === 'THEAD' ? 'th' : 'td';
+          const fresh = blankCell(tag);
+          const reference = each.cells[at];
+          if (reference) reference.before(fresh);
+          else each.append(fresh);
+        }
+        putCaretIn(row.cells[at] ?? cell);
+        break;
+      }
+      case 'column-delete': {
+        if ((rows[0]?.cells.length ?? 0) <= 1) {
+          table.remove();
+          break;
+        }
+        for (const each of rows) each.cells[column]?.remove();
+        const landing = row.cells[Math.min(column, row.cells.length - 1)];
+        if (landing) putCaretIn(landing);
+        break;
+      }
+    }
+
+    readDocument();
+    readSelection();
+  }
+
+  /// A new table: a header row and one row under it, which is the shape a protocol
+  /// uses. Two columns, because the actions table is a task and who owns it.
+  function insertTable() {
+    if (!documentSurface) return;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    if (!documentSurface.contains(range.commonAncestorContainer)) return;
+
+    const table = document.createElement('table');
+    const head = table.createTHead().insertRow();
+    head.append(blankCell('th'), blankCell('th'));
+    const body = table.createTBody().insertRow();
+    body.append(blankCell('td'), blankCell('td'));
+
+    // Placed after whatever block the caret is in, never inside a paragraph.
+    let block: Node | null = range.startContainer;
+    while (block && block.parentNode !== documentSurface) block = block.parentNode;
+    if (block) (block as Element).after(table);
+    else documentSurface.append(table);
+
+    putCaretIn(head.cells[0] ?? table);
+    readDocument();
+    readSelection();
   }
 
   /// Zoom, which is how large the document looks and not how large it prints.
@@ -443,6 +594,14 @@
                 <button
                   role="menuitem"
                   onclick={() => {
+                    insertTable();
+                    moreOpen = false;
+                  }}
+                  disabled={view !== 'document'}>Insert table</button
+                >
+                <button
+                  role="menuitem"
+                  onclick={() => {
                     format('insertHorizontalRule');
                     moreOpen = false;
                   }}
@@ -472,6 +631,48 @@
           <button class="secondary-action" onclick={findNext}>Next</button>
         </div>{/if}
       {#if view === 'document'}
+        {#if tableBox}
+          <div
+            class="table-toolbar"
+            role="toolbar"
+            aria-label="Table"
+            style={`top: ${tableBox.top}px; left: ${tableBox.left}px`}
+          >
+            <span class="table-toolbar-name">Table</span>
+            <span class="format-divider" aria-hidden="true"></span>
+            <button
+              class="text-action"
+              title="Add a row above"
+              onclick={() => tableCommand('row-above')}>↑ Row</button
+            >
+            <button
+              class="text-action"
+              title="Add a row below"
+              onclick={() => tableCommand('row-below')}>↓ Row</button
+            >
+            <button
+              class="text-action"
+              title="Delete this row"
+              onclick={() => tableCommand('row-delete')}>− Row</button
+            >
+            <span class="format-divider" aria-hidden="true"></span>
+            <button
+              class="text-action"
+              title="Add a column to the left"
+              onclick={() => tableCommand('column-left')}>← Col</button
+            >
+            <button
+              class="text-action"
+              title="Add a column to the right"
+              onclick={() => tableCommand('column-right')}>Col →</button
+            >
+            <button
+              class="text-action"
+              title="Delete this column"
+              onclick={() => tableCommand('column-delete')}>− Col</button
+            >
+          </div>
+        {/if}
         {#if selectionBox}
           <div
             class="selection-toolbar"

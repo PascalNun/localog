@@ -70,6 +70,29 @@ describe('reading an edited document back to Markdown', () => {
     );
   });
 
+  /// A row added to a table is empty until somebody types in it, and it has to
+  /// survive being written out and read back or adding a row loses the table.
+  it('keeps a table whose cells are empty', () => {
+    const table = node('TABLE', [
+      node('THEAD', [node('TR', [node('TH', ['Aufgabe']), node('TH', ['Verantwortlich'])])]),
+      node('TBODY', [
+        node('TR', [node('TD', ['Angebot']), node('TD', [])]),
+        node('TR', [node('TD', []), node('TD', [])]),
+      ]),
+    ]);
+    expect(toMarkdown(root(table))).toBe(
+      '| Aufgabe | Verantwortlich |\n| --- | --- |\n| Angebot |  |\n|  |  |\n',
+    );
+  });
+
+  it('pads a row that is short of columns rather than writing a ragged table', () => {
+    const table = node('TABLE', [
+      node('TR', [node('TH', ['A']), node('TH', ['B']), node('TH', ['C'])]),
+      node('TR', [node('TD', ['1'])]),
+    ]);
+    expect(toMarkdown(root(table))).toBe('| A | B | C |\n| --- | --- | --- |\n| 1 |  |  |\n');
+  });
+
   it('unwraps the div a browser puts round a pasted block', () => {
     const pasted = node('DIV', [node('H2', ['Titel']), node('P', ['Text.'])]);
     expect(toMarkdown(root(pasted))).toBe('## Titel\n\nText.\n');
