@@ -205,8 +205,22 @@ that same document printed: an A4 sheet built beside the application, with the
 heading-at-the-foot-of-a-page and split-table-row faults ruled out, and taken down
 again afterwards.
 
-What is left of (b) is the half that writes: editing still happens in the Markdown
-view, and the document view says so rather than swallowing keystrokes.
+**And (b) in full, later the same day.** The document is now typed into directly,
+with a formatting bar for headings, bold, italic, both kinds of list and quotations.
+Markdown stays the stored form, so every edit is read back into it — which matters
+more than it sounds, because what a browser leaves in an editable region is not the
+HTML this project wrote: `div`s where paragraphs were asked for, `b` where `strong`
+went in, `span`s carrying styles, and non-breaking spaces holding the caret at the
+end of a line. The reader knows only the vocabulary a protocol has and reduces
+anything else to the words inside it, because losing a stray `span` is right and
+losing the words in it never is.
+
+The property that had to hold: **a document nobody edited does not change when the
+editor merely opens it.** A test renders a protocol to HTML, reads it back, and
+requires the same Markdown out — otherwise opening the document view would rewrite
+protocols by itself. Verified in the running application in both directions: typed
+text arrives in the stored Markdown, and the H2 button turns a paragraph into a `##`
+heading there.
 
 - **d. A header and footer somebody can edit**, in the same rendered surface — the
   firm's name, the project, a page number.
