@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import type {
     AppRoute,
     MeetingSummary,
@@ -85,11 +85,89 @@
   }
 
   const BLOCK_FORMATS = [
-    { label: 'Text', tag: 'p', title: 'Ordinary paragraph' },
-    { label: 'H1', tag: 'h1', title: 'Top-level heading' },
-    { label: 'H2', tag: 'h2', title: 'Section heading' },
-    { label: 'H3', tag: 'h3', title: 'Sub-section heading' },
+    { label: 'Paragraph', tag: 'p' },
+    { label: 'Heading 1', tag: 'h1' },
+    { label: 'Heading 2', tag: 'h2' },
+    { label: 'Heading 3', tag: 'h3' },
   ];
+
+  /// What the cursor is standing in, and where it is on screen.
+  ///
+  /// The concept asks for a toolbar that appears at the selection and names the
+  /// heading level — which means the editor has to know what block the caret is in,
+  /// something `execCommand` never tells anybody. It is read from the selection
+  /// instead, on every selection change, which is the one thing the browser will say
+  /// reliably.
+  let selectionBox: { top: number; left: number } | null = null;
+  let currentBlock = 'p';
+  let marks = { bold: false, italic: false };
+  let moreOpen = false;
+
+  function blockOf(node: Node | null): string {
+    let at: Node | null = node;
+    while (at && at !== documentSurface) {
+      if (at.nodeType === 1) {
+        const tag = (at as Element).tagName.toLowerCase();
+        if (['h1', 'h2', 'h3', 'h4', 'p', 'li', 'blockquote', 'td', 'th'].includes(tag)) return tag;
+      }
+      at = at.parentNode;
+    }
+    return 'p';
+  }
+
+  function readSelection() {
+    if (view !== 'document' || !documentSurface) {
+      selectionBox = null;
+      return;
+    }
+    const selection = window.getSelection();
+    const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    if (!range || !documentSurface.contains(range.commonAncestorContainer)) {
+      selectionBox = null;
+      return;
+    }
+    currentBlock = blockOf(range.startContainer);
+    marks = {
+      bold: document.queryCommandState('bold'),
+      italic: document.queryCommandState('italic'),
+    };
+
+    // Only when something is actually selected. A caret sitting in a word is not a
+    // selection, and a toolbar that follows the caret is a toolbar in the way.
+    if (range.collapsed) {
+      selectionBox = null;
+      return;
+    }
+    const rect = range.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      selectionBox = null;
+      return;
+    }
+    selectionBox = { top: rect.top, left: rect.left + rect.width / 2 };
+  }
+
+  onMount(() => {
+    document.addEventListener('selectionchange', readSelection);
+    return () => document.removeEventListener('selectionchange', readSelection);
+  });
+
+  $: if (view !== 'document') {
+    selectionBox = null;
+    moreOpen = false;
+  }
+
+  /// Zoom, which is how large the document looks and not how large it prints.
+  ///
+  /// The two were the same control, which meant somebody making the text bigger to
+  /// read it was changing the document. The exported size lives in the document's
+  /// own appearance and is not this.
+  const ZOOM_STEPS = [0.8, 0.9, 1, 1.1, 1.25, 1.5];
+  $: zoomLabel = `${Math.round(textScale * 100)}%`;
+  function zoom(direction: -1 | 1) {
+    const at = ZOOM_STEPS.indexOf(textScale);
+    const next = at === -1 ? 2 : Math.min(ZOOM_STEPS.length - 1, Math.max(0, at + direction));
+    textScale = ZOOM_STEPS[next] ?? 1;
+  }
 
   // Evidence for the reader, not a verdict on the draft. A protocol longer than
   // the meeting it records is the failure a figure count cannot see, so length is
@@ -204,47 +282,71 @@
   <div class:without-inspector={!inspectorOpen} class="context-layout protocol-layout">
     <div class="protocol-main">
       <div class="editor-toolbar">
-        <div class="choice-row" role="group" aria-label="How to view the protocol">
-          <button
-            class="choice"
-            class:chosen={view === 'document'}
-            aria-pressed={view === 'document'}
-            onclick={() => (view = 'document')}><Icon name="document" size={15} /> Document</button
-          >
-          <button
-            class="choice"
-            class:chosen={view === 'markdown'}
-            aria-pressed={view === 'markdown'}
-            onclick={() => (view = 'markdown')}>Markdown</button
-          >
-        </div>
         <div class="editor-tools" aria-label="Editor tools">
-          <button class="text-action" onclick={() => editorCommand('undo')}>Undo</button>
-          <button class="text-action" onclick={() => editorCommand('redo')}>Redo</button>
-          <button class="text-action" onclick={() => (findOpen = !findOpen)}>Find</button>
-          <button
-            class="text-action"
-            aria-label="Decrease text size"
-            onclick={() => (textScale = Math.max(0.85, textScale - 0.1))}>A−</button
+          <button class="text-action" onclick={() => editorCommand('undo')}
+            ><Icon name="undo" size={16} /><span class="sr-only">Undo</span></button
           >
-          <button
-            class="text-action"
-            aria-label="Increase text size"
-            onclick={() => (textScale = Math.min(1.4, textScale + 0.1))}>A+</button
+          <button class="text-action" onclick={() => editorCommand('redo')}
+            ><Icon name="redo" size={16} /><span class="sr-only">Redo</span></button
           >
+          <button class="text-action" onclick={() => (findOpen = !findOpen)}
+            ><Icon name="search" size={15} /> Find</button
+          >
+          <span class="format-divider" aria-hidden="true"></span>
+          <button class="text-action" aria-label="Zoom out" onclick={() => zoom(-1)}>−</button>
+          <span class="zoom-reading">{zoomLabel}</span>
+          <button class="text-action" aria-label="Zoom in" onclick={() => zoom(1)}>+</button>
         </div>
-        <span
-          class:busy={saveState === 'saving'}
-          class:error={saveState === 'failed'}
-          class="save-state"
-          >{saveState === 'saving'
-            ? 'Saving…'
-            : saveState === 'failed'
-              ? 'Autosave failed'
-              : protocol.isDirty
-                ? 'Working edits saved'
-                : 'Revision saved'}</span
-        >
+        <div class="editor-trailing">
+          <span
+            class:busy={saveState === 'saving'}
+            class:error={saveState === 'failed'}
+            class="save-state"
+            >{saveState === 'saving'
+              ? 'Saving…'
+              : saveState === 'failed'
+                ? 'Autosave failed'
+                : protocol.isDirty
+                  ? 'Working edits saved'
+                  : 'Revision saved'}</span
+          >
+          <div class="editor-menu">
+            <button
+              class="text-action"
+              aria-haspopup="true"
+              aria-expanded={moreOpen}
+              aria-label="Document menu"
+              onclick={() => (moreOpen = !moreOpen)}>⋯</button
+            >
+            {#if moreOpen}
+              <div class="editor-menu-sheet" role="menu">
+                <button
+                  role="menuitem"
+                  onclick={() => {
+                    view = view === 'document' ? 'markdown' : 'document';
+                    moreOpen = false;
+                  }}>{view === 'document' ? 'Markdown view' : 'Document view'}</button
+                >
+                <button
+                  role="menuitem"
+                  onclick={() => {
+                    format('insertHorizontalRule');
+                    moreOpen = false;
+                  }}
+                  disabled={view !== 'document'}>Insert divider</button
+                >
+                <button
+                  role="menuitem"
+                  onclick={() => {
+                    format('removeFormat');
+                    moreOpen = false;
+                  }}
+                  disabled={view !== 'document'}>Clear formatting</button
+                >
+              </div>
+            {/if}
+          </div>
+        </div>
       </div>
       {#if findOpen}<div class="editor-find">
           <label
@@ -257,38 +359,57 @@
           <button class="secondary-action" onclick={findNext}>Next</button>
         </div>{/if}
       {#if view === 'document'}
-        <div class="format-bar" role="toolbar" aria-label="Formatting">
-          {#each BLOCK_FORMATS as block (block.tag)}
+        {#if selectionBox}
+          <div
+            class="selection-toolbar"
+            role="toolbar"
+            aria-label="Formatting"
+            style={`top: ${selectionBox.top}px; left: ${selectionBox.left}px`}
+          >
+            <label class="block-choice">
+              <span class="sr-only">Block type</span>
+              <select
+                value={BLOCK_FORMATS.some((block) => block.tag === currentBlock)
+                  ? currentBlock
+                  : 'p'}
+                onchange={(event) => format('formatBlock', event.currentTarget.value)}
+              >
+                {#each BLOCK_FORMATS as block (block.tag)}
+                  <option value={block.tag}>{block.label}</option>
+                {/each}
+              </select>
+            </label>
+            <span class="format-divider" aria-hidden="true"></span>
             <button
               class="text-action"
-              title={block.title}
-              onclick={() => format('formatBlock', block.tag)}>{block.label}</button
+              class:chosen={marks.bold}
+              title="Bold"
+              onclick={() => format('bold')}><strong>B</strong></button
             >
-          {/each}
-          <span class="format-divider" aria-hidden="true"></span>
-          <button class="text-action" title="Bold" onclick={() => format('bold')}
-            ><strong>B</strong></button
-          >
-          <button class="text-action" title="Italic" onclick={() => format('italic')}
-            ><em>I</em></button
-          >
-          <span class="format-divider" aria-hidden="true"></span>
-          <button
-            class="text-action"
-            title="Bulleted list"
-            onclick={() => format('insertUnorderedList')}>List</button
-          >
-          <button
-            class="text-action"
-            title="Numbered list"
-            onclick={() => format('insertOrderedList')}>1. List</button
-          >
-          <button
-            class="text-action"
-            title="Quotation"
-            onclick={() => format('formatBlock', 'blockquote')}>Quote</button
-          >
-        </div>
+            <button
+              class="text-action"
+              class:chosen={marks.italic}
+              title="Italic"
+              onclick={() => format('italic')}><em>I</em></button
+            >
+            <span class="format-divider" aria-hidden="true"></span>
+            <button
+              class="text-action"
+              title="Bulleted list"
+              onclick={() => format('insertUnorderedList')}>•</button
+            >
+            <button
+              class="text-action"
+              title="Numbered list"
+              onclick={() => format('insertOrderedList')}>1.</button
+            >
+            <button
+              class="text-action"
+              title="Quotation"
+              onclick={() => format('formatBlock', 'blockquote')}>&rdquo;</button
+            >
+          </div>
+        {/if}
         <!-- eslint-disable-next-line svelte/no-at-html-tags -->
         <div
           bind:this={documentSurface}

@@ -314,6 +314,41 @@ Ordered as the concept orders it, not by size.
 9. **A History timeline does not exist** (§11), though the revisions behind it do.
 10. **Zoom is not separate from body size** (§14).
 
+## Speed, measured rather than assumed
+
+The owner restated on 19 August that the program being **lightning fast** is a key
+requirement, not a preference, and that writing something in Rust rather than
+TypeScript is the right answer whenever it is faster.
+
+That bears directly on the editor, because the editor does the most work per
+keystroke of anything in the application: it reads the whole document out of the DOM
+and writes the whole thing back to Markdown on every change. So it was measured
+before anything was decided about it.
+
+On a synthetic protocol of **39,456 characters** — longer than the real ones seen so
+far — on this machine:
+
+| Step                             | Cost      |
+| -------------------------------- | --------- |
+| `readBlocks` (Markdown → blocks) | 0.14 ms   |
+| `renderMarkdown` (blocks → HTML) | 0.69 ms   |
+| `toMarkdown` (tree → Markdown)   | 0.31 ms   |
+| Walking the live DOM, in the app | ~1.8 ms\* |
+
+\* measured at 0.27 ms over 6,024 characters and scaled; the walk is linear in nodes.
+
+So a keystroke in a very long protocol costs roughly **2 ms**, against the 16.7 ms a
+frame allows. Re-rendering the HTML is not on that path at all — it is deliberately
+skipped while somebody is typing, because replacing the element under the caret would
+throw them to the top of the document.
+
+**Conclusion: this path is not a bottleneck and should not be optimised.** Writing it
+in Rust and crossing the bridge twice per keystroke would very likely be slower, not
+faster, because the cost here is the DOM walk rather than the parsing, and the DOM is
+only reachable from the webview. The number to watch is the DOM walk: if protocols
+reach a few hundred thousand characters, or if the walk shows up in a profile, the
+fix is to read only the block that changed rather than to move languages.
+
 ## The decision that shapes the rest
 
 **How much editing engine to write.**
@@ -344,8 +379,14 @@ Three ways forward, and the choice is the owner's:
 - **Keep it as it is** and accept that the editor stays a lightweight text surface,
   declining §2's tables and §3's heading control.
 
-The recommendation is the **first**, on the grounds that the supported content types
-in §2 are a short and closed list — paragraph, three headings, bold, italic, two
-lists, quote, divider, table — and a closed list is the case where owning the
-operations is tractable. The moment that list grows, the second option becomes right
-instead.
+**Settled, 19 August: the first.** The owner's instruction that the program be
+lightning fast and the code minimal, and that a large runtime dependency is the wrong
+shape for this project, rules out the second — an editing engine is precisely a
+framework that would own the editing surface. It is also the right answer on its own
+merits: the supported content types in §2 are a short and closed list — paragraph,
+three headings, bold, italic, two lists, quote, divider, table — and a closed list is
+the case where owning the operations is tractable.
+
+The measurements above say the cost of owning them is affordable. What remains
+genuinely hard is selection handling, which is where editors are difficult, and that
+is hard in every one of the three options.

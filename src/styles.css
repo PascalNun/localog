@@ -3303,22 +3303,92 @@ button.review-summary[aria-pressed='true'] {
   line-height: 1.55;
 }
 
-/* The formatting a protocol needs, and nothing further. */
-.format-bar {
+/* Formatting appears where the words are and leaves when they are let go of, so
+   that the document is what is on screen rather than the tools for changing it. */
+.selection-toolbar {
+  position: fixed;
+  z-index: 40;
   display: flex;
-  flex-wrap: wrap;
   gap: 2px;
   align-items: center;
-  margin-bottom: 14px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--line);
+  padding: 4px 5px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 16%);
+  /* Centred on the selection and lifted clear of it. */
+  transform: translate(-50%, calc(-100% - 10px));
 }
 
-.format-bar .text-action {
-  min-width: 36px;
-  min-height: 30px;
-  padding: 5px 9px;
+.selection-toolbar .text-action {
+  min-width: 32px;
+  min-height: 28px;
+  padding: 4px 8px;
   justify-content: center;
+}
+
+.selection-toolbar .text-action.chosen {
+  color: var(--ink);
+  background: var(--subtle);
+}
+
+.block-choice select {
+  min-height: 28px;
+  padding: 3px 6px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  font-size: 0.83rem;
+  font-family: inherit;
+}
+
+.editor-trailing {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.editor-menu {
+  position: relative;
+}
+
+.editor-menu-sheet {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  min-width: 190px;
+  padding: 5px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
+}
+
+.editor-menu-sheet button {
+  padding: 8px 11px;
+  color: var(--ink);
+  background: transparent;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.editor-menu-sheet button:hover:not(:disabled) {
+  background: var(--subtle);
+}
+
+.editor-menu-sheet button:disabled {
+  color: var(--faint);
+}
+
+.zoom-reading {
+  min-width: 44px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .format-divider {
