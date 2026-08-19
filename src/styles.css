@@ -3052,3 +3052,110 @@ button.review-summary[aria-pressed='true'] {
 .style-instructions .style-note {
   margin-bottom: 12px;
 }
+
+/* The protocol as a document rather than as its source.
+   The measure is A4's text column, not the window's: this is what the PDF will
+   print, and a line length that changes between the screen and the page makes the
+   two different documents. 21cm less 2×2.5cm margins is 16cm, which at a
+   comfortable reading size is about the 78 characters set here. */
+.protocol-document {
+  max-width: 40em;
+  padding: 8px 0 40px;
+  color: var(--ink);
+  line-height: 1.62;
+}
+
+.protocol-document h1,
+.protocol-document h2,
+.protocol-document h3,
+.protocol-document h4 {
+  margin: 1.7em 0 0.55em;
+  line-height: 1.28;
+}
+
+.protocol-document > :first-child {
+  margin-top: 0;
+}
+
+.protocol-document h1 {
+  font-size: 1.7em;
+}
+.protocol-document h2 {
+  font-size: 1.28em;
+}
+.protocol-document h3 {
+  font-size: 1.08em;
+}
+.protocol-document h4 {
+  font-size: 1em;
+}
+
+.protocol-document p {
+  margin: 0 0 0.95em;
+}
+
+.protocol-document ul,
+.protocol-document ol {
+  margin: 0 0 1em;
+  padding-left: 1.5em;
+}
+
+.protocol-document li {
+  margin-bottom: 0.35em;
+}
+
+.protocol-document blockquote {
+  margin: 0 0 1em;
+  padding-left: 1em;
+  color: var(--muted);
+  border-left: 2px solid var(--line-strong);
+}
+
+.protocol-document hr {
+  margin: 1.8em 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.protocol-document code {
+  padding: 1px 4px;
+  background: var(--subtle);
+  border-radius: 3px;
+  font-size: 0.92em;
+}
+
+/* A table wide enough to need it scrolls inside itself, so the document column
+   stays the width of a page. */
+.protocol-document table {
+  display: block;
+  max-width: 100%;
+  margin: 0 0 1.3em;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.protocol-document th,
+.protocol-document td {
+  padding: 8px 14px 8px 0;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+.protocol-document th {
+  color: var(--faint);
+  font-size: 0.78em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.document-note {
+  max-width: 40em;
+  padding-top: 14px;
+  color: var(--faint);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  border-top: 1px solid var(--line);
+}

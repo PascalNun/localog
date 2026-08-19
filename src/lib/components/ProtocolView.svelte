@@ -9,6 +9,7 @@
   } from '../workflow/types';
   import Icon from './Icon.svelte';
   import StageRail from './StageRail.svelte';
+  import { renderMarkdown } from '../protocol/markdown';
 
   export let project: ProjectSummary;
   export let meeting: MeetingSummary;
@@ -29,6 +30,18 @@
   let findQuery = '';
   let findOpen = false;
   let textScale = 1;
+
+  /// Which way the protocol is being looked at.
+  ///
+  /// The document is what somebody is making; the Markdown is how it is stored.
+  /// Reading the stored form to check a heading is the wrong way round, so the
+  /// document comes first and the source stays one click away for anybody who
+  /// wants it. Editing still happens in the source — the document view is not yet
+  /// writable, and saying so is better than a surface that silently discards
+  /// typing.
+  let view: 'document' | 'markdown' = 'document';
+
+  $: rendered = renderMarkdown(markdown);
 
   // Evidence for the reader, not a verdict on the draft. A protocol longer than
   // the meeting it records is the failure a figure count cannot see, so length is
@@ -143,6 +156,20 @@
   <div class:without-inspector={!inspectorOpen} class="context-layout protocol-layout">
     <div class="protocol-main">
       <div class="editor-toolbar">
+        <div class="choice-row" role="group" aria-label="How to view the protocol">
+          <button
+            class="choice"
+            class:chosen={view === 'document'}
+            aria-pressed={view === 'document'}
+            onclick={() => (view = 'document')}><Icon name="document" size={15} /> Document</button
+          >
+          <button
+            class="choice"
+            class:chosen={view === 'markdown'}
+            aria-pressed={view === 'markdown'}
+            onclick={() => (view = 'markdown')}>Markdown</button
+          >
+        </div>
         <div class="editor-tools" aria-label="Editor tools">
           <button class="text-action" onclick={() => editorCommand('undo')}>Undo</button>
           <button class="text-action" onclick={() => editorCommand('redo')}>Redo</button>
@@ -181,17 +208,32 @@
           >
           <button class="secondary-action" onclick={findNext}>Next</button>
         </div>{/if}
-      <label class="protocol-editor"
-        ><span class="sr-only">Protocol Markdown</span><textarea
-          bind:this={editor}
-          bind:value={markdown}
-          oninput={(event) => {
-            growToFit(event.currentTarget);
-            scheduleSave();
-          }}
+      {#if view === 'document'}
+        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+        <article
+          class="protocol-document"
           style={`font-size: ${textScale}rem`}
-          spellcheck="true"></textarea></label
-      >
+          aria-label="Protocol"
+        >
+          {@html rendered}
+        </article>
+        <p class="document-note">
+          Reading view. Editing is in Markdown for now — the document view cannot yet be typed into,
+          and would otherwise throw away what you wrote.
+        </p>
+      {:else}
+        <label class="protocol-editor"
+          ><span class="sr-only">Protocol Markdown</span><textarea
+            bind:this={editor}
+            bind:value={markdown}
+            oninput={(event) => {
+              growToFit(event.currentTarget);
+              scheduleSave();
+            }}
+            style={`font-size: ${textScale}rem`}
+            spellcheck="true"></textarea></label
+        >
+      {/if}
     </div>
 
     {#if inspectorOpen}
