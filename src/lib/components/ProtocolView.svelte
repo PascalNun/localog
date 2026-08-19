@@ -9,6 +9,7 @@
   } from '../workflow/types';
   import Icon from './Icon.svelte';
   import StageRail from './StageRail.svelte';
+  import { fromElement, toMarkdown } from '../protocol/html';
   import { renderMarkdown } from '../protocol/markdown';
 
   export let project: ProjectSummary;
@@ -31,17 +32,64 @@
   let findOpen = false;
   let textScale = 1;
 
-  /// Which way the protocol is being looked at.
+  /// Which way the protocol is being worked on.
   ///
   /// The document is what somebody is making; the Markdown is how it is stored.
-  /// Reading the stored form to check a heading is the wrong way round, so the
-  /// document comes first and the source stays one click away for anybody who
-  /// wants it. Editing still happens in the source — the document view is not yet
-  /// writable, and saying so is better than a surface that silently discards
-  /// typing.
+  /// Both are editable and both save to the same place, so the choice is only
+  /// about which one somebody would rather look at.
   let view: 'document' | 'markdown' = 'document';
+  let documentSurface: HTMLElement | null = null;
 
-  $: rendered = renderMarkdown(markdown);
+  /// The rendered document, held apart from what is being typed.
+  ///
+  /// Re-rendering while somebody types would replace the element under their caret
+  /// on every keystroke and throw them to the top of the document. So the HTML is
+  /// rebuilt only when the Markdown changed somewhere other than here — a revision
+  /// restored, or an edit made in the Markdown view.
+  let typingInDocument = false;
+  let renderedFrom = '';
+  let rendered = '';
+  $: if (markdown !== renderedFrom && !typingInDocument) {
+    rendered = renderMarkdown(markdown);
+    renderedFrom = markdown;
+  }
+
+  /// Read the document back after an edit.
+  ///
+  /// Markdown remains the stored form, so what a browser leaves in an editable
+  /// region — divs for paragraphs, `b` for `strong`, non-breaking spaces holding
+  /// the caret — is read back into it rather than kept.
+  function readDocument() {
+    if (!documentSurface) return;
+    typingInDocument = true;
+    markdown = toMarkdown(fromElement(documentSurface));
+    renderedFrom = markdown;
+    scheduleSave();
+    // Released after the save is scheduled, so the re-render above does not fire
+    // against the surface somebody is still typing in.
+    queueMicrotask(() => {
+      typingInDocument = false;
+    });
+  }
+
+  /// The formatting a protocol needs, and nothing further.
+  ///
+  /// `execCommand` is deprecated and is still the only thing every engine
+  /// implements for this. What it produces is not trusted: whatever it leaves
+  /// behind is read back through the same reader as everything else.
+  function format(command: string, value?: string) {
+    if (!documentSurface) return;
+    documentSurface.focus();
+    document.execCommand(command, false, value);
+    readDocument();
+  }
+
+  const BLOCK_FORMATS = [
+    { label: 'Text', tag: 'p', title: 'Ordinary paragraph' },
+    { label: 'H1', tag: 'h1', title: 'Top-level heading' },
+    { label: 'H2', tag: 'h2', title: 'Section heading' },
+    { label: 'H3', tag: 'h3', title: 'Sub-section heading' },
+  ];
 
   // Evidence for the reader, not a verdict on the draft. A protocol longer than
   // the meeting it records is the failure a figure count cannot see, so length is
@@ -209,18 +257,52 @@
           <button class="secondary-action" onclick={findNext}>Next</button>
         </div>{/if}
       {#if view === 'document'}
+        <div class="format-bar" role="toolbar" aria-label="Formatting">
+          {#each BLOCK_FORMATS as block (block.tag)}
+            <button
+              class="text-action"
+              title={block.title}
+              onclick={() => format('formatBlock', block.tag)}>{block.label}</button
+            >
+          {/each}
+          <span class="format-divider" aria-hidden="true"></span>
+          <button class="text-action" title="Bold" onclick={() => format('bold')}
+            ><strong>B</strong></button
+          >
+          <button class="text-action" title="Italic" onclick={() => format('italic')}
+            ><em>I</em></button
+          >
+          <span class="format-divider" aria-hidden="true"></span>
+          <button
+            class="text-action"
+            title="Bulleted list"
+            onclick={() => format('insertUnorderedList')}>List</button
+          >
+          <button
+            class="text-action"
+            title="Numbered list"
+            onclick={() => format('insertOrderedList')}>1. List</button
+          >
+          <button
+            class="text-action"
+            title="Quotation"
+            onclick={() => format('formatBlock', 'blockquote')}>Quote</button
+          >
+        </div>
         <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-        <article
-          class="protocol-document"
-          style={`font-size: ${textScale}rem`}
+        <div
+          bind:this={documentSurface}
+          class="protocol-document editable"
+          contenteditable="true"
+          role="textbox"
+          tabindex="0"
+          aria-multiline="true"
           aria-label="Protocol"
+          style={`font-size: ${textScale}rem`}
+          oninput={readDocument}
         >
           {@html rendered}
-        </article>
-        <p class="document-note">
-          Reading view. Editing is in Markdown for now — the document view cannot yet be typed into,
-          and would otherwise throw away what you wrote.
-        </p>
+        </div>
       {:else}
         <label class="protocol-editor"
           ><span class="sr-only">Protocol Markdown</span><textarea

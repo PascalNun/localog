@@ -3304,3 +3304,38 @@ button.review-summary[aria-pressed='true'] {
   font-size: 0.78rem;
   line-height: 1.55;
 }
+
+/* The formatting a protocol needs, and nothing further. */
+.format-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.format-bar .text-action {
+  min-width: 36px;
+  min-height: 30px;
+  padding: 5px 9px;
+  justify-content: center;
+}
+
+.format-divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 7px;
+  background: var(--line);
+}
+
+.protocol-document.editable {
+  min-height: 60vh;
+  outline: none;
+}
+
+.protocol-document.editable:focus-visible {
+  outline: 2px solid var(--action);
+  outline-offset: 8px;
+}
