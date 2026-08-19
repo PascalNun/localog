@@ -92,7 +92,14 @@ broken, then wrong, then missing.
     begins used a kind and a state the table's CHECK constraints forbade, so every
     attempt failed and the person was told the workspace was unreachable.
 12. ~~**The theme control never admitted that following the system was one of its
-    states.**~~ Fixed. Automatic was implemented and worked, but the control cycled
+    states.**~~ Fixed twice: once in Settings, and then in the sidebar, where the
+    same fault had been left standing. The small button showed a moon in light mode
+    and a sun in dark — the theme a click would _produce_, which reads as a label
+    for the current state and is the opposite of one. Automatic, which is the state
+    most people are in, had no appearance at all: it was signalled by dimming the
+    icon to 55%, which reads as "switched off", and by a tooltip nobody sees unless
+    they go looking. Each of the three states now wears its own icon — a monitor, a
+    sun, a moon — at full strength. Automatic was implemented and worked, but the control cycled
     through three states while naming only the one it would move to next, so somebody
     on automatic was never told. It is now three named states with the one in force
     shown, and it says which theme the Mac is set to.

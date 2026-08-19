@@ -12,13 +12,22 @@
   export let activeJobMeeting: string | null = null;
   export let width: number;
   export let open = false;
-  export let theme: 'light' | 'dark';
   export let onNavigate: (route: AppRoute) => void;
   export let onClose: () => void;
   export let onToggleTheme: () => void;
   /// What was chosen, as against what is on screen. "Auto" looks like whichever the
   /// system is showing, so the control has to say which of the two it is.
   export let themeChoice: 'auto' | 'light' | 'dark' = 'auto';
+
+  /// The icon names the state the control is in, not the one it would move to.
+  ///
+  /// It showed a moon in light mode and a sun in dark: the theme you would get by
+  /// clicking. That reads as a label for the current state and is the opposite of
+  /// one, and it left automatic — which is the state most people are in — with no
+  /// appearance of its own at all. Following the system was signalled by dimming
+  /// the icon to 55%, which reads as "switched off" rather than as "automatic",
+  /// and by a tooltip nobody sees unless they go looking.
+  const THEME_ICON = { auto: 'monitor', light: 'sun', dark: 'moon' } as const;
   export let onResize: (width: number) => void;
   export let onResizeEnd: (width: number) => void;
 
@@ -166,8 +175,7 @@
           ? 'Always light. Switch to always dark.'
           : 'Always dark. Switch to following the system.'}
       title={themeChoice === 'auto' ? 'Following the system' : `Always ${themeChoice}`}
-      class:is-following={themeChoice === 'auto'}
-      ><Icon name={theme === 'light' ? 'moon' : 'sun'} /></button
+      ><Icon name={THEME_ICON[themeChoice]} /></button
     >
   </div>
   <SidebarResizeHandle {width} {onResize} {onResizeEnd} />
