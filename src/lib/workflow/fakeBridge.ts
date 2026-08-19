@@ -996,6 +996,18 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     return false;
   }
 
+  async exportProtocolBytes(
+    contents: Uint8Array,
+    title: string,
+    extension: string,
+    formatName: string,
+  ): Promise<boolean> {
+    if (this.workspaceStore?.exportProtocolBytes) {
+      return this.workspaceStore.exportProtocolBytes(contents, title, extension, formatName);
+    }
+    return false;
+  }
+
   async getProtocolProviderStatus(): Promise<import('./types').ProtocolProviderStatus> {
     if (this.workspaceStore?.getProtocolProviderStatus) {
       return this.workspaceStore.getProtocolProviderStatus();

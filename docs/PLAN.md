@@ -211,12 +211,27 @@ view, and the document view says so rather than swallowing keystrokes.
 - **d. A header and footer somebody can edit**, in the same rendered surface — the
   firm's name, the project, a page number.
 
-### 4. DOCX
+### 4. DOCX — done, 19 August
 
 Independent of step 3 and does not wait for it. A `.docx` is a zip holding one XML
-document, and the mapping from the same document structure is direct. One dependency, a
-zip writer. It goes after the arc because the arc gives it a settled structure to map
-from, not because it matters less: it is what a client edits and returns.
+document, and the mapping from the same document structure is direct. It goes after
+the arc because the arc gives it a settled structure to map from, not because it
+matters less: it is what a client edits and returns.
+
+Built, and with no dependency after all. The zip writer is about a hundred lines,
+because a Word document may store its parts uncompressed and a protocol is tens of
+kilobytes — the compression would have saved nothing worth a dependency. The document
+is assembled from the same blocks and the same runs the screen and the PDF use, which
+is what the inline parser was rewritten as a scanner for: two parsers that must agree
+eventually do not.
+
+Headings, bold, italic, real bulleted and numbered lists, and the actions table as a
+table with a header row that repeats across pages. A4 with the same margins as the
+PDF. Verified without trusting this project's own code: `file` reports Microsoft Word
+2007+, `unzip -t` passes every part, all four XML parts are well-formed, and macOS
+`textutil` — Apple's Word reader, not ours — reads the whole protocol back with the
+umlauts, the m² and the table intact. **Word itself has not opened it**, which is the
+one check left, and needs a machine with Word on it.
 
 ### 5. Let a protocol style be authored
 

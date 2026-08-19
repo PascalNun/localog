@@ -1128,6 +1128,20 @@ async fn export_protocol(
     .await
 }
 
+/// Write a document the interface built, such as a Word file.
+///
+/// The bytes are assembled where the renderer lives, so that the screen, the PDF
+/// and the Word document are one document rendered three ways rather than three
+/// documents. Writing them is still done here, with the same refusals as every
+/// other export: an absolute path, never over an existing file, never half-written.
+#[tauri::command]
+async fn export_protocol_bytes(destination: String, contents: Vec<u8>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || processing::write_export(&destination, &contents))
+        .await
+        .map_err(|_| "The local storage task stopped unexpectedly.".to_string())?
+        .map_err(|error| error.user_message())
+}
+
 #[tauri::command]
 async fn save_workspace_location(
     state: State<'_, StorageState>,
@@ -1409,6 +1423,7 @@ pub fn run() {
             mark_protocol_reviewed,
             restore_protocol_revision,
             export_protocol,
+            export_protocol_bytes,
             save_workspace_location
         ])
         .run(tauri::generate_context!())

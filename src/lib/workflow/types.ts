@@ -462,6 +462,13 @@ export interface WorkflowBridge {
     onError: (error: ModelDownloadError) => void;
   }): () => void;
   exportProtocol(meetingId: string, format: 'markdown' | 'text', title: string): Promise<boolean>;
+  /** Save a document the interface built — a Word file, for now. */
+  exportProtocolBytes(
+    contents: Uint8Array,
+    title: string,
+    extension: string,
+    formatName: string,
+  ): Promise<boolean>;
   getProtocolProviderStatus(): Promise<ProtocolProviderStatus>;
   configureProtocolProvider(model: string | null): Promise<ProtocolProviderStatus>;
 }

@@ -20,7 +20,7 @@
   export let onCreateRevision: () => Promise<void>;
   export let onMarkReviewed: () => Promise<void>;
   export let onRestoreRevision: (revisionId: string) => Promise<void>;
-  export let onExport: (format: 'pdf' | 'markdown' | 'text') => void;
+  export let onExport: (format: 'pdf' | 'docx' | 'markdown' | 'text') => void;
 
   let markdown = protocol.markdown;
   let saveState: 'saved' | 'saving' | 'failed' = protocol.saveState;
@@ -334,6 +334,8 @@
           <div class="export-actions">
             <button class="primary-action full-width" onclick={() => onExport('pdf')}
               ><Icon name="download" size={16} /> Export PDF</button
+            ><button class="secondary-action full-width" onclick={() => onExport('docx')}
+              >Export Word</button
             ><button class="secondary-action full-width" onclick={() => onExport('markdown')}
               >Export Markdown</button
             ><button class="secondary-action full-width" onclick={() => onExport('text')}

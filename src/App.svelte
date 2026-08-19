@@ -13,6 +13,7 @@
   import RecordingView from './lib/components/RecordingView.svelte';
   import TranscriptView from './lib/components/TranscriptView.svelte';
   import Icon from './lib/components/Icon.svelte';
+  import { buildDocx } from './lib/protocol/docx';
   import { printProtocol } from './lib/protocol/print';
   import {
     DEFAULT_SIDEBAR_WIDTH,
@@ -419,7 +420,7 @@
     navigate(projectId ? { name: 'project', projectId } : { name: 'start' });
   }
 
-  async function exportProtocol(format: 'pdf' | 'markdown' | 'text') {
+  async function exportProtocol(format: 'pdf' | 'docx' | 'markdown' | 'text') {
     if (!meeting || !snapshot) return;
     const protocol = snapshot.protocols[meeting.id];
     if (!protocol) return;
@@ -440,6 +441,29 @@
       }
       return;
     }
+    // Word is built here too, from the same blocks the screen and the PDF use,
+    // and only the writing of it happens in Rust.
+    if (format === 'docx') {
+      const project = snapshot.projects.find((candidate) => candidate.id === meeting.projectId);
+      try {
+        const saved = await bridge.exportProtocolBytes(
+          buildDocx({
+            title: meeting.title,
+            subtitle: [project?.name, meeting.occurredAt].filter(Boolean).join(' · '),
+            markdown: protocol.markdown,
+          }),
+          meeting.title,
+          'docx',
+          'Word document',
+        );
+        if (saved) announcement = 'Word export saved';
+        else if (!isDesktop) announcement = 'Word export needs the desktop application.';
+      } catch (cause) {
+        announcement = `Word export failed: ${cause instanceof Error ? cause.message : String(cause)}`;
+      }
+      return;
+    }
+
     const name = format === 'markdown' ? 'Markdown' : 'Plain text';
     // Saying what went wrong rather than falling quietly through to a browser
     // download the desktop shell blocks. Exporting was silently doing nothing for
