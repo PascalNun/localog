@@ -232,7 +232,14 @@ heading there.
 - **d. A header and footer somebody can edit**, in the same rendered surface — the
   firm's name, the project, a page number.
 
-### 3b. The editor as a word processor — the feature list
+### 3b. The editor as a word processor
+
+**Superseded, 19 August.** The owner wrote a full concept for the editor; it is
+recorded in [EDITOR.md](EDITOR.md) along with a reading of it against what is built.
+The nine items below were a guess at the same thing and are kept because most of them
+appear in the concept too, but EDITOR.md is the document to work from.
+
+### The earlier feature list
 
 Written 19 August, after the owner used the first version. The document view can be
 typed into and carries headings, bold, italic, lists and quotations. That is a start
