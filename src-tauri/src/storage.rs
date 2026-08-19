@@ -1,5 +1,5 @@
 use crate::domain::{
-    DocumentAppearance, JobErrorSummary, JobState, JobSummary, MeetingLifecycle, MeetingSummary, NewMeetingInput,
+    DocumentAppearance, JobErrorSummary, PageFurniture, JobState, JobSummary, MeetingLifecycle, MeetingSummary, NewMeetingInput,
     NewProjectInput, ProjectSummary, ProtocolDensity, ProtocolDocument, ProtocolEvidence,
     ProtocolRevisionSummary, ProtocolStyle, SpeakerResolution, TranscriptDocument,
     TranscriptSegment, VocabularyDraft, VocabularyEntry, WorkspaceSnapshot,
@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 16;
+const CURRENT_SCHEMA_VERSION: i64 = 17;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -857,7 +857,7 @@ impl WorkspaceRepository {
         let mut statement = self.connection.prepare(
             "SELECT
                 p.id, p.name, p.description, p.default_language, p.default_style_id,
-                COUNT(m.id), p.appearance_json
+                COUNT(m.id), p.appearance_json, p.furniture_json
              FROM projects p
              LEFT JOIN meetings m ON m.project_id = p.id AND m.archived_at_ms IS NULL
              WHERE p.archived_at_ms IS NULL
@@ -1226,6 +1226,25 @@ impl WorkspaceRepository {
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
+    /// Set what repeats at the top and bottom of this project's printed pages.
+    pub fn set_project_furniture(
+        &self,
+        project_id: &str,
+        furniture: &PageFurniture,
+    ) -> Result<()> {
+        let json = serde_json::to_string(furniture)
+            .map_err(|_| StorageError::InvalidData("The header and footer could not be stored."))?;
+        let changed = self.connection.execute(
+            "UPDATE projects SET furniture_json = ?1, updated_at_ms = ?2
+             WHERE id = ?3 AND archived_at_ms IS NULL",
+            params![json, unix_time_millis(), project_id],
+        )?;
+        if changed == 0 {
+            return Err(StorageError::MissingProject);
+        }
+        Ok(())
+    }
+
     /// Set how this project's protocols are set.
     pub fn set_project_appearance(
         &self,
@@ -1251,7 +1270,7 @@ impl WorkspaceRepository {
             .query_row(
                 "SELECT
                     p.id, p.name, p.description, p.default_language, p.default_style_id,
-                    COUNT(m.id), p.appearance_json
+                    COUNT(m.id), p.appearance_json, p.furniture_json
                  FROM projects p
                  LEFT JOIN meetings m ON m.project_id = p.id AND m.archived_at_ms IS NULL
                  WHERE p.id = ?1 AND p.archived_at_ms IS NULL
@@ -2050,6 +2069,15 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             connection.execute("ALTER TABLE projects ADD COLUMN appearance_json TEXT", [])?;
         }
         connection.pragma_update(None, "user_version", 16)?;
+        version = 16;
+    }
+    if version == 16 {
+        // What repeats at the top and bottom of every printed page. Beside the
+        // appearance and for the same reason: it is the firm's, not the meeting's.
+        if !has_column(connection, "projects", "furniture_json")? {
+            connection.execute("ALTER TABLE projects ADD COLUMN furniture_json TEXT", [])?;
+        }
+        connection.pragma_update(None, "user_version", 17)?;
     }
     Ok(())
 }
@@ -2083,6 +2111,12 @@ fn project_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ProjectSummary>
         // workspace over.
         appearance: row
             .get::<_, Option<String>>(6)
+            .ok()
+            .flatten()
+            .and_then(|json| serde_json::from_str(&json).ok())
+            .unwrap_or_default(),
+        furniture: row
+            .get::<_, Option<String>>(7)
             .ok()
             .flatten()
             .and_then(|json| serde_json::from_str(&json).ok())

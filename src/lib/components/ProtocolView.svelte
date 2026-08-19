@@ -12,7 +12,18 @@
   import { fromElement, toMarkdown } from '../protocol/html';
   import { renderMarkdown } from '../protocol/markdown';
   import { APPEARANCE_CHOICES, appearanceStyle } from '../protocol/appearance';
-  import type { DocumentAppearance } from '../workflow/types';
+  import {
+    FURNITURE_FIELDS,
+    fieldLabel,
+    furnitureIsEmpty,
+    needsPageNumbers,
+  } from '../protocol/furniture';
+  import type {
+    DocumentAppearance,
+    FurnitureField,
+    FurnitureRow,
+    PageFurniture,
+  } from '../workflow/types';
 
   export let project: ProjectSummary;
   export let meeting: MeetingSummary;
@@ -26,6 +37,7 @@
   export let onExport: (format: 'pdf' | 'docx' | 'markdown' | 'text') => void;
   export let onSetAppearance: (appearance: DocumentAppearance) => Promise<void> = async () =>
     undefined;
+  export let onSetFurniture: (furniture: PageFurniture) => Promise<void> = async () => undefined;
 
   let markdown = protocol.markdown;
   let saveState: 'saved' | 'saving' | 'failed' = protocol.saveState;
@@ -195,6 +207,65 @@
   }
   $: appearance = project.appearance;
   $: documentStyle = appearanceStyle(appearance);
+
+  /// What repeats at the top and bottom of every printed page.
+  ///
+  /// Fields rather than typed text, so that a page number can be counted and a date
+  /// comes from the meeting. Typed text is one of the fields, which is how anything
+  /// the list does not cover still gets in.
+  let furnitureOpen = false;
+  $: furniture = project.furniture;
+  $: furnitureSummary = furnitureIsEmpty(furniture)
+    ? 'Nothing repeated on the page'
+    : [describeRow(furniture.header), describeRow(furniture.footer)]
+        .filter((part) => part !== '')
+        .join(' · ');
+
+  function describeRow(row: FurnitureRow) {
+    return [...row.left, ...row.centre, ...row.right].map(fieldLabel).join(', ');
+  }
+
+  async function addField(where: 'header' | 'footer', slot: keyof FurnitureRow, kind: string) {
+    if (!kind) return;
+    const field = (kind === 'text' ? { kind: 'text', value: '' } : { kind }) as FurnitureField;
+    await onSetFurniture({
+      ...furniture,
+      [where]: { ...furniture[where], [slot]: [...furniture[where][slot], field] },
+    });
+  }
+
+  async function removeField(where: 'header' | 'footer', slot: keyof FurnitureRow, at: number) {
+    await onSetFurniture({
+      ...furniture,
+      [where]: {
+        ...furniture[where],
+        [slot]: furniture[where][slot].filter((_, index) => index !== at),
+      },
+    });
+  }
+
+  async function setFieldText(
+    where: 'header' | 'footer',
+    slot: keyof FurnitureRow,
+    at: number,
+    value: string,
+  ) {
+    await onSetFurniture({
+      ...furniture,
+      [where]: {
+        ...furniture[where],
+        [slot]: furniture[where][slot].map((field, index) =>
+          index === at && field.kind === 'text' ? { kind: 'text', value } : field,
+        ),
+      },
+    });
+  }
+
+  const FURNITURE_SLOTS: { id: keyof FurnitureRow; label: string }[] = [
+    { id: 'left', label: 'Left' },
+    { id: 'centre', label: 'Centre' },
+    { id: 'right', label: 'Right' },
+  ];
 
   async function changeAppearance<K extends keyof DocumentAppearance>(
     key: K,
@@ -615,6 +686,81 @@
                 <p class="appearance-note">
                   Applies to every protocol in {project.name}, so a firm's documents look alike. It
                   changes how the protocol is set, never what it says — that is the style above.
+                </p>
+              </div>
+            {/if}
+          </div>
+          <div class="inspector-section">
+            <p class="eyebrow">Header &amp; footer</p>
+            <h3>{furnitureSummary}</h3>
+            <button
+              class="text-action inspector-disclosure"
+              aria-expanded={furnitureOpen}
+              onclick={() => (furnitureOpen = !furnitureOpen)}
+              >{furnitureOpen ? 'Done' : 'Edit header & footer'}</button
+            >
+            {#if furnitureOpen}
+              <div class="furniture-editor">
+                {#each [{ id: 'header', label: 'Header' }, { id: 'footer', label: 'Footer' }] as band (band.id)}
+                  {@const where = band.id as 'header' | 'footer'}
+                  <div class="furniture-band">
+                    <p class="eyebrow">{band.label}</p>
+                    {#each FURNITURE_SLOTS as slot (slot.id)}
+                      <div class="furniture-slot">
+                        <span class="furniture-slot-name">{slot.label}</span>
+                        <div class="furniture-chips">
+                          {#each furniture[where][slot.id] as field, at (at)}
+                            <span class="furniture-chip">
+                              {#if field.kind === 'text'}
+                                <input
+                                  value={field.value}
+                                  placeholder="Your text"
+                                  onchange={(event) =>
+                                    void setFieldText(
+                                      where,
+                                      slot.id,
+                                      at,
+                                      event.currentTarget.value,
+                                    )}
+                                />
+                              {:else}
+                                {fieldLabel(field)}
+                              {/if}
+                              <button
+                                class="furniture-remove"
+                                aria-label={`Remove ${fieldLabel(field)}`}
+                                onclick={() => void removeField(where, slot.id, at)}>×</button
+                              >
+                            </span>
+                          {/each}
+                          <select
+                            value=""
+                            aria-label={`Add to ${band.label} ${slot.label}`}
+                            onchange={(event) => {
+                              void addField(where, slot.id, event.currentTarget.value);
+                              event.currentTarget.value = '';
+                            }}
+                          >
+                            <option value="">Add…</option>
+                            {#each FURNITURE_FIELDS as choice (choice.kind)}
+                              <option value={choice.kind}>{choice.label}</option>
+                            {/each}
+                          </select>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                {/each}
+                {#if needsPageNumbers(furniture)}
+                  <p class="appearance-note">
+                    Word counts the pages itself, so the number is right there. The PDF is printed
+                    by the browser, which will not say what page it is on — the page number is left
+                    out of that one rather than printed wrongly on every sheet.
+                  </p>
+                {/if}
+                <p class="appearance-note">
+                  Applies to every protocol in {project.name}. It repeats on the printed page and is
+                  not part of the document you are editing.
                 </p>
               </div>
             {/if}

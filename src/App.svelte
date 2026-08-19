@@ -13,7 +13,7 @@
   import RecordingView from './lib/components/RecordingView.svelte';
   import TranscriptView from './lib/components/TranscriptView.svelte';
   import Icon from './lib/components/Icon.svelte';
-  import { DEFAULT_APPEARANCE } from './lib/workflow/types';
+  import { DEFAULT_APPEARANCE, EMPTY_FURNITURE } from './lib/workflow/types';
   import { buildDocx } from './lib/protocol/docx';
   import { printProtocol } from './lib/protocol/print';
   import {
@@ -28,6 +28,9 @@
   import type {
     AppRoute,
     FakeJobOutcome,
+    MeetingSummary,
+    ProjectSummary,
+    ProtocolDraft,
     NewMeetingInput,
     NewProjectInput,
     ProtocolProviderStatus,
@@ -421,6 +424,29 @@
     navigate(projectId ? { name: 'project', projectId } : { name: 'start' });
   }
 
+  /// What a header or footer field can be filled in from.
+  ///
+  /// Read at the moment of export rather than stored, because a protocol marked
+  /// reviewed after the header was set should say so on the page.
+  function documentFacts(
+    project: ProjectSummary | undefined,
+    forMeeting: MeetingSummary,
+    protocol: ProtocolDraft,
+  ) {
+    return {
+      projectName: project?.name ?? '',
+      meetingTitle: forMeeting.title,
+      meetingDate: forMeeting.occurredAt,
+      documentType: 'Protocol',
+      protocolStatus:
+        protocol.reviewState === 'reviewed'
+          ? 'Reviewed'
+          : protocol.reviewState === 'changed_since_review'
+            ? 'Changed since review'
+            : 'Draft',
+    };
+  }
+
   async function exportProtocol(format: 'pdf' | 'docx' | 'markdown' | 'text') {
     if (!meeting || !snapshot) return;
     const protocol = snapshot.protocols[meeting.id];
@@ -438,6 +464,8 @@
             subtitle: [project?.name, meeting.occurredAt].filter(Boolean).join(' · '),
             markdown: protocol.markdown,
             appearance: project?.appearance ?? DEFAULT_APPEARANCE,
+            furniture: project?.furniture ?? EMPTY_FURNITURE,
+            facts: documentFacts(project, meeting, protocol),
           },
           bridge.nativePrint(),
         );
@@ -457,6 +485,8 @@
             subtitle: [project?.name, meeting.occurredAt].filter(Boolean).join(' · '),
             markdown: protocol.markdown,
             appearance: project?.appearance ?? DEFAULT_APPEARANCE,
+            furniture: project?.furniture ?? EMPTY_FURNITURE,
+            facts: documentFacts(project, meeting, protocol),
           }),
           meeting.title,
           'docx',
@@ -680,6 +710,7 @@
           onRestoreRevision={(revisionId) => bridge.restoreProtocolRevision(meeting.id, revisionId)}
           onExport={exportProtocol}
           onSetAppearance={(appearance) => bridge.setProjectAppearance(project.id, appearance)}
+          onSetFurniture={(furniture) => bridge.setProjectFurniture(project.id, furniture)}
         />
       {:else if route.name === 'styles' || route.name === 'vocabulary'}
         <LibraryView

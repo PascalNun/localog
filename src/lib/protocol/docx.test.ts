@@ -197,6 +197,72 @@ describe('building a Word document', () => {
     expect(document).toContain('<w:sz w:val="22"/>');
   });
 
+  /// A firm's name on every page, and a page number Word counts itself.
+  describe('the header and footer', () => {
+    const withFurniture = {
+      ...protocol,
+      furniture: {
+        header: {
+          left: [{ kind: 'projectName' as const }],
+          centre: [],
+          right: [{ kind: 'meetingDate' as const }],
+        },
+        footer: {
+          left: [{ kind: 'text' as const, value: 'Protokoll' }],
+          centre: [],
+          right: [{ kind: 'pageOfCount' as const }],
+        },
+        skipFirstPage: false,
+      },
+      facts: {
+        projectName: 'Nordenstadt',
+        meetingTitle: 'Bauherrenjour-fixe',
+        meetingDate: '31 Jul 2026',
+        documentType: 'Protokoll',
+        protocolStatus: 'Entwurf',
+      },
+    };
+
+    it('adds the parts, and declares them so Word will open the file', () => {
+      const archive = buildDocx(withFurniture);
+      const paths = readZipEntries(archive).map((entry) => entry.path);
+      expect(paths).toContain('word/header1.xml');
+      expect(paths).toContain('word/footer1.xml');
+
+      const types = readEntry(archive, '[Content_Types].xml');
+      expect(types).toContain('wordprocessingml.header+xml');
+      expect(types).toContain('wordprocessingml.footer+xml');
+
+      const relationships = readEntry(archive, 'word/_rels/document.xml.rels');
+      expect(relationships).toContain('Target="header1.xml"');
+      expect(relationships).toContain('Target="footer1.xml"');
+
+      const document = readEntry(archive, 'word/document.xml');
+      expect(document).toContain('<w:headerReference w:type="default" r:id="rIdHeader"/>');
+      expect(document).toContain('<w:footerReference w:type="default" r:id="rIdFooter"/>');
+    });
+
+    it('resolves the fields, and leaves the page count to Word', () => {
+      const archive = buildDocx(withFurniture);
+      const header = readEntry(archive, 'word/header1.xml');
+      expect(header).toContain('Nordenstadt');
+      expect(header).toContain('31 Jul 2026');
+
+      const footer = readEntry(archive, 'word/footer1.xml');
+      expect(footer).toContain('Protokoll');
+      // A number nobody can know yet is a field for Word to evaluate, not a literal.
+      expect(footer).toContain('<w:instrText xml:space="preserve"> PAGE </w:instrText>');
+      expect(footer).toContain('<w:instrText xml:space="preserve"> NUMPAGES </w:instrText>');
+      expect(footer).toContain('<w:fldChar w:fldCharType="begin"/>');
+    });
+
+    it('adds nothing at all when nothing was asked for', () => {
+      const paths = readZipEntries(buildDocx(protocol)).map((entry) => entry.path);
+      expect(paths).not.toContain('word/header1.xml');
+      expect(readEntry(buildDocx(protocol), 'word/document.xml')).not.toContain('headerReference');
+    });
+  });
+
   it('builds an empty protocol without failing', () => {
     expect(() =>
       buildDocx({ title: 'Leer', subtitle: '', markdown: '', appearance: DEFAULT_APPEARANCE }),

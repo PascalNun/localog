@@ -1,6 +1,7 @@
-import { DEFAULT_APPEARANCE } from './types';
+import { DEFAULT_APPEARANCE, EMPTY_FURNITURE } from './types';
 import type {
   DocumentAppearance,
+  PageFurniture,
   ProtocolStyleDetail,
   ActiveJob,
   FakeJobOutcome,
@@ -222,6 +223,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         defaultLanguage: 'English',
         defaultStyleId: 'style-formal',
         appearance: DEFAULT_APPEARANCE,
+        furniture: EMPTY_FURNITURE,
       },
       {
         id: 'project-material-lab',
@@ -231,6 +233,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         defaultLanguage: 'English',
         defaultStyleId: 'style-working-note',
         appearance: DEFAULT_APPEARANCE,
+        furniture: EMPTY_FURNITURE,
       },
     ],
     meetings: structuredClone(initialMeetings),
@@ -359,6 +362,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
           defaultLanguage: input.defaultLanguage,
           defaultStyleId: 'style-formal',
           appearance: DEFAULT_APPEARANCE,
+          furniture: EMPTY_FURNITURE,
         };
     this.snapshot.projects = [...this.snapshot.projects, project];
     this.emit();
@@ -1010,6 +1014,21 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         ...this.snapshot,
         projects: this.snapshot.projects.map((project) =>
           project.id === projectId ? { ...project, appearance } : project,
+        ),
+      };
+    }
+    this.emit();
+  }
+
+  async setProjectFurniture(projectId: string, furniture: PageFurniture): Promise<void> {
+    if (this.workspaceStore?.setProjectFurniture) {
+      const workspace = await this.workspaceStore.setProjectFurniture(projectId, furniture);
+      this.snapshot = { ...this.snapshot, ...workspace };
+    } else {
+      this.snapshot = {
+        ...this.snapshot,
+        projects: this.snapshot.projects.map((project) =>
+          project.id === projectId ? { ...project, furniture } : project,
         ),
       };
     }

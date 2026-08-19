@@ -301,8 +301,7 @@ Ordered as the concept orders it, not by size.
    selection and leaves when it goes.
 2. **Markdown should stop being a primary mode** (§4). It is currently one of two
    equal choices at the top of the editor. It belongs behind a menu.
-3. **The inspector has no tabs** (§1, §9, §11). Document, Transcript, History.
-4. ~~**Document typography is not settable at all**~~ (§5). **Done, 20 August.** All
+3. ~~**Document typography is not settable at all**~~ (§5). **Done, 20 August.** All
    five settings exist — font, body size, heading scale, line spacing, page width —
    and all five reach the screen, the PDF and the Word file, because one module
    decides what "11 pt, standard headings, comfortable" means and the three surfaces
@@ -319,7 +318,22 @@ Ordered as the concept orders it, not by size.
    Verified in the running application: Barlow → Georgia, 11 pt → 13 pt (14.67 →
    17.33 px), leading 23.8 → 32.1, measure 675 → 555 px, and heading 1 26.6 → 41.7 px.
 
-5. **Header and footer do not exist** (§6).
+4. ~~**Header and footer do not exist**~~ (§6). **Done, 20 August.** Three slots in
+   each of the two bands, filled with fields rather than typed text — project name,
+   meeting title, meeting date, document type, status, page number, page n of m, and
+   custom text for anything the list does not cover. Held by the project, beside the
+   appearance and for the same reason.
+
+   Word gets real header and footer parts with its own `PAGE` and `NUMPAGES` field
+   codes, so the page number is counted rather than written. The print path repeats
+   the furniture on every sheet using fixed positioning, which is the only way a
+   browser will do it — and it **cannot** supply a page number, because nothing in
+   the page knows what page it is on. That field is left out of the PDF rather than
+   printed as "Page 1" on every sheet, and the editor says so where somebody adds it.
+
+5. **The inspector has no tabs** — ~~done, 20 August.~~ Document, Transcript and
+   History, with the evidence panel moved to Transcript because comparing what the
+   protocol says against what the meeting said is the job §9 gives that tab.
 6. **Tables cannot be edited** (§2) — cells can be typed into, and nothing else. The
    formal style ends in an actions table, so this is the most-used structure in the
    document and the least editable.

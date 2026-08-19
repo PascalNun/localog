@@ -30,6 +30,7 @@ export interface ProjectSummary {
   defaultLanguage: string;
   defaultStyleId: string;
   appearance: DocumentAppearance;
+  furniture: PageFurniture;
 }
 
 export interface MeetingSummary {
@@ -206,6 +207,43 @@ export interface DocumentAppearance {
   lineSpacing: 'compact' | 'comfortable' | 'spacious';
   pageWidth: 'narrow' | 'standard' | 'wide' | 'a4';
 }
+
+/**
+ * What repeats at the top and bottom of every printed page.
+ *
+ * A document property rather than body content: it is not part of what the meeting
+ * said. Each slot is a list of fields rather than free text, so that "Page 3 of 6"
+ * can be counted rather than typed; anything the list does not cover goes in as a
+ * `text` field.
+ */
+export type FurnitureField =
+  | { kind: 'projectName' }
+  | { kind: 'meetingTitle' }
+  | { kind: 'meetingDate' }
+  | { kind: 'documentType' }
+  | { kind: 'protocolStatus' }
+  | { kind: 'pageNumber' }
+  | { kind: 'pageOfCount' }
+  | { kind: 'text'; value: string };
+
+export interface FurnitureRow {
+  left: FurnitureField[];
+  centre: FurnitureField[];
+  right: FurnitureField[];
+}
+
+export interface PageFurniture {
+  header: FurnitureRow;
+  footer: FurnitureRow;
+  /** A title page usually carries its own heading and wants nothing repeated on it. */
+  skipFirstPage: boolean;
+}
+
+export const EMPTY_FURNITURE: PageFurniture = {
+  header: { left: [], centre: [], right: [] },
+  footer: { left: [], centre: [], right: [] },
+  skipFirstPage: false,
+};
 
 export const DEFAULT_APPEARANCE: DocumentAppearance = {
   font: 'barlow',
@@ -440,6 +478,7 @@ export interface WorkflowBridge {
   /** What a recording in progress is doing. Cheap; polled while the screen is open. */
   protocolStyleDetail(styleId: string): Promise<ProtocolStyleDetail>;
   setProjectAppearance(projectId: string, appearance: DocumentAppearance): Promise<void>;
+  setProjectFurniture(projectId: string, furniture: PageFurniture): Promise<void>;
   recordingStatus(): Promise<RecordingStatus>;
   startRecording(meetingId: string): Promise<void>;
   stopRecording(): Promise<void>;

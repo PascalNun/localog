@@ -3493,3 +3493,121 @@ button.review-summary[aria-pressed='true'] {
   color: var(--faint);
   font-size: 0.78rem;
 }
+
+/* Repeated on every printed page. A browser repeats a fixed element across a
+   printed document, which is the only way to get running furniture out of the
+   print path; page numbers are the one field it cannot supply. */
+@media print {
+  .print-header,
+  .print-footer {
+    position: fixed;
+    left: 0;
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    color: #444;
+    font-size: 8.5pt;
+  }
+
+  .print-header {
+    top: 0;
+  }
+
+  .print-footer {
+    bottom: 0;
+  }
+
+  .print-header > span,
+  .print-footer > span {
+    flex: 1 1 0;
+  }
+
+  .print-header > span:nth-child(2),
+  .print-footer > span:nth-child(2) {
+    text-align: center;
+  }
+
+  .print-header > span:last-child,
+  .print-footer > span:last-child {
+    text-align: right;
+  }
+}
+
+/* Fields rather than typed text, so a page number can be counted and a date comes
+   from the meeting. What is typed is one field among several. */
+.furniture-editor {
+  display: grid;
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.furniture-band {
+  display: grid;
+  gap: 7px;
+}
+
+.furniture-slot {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.furniture-slot-name {
+  padding-top: 6px;
+  color: var(--faint);
+  font-size: 0.78rem;
+}
+
+.furniture-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.furniture-chip {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 3px 4px 3px 8px;
+  background: var(--subtle);
+  border-radius: 4px;
+  font-size: 0.78rem;
+}
+
+.furniture-chip input {
+  width: 92px;
+  padding: 1px 4px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-size: 0.78rem;
+  font-family: inherit;
+}
+
+.furniture-remove {
+  padding: 0 3px;
+  color: var(--faint);
+  background: transparent;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.furniture-remove:hover {
+  color: var(--ink);
+}
+
+.furniture-chips select {
+  min-height: 26px;
+  padding: 2px 5px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-family: inherit;
+}

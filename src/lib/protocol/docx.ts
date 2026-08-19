@@ -13,7 +13,9 @@
 
 import { wordFontName, wordSizes } from './appearance';
 import { readBlocks, readInline, type Block, type Run } from './markdown';
-import type { DocumentAppearance } from '../workflow/types';
+import { resolveRow, rowIsEmpty } from './furniture';
+import type { DocumentAppearance, FurnitureRow, PageFurniture } from '../workflow/types';
+import type { DocumentFacts } from './furniture';
 import { writeZip, type ZipEntry } from './zip';
 
 export interface WordProtocol {
@@ -21,6 +23,9 @@ export interface WordProtocol {
   subtitle: string;
   markdown: string;
   appearance: DocumentAppearance;
+  /** What repeats on every page; absent means nothing does. */
+  furniture?: PageFurniture;
+  facts?: DocumentFacts;
 }
 
 const NAMESPACE =
@@ -28,18 +33,93 @@ const NAMESPACE =
   'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
 
 /** A4 with the margins a printed protocol uses, matching the PDF. */
-const PAGE =
-  '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>' +
-  '<w:pgMar w:top="1418" w:right="1134" w:bottom="1247" w:left="1134" ' +
-  'w:header="709" w:footer="709" w:gutter="0"/></w:sectPr>';
+function page(furniture: PageFurniture | undefined): string {
+  const references = [
+    furniture && !rowIsEmpty(furniture.header)
+      ? '<w:headerReference w:type="default" r:id="rIdHeader"/>'
+      : '',
+    furniture && !rowIsEmpty(furniture.footer)
+      ? '<w:footerReference w:type="default" r:id="rIdFooter"/>'
+      : '',
+  ].join('');
+  return (
+    `<w:sectPr>${references}<w:pgSz w:w="11906" w:h="16838"/>` +
+    '<w:pgMar w:top="1418" w:right="1134" w:bottom="1247" w:left="1134" ' +
+    'w:header="709" w:footer="709" w:gutter="0"/></w:sectPr>'
+  );
+}
+
+/**
+ * A header or footer part.
+ *
+ * Three slots in one paragraph, held apart by tab stops rather than by a table:
+ * a centre tab at the middle of the text column and a right tab at its end, which
+ * is how Word's own headers are built.
+ */
+function furniturePart(row: FurnitureRow, facts: DocumentFacts, kind: 'hdr' | 'ftr'): string {
+  // Word counts its own pages, so the marker is a field code rather than a number.
+  const marker = {
+    number: '\u0001PAGE\u0001',
+    ofCount: '\u0001PAGE\u0001 / \u0001NUMPAGES\u0001',
+  };
+  const slots = [
+    resolveRow(row.left, facts, marker),
+    resolveRow(row.centre, facts, marker),
+    resolveRow(row.right, facts, marker),
+  ];
+  const tag = kind === 'hdr' ? 'w:hdr' : 'w:ftr';
+  const runs = [
+    slotRuns(slots[0] ?? ''),
+    '<w:r><w:tab/></w:r>',
+    slotRuns(slots[1] ?? ''),
+    '<w:r><w:tab/></w:r>',
+    slotRuns(slots[2] ?? ''),
+  ].join('');
+  return (
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<${tag} ${NAMESPACE}><w:p><w:pPr><w:tabs>` +
+    '<w:tab w:val="center" w:pos="4819"/><w:tab w:val="right" w:pos="9638"/>' +
+    `</w:tabs><w:rPr><w:sz w:val="17"/><w:color w:val="595959"/></w:rPr></w:pPr>${runs}</w:p></${tag}>`
+  );
+}
+
+/**
+ * One slot's text, with page fields turned into the codes Word evaluates.
+ *
+ * A field is three runs — begin, the instruction, end — which is why the text
+ * arrives here with the instruction names marked out rather than already written.
+ */
+function slotRuns(text: string): string {
+  if (text === '') return '';
+  return text
+    .split('\u0001')
+    .map((piece, index) => {
+      const small = '<w:rPr><w:sz w:val="17"/><w:color w:val="595959"/></w:rPr>';
+      if (index % 2 === 0) {
+        return piece === ''
+          ? ''
+          : `<w:r>${small}<w:t xml:space="preserve">${escapeXml(piece)}</w:t></w:r>`;
+      }
+      return (
+        `<w:r>${small}<w:fldChar w:fldCharType="begin"/></w:r>` +
+        `<w:r>${small}<w:instrText xml:space="preserve"> ${piece} </w:instrText></w:r>` +
+        `<w:r>${small}<w:fldChar w:fldCharType="end"/></w:r>`
+      );
+    })
+    .join('');
+}
 
 export function buildDocx(protocol: WordProtocol): Uint8Array {
   const blocks = readBlocks(protocol.markdown);
+  const hasHeader =
+    !!protocol.furniture && !!protocol.facts && !rowIsEmpty(protocol.furniture.header);
+  const hasFooter =
+    !!protocol.furniture && !!protocol.facts && !rowIsEmpty(protocol.furniture.footer);
   const body = [
     paragraph(runs(protocol.title), 'ProtocolTitle'),
     protocol.subtitle ? paragraph(runs(protocol.subtitle), 'ProtocolSubtitle') : '',
     ...blocks.map(blockToXml),
-    PAGE,
+    page(protocol.furniture),
   ].join('');
 
   const document =
@@ -47,13 +127,31 @@ export function buildDocx(protocol: WordProtocol): Uint8Array {
     `<w:document ${NAMESPACE}><w:body>${body}</w:body></w:document>`;
 
   const entries: ZipEntry[] = [
-    { path: '[Content_Types].xml', bytes: bytes(CONTENT_TYPES) },
+    { path: '[Content_Types].xml', bytes: bytes(contentTypes(hasHeader, hasFooter)) },
     { path: '_rels/.rels', bytes: bytes(ROOT_RELATIONSHIPS) },
-    { path: 'word/_rels/document.xml.rels', bytes: bytes(DOCUMENT_RELATIONSHIPS) },
+    {
+      path: 'word/_rels/document.xml.rels',
+      bytes: bytes(documentRelationships(hasHeader, hasFooter)),
+    },
     { path: 'word/document.xml', bytes: bytes(document) },
     { path: 'word/styles.xml', bytes: bytes(styles(protocol.appearance)) },
     { path: 'word/numbering.xml', bytes: bytes(NUMBERING) },
   ];
+  const facts = protocol.facts;
+  if (protocol.furniture && facts) {
+    if (hasHeader) {
+      entries.push({
+        path: 'word/header1.xml',
+        bytes: bytes(furniturePart(protocol.furniture.header, facts, 'hdr')),
+      });
+    }
+    if (hasFooter) {
+      entries.push({
+        path: 'word/footer1.xml',
+        bytes: bytes(furniturePart(protocol.furniture.footer, facts, 'ftr')),
+      });
+    }
+  }
   return writeZip(entries);
 }
 
@@ -172,15 +270,24 @@ export function escapeXml(text: string): string {
   );
 }
 
-const CONTENT_TYPES =
-  `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-  `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
-  `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
-  `<Default Extension="xml" ContentType="application/xml"/>` +
-  `<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>` +
-  `<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>` +
-  `<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>` +
-  `</Types>`;
+function contentTypes(hasHeader: boolean, hasFooter: boolean): string {
+  return (
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+    `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
+    `<Default Extension="xml" ContentType="application/xml"/>` +
+    `<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>` +
+    `<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>` +
+    `<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>` +
+    (hasHeader
+      ? `<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>`
+      : '') +
+    (hasFooter
+      ? `<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>`
+      : '') +
+    `</Types>`
+  );
+}
 
 const ROOT_RELATIONSHIPS =
   `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
@@ -188,12 +295,18 @@ const ROOT_RELATIONSHIPS =
   `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>` +
   `</Relationships>`;
 
-const DOCUMENT_RELATIONSHIPS =
-  `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-  `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
-  `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
-  `<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>` +
-  `</Relationships>`;
+function documentRelationships(hasHeader: boolean, hasFooter: boolean): string {
+  const base = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  return (
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+    `<Relationship Id="rId1" Type="${base}/styles" Target="styles.xml"/>` +
+    `<Relationship Id="rId2" Type="${base}/numbering" Target="numbering.xml"/>` +
+    (hasHeader ? `<Relationship Id="rIdHeader" Type="${base}/header" Target="header1.xml"/>` : '') +
+    (hasFooter ? `<Relationship Id="rIdFooter" Type="${base}/footer" Target="footer1.xml"/>` : '') +
+    `</Relationships>`
+  );
+}
 
 /** Named styles, so that a person receiving this can restyle it in one place. */
 /** Named styles, so that a person receiving this can restyle it in one place. */

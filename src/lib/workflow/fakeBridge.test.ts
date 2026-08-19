@@ -1,4 +1,4 @@
-import { DEFAULT_APPEARANCE } from './types';
+import { DEFAULT_APPEARANCE, EMPTY_FURNITURE } from './types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeWorkflowBridge } from './fakeBridge';
 import type { ActiveJob, MeetingSummary, ProjectSummary } from './types';
@@ -153,6 +153,7 @@ describe('FakeWorkflowBridge', () => {
       defaultLanguage: 'English',
       defaultStyleId: 'style-formal',
       appearance: DEFAULT_APPEARANCE,
+      furniture: EMPTY_FURNITURE,
     };
     const createdProject: ProjectSummary = {
       ...persistedProject,
@@ -206,6 +207,7 @@ describe('FakeWorkflowBridge', () => {
       defaultLanguage: 'English',
       defaultStyleId: 'style-formal',
       appearance: DEFAULT_APPEARANCE,
+      furniture: EMPTY_FURNITURE,
     };
     const meeting: MeetingSummary = {
       id: 'meeting-recovery',
