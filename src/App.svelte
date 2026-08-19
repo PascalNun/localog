@@ -516,7 +516,6 @@
       {activeJobMeeting}
       width={sidebarWidth}
       open={sidebarOpen}
-      {theme}
       {themeChoice}
       onNavigate={navigate}
       onClose={() => (sidebarOpen = false)}
@@ -535,8 +534,16 @@
         <button class="mobile-wordmark" onclick={() => navigate({ name: 'start' })}>LocaLog</button>
         <button
           class="icon-button"
-          aria-label={`Use ${theme === 'light' ? 'dark' : 'light'} theme`}
-          onclick={toggleTheme}><Icon name={theme === 'light' ? 'moon' : 'sun'} /></button
+          aria-label={themeChoice === 'auto'
+            ? 'Following the system theme. Switch to always light.'
+            : themeChoice === 'light'
+              ? 'Always light. Switch to always dark.'
+              : 'Always dark. Switch to following the system.'}
+          title={themeChoice === 'auto' ? 'Following the system' : `Always ${themeChoice}`}
+          onclick={toggleTheme}
+          ><Icon
+            name={themeChoice === 'auto' ? 'monitor' : themeChoice === 'light' ? 'sun' : 'moon'}
+          /></button
         >
       </div>
 

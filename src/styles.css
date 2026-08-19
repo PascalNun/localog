@@ -2921,14 +2921,6 @@ button.review-summary[aria-pressed='true'] {
 
 /* Following the system is the default and the quietest of the three states, so it
    reads as unset rather than as a third setting somebody has to think about. */
-.icon-button.is-following {
-  opacity: 0.55;
-}
-.icon-button.is-following:hover,
-.icon-button.is-following:focus-visible {
-  opacity: 1;
-}
-
 /* A small set of named states where one is in force, rather than a control that
    cycles and can only name where it is going next. */
 .choice-row {
