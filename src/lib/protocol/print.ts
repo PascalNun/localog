@@ -12,8 +12,10 @@
  */
 
 import { appearanceStyle } from './appearance';
+import { resolveRow, rowIsEmpty } from './furniture';
+import type { DocumentFacts } from './furniture';
 import { renderMarkdown } from './markdown';
-import type { DocumentAppearance } from '../workflow/types';
+import type { DocumentAppearance, PageFurniture } from '../workflow/types';
 
 /** Where the print sheet is mounted, as a sibling of the application root. */
 const ROOT_ID = 'protocol-print-root';
@@ -25,6 +27,8 @@ export interface PrintableProtocol {
   markdown: string;
   /** How the project sets its protocols; the same values the editor shows. */
   appearance: DocumentAppearance;
+  furniture?: PageFurniture;
+  facts?: DocumentFacts;
 }
 
 /**
@@ -52,7 +56,9 @@ export async function printProtocol(
     `<h1>${escapeText(protocol.title)}</h1>`,
     protocol.subtitle ? `<p>${escapeText(protocol.subtitle)}</p>` : '',
     '</header>',
+    furnitureRow(protocol, 'header'),
     `<div class="print-body">${renderMarkdown(protocol.markdown)}</div>`,
+    furnitureRow(protocol, 'footer'),
   ].join('');
   document.body.append(root);
 
@@ -82,4 +88,25 @@ const ESCAPES: Record<string, string> = {
 
 function escapeText(text: string): string {
   return text.replace(/[&<>"']/g, (character) => ESCAPES[character] ?? character);
+}
+
+/**
+ * The header or footer, repeated on every printed page.
+ *
+ * Fixed rather than flowed, which is how a browser repeats an element across a
+ * printed document. Page numbers are the one field that cannot be honoured here —
+ * only the thing paginating knows them, and a browser will not say. They are left
+ * out rather than printed as "Page 1" on every sheet, and the editor says so.
+ */
+function furnitureRow(protocol: PrintableProtocol, which: 'header' | 'footer'): string {
+  const row = protocol.furniture?.[which];
+  const facts = protocol.facts;
+  if (!row || !facts || rowIsEmpty(row)) return '';
+  const slot = (fields: typeof row.left) =>
+    `<span>${escapeText(resolveRow(fields, facts, null))}</span>`;
+  return (
+    `<div class="print-${which}">` +
+    `${slot(row.left)}${slot(row.centre)}${slot(row.right)}` +
+    `</div>`
+  );
 }

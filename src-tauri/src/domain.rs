@@ -54,6 +54,52 @@ impl Default for DocumentAppearance {
     }
 }
 
+/// What repeats at the top and bottom of every printed page.
+///
+/// A document property rather than body content: it is not part of what the meeting
+/// said, and editing it in the document would put it in the middle of the text.
+///
+/// Each slot is a list of fields rather than free text, so that "page 3 of 6" can be
+/// counted rather than typed. Custom text is one of the field kinds, which is how
+/// anything the list does not cover gets in.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PageFurniture {
+    pub header: FurnitureRow,
+    pub footer: FurnitureRow,
+    /// A title page usually carries its own heading and wants nothing repeated on it.
+    pub skip_first_page: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct FurnitureRow {
+    pub left: Vec<FurnitureField>,
+    pub centre: Vec<FurnitureField>,
+    pub right: Vec<FurnitureField>,
+}
+
+impl FurnitureRow {
+    pub fn is_empty(&self) -> bool {
+        self.left.is_empty() && self.centre.is_empty() && self.right.is_empty()
+    }
+}
+
+/// One thing that can appear in a header or a footer.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", tag = "kind", content = "value")]
+pub enum FurnitureField {
+    ProjectName,
+    MeetingTitle,
+    MeetingDate,
+    DocumentType,
+    ProtocolStatus,
+    PageNumber,
+    /// "Page 3 of 6", which needs the count and so cannot be two separate fields.
+    PageOfCount,
+    Text(String),
+}
+
 /// The typefaces a protocol may be set in.
 ///
 /// Barlow ships with the application. The others are asked of the system, and are
@@ -129,6 +175,7 @@ pub struct ProjectSummary {
     pub default_language: String,
     pub default_style_id: String,
     pub appearance: DocumentAppearance,
+    pub furniture: PageFurniture,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]

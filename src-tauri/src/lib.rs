@@ -1145,6 +1145,20 @@ async fn set_project_appearance(
     .await
 }
 
+/// Set what repeats at the top and bottom of a project's printed pages.
+#[tauri::command]
+async fn set_project_furniture(
+    state: State<'_, StorageState>,
+    project_id: String,
+    furniture: domain::PageFurniture,
+) -> Result<WorkspaceSnapshot, String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.set_project_furniture(&project_id, &furniture)?;
+        repository.workspace_snapshot()
+    })
+    .await
+}
+
 /// Open the print dialog for this window.
 ///
 /// `window.print()` does nothing in the macOS webview — it exists as a function and
@@ -1456,6 +1470,7 @@ pub fn run() {
             export_protocol_bytes,
             print_window,
             set_project_appearance,
+            set_project_furniture,
             save_workspace_location
         ])
         .run(tauri::generate_context!())
