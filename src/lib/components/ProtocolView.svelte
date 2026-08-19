@@ -20,7 +20,7 @@
   export let onCreateRevision: () => Promise<void>;
   export let onMarkReviewed: () => Promise<void>;
   export let onRestoreRevision: (revisionId: string) => Promise<void>;
-  export let onExport: (format: 'markdown' | 'text') => void;
+  export let onExport: (format: 'pdf' | 'markdown' | 'text') => void;
 
   let markdown = protocol.markdown;
   let saveState: 'saved' | 'saving' | 'failed' = protocol.saveState;
@@ -332,13 +332,19 @@
         <div class="inspector-section">
           <p class="eyebrow">Export</p>
           <div class="export-actions">
-            <button class="primary-action full-width" onclick={() => onExport('markdown')}
-              ><Icon name="download" size={16} /> Export Markdown</button
+            <button class="primary-action full-width" onclick={() => onExport('pdf')}
+              ><Icon name="download" size={16} /> Export PDF</button
+            ><button class="secondary-action full-width" onclick={() => onExport('markdown')}
+              >Export Markdown</button
             ><button class="secondary-action full-width" onclick={() => onExport('text')}
               >Export plain text</button
             >
           </div>
         </div>
+        <p class="export-note">
+          The PDF is A4, printed from the document you are reading — choose "Save as PDF" in the
+          print dialog.
+        </p>
         <p class="refinement-note">
           Nothing here rewrites your text for you. The draft is yours to edit, and every revision is
           kept.

@@ -13,6 +13,7 @@
   import RecordingView from './lib/components/RecordingView.svelte';
   import TranscriptView from './lib/components/TranscriptView.svelte';
   import Icon from './lib/components/Icon.svelte';
+  import { printProtocol } from './lib/protocol/print';
   import {
     DEFAULT_SIDEBAR_WIDTH,
     SIDEBAR_WIDTH_STORAGE_KEY,
@@ -418,10 +419,27 @@
     navigate(projectId ? { name: 'project', projectId } : { name: 'start' });
   }
 
-  async function exportProtocol(format: 'markdown' | 'text') {
+  async function exportProtocol(format: 'pdf' | 'markdown' | 'text') {
     if (!meeting || !snapshot) return;
     const protocol = snapshot.protocols[meeting.id];
     if (!protocol) return;
+
+    // The PDF is the document printed, not a second rendering of it, so it needs
+    // no file dialog of its own: the print dialog is where a page size and a
+    // destination are chosen, and on macOS that includes saving as PDF.
+    if (format === 'pdf') {
+      const project = snapshot.projects.find((candidate) => candidate.id === meeting.projectId);
+      try {
+        await printProtocol({
+          title: meeting.title,
+          subtitle: [project?.name, meeting.occurredAt].filter(Boolean).join(' · '),
+          markdown: protocol.markdown,
+        });
+      } catch (cause) {
+        announcement = `PDF export failed: ${cause instanceof Error ? cause.message : String(cause)}`;
+      }
+      return;
+    }
     const name = format === 'markdown' ? 'Markdown' : 'Plain text';
     // Saying what went wrong rather than falling quietly through to a browser
     // download the desktop shell blocks. Exporting was silently doing nothing for

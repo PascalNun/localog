@@ -194,6 +194,20 @@ this order rather than separately:
   should not have to know what `##` means.
 - **c. PDF on A4**, by printing the rendered document with `@page` rules. Nearly free
   once (a) and (b) exist, and it needs no PDF library and no new dependency.
+
+**Done, 19 August: (a), (c), and the reading half of (b).** The renderer is written
+rather than installed — a protocol's Markdown comes from prompts this project wrote,
+a general library would carry raw HTML passthrough, and the same renderer is read by
+the editor and by every export, so what it does has to be knowable. The protocol now
+shows as a document with the Markdown one click away, at A4's text measure rather
+than the window's, so the screen and the page break in the same places. The PDF is
+that same document printed: an A4 sheet built beside the application, with the
+heading-at-the-foot-of-a-page and split-table-row faults ruled out, and taken down
+again afterwards.
+
+What is left of (b) is the half that writes: editing still happens in the Markdown
+view, and the document view says so rather than swallowing keystrokes.
+
 - **d. A header and footer somebody can edit**, in the same rendered surface — the
   firm's name, the project, a page number.
 
