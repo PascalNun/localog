@@ -3611,3 +3611,45 @@ button.review-summary[aria-pressed='true'] {
   font-size: 0.78rem;
   font-family: inherit;
 }
+
+/* Table controls follow the caret rather than a selection: nobody selects text in
+   order to add a row. Sat above the table's own top-left corner. */
+.table-toolbar {
+  position: fixed;
+  z-index: 39;
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  padding: 3px 6px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 12%);
+  transform: translateY(calc(-100% - 8px));
+}
+
+.table-toolbar .text-action {
+  min-height: 26px;
+  padding: 3px 7px;
+  font-size: 0.78rem;
+}
+
+.table-toolbar-name {
+  padding-right: 2px;
+  color: var(--faint);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* An empty cell still has to be clickable. */
+.protocol-document.editable td:empty,
+.protocol-document.editable th:empty {
+  min-width: 3em;
+}
+
+.protocol-document.editable td,
+.protocol-document.editable th {
+  min-width: 2.5em;
+}

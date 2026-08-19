@@ -334,9 +334,21 @@ Ordered as the concept orders it, not by size.
 5. **The inspector has no tabs** — ~~done, 20 August.~~ Document, Transcript and
    History, with the evidence panel moved to Transcript because comparing what the
    protocol says against what the meeting said is the job §9 gives that tab.
-6. **Tables cannot be edited** (§2) — cells can be typed into, and nothing else. The
-   formal style ends in an actions table, so this is the most-used structure in the
-   document and the least editable.
+6. ~~**Tables cannot be edited**~~ (§2). **Done, 20 August.** A row above, a row
+   below, a row removed; a column either side, a column removed; and a new table from
+   the document menu. Controls appear when the caret enters a table rather than when
+   text is selected, because nobody selects text in order to add a row.
+
+   This is the one part of the concept `execCommand` has no answer for at all, and so
+   the first real test of the decision to own the operations rather than adopt an
+   engine. They are about a hundred and twenty lines against the document, and the
+   result is read back to Markdown like every other edit. Removing the last row or
+   the last column removes the table, which is what somebody emptying a table means.
+
+   Verified in the running application by shape and by what was stored: 3r×2c → 4r×2c
+   → 4r×3c → 5r×3c → 5r×2c → 4r×2c, with text typed into a new row arriving in the
+   Markdown in the right cell.
+
 7. **AI-assisted editing does not exist** (§8).
 8. **The Transcript tab does not exist** (§9).
 9. **A History timeline does not exist** (§11), though the revisions behind it do.
