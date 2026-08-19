@@ -13,6 +13,7 @@
   import RecordingView from './lib/components/RecordingView.svelte';
   import TranscriptView from './lib/components/TranscriptView.svelte';
   import Icon from './lib/components/Icon.svelte';
+  import { DEFAULT_APPEARANCE } from './lib/workflow/types';
   import { buildDocx } from './lib/protocol/docx';
   import { printProtocol } from './lib/protocol/print';
   import {
@@ -436,6 +437,7 @@
             title: meeting.title,
             subtitle: [project?.name, meeting.occurredAt].filter(Boolean).join(' · '),
             markdown: protocol.markdown,
+            appearance: project?.appearance ?? DEFAULT_APPEARANCE,
           },
           bridge.nativePrint(),
         );
@@ -454,6 +456,7 @@
             title: meeting.title,
             subtitle: [project?.name, meeting.occurredAt].filter(Boolean).join(' · '),
             markdown: protocol.markdown,
+            appearance: project?.appearance ?? DEFAULT_APPEARANCE,
           }),
           meeting.title,
           'docx',
@@ -676,6 +679,7 @@
           onMarkReviewed={() => bridge.markReviewed(meeting.id)}
           onRestoreRevision={(revisionId) => bridge.restoreProtocolRevision(meeting.id, revisionId)}
           onExport={exportProtocol}
+          onSetAppearance={(appearance) => bridge.setProjectAppearance(project.id, appearance)}
         />
       {:else if route.name === 'styles' || route.name === 'vocabulary'}
         <LibraryView

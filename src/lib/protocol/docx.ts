@@ -11,13 +11,16 @@
  * in, so 21 is a 10.5pt body.
  */
 
+import { wordFontName, wordSizes } from './appearance';
 import { readBlocks, readInline, type Block, type Run } from './markdown';
+import type { DocumentAppearance } from '../workflow/types';
 import { writeZip, type ZipEntry } from './zip';
 
 export interface WordProtocol {
   title: string;
   subtitle: string;
   markdown: string;
+  appearance: DocumentAppearance;
 }
 
 const NAMESPACE =
@@ -48,7 +51,7 @@ export function buildDocx(protocol: WordProtocol): Uint8Array {
     { path: '_rels/.rels', bytes: bytes(ROOT_RELATIONSHIPS) },
     { path: 'word/_rels/document.xml.rels', bytes: bytes(DOCUMENT_RELATIONSHIPS) },
     { path: 'word/document.xml', bytes: bytes(document) },
-    { path: 'word/styles.xml', bytes: bytes(STYLES) },
+    { path: 'word/styles.xml', bytes: bytes(styles(protocol.appearance)) },
     { path: 'word/numbering.xml', bytes: bytes(NUMBERING) },
   ];
   return writeZip(entries);
@@ -193,72 +196,78 @@ const DOCUMENT_RELATIONSHIPS =
   `</Relationships>`;
 
 /** Named styles, so that a person receiving this can restyle it in one place. */
-const STYLES =
-  `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-  `<w:styles ${NAMESPACE}>` +
-  `<w:docDefaults><w:rPrDefault><w:rPr>` +
-  `<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="21"/></w:rPr></w:rPrDefault>` +
-  `<w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault>` +
-  `</w:docDefaults>` +
-  style('Normal', 'Normal', '', true) +
-  style(
-    'ProtocolTitle',
-    'Protocol title',
-    '<w:spacing w:after="60"/>',
-    false,
-    '<w:b/><w:sz w:val="34"/>',
-  ) +
-  style(
-    'ProtocolSubtitle',
-    'Protocol subtitle',
-    '<w:spacing w:after="360"/>',
-    false,
-    '<w:color w:val="595959"/><w:sz w:val="19"/>',
-  ) +
-  style(
-    'Heading1',
-    'heading 1',
-    '<w:keepNext/><w:spacing w:before="360" w:after="120"/>',
-    false,
-    '<w:b/><w:sz w:val="28"/>',
-  ) +
-  style(
-    'Heading2',
-    'heading 2',
-    '<w:keepNext/><w:spacing w:before="280" w:after="100"/>',
-    false,
-    '<w:b/><w:sz w:val="24"/>',
-  ) +
-  style(
-    'Heading3',
-    'heading 3',
-    '<w:keepNext/><w:spacing w:before="240" w:after="80"/>',
-    false,
-    '<w:b/><w:sz w:val="22"/>',
-  ) +
-  style(
-    'Heading4',
-    'heading 4',
-    '<w:keepNext/><w:spacing w:before="200" w:after="80"/>',
-    false,
-    '<w:b/>',
-  ) +
-  style('ListParagraph', 'List Paragraph', '<w:spacing w:after="60"/><w:ind w:left="567"/>') +
-  style(
-    'ProtocolQuote',
-    'Quote',
-    '<w:ind w:left="454"/>',
-    false,
-    '<w:i/><w:color w:val="595959"/>',
-  ) +
-  style(
-    'TableText',
-    'Table text',
-    '<w:spacing w:before="60" w:after="60"/>',
-    false,
-    '<w:sz w:val="19"/>',
-  ) +
-  `</w:styles>`;
+/** Named styles, so that a person receiving this can restyle it in one place. */
+function styles(appearance: DocumentAppearance): string {
+  const size = wordSizes(appearance);
+  const font = wordFontName(appearance.font);
+  return (
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<w:styles ${NAMESPACE}>` +
+    `<w:docDefaults><w:rPrDefault><w:rPr>` +
+    `<w:rFonts w:ascii="${font}" w:hAnsi="${font}"/><w:sz w:val="${size.body}"/></w:rPr></w:rPrDefault>` +
+    `<w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="${size.line}" w:lineRule="auto"/></w:pPr></w:pPrDefault>` +
+    `</w:docDefaults>` +
+    style('Normal', 'Normal', '', true) +
+    style(
+      'ProtocolTitle',
+      'Protocol title',
+      '<w:spacing w:after="60"/>',
+      false,
+      `<w:b/><w:sz w:val="${Math.round(size.heading1 * 1.2)}"/>`,
+    ) +
+    style(
+      'ProtocolSubtitle',
+      'Protocol subtitle',
+      '<w:spacing w:after="360"/>',
+      false,
+      `<w:color w:val="595959"/><w:sz w:val="${Math.round(size.body * 0.9)}"/>`,
+    ) +
+    style(
+      'Heading1',
+      'heading 1',
+      '<w:keepNext/><w:spacing w:before="360" w:after="120"/>',
+      false,
+      `<w:b/><w:sz w:val="${size.heading1}"/>`,
+    ) +
+    style(
+      'Heading2',
+      'heading 2',
+      '<w:keepNext/><w:spacing w:before="280" w:after="100"/>',
+      false,
+      `<w:b/><w:sz w:val="${size.heading2}"/>`,
+    ) +
+    style(
+      'Heading3',
+      'heading 3',
+      '<w:keepNext/><w:spacing w:before="240" w:after="80"/>',
+      false,
+      `<w:b/><w:sz w:val="${size.heading3}"/>`,
+    ) +
+    style(
+      'Heading4',
+      'heading 4',
+      '<w:keepNext/><w:spacing w:before="200" w:after="80"/>',
+      false,
+      `<w:b/><w:sz w:val="${size.heading4}"/>`,
+    ) +
+    style('ListParagraph', 'List Paragraph', '<w:spacing w:after="60"/><w:ind w:left="567"/>') +
+    style(
+      'ProtocolQuote',
+      'Quote',
+      '<w:ind w:left="454"/>',
+      false,
+      '<w:i/><w:color w:val="595959"/>',
+    ) +
+    style(
+      'TableText',
+      'Table text',
+      '<w:spacing w:before="60" w:after="60"/>',
+      false,
+      `<w:sz w:val="${Math.round(size.body * 0.9)}"/>`,
+    ) +
+    `</w:styles>`
+  );
+}
 
 function style(
   id: string,

@@ -11,7 +11,9 @@
  * down afterwards, so nothing about the editor's own layout leaks into the sheet.
  */
 
+import { appearanceStyle } from './appearance';
 import { renderMarkdown } from './markdown';
+import type { DocumentAppearance } from '../workflow/types';
 
 /** Where the print sheet is mounted, as a sibling of the application root. */
 const ROOT_ID = 'protocol-print-root';
@@ -21,6 +23,8 @@ export interface PrintableProtocol {
   /** Shown under the title: the project, and the date the meeting happened. */
   subtitle: string;
   markdown: string;
+  /** How the project sets its protocols; the same values the editor shows. */
+  appearance: DocumentAppearance;
 }
 
 /**
@@ -40,6 +44,9 @@ export async function printProtocol(
   const root = document.createElement('div');
   root.id = ROOT_ID;
   root.setAttribute('aria-hidden', 'true');
+  // The page is set the way the screen is set. They read the same values, so a
+  // protocol cannot print in a typeface nobody chose.
+  root.setAttribute('style', appearanceStyle(protocol.appearance));
   root.innerHTML = [
     '<header class="print-masthead">',
     `<h1>${escapeText(protocol.title)}</h1>`,

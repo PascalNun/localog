@@ -1,4 +1,6 @@
+import { DEFAULT_APPEARANCE } from './types';
 import type {
+  DocumentAppearance,
   ProtocolStyleDetail,
   ActiveJob,
   FakeJobOutcome,
@@ -219,6 +221,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         meetingCount: initialMeetings.length,
         defaultLanguage: 'English',
         defaultStyleId: 'style-formal',
+        appearance: DEFAULT_APPEARANCE,
       },
       {
         id: 'project-material-lab',
@@ -227,6 +230,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         meetingCount: 0,
         defaultLanguage: 'English',
         defaultStyleId: 'style-working-note',
+        appearance: DEFAULT_APPEARANCE,
       },
     ],
     meetings: structuredClone(initialMeetings),
@@ -354,6 +358,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
           meetingCount: 0,
           defaultLanguage: input.defaultLanguage,
           defaultStyleId: 'style-formal',
+          appearance: DEFAULT_APPEARANCE,
         };
     this.snapshot.projects = [...this.snapshot.projects, project];
     this.emit();
@@ -994,6 +999,21 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       return this.workspaceStore.exportProtocol(meetingId, format, title);
     }
     return false;
+  }
+
+  async setProjectAppearance(projectId: string, appearance: DocumentAppearance): Promise<void> {
+    if (this.workspaceStore?.setProjectAppearance) {
+      const workspace = await this.workspaceStore.setProjectAppearance(projectId, appearance);
+      this.snapshot = { ...this.snapshot, ...workspace };
+    } else {
+      this.snapshot = {
+        ...this.snapshot,
+        projects: this.snapshot.projects.map((project) =>
+          project.id === projectId ? { ...project, appearance } : project,
+        ),
+      };
+    }
+    this.emit();
   }
 
   async exportProtocolBytes(

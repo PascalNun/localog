@@ -302,9 +302,23 @@ Ordered as the concept orders it, not by size.
 2. **Markdown should stop being a primary mode** (§4). It is currently one of two
    equal choices at the top of the editor. It belongs behind a menu.
 3. **The inspector has no tabs** (§1, §9, §11). Document, Transcript, History.
-4. **Document typography is not settable at all** (§5). Font, body size, heading
-   scale, line spacing, document width — none of them exist, and all five need to
-   reach the screen, the PDF and the Word file together.
+4. ~~**Document typography is not settable at all**~~ (§5). **Done, 20 August.** All
+   five settings exist — font, body size, heading scale, line spacing, page width —
+   and all five reach the screen, the PDF and the Word file, because one module
+   decides what "11 pt, standard headings, comfortable" means and the three surfaces
+   read it rather than each interpreting it. A test requires that a project set to
+   Georgia at 13pt produces a Word file naming Georgia at 26 half-points, since a
+   setting that changes the screen and not the export is worse than no setting: the
+   document somebody approved would not be the document their client opens.
+
+   Held by the **project**, not by each protocol, on the grounds that the reason
+   anybody sets it is that a firm's documents should look alike. The panel says so
+   in a line rather than leaving it to be discovered. If that is the wrong unit it
+   is a small change.
+
+   Verified in the running application: Barlow → Georgia, 11 pt → 13 pt (14.67 →
+   17.33 px), leading 23.8 → 32.1, measure 675 → 555 px, and heading 1 26.6 → 41.7 px.
+
 5. **Header and footer do not exist** (§6).
 6. **Tables cannot be edited** (§2) — cells can be typed into, and nothing else. The
    formal style ends in an actions table, so this is the most-used structure in the
