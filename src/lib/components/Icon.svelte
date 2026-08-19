@@ -16,7 +16,9 @@
     | 'pause'
     | 'play'
     | 'plus'
+    | 'redo'
     | 'search'
+    | 'undo'
     | 'settings'
     | 'sun'
     | 'upload'
@@ -79,6 +81,10 @@
     <path d="m9 7 8 5-8 5z" />
   {:else if name === 'plus'}
     <path d="M12 5v14M5 12h14" />
+  {:else if name === 'undo'}
+    <path d="M3 8h11a5 5 0 0 1 0 10h-6M3 8l4-4M3 8l4 4" />
+  {:else if name === 'redo'}
+    <path d="M21 8H10a5 5 0 0 0 0 10h6M21 8l-4-4M21 8l-4 4" />
   {:else if name === 'search'}
     <circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" />
   {:else if name === 'settings'}
