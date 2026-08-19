@@ -3051,16 +3051,35 @@ button.review-summary[aria-pressed='true'] {
    two different documents. 21cm less 2×2.5cm margins is 16cm, which at a
    comfortable reading size is about the 78 characters set here. */
 .protocol-document {
-  /* A sheet, not a column of text against the frame. The width is A4's text
-     measure and the padding is its margin, so what is edited sits on the page it
-     will be printed on rather than starting hard against the left edge. */
-  max-width: 46em;
+  /* A sheet, not a column of text against the frame: the measure and the size come
+     from the project's appearance, and the padding is the page's margin, so what is
+     edited sits on the page it will be printed on.
+
+     Zoom multiplies the size and nothing else. It is how large the document looks,
+     not how large it prints, so it must not reach the stored appearance. */
+  --zoom: 1;
+  max-width: var(--document-measure, 46em);
   padding: 40px 44px 56px;
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 3px;
-  line-height: 1.62;
+  font-family: var(--document-font, inherit);
+  font-size: calc(var(--document-size, 1rem) * var(--zoom));
+  line-height: var(--document-leading, 1.62);
+}
+
+.protocol-document h1 {
+  font-size: var(--heading-1, 1.7em);
+}
+.protocol-document h2 {
+  font-size: var(--heading-2, 1.28em);
+}
+.protocol-document h3 {
+  font-size: var(--heading-3, 1.08em);
+}
+.protocol-document h4 {
+  font-size: var(--heading-4, 1em);
 }
 
 .protocol-document h1,
@@ -3073,19 +3092,6 @@ button.review-summary[aria-pressed='true'] {
 
 .protocol-document > :first-child {
   margin-top: 0;
-}
-
-.protocol-document h1 {
-  font-size: 1.7em;
-}
-.protocol-document h2 {
-  font-size: 1.28em;
-}
-.protocol-document h3 {
-  font-size: 1.08em;
-}
-.protocol-document h4 {
-  font-size: 1em;
 }
 
 .protocol-document p {
@@ -3406,4 +3412,50 @@ button.review-summary[aria-pressed='true'] {
 .protocol-document.editable:focus-visible {
   outline: 2px solid var(--action);
   outline-offset: 8px;
+}
+
+/* The appearance panel expands the inspector rather than covering the document,
+   so that what is being changed stays visible while it changes. */
+.inspector-disclosure {
+  margin-top: 8px;
+  padding: 6px 0;
+}
+
+.appearance-fields {
+  display: grid;
+  gap: 11px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.appearance-fields label {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.83rem;
+}
+
+.appearance-fields label > span {
+  color: var(--muted);
+}
+
+.appearance-fields select {
+  min-width: 132px;
+  min-height: 30px;
+  padding: 4px 7px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  font-size: 0.83rem;
+  font-family: inherit;
+}
+
+.appearance-note {
+  margin-top: 2px;
+  color: var(--faint);
+  font-size: 0.78rem;
+  line-height: 1.55;
 }

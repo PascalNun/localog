@@ -11,6 +11,8 @@
   import StageRail from './StageRail.svelte';
   import { fromElement, toMarkdown } from '../protocol/html';
   import { renderMarkdown } from '../protocol/markdown';
+  import { APPEARANCE_CHOICES, appearanceStyle } from '../protocol/appearance';
+  import type { DocumentAppearance } from '../workflow/types';
 
   export let project: ProjectSummary;
   export let meeting: MeetingSummary;
@@ -22,6 +24,8 @@
   export let onMarkReviewed: () => Promise<void>;
   export let onRestoreRevision: (revisionId: string) => Promise<void>;
   export let onExport: (format: 'pdf' | 'docx' | 'markdown' | 'text') => void;
+  export let onSetAppearance: (appearance: DocumentAppearance) => Promise<void> = async () =>
+    undefined;
 
   let markdown = protocol.markdown;
   let saveState: 'saved' | 'saving' | 'failed' = protocol.saveState;
@@ -161,6 +165,22 @@
   /// The two were the same control, which meant somebody making the text bigger to
   /// read it was changing the document. The exported size lives in the document's
   /// own appearance and is not this.
+  /// How the document is set, and the panel for changing it.
+  ///
+  /// Held by the project, because the reason anybody changes it is that a firm's
+  /// protocols should look alike — so it is said in the panel rather than left to
+  /// be discovered when the next protocol comes out the same.
+  let appearanceOpen = false;
+  $: appearance = project.appearance;
+  $: documentStyle = appearanceStyle(appearance);
+
+  async function changeAppearance<K extends keyof DocumentAppearance>(
+    key: K,
+    value: DocumentAppearance[K],
+  ) {
+    await onSetAppearance({ ...appearance, [key]: value });
+  }
+
   const ZOOM_STEPS = [0.8, 0.9, 1, 1.1, 1.25, 1.5];
   $: zoomLabel = `${Math.round(textScale * 100)}%`;
   function zoom(direction: -1 | 1) {
@@ -419,7 +439,7 @@
           tabindex="0"
           aria-multiline="true"
           aria-label="Protocol"
-          style={`font-size: ${textScale}rem`}
+          style={`${documentStyle}; --zoom: ${textScale}`}
           oninput={readDocument}
         >
           {@html rendered}
@@ -456,6 +476,99 @@
           <p class="eyebrow">Style</p>
           <h3>{style.name}</h3>
           <p>{style.description}</p>
+        </div>
+        <div class="inspector-section">
+          <p class="eyebrow">Appearance</p>
+          <h3>
+            {APPEARANCE_CHOICES.font.find((choice) => choice.value === appearance.font)?.label} ·
+            {appearance.bodySize} pt
+          </h3>
+          <button
+            class="text-action inspector-disclosure"
+            aria-expanded={appearanceOpen}
+            onclick={() => (appearanceOpen = !appearanceOpen)}
+            >{appearanceOpen ? 'Done' : 'Edit appearance'}</button
+          >
+          {#if appearanceOpen}
+            <div class="appearance-fields">
+              <label>
+                <span>Font</span>
+                <select
+                  value={appearance.font}
+                  onchange={(event) =>
+                    void changeAppearance(
+                      'font',
+                      event.currentTarget.value as DocumentAppearance['font'],
+                    )}
+                >
+                  {#each APPEARANCE_CHOICES.font as choice (choice.value)}
+                    <option value={choice.value}>{choice.label}</option>
+                  {/each}
+                </select>
+              </label>
+              <label>
+                <span>Body size</span>
+                <select
+                  value={appearance.bodySize}
+                  onchange={(event) =>
+                    void changeAppearance('bodySize', Number(event.currentTarget.value))}
+                >
+                  {#each APPEARANCE_CHOICES.bodySize as choice (choice.value)}
+                    <option value={choice.value}>{choice.label}</option>
+                  {/each}
+                </select>
+              </label>
+              <label>
+                <span>Heading scale</span>
+                <select
+                  value={appearance.headingScale}
+                  onchange={(event) =>
+                    void changeAppearance(
+                      'headingScale',
+                      event.currentTarget.value as DocumentAppearance['headingScale'],
+                    )}
+                >
+                  {#each APPEARANCE_CHOICES.headingScale as choice (choice.value)}
+                    <option value={choice.value}>{choice.label}</option>
+                  {/each}
+                </select>
+              </label>
+              <label>
+                <span>Line spacing</span>
+                <select
+                  value={appearance.lineSpacing}
+                  onchange={(event) =>
+                    void changeAppearance(
+                      'lineSpacing',
+                      event.currentTarget.value as DocumentAppearance['lineSpacing'],
+                    )}
+                >
+                  {#each APPEARANCE_CHOICES.lineSpacing as choice (choice.value)}
+                    <option value={choice.value}>{choice.label}</option>
+                  {/each}
+                </select>
+              </label>
+              <label>
+                <span>Page width</span>
+                <select
+                  value={appearance.pageWidth}
+                  onchange={(event) =>
+                    void changeAppearance(
+                      'pageWidth',
+                      event.currentTarget.value as DocumentAppearance['pageWidth'],
+                    )}
+                >
+                  {#each APPEARANCE_CHOICES.pageWidth as choice (choice.value)}
+                    <option value={choice.value}>{choice.label}</option>
+                  {/each}
+                </select>
+              </label>
+              <p class="appearance-note">
+                Applies to every protocol in {project.name}, so a firm's documents look alike. It
+                changes how the protocol is set, never what it says — that is the style above.
+              </p>
+            </div>
+          {/if}
         </div>
         <div class="inspector-section">
           <p class="eyebrow">Status</p>

@@ -1128,6 +1128,23 @@ async fn export_protocol(
     .await
 }
 
+/// Set how a project's protocols are set — the typeface, the sizes, the measure.
+///
+/// Held by the project rather than by each protocol, because the reason anybody
+/// changes it is that a firm's documents should look alike.
+#[tauri::command]
+async fn set_project_appearance(
+    state: State<'_, StorageState>,
+    project_id: String,
+    appearance: domain::DocumentAppearance,
+) -> Result<WorkspaceSnapshot, String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.set_project_appearance(&project_id, &appearance)?;
+        repository.workspace_snapshot()
+    })
+    .await
+}
+
 /// Open the print dialog for this window.
 ///
 /// `window.print()` does nothing in the macOS webview — it exists as a function and
@@ -1438,6 +1455,7 @@ pub fn run() {
             export_protocol,
             export_protocol_bytes,
             print_window,
+            set_project_appearance,
             save_workspace_location
         ])
         .run(tauri::generate_context!())

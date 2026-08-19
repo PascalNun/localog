@@ -21,6 +21,104 @@ pub struct NewMeetingInput {
     pub style_id: String,
 }
 
+/// How a project's protocols look, as opposed to what they say.
+///
+/// Kept apart from the protocol style on purpose. A style decides what belongs in
+/// the document and in what order; this decides how it is set. Conflating them is
+/// how "make the headings smaller" turns into a different protocol.
+///
+/// Held by the project rather than by each protocol, because the reason anybody
+/// sets it is that a firm's protocols should look alike. Every value is one of a
+/// short list rather than a number, so that a document cannot end up at 11.5pt
+/// Helvetica by accident.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentAppearance {
+    pub font: DocumentFont,
+    /// The body size in points, as it will print.
+    pub body_size: u8,
+    pub heading_scale: Scale,
+    pub line_spacing: Spacing,
+    pub page_width: PageWidth,
+}
+
+impl Default for DocumentAppearance {
+    fn default() -> Self {
+        Self {
+            font: DocumentFont::Barlow,
+            body_size: 11,
+            heading_scale: Scale::Standard,
+            line_spacing: Spacing::Comfortable,
+            page_width: PageWidth::A4,
+        }
+    }
+}
+
+/// The typefaces a protocol may be set in.
+///
+/// Barlow ships with the application. The others are asked of the system, and are
+/// here because a firm's house style is not something LocaLog gets to overrule —
+/// each is on every macOS and Windows machine.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum DocumentFont {
+    Barlow,
+    Georgia,
+    TimesNewRoman,
+    Arial,
+    Calibri,
+}
+
+impl DocumentFont {
+    /// What to ask a browser for, in order.
+    pub fn css_stack(self) -> &'static str {
+        match self {
+            Self::Barlow => "'Barlow', system-ui, sans-serif",
+            Self::Georgia => "Georgia, 'Times New Roman', serif",
+            Self::TimesNewRoman => "'Times New Roman', Times, serif",
+            Self::Arial => "Arial, Helvetica, sans-serif",
+            Self::Calibri => "Calibri, Carlito, system-ui, sans-serif",
+        }
+    }
+
+    /// What to name in a Word document, which asks for one family and no fallback.
+    pub fn word_name(self) -> &'static str {
+        match self {
+            Self::Barlow => "Barlow",
+            Self::Georgia => "Georgia",
+            Self::TimesNewRoman => "Times New Roman",
+            Self::Arial => "Arial",
+            Self::Calibri => "Calibri",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum Scale {
+    Compact,
+    Standard,
+    Large,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum Spacing {
+    Compact,
+    Comfortable,
+    Spacious,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum PageWidth {
+    Narrow,
+    Standard,
+    Wide,
+    /// The text column of an A4 page, which is what most of these documents become.
+    A4,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectSummary {
@@ -30,6 +128,7 @@ pub struct ProjectSummary {
     pub meeting_count: u32,
     pub default_language: String,
     pub default_style_id: String,
+    pub appearance: DocumentAppearance,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]

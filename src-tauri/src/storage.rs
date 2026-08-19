@@ -1,5 +1,5 @@
 use crate::domain::{
-    JobErrorSummary, JobState, JobSummary, MeetingLifecycle, MeetingSummary, NewMeetingInput,
+    DocumentAppearance, JobErrorSummary, JobState, JobSummary, MeetingLifecycle, MeetingSummary, NewMeetingInput,
     NewProjectInput, ProjectSummary, ProtocolDensity, ProtocolDocument, ProtocolEvidence,
     ProtocolRevisionSummary, ProtocolStyle, SpeakerResolution, TranscriptDocument,
     TranscriptSegment, VocabularyDraft, VocabularyEntry, WorkspaceSnapshot,
@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 15;
+const CURRENT_SCHEMA_VERSION: i64 = 16;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -857,7 +857,7 @@ impl WorkspaceRepository {
         let mut statement = self.connection.prepare(
             "SELECT
                 p.id, p.name, p.description, p.default_language, p.default_style_id,
-                COUNT(m.id)
+                COUNT(m.id), p.appearance_json
              FROM projects p
              LEFT JOIN meetings m ON m.project_id = p.id AND m.archived_at_ms IS NULL
              WHERE p.archived_at_ms IS NULL
@@ -1226,13 +1226,32 @@ impl WorkspaceRepository {
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
+    /// Set how this project's protocols are set.
+    pub fn set_project_appearance(
+        &self,
+        project_id: &str,
+        appearance: &DocumentAppearance,
+    ) -> Result<()> {
+        let json = serde_json::to_string(appearance)
+            .map_err(|_| StorageError::InvalidData("The appearance could not be stored."))?;
+        let changed = self.connection.execute(
+            "UPDATE projects SET appearance_json = ?1, updated_at_ms = ?2
+             WHERE id = ?3 AND archived_at_ms IS NULL",
+            params![json, unix_time_millis(), project_id],
+        )?;
+        if changed == 0 {
+            return Err(StorageError::MissingProject);
+        }
+        Ok(())
+    }
+
     fn project_by_id(&self, id: &str) -> Result<Option<ProjectSummary>> {
         Ok(self
             .connection
             .query_row(
                 "SELECT
                     p.id, p.name, p.description, p.default_language, p.default_style_id,
-                    COUNT(m.id)
+                    COUNT(m.id), p.appearance_json
                  FROM projects p
                  LEFT JOIN meetings m ON m.project_id = p.id AND m.archived_at_ms IS NULL
                  WHERE p.id = ?1 AND p.archived_at_ms IS NULL
@@ -2020,6 +2039,17 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             [],
         )?;
         connection.pragma_update(None, "user_version", 15)?;
+        version = 15;
+    }
+    if version == 15 {
+        // How a project's protocols are set, as opposed to what they say. Held by
+        // the project because the reason anybody sets it is that a firm's documents
+        // should look alike; absent means the defaults, so nothing needs writing
+        // for projects that never touch it.
+        if !has_column(connection, "projects", "appearance_json")? {
+            connection.execute("ALTER TABLE projects ADD COLUMN appearance_json TEXT", [])?;
+        }
+        connection.pragma_update(None, "user_version", 16)?;
     }
     Ok(())
 }
@@ -2048,6 +2078,15 @@ fn project_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ProjectSummary>
         default_language: row.get(3)?,
         default_style_id: row.get(4)?,
         meeting_count: meeting_count as u32,
+        // Unset, or unreadable because it was written by a newer version, both mean
+        // the defaults: an appearance nobody can read is not worth failing a whole
+        // workspace over.
+        appearance: row
+            .get::<_, Option<String>>(6)
+            .ok()
+            .flatten()
+            .and_then(|json| serde_json::from_str(&json).ok())
+            .unwrap_or_default(),
     })
 }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildDocx, escapeXml } from './docx';
+import { DEFAULT_APPEARANCE } from '../workflow/types';
 import { crc32, writeZip } from './zip';
 
 /** Read an archive back far enough to name its entries and their sizes. */
@@ -94,6 +95,7 @@ describe('building a Word document', () => {
       '| --- | --- |',
       '| Angebot einholen | Frau Bauleitung |',
     ].join('\n'),
+    appearance: DEFAULT_APPEARANCE,
   };
 
   it('is an archive holding the parts a docx must have', () => {
@@ -150,14 +152,54 @@ describe('building a Word document', () => {
     expect(escapeXml('Fassade & <Dach>')).toBe('Fassade &amp; &lt;Dach&gt;');
     expect(escapeXml('badchar')).toBe('badchar');
     const document = readEntry(
-      buildDocx({ title: 'A & B', subtitle: '', markdown: '<script>' }),
+      buildDocx({
+        title: 'A & B',
+        subtitle: '',
+        markdown: '<script>',
+        appearance: DEFAULT_APPEARANCE,
+      }),
       'word/document.xml',
     );
     expect(document).toContain('A &amp; B');
     expect(document).toContain('&lt;script&gt;');
   });
 
+  /// The reason the appearance exists in one place rather than three.
+  ///
+  /// A setting that changes the screen and not the Word file is worse than no
+  /// setting: the document somebody approved is not the document their client
+  /// opens.
+  it('is set the way the project says, not the way the code used to', () => {
+    const document = readEntry(
+      buildDocx({
+        ...protocol,
+        appearance: {
+          font: 'georgia',
+          bodySize: 13,
+          headingScale: 'large',
+          lineSpacing: 'spacious',
+          pageWidth: 'a4',
+        },
+      }),
+      'word/styles.xml',
+    );
+    // 13pt is 26 half-points, and Georgia is named rather than substituted.
+    expect(document).toContain('<w:sz w:val="26"/>');
+    expect(document).toContain('w:ascii="Georgia"');
+    // A large scale puts heading 1 well above the body rather than near it.
+    const headingSize = /w:styleId="Heading1"[\s\S]*?<w:sz w:val="(\d+)"/.exec(document)?.[1];
+    expect(Number(headingSize)).toBeGreaterThan(26 * 1.5);
+  });
+
+  it('names the default typeface when nothing was chosen', () => {
+    const document = readEntry(buildDocx(protocol), 'word/styles.xml');
+    expect(document).toContain('w:ascii="Barlow"');
+    expect(document).toContain('<w:sz w:val="22"/>');
+  });
+
   it('builds an empty protocol without failing', () => {
-    expect(() => buildDocx({ title: 'Leer', subtitle: '', markdown: '' })).not.toThrow();
+    expect(() =>
+      buildDocx({ title: 'Leer', subtitle: '', markdown: '', appearance: DEFAULT_APPEARANCE }),
+    ).not.toThrow();
   });
 });

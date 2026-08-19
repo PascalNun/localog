@@ -29,6 +29,7 @@ export interface ProjectSummary {
   meetingCount: number;
   defaultLanguage: string;
   defaultStyleId: string;
+  appearance: DocumentAppearance;
 }
 
 export interface MeetingSummary {
@@ -189,6 +190,30 @@ export interface ProtocolDraft {
 }
 
 export type ProtocolDensity = 'comprehensive' | 'concise' | 'terse';
+
+/**
+ * How a project's protocols are set — as opposed to what they say.
+ *
+ * Deliberately separate from the protocol style: a style decides what belongs in the
+ * document, this decides how it looks. Every value is one of a short list rather than
+ * a number, so a protocol cannot end up at 11.5pt Helvetica by accident.
+ */
+export interface DocumentAppearance {
+  font: 'barlow' | 'georgia' | 'times-new-roman' | 'arial' | 'calibri';
+  /** Body size in points, as it will print. */
+  bodySize: number;
+  headingScale: 'compact' | 'standard' | 'large';
+  lineSpacing: 'compact' | 'comfortable' | 'spacious';
+  pageWidth: 'narrow' | 'standard' | 'wide' | 'a4';
+}
+
+export const DEFAULT_APPEARANCE: DocumentAppearance = {
+  font: 'barlow',
+  bodySize: 11,
+  headingScale: 'standard',
+  lineSpacing: 'comfortable',
+  pageWidth: 'a4',
+};
 
 export interface ProtocolStyle {
   id: string;
@@ -414,6 +439,7 @@ export interface WorkflowBridge {
    */
   /** What a recording in progress is doing. Cheap; polled while the screen is open. */
   protocolStyleDetail(styleId: string): Promise<ProtocolStyleDetail>;
+  setProjectAppearance(projectId: string, appearance: DocumentAppearance): Promise<void>;
   recordingStatus(): Promise<RecordingStatus>;
   startRecording(meetingId: string): Promise<void>;
   stopRecording(): Promise<void>;
