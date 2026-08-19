@@ -125,6 +125,8 @@ export interface WorkspaceStore {
     format: 'markdown' | 'text',
     title: string,
   ) => Promise<boolean>;
+  /** Ask the platform for its own print panel; the webview's own does nothing here. */
+  printWindow?: () => Promise<void>;
   /** Save a document the interface built, choosing where through the file dialog. */
   exportProtocolBytes?: (
     contents: Uint8Array,
@@ -499,6 +501,10 @@ class TauriWorkspaceStore implements WorkspaceStore {
     // tens of kilobytes; this is not the place that needs to be clever.
     await invoke('export_protocol_bytes', { destination, contents: Array.from(contents) });
     return true;
+  }
+
+  printWindow(): Promise<void> {
+    return invoke('print_window');
   }
 
   getProtocolProviderStatus(): Promise<ProtocolProviderStatus> {

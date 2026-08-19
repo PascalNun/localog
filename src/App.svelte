@@ -431,11 +431,14 @@
     if (format === 'pdf') {
       const project = snapshot.projects.find((candidate) => candidate.id === meeting.projectId);
       try {
-        await printProtocol({
-          title: meeting.title,
-          subtitle: [project?.name, meeting.occurredAt].filter(Boolean).join(' · '),
-          markdown: protocol.markdown,
-        });
+        await printProtocol(
+          {
+            title: meeting.title,
+            subtitle: [project?.name, meeting.occurredAt].filter(Boolean).join(' · '),
+            markdown: protocol.markdown,
+          },
+          bridge.nativePrint(),
+        );
       } catch (cause) {
         announcement = `PDF export failed: ${cause instanceof Error ? cause.message : String(cause)}`;
       }

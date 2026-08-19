@@ -1128,6 +1128,19 @@ async fn export_protocol(
     .await
 }
 
+/// Open the print dialog for this window.
+///
+/// `window.print()` does nothing in the macOS webview — it exists as a function and
+/// returns, which is why the PDF button appeared to work and did not. The print
+/// panel has to be asked for through the platform, and macOS's own panel is where
+/// "Save as PDF" lives.
+#[tauri::command]
+async fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    window
+        .print()
+        .map_err(|_| "This window could not open the print dialog.".to_string())
+}
+
 /// Write a document the interface built, such as a Word file.
 ///
 /// The bytes are assembled where the renderer lives, so that the screen, the PDF
@@ -1424,6 +1437,7 @@ pub fn run() {
             restore_protocol_revision,
             export_protocol,
             export_protocol_bytes,
+            print_window,
             save_workspace_location
         ])
         .run(tauri::generate_context!())

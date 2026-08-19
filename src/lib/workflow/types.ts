@@ -462,6 +462,8 @@ export interface WorkflowBridge {
     onError: (error: ModelDownloadError) => void;
   }): () => void;
   exportProtocol(meetingId: string, format: 'markdown' | 'text', title: string): Promise<boolean>;
+  /** The platform's own print panel, where the webview's does nothing. */
+  nativePrint(): (() => Promise<void>) | undefined;
   /** Save a document the interface built — a Word file, for now. */
   exportProtocolBytes(
     contents: Uint8Array,
