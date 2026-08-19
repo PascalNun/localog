@@ -171,6 +171,28 @@
   /// protocols should look alike — so it is said in the panel rather than left to
   /// be discovered when the next protocol comes out the same.
   let appearanceOpen = false;
+
+  /// Which face of the inspector is showing.
+  ///
+  /// Three jobs that share one column: what the document is, where it came from,
+  /// and what it has been. Tabs rather than one long panel, because the panel had
+  /// grown to seven sections and the ones somebody needs while writing were below
+  /// the ones they need once a week.
+  let inspectorTab: 'document' | 'transcript' | 'history' = 'document';
+  const INSPECTOR_TABS = [
+    { id: 'document', label: 'Document' },
+    { id: 'transcript', label: 'Transcript' },
+    { id: 'history', label: 'History' },
+  ] as const;
+
+  function revisionMoment(at: number) {
+    return new Date(at).toLocaleString(undefined, {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
   $: appearance = project.appearance;
   $: documentStyle = appearanceStyle(appearance);
 
@@ -462,9 +484,16 @@
     {#if inspectorOpen}
       <aside class="context-inspector protocol-inspector" aria-label="Protocol details">
         <div class="inspector-heading">
-          <div>
-            <p class="eyebrow">Document</p>
-            <h2>Protocol</h2>
+          <div class="inspector-tabs" role="tablist" aria-label="Protocol details">
+            {#each INSPECTOR_TABS as tab (tab.id)}
+              <button
+                role="tab"
+                class="inspector-tab"
+                class:chosen={inspectorTab === tab.id}
+                aria-selected={inspectorTab === tab.id}
+                onclick={() => (inspectorTab = tab.id)}>{tab.label}</button
+              >
+            {/each}
           </div>
           <button
             class="icon-button compact"
@@ -472,197 +501,220 @@
             onclick={() => (inspectorOpen = false)}><Icon name="close" size={16} /></button
           >
         </div>
-        <div class="inspector-section">
-          <p class="eyebrow">Style</p>
-          <h3>{style.name}</h3>
-          <p>{style.description}</p>
-        </div>
-        <div class="inspector-section">
-          <p class="eyebrow">Appearance</p>
-          <h3>
-            {APPEARANCE_CHOICES.font.find((choice) => choice.value === appearance.font)?.label} ·
-            {appearance.bodySize} pt
-          </h3>
-          <button
-            class="text-action inspector-disclosure"
-            aria-expanded={appearanceOpen}
-            onclick={() => (appearanceOpen = !appearanceOpen)}
-            >{appearanceOpen ? 'Done' : 'Edit appearance'}</button
-          >
-          {#if appearanceOpen}
-            <div class="appearance-fields">
-              <label>
-                <span>Font</span>
-                <select
-                  value={appearance.font}
-                  onchange={(event) =>
-                    void changeAppearance(
-                      'font',
-                      event.currentTarget.value as DocumentAppearance['font'],
-                    )}
-                >
-                  {#each APPEARANCE_CHOICES.font as choice (choice.value)}
-                    <option value={choice.value}>{choice.label}</option>
-                  {/each}
-                </select>
-              </label>
-              <label>
-                <span>Body size</span>
-                <select
-                  value={appearance.bodySize}
-                  onchange={(event) =>
-                    void changeAppearance('bodySize', Number(event.currentTarget.value))}
-                >
-                  {#each APPEARANCE_CHOICES.bodySize as choice (choice.value)}
-                    <option value={choice.value}>{choice.label}</option>
-                  {/each}
-                </select>
-              </label>
-              <label>
-                <span>Heading scale</span>
-                <select
-                  value={appearance.headingScale}
-                  onchange={(event) =>
-                    void changeAppearance(
-                      'headingScale',
-                      event.currentTarget.value as DocumentAppearance['headingScale'],
-                    )}
-                >
-                  {#each APPEARANCE_CHOICES.headingScale as choice (choice.value)}
-                    <option value={choice.value}>{choice.label}</option>
-                  {/each}
-                </select>
-              </label>
-              <label>
-                <span>Line spacing</span>
-                <select
-                  value={appearance.lineSpacing}
-                  onchange={(event) =>
-                    void changeAppearance(
-                      'lineSpacing',
-                      event.currentTarget.value as DocumentAppearance['lineSpacing'],
-                    )}
-                >
-                  {#each APPEARANCE_CHOICES.lineSpacing as choice (choice.value)}
-                    <option value={choice.value}>{choice.label}</option>
-                  {/each}
-                </select>
-              </label>
-              <label>
-                <span>Page width</span>
-                <select
-                  value={appearance.pageWidth}
-                  onchange={(event) =>
-                    void changeAppearance(
-                      'pageWidth',
-                      event.currentTarget.value as DocumentAppearance['pageWidth'],
-                    )}
-                >
-                  {#each APPEARANCE_CHOICES.pageWidth as choice (choice.value)}
-                    <option value={choice.value}>{choice.label}</option>
-                  {/each}
-                </select>
-              </label>
-              <p class="appearance-note">
-                Applies to every protocol in {project.name}, so a firm's documents look alike. It
-                changes how the protocol is set, never what it says — that is the style above.
+        {#if inspectorTab === 'document'}
+          <div class="inspector-section">
+            <p class="eyebrow">Status</p>
+            <h3>{statusLabel}</h3>
+            <p>
+              {protocol.reviewState === 'changed_since_review'
+                ? 'The reviewed revision is preserved. These working edits have not been reviewed.'
+                : protocol.reviewState === 'reviewed'
+                  ? 'This exact immutable revision was marked reviewed.'
+                  : 'Generated content remains reviewable and editable.'}
+            </p>
+            {#if protocol.isDirty}<button
+                class="secondary-action full-width"
+                onclick={createRevision}><Icon name="check" size={16} /> Create revision</button
+              >{/if}
+            {#if protocol.reviewState !== 'reviewed'}<button
+                class="secondary-action full-width"
+                onclick={markReviewed}><Icon name="check" size={16} /> Mark reviewed</button
+              >{/if}
+          </div>
+          <div class="inspector-section">
+            <p class="eyebrow">Style</p>
+            <h3>{style.name}</h3>
+            <p>{style.description}</p>
+          </div>
+          <div class="inspector-section">
+            <p class="eyebrow">Appearance</p>
+            <h3>
+              {APPEARANCE_CHOICES.font.find((choice) => choice.value === appearance.font)?.label} ·
+              {appearance.bodySize} pt
+            </h3>
+            <button
+              class="text-action inspector-disclosure"
+              aria-expanded={appearanceOpen}
+              onclick={() => (appearanceOpen = !appearanceOpen)}
+              >{appearanceOpen ? 'Done' : 'Edit appearance'}</button
+            >
+            {#if appearanceOpen}
+              <div class="appearance-fields">
+                <label>
+                  <span>Font</span>
+                  <select
+                    value={appearance.font}
+                    onchange={(event) =>
+                      void changeAppearance(
+                        'font',
+                        event.currentTarget.value as DocumentAppearance['font'],
+                      )}
+                  >
+                    {#each APPEARANCE_CHOICES.font as choice (choice.value)}
+                      <option value={choice.value}>{choice.label}</option>
+                    {/each}
+                  </select>
+                </label>
+                <label>
+                  <span>Body size</span>
+                  <select
+                    value={appearance.bodySize}
+                    onchange={(event) =>
+                      void changeAppearance('bodySize', Number(event.currentTarget.value))}
+                  >
+                    {#each APPEARANCE_CHOICES.bodySize as choice (choice.value)}
+                      <option value={choice.value}>{choice.label}</option>
+                    {/each}
+                  </select>
+                </label>
+                <label>
+                  <span>Heading scale</span>
+                  <select
+                    value={appearance.headingScale}
+                    onchange={(event) =>
+                      void changeAppearance(
+                        'headingScale',
+                        event.currentTarget.value as DocumentAppearance['headingScale'],
+                      )}
+                  >
+                    {#each APPEARANCE_CHOICES.headingScale as choice (choice.value)}
+                      <option value={choice.value}>{choice.label}</option>
+                    {/each}
+                  </select>
+                </label>
+                <label>
+                  <span>Line spacing</span>
+                  <select
+                    value={appearance.lineSpacing}
+                    onchange={(event) =>
+                      void changeAppearance(
+                        'lineSpacing',
+                        event.currentTarget.value as DocumentAppearance['lineSpacing'],
+                      )}
+                  >
+                    {#each APPEARANCE_CHOICES.lineSpacing as choice (choice.value)}
+                      <option value={choice.value}>{choice.label}</option>
+                    {/each}
+                  </select>
+                </label>
+                <label>
+                  <span>Page width</span>
+                  <select
+                    value={appearance.pageWidth}
+                    onchange={(event) =>
+                      void changeAppearance(
+                        'pageWidth',
+                        event.currentTarget.value as DocumentAppearance['pageWidth'],
+                      )}
+                  >
+                    {#each APPEARANCE_CHOICES.pageWidth as choice (choice.value)}
+                      <option value={choice.value}>{choice.label}</option>
+                    {/each}
+                  </select>
+                </label>
+                <p class="appearance-note">
+                  Applies to every protocol in {project.name}, so a firm's documents look alike. It
+                  changes how the protocol is set, never what it says — that is the style above.
+                </p>
+              </div>
+            {/if}
+          </div>
+          <div class="inspector-section">
+            <p class="eyebrow">Export</p>
+            <div class="export-actions">
+              <button class="primary-action full-width" onclick={() => onExport('pdf')}
+                ><Icon name="download" size={16} /> Export PDF</button
+              ><button class="secondary-action full-width" onclick={() => onExport('docx')}
+                >Export Word</button
+              ><button class="secondary-action full-width" onclick={() => onExport('markdown')}
+                >Export Markdown</button
+              ><button class="secondary-action full-width" onclick={() => onExport('text')}
+                >Export plain text</button
+              >
+            </div>
+            <p class="export-note">
+              The PDF is printed from the document you are reading, set the way this project sets
+              its protocols — choose "Save as PDF" in the print dialog.
+            </p>
+          </div>
+        {:else if inspectorTab === 'transcript'}
+          <div class="inspector-section">
+            <p class="eyebrow">Source</p>
+            <h3>{meeting.title}</h3>
+            <p>
+              This protocol was written from the reviewed transcript of this meeting. Nothing in the
+              document is linked back to a passage yet; that is still to come.
+            </p>
+            <button
+              class="text-action"
+              onclick={() => onNavigate({ name: 'transcript', meetingId: meeting.id })}
+              >Open reviewed transcript <Icon name="arrow" size={15} /></button
+            >
+          </div>
+          {#if evidence}
+            <div class="inspector-section">
+              <p class="eyebrow">What to check</p>
+              <h3>{evidence.quantitiesAccounted} of {evidence.quantitiesStated} figures kept</h3>
+              <p>
+                The meeting stated {evidence.quantitiesStated} figures and this draft repeats {evidence.quantitiesAccounted}
+                of them. How many belong here is a matter of the style you chose, so this is something
+                to look at rather than a score.
+              </p>
+              {#if evidence.quantitiesInvented.length > 0}
+                <p class="evidence-warning">
+                  <Icon name="warning" size={15} />
+                  <span
+                    >{evidence.quantitiesInvented.length === 1
+                      ? 'One figure appears here that the meeting did not state'
+                      : `${evidence.quantitiesInvented.length} figures appear here that the meeting did not state`}:
+                    {evidence.quantitiesInvented.join(', ')}. Worth confirming against the
+                    recording.</span
+                  >
+                </p>
+              {/if}
+              {#if evidence.tasksUnowned && evidence.tasksUnowned.length > 0}
+                <p class="evidence-unowned">
+                  {evidence.tasksUnowned.length === 1
+                    ? 'One task here has nobody against it'
+                    : `${evidence.tasksUnowned.length} tasks here have nobody against them`}:
+                  {evidence.tasksUnowned.join('; ')}. The draft leaves an owner out rather than
+                  guessing at one, so this may be exactly what the meeting decided — and it is far
+                  cheaper to put a name to it now than at the next meeting.
+                </p>
+              {/if}
+              <p class="evidence-length">
+                {lengthAgainstRecording}
               </p>
             </div>
           {/if}
-        </div>
-        <div class="inspector-section">
-          <p class="eyebrow">Status</p>
-          <h3>{statusLabel}</h3>
-          <p>
-            {protocol.reviewState === 'changed_since_review'
-              ? 'The reviewed revision is preserved. These working edits have not been reviewed.'
-              : protocol.reviewState === 'reviewed'
-                ? 'This exact immutable revision was marked reviewed.'
-                : 'Generated content remains reviewable and editable.'}
-          </p>
-          {#if protocol.isDirty}<button class="secondary-action full-width" onclick={createRevision}
-              ><Icon name="check" size={16} /> Create revision</button
-            >{/if}
-          {#if protocol.reviewState !== 'reviewed'}<button
-              class="secondary-action full-width"
-              onclick={markReviewed}><Icon name="check" size={16} /> Mark reviewed</button
-            >{/if}
-        </div>
-        {#if evidence}
+        {:else}
           <div class="inspector-section">
-            <p class="eyebrow">What to check</p>
-            <h3>{evidence.quantitiesAccounted} of {evidence.quantitiesStated} figures kept</h3>
-            <p>
-              The meeting stated {evidence.quantitiesStated} figures and this draft repeats {evidence.quantitiesAccounted}
-              of them. How many belong here is a matter of the style you chose, so this is something to
-              look at rather than a score.
-            </p>
-            {#if evidence.quantitiesInvented.length > 0}
-              <p class="evidence-warning">
-                <Icon name="warning" size={15} />
-                <span
-                  >{evidence.quantitiesInvented.length === 1
-                    ? 'One figure appears here that the meeting did not state'
-                    : `${evidence.quantitiesInvented.length} figures appear here that the meeting did not state`}:
-                  {evidence.quantitiesInvented.join(', ')}. Worth confirming against the recording.</span
-                >
-              </p>
-            {/if}
-            {#if evidence.tasksUnowned && evidence.tasksUnowned.length > 0}
-              <p class="evidence-unowned">
-                {evidence.tasksUnowned.length === 1
-                  ? 'One task here has nobody against it'
-                  : `${evidence.tasksUnowned.length} tasks here have nobody against them`}:
-                {evidence.tasksUnowned.join('; ')}. The draft leaves an owner out rather than
-                guessing at one, so this may be exactly what the meeting decided — and it is far
-                cheaper to put a name to it now than at the next meeting.
-              </p>
-            {/if}
-            <p class="evidence-length">
-              {lengthAgainstRecording}
+            <p class="eyebrow">Revisions</p>
+            <div class="revision-list">
+              {#each [...protocol.revisions].reverse() as revision (revision.id)}
+                <div>
+                  <span
+                    >Revision {revision.ordinal}<small
+                      >{revision.status} · {revisionMoment(revision.createdAtMs)}</small
+                    ></span
+                  >
+                  {#if revision.id === protocol.revisionId}
+                    <span class="revision-current">Current</span>
+                  {:else}
+                    <button class="text-action" onclick={() => restoreRevision(revision.id)}
+                      >Restore</button
+                    >
+                  {/if}
+                </div>
+              {/each}
+            </div>
+            <p class="refinement-note">
+              Typing is kept as working edits and does not make a revision. A revision is made when
+              a draft is generated, when you ask for one, when you mark a protocol reviewed, and
+              when an older one is restored — so this list stays short enough to read.
             </p>
           </div>
         {/if}
-        <div class="inspector-section">
-          <p class="eyebrow">Revision history</p>
-          <div class="revision-list">
-            {#each protocol.revisions as revision (revision.id)}
-              <div>
-                <span>Revision {revision.ordinal}<small>{revision.status}</small></span>
-                {#if revision.id !== protocol.revisionId}<button
-                    class="text-action"
-                    onclick={() => restoreRevision(revision.id)}>Restore</button
-                  >{/if}
-              </div>
-            {/each}
-          </div>
-        </div>
-        <div class="inspector-section">
-          <p class="eyebrow">Source</p>
-          <button
-            class="text-action"
-            onclick={() => onNavigate({ name: 'transcript', meetingId: meeting.id })}
-            >Open reviewed transcript <Icon name="arrow" size={15} /></button
-          >
-        </div>
-        <div class="inspector-section">
-          <p class="eyebrow">Export</p>
-          <div class="export-actions">
-            <button class="primary-action full-width" onclick={() => onExport('pdf')}
-              ><Icon name="download" size={16} /> Export PDF</button
-            ><button class="secondary-action full-width" onclick={() => onExport('docx')}
-              >Export Word</button
-            ><button class="secondary-action full-width" onclick={() => onExport('markdown')}
-              >Export Markdown</button
-            ><button class="secondary-action full-width" onclick={() => onExport('text')}
-              >Export plain text</button
-            >
-          </div>
-        </div>
-        <p class="export-note">
-          The PDF is A4, printed from the document you are reading — choose "Save as PDF" in the
-          print dialog.
-        </p>
         <p class="refinement-note">
           Nothing here rewrites your text for you. The draft is yours to edit, and every revision is
           kept.

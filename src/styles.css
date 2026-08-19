@@ -3058,7 +3058,10 @@ button.review-summary[aria-pressed='true'] {
      Zoom multiplies the size and nothing else. It is how large the document looks,
      not how large it prints, so it must not reach the stored appearance. */
   --zoom: 1;
+  /* Centred in whatever room the workspace has, so a narrow measure reads as a
+     page on a desk rather than as text pushed against the left. */
   max-width: var(--document-measure, 46em);
+  margin: 0 auto;
   padding: 40px 44px 56px;
   color: var(--ink);
   background: var(--surface);
@@ -3458,4 +3461,35 @@ button.review-summary[aria-pressed='true'] {
   color: var(--faint);
   font-size: 0.78rem;
   line-height: 1.55;
+}
+
+/* Three jobs sharing one column: what the document is, where it came from, and
+   what it has been. The panel had grown to seven sections, and the ones somebody
+   needs while writing sat below the ones they need once a week. */
+.inspector-tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.inspector-tab {
+  padding: 6px 10px 9px;
+  color: var(--faint);
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.inspector-tab:hover {
+  color: var(--muted);
+}
+
+.inspector-tab.chosen {
+  color: var(--ink);
+  border-bottom-color: var(--action);
+}
+
+.revision-current {
+  color: var(--faint);
+  font-size: 0.78rem;
 }
