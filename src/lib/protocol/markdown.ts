@@ -194,33 +194,114 @@ export function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (character) => ESCAPES[character] ?? character);
 }
 
+/** A stretch of text with one set of marks on it. */
+export interface Run {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  code?: boolean;
+  /** Present only when the destination is one a document can honestly carry. */
+  link?: string;
+}
+
 /**
  * Emphasis, code and links inside one run of text.
  *
- * Code spans are lifted out first and put back last, so that a asterisk inside
- * `--normalize=0` is not read as emphasis.
+ * A scanner rather than a series of replacements, because HTML is not the only
+ * thing this has to become: a DOCX needs the same marks as runs, and two parsers
+ * that must agree eventually do not. Everything HTML-shaped is escaped by whoever
+ * renders these runs, never here.
  */
+export function readInline(text: string): Run[] {
+  const runs: Run[] = [];
+  let plain = '';
+  let at = 0;
+
+  const flush = () => {
+    if (plain) runs.push({ text: plain });
+    plain = '';
+  };
+  const mark = (content: string, marks: Omit<Run, 'text'>) => {
+    flush();
+    if (content) runs.push({ text: content, ...marks });
+  };
+  const isWord = (character: string | undefined) => !!character && /[\w*_]/.test(character);
+
+  while (at < text.length) {
+    const character = text[at] ?? '';
+
+    // A backslash before punctuation means the character itself. The model writes
+    // these around brackets, so that "[Datum]" is not read as a link.
+    if (
+      character === '\\' &&
+      at + 1 < text.length &&
+      /[\\`*_{}[\]()#+\-.!|]/.test(text[at + 1] ?? '')
+    ) {
+      plain += text[at + 1];
+      at += 2;
+      continue;
+    }
+
+    if (character === '`') {
+      const close = text.indexOf('`', at + 1);
+      if (close > at) {
+        mark(text.slice(at + 1, close), { code: true });
+        at = close + 1;
+        continue;
+      }
+    }
+
+    if (character === '*' && text[at + 1] === '*') {
+      const close = text.indexOf('**', at + 2);
+      if (close > at + 1) {
+        mark(text.slice(at + 2, close), { bold: true });
+        at = close + 2;
+        continue;
+      }
+    }
+
+    if ((character === '*' || character === '_') && !isWord(text[at - 1])) {
+      const close = text.indexOf(character, at + 1);
+      if (close > at + 1 && !isWord(text[close + 1])) {
+        mark(text.slice(at + 1, close), { italic: true });
+        at = close + 1;
+        continue;
+      }
+    }
+
+    if (character === '[') {
+      const label = text.indexOf(']', at + 1);
+      if (label > at && text[label + 1] === '(') {
+        const close = text.indexOf(')', label + 2);
+        const target = close > label + 1 ? text.slice(label + 2, close) : '';
+        if (close > label + 1 && !/\s/.test(target) && safeLink(target)) {
+          mark(text.slice(at + 1, label), { link: target });
+          at = close + 1;
+          continue;
+        }
+      }
+    }
+
+    plain += character;
+    at += 1;
+  }
+
+  flush();
+  return runs;
+}
+
+/** Those runs as HTML. */
 export function renderInline(text: string): string {
-  const code: string[] = [];
-  let working = text.replace(/`([^`]+)`/g, (_, content: string) => {
-    code.push(content);
-    return `\u0000${code.length - 1}\u0000`;
-  });
+  return readInline(text).map(runToHtml).join('');
+}
 
-  working = escapeHtml(working);
-  working = working.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  working = working.replace(/(^|[^*\w])\*([^*]+)\*(?=$|[^*\w])/g, '$1<em>$2</em>');
-  working = working.replace(/(^|[^_\w])_([^_]+)_(?=$|[^_\w])/g, '$1<em>$2</em>');
-  working = working.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (whole, label: string, target: string) =>
-    safeLink(target) ? `<a href="${target}">${label}</a>` : whole,
-  );
-  // A backslash before punctuation is Markdown's way of saying "just this
-  // character"; the model produces them around brackets and underscores.
-  working = working.replace(/\\([\\`*_{}[\]()#+\-.!|])/g, '$1');
-
-  return working.replace(/\u0000(\d+)\u0000/g, (_, index: string) => {
-    return `<code>${escapeHtml(code[Number(index)] ?? '')}</code>`;
-  });
+function runToHtml(run: Run): string {
+  let html = escapeHtml(run.text);
+  if (run.code) return `<code>${html}</code>`;
+  if (run.bold) html = `<strong>${html}</strong>`;
+  if (run.italic) html = `<em>${html}</em>`;
+  if (run.link) html = `<a href="${escapeHtml(run.link)}">${html}</a>`;
+  return html;
 }
 
 /** Only destinations a document can honestly carry. */

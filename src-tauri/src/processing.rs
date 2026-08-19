@@ -2754,6 +2754,24 @@ pub(crate) fn export_protocol(
     if !matches!(format, "markdown" | "text") {
         return Err(StorageError::InvalidData("Choose a valid export format."));
     }
+    let repository = WorkspaceRepository::open(root)?;
+    let markdown = String::from_utf8(repository.protocol_working_markdown(meeting_id)?)
+        .map_err(|_| StorageError::InvalidData("The saved protocol is not valid UTF-8."))?;
+    let content = if format == "text" {
+        markdown_to_plain_text(&markdown)
+    } else {
+        markdown
+    };
+    write_export(destination, content.as_bytes())
+}
+
+/// Write an exported file, or refuse for a reason that can be said out loud.
+///
+/// Shared by the formats built here and the ones built in the interface, so that a
+/// Word document is written with the same care as a text file: never over an
+/// existing file, and never half-written — the bytes go to a neighbouring temporary
+/// and are renamed into place, which is atomic on the same filesystem.
+pub(crate) fn write_export(destination: &str, contents: &[u8]) -> StorageResult<()> {
     let destination = PathBuf::from(destination);
     if !destination.is_absolute()
         || destination.to_string_lossy().contains('\0')
@@ -2776,14 +2794,6 @@ pub(crate) fn export_protocol(
             "The selected export folder is not available.",
         ));
     }
-    let repository = WorkspaceRepository::open(root)?;
-    let markdown = String::from_utf8(repository.protocol_working_markdown(meeting_id)?)
-        .map_err(|_| StorageError::InvalidData("The saved protocol is not valid UTF-8."))?;
-    let content = if format == "text" {
-        markdown_to_plain_text(&markdown)
-    } else {
-        markdown
-    };
     let temporary = parent.join(format!(
         ".{}.localog-export-{}",
         destination
@@ -2796,7 +2806,7 @@ pub(crate) fn export_protocol(
         .write(true)
         .create_new(true)
         .open(&temporary)?;
-    file.write_all(content.as_bytes())?;
+    file.write_all(contents)?;
     file.sync_all()?;
     drop(file);
     fs::rename(&temporary, &destination).map_err(|error| {

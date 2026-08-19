@@ -125,8 +125,25 @@ export interface WorkspaceStore {
     format: 'markdown' | 'text',
     title: string,
   ) => Promise<boolean>;
+  /** Save a document the interface built, choosing where through the file dialog. */
+  exportProtocolBytes?: (
+    contents: Uint8Array,
+    title: string,
+    extension: string,
+    formatName: string,
+  ) => Promise<boolean>;
   getProtocolProviderStatus?: () => Promise<ProtocolProviderStatus>;
   configureProtocolProvider?: (model: string | null) => Promise<ProtocolProviderStatus>;
+}
+
+/** A title as a filename: legible, and without anything a filesystem argues with. */
+function safeFileName(title: string): string {
+  return (
+    title
+      .trim()
+      .replace(/[^a-z0-9]+/gi, '-')
+      .replace(/^-|-$/g, '') || 'protocol'
+  );
 }
 
 class TauriWorkspaceStore implements WorkspaceStore {
@@ -454,20 +471,33 @@ class TauriWorkspaceStore implements WorkspaceStore {
     title: string,
   ): Promise<boolean> {
     const extension = format === 'markdown' ? 'md' : 'txt';
-    const safeTitle =
-      title
-        .trim()
-        .replace(/[^a-z0-9]+/gi, '-')
-        .replace(/^-|-$/g, '') || 'protocol';
     const destination = await save({
       title: `Export ${title}`,
-      defaultPath: `${safeTitle}.${extension}`,
+      defaultPath: `${safeFileName(title)}.${extension}`,
       filters: [
         { name: format === 'markdown' ? 'Markdown' : 'Plain text', extensions: [extension] },
       ],
     });
     if (!destination) return false;
     await invoke('export_protocol', { meetingId, format, destination });
+    return true;
+  }
+
+  async exportProtocolBytes(
+    contents: Uint8Array,
+    title: string,
+    extension: string,
+    formatName: string,
+  ): Promise<boolean> {
+    const destination = await save({
+      title: `Export ${title}`,
+      defaultPath: `${safeFileName(title)}.${extension}`,
+      filters: [{ name: formatName, extensions: [extension] }],
+    });
+    if (!destination) return false;
+    // Tauri's bridge carries JSON, so the bytes cross as numbers. A protocol is
+    // tens of kilobytes; this is not the place that needs to be clever.
+    await invoke('export_protocol_bytes', { destination, contents: Array.from(contents) });
     return true;
   }
 
