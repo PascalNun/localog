@@ -225,6 +225,60 @@ heading there.
 - **d. A header and footer somebody can edit**, in the same rendered surface — the
   firm's name, the project, a page number.
 
+### 3b. The editor as a word processor — the feature list
+
+Written 19 August, after the owner used the first version. The document view can be
+typed into and carries headings, bold, italic, lists and quotations. That is a start
+and not a word processor, and the gap is large enough to be worth listing rather than
+discovering one complaint at a time.
+
+Ordered by how often somebody editing a real protocol would reach for it. Everything
+here writes back to Markdown, because Markdown stays the stored form.
+
+**Editing the things a protocol is made of**
+
+1. **Tables.** The formal style ends in an actions table, so this is the most-used
+   structure in the document and currently the least editable — the cells can be
+   typed into and nothing else. Wanted: add and remove a row, add and remove a
+   column, move a row up or down. A row is the unit somebody actually manipulates:
+   one more action, one action struck.
+2. **A heading control that shows what the cursor is in.** Today the buttons apply a
+   heading; they never say whether you are standing in one. A word processor's style
+   box reads the selection.
+3. **Lists that behave.** Tab and Shift-Tab to indent and outdent, Enter on an empty
+   item to leave the list. These are the reflexes anybody has, and their absence is
+   what makes an editor feel broken rather than limited.
+4. **Undo and redo that know about the document.** The buttons drive the browser's
+   own undo, which was written for the Markdown box and does not know what a
+   heading is.
+
+**Getting text in and out**
+
+5. **Paste that keeps structure and drops decoration.** Pasting from Word or a
+   browser currently arrives as whatever HTML the source had; the reader on the way
+   back keeps the words and loses everything it does not recognise, which is right
+   but happens after the fact. Cleaning the paste as it lands is what makes it
+   predictable.
+6. **Find and replace.** Find exists for the Markdown view. Replace does not exist
+   at all, and a protocol full of one misspelled name is exactly the case.
+
+**The page**
+
+7. **A page size that is a setting rather than an assumption.** A4 is written into
+   the stylesheet. It should be chosen — A4 or Letter at least — and the choice
+   should reach the screen, the PDF and the Word file together.
+8. **A header and footer somebody can edit.** The firm's name, the project, a page
+   number. Word carries page numbers natively; the print path takes them from the
+   dialog, which is a limit worth stating rather than hiding.
+9. **Page breaks visible in the editor**, so that what is about to print is not a
+   surprise. This is where the earlier question about showing pages comes back, and
+   it is worth answering after 7 and 8 rather than before.
+
+**Not on this list, deliberately**
+
+Images, footnotes, comments, tracked changes, multiple columns. Each is a real
+feature of a word processor and none of them is a thing a meeting protocol has.
+
 ### 4. DOCX — done, 19 August
 
 Independent of step 3 and does not wait for it. A `.docx` is a zip holding one XML
