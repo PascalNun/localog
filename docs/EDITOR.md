@@ -463,6 +463,20 @@ only reachable from the webview. The number to watch is the DOM walk: if protoco
 reach a few hundred thousand characters, or if the walk shows up in a profile, the
 fix is to read only the block that changed rather than to move languages.
 
+## Paste and list keys — done, 20 August
+
+**Paste** now goes through the document's own vocabulary on the way in. What arrives
+from Word is a thicket — styled spans, `MsoListParagraph`, `mso-` attributes, fonts
+and colours — and the reader that takes this document back to Markdown already knows
+how to ignore all of it. So the sanitiser is a round trip through it: parse what
+came, read it to Markdown, render that back. Anything the protocol vocabulary does
+not have cannot survive the journey, and the words inside it always do. Measured on
+real Word markup: every word kept, bold and lists kept, zero `style` and zero `class`
+attributes left behind.
+
+**Tab and Shift-Tab** move a list item in and out, and Enter on an empty item leaves
+the list instead of making another empty bullet. Measured: depth 1 → 2 → 1.
+
 ## Wanted, from looking at it — 20 August
 
 The owner's, recorded rather than built, and none of them urgent.

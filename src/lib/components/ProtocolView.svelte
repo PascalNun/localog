@@ -289,6 +289,71 @@
     proposal = null;
   }
 
+  /// Paste, put through the document's own vocabulary on the way in.
+  ///
+  /// What arrives on the clipboard from Word or a browser is a thicket: styled
+  /// spans, class names, `mso-` attributes, fonts and colours. The reader that
+  /// takes this document back to Markdown already knows how to ignore all of it, so
+  /// the cleanest sanitiser available is a round trip through it — parse what came,
+  /// read it to Markdown, render that back. Anything the protocol vocabulary does
+  /// not have cannot survive the journey, and the words inside it always do.
+  function handlePaste(event: ClipboardEvent) {
+    const clipboard = event.clipboardData;
+    if (!clipboard) return;
+    const html = clipboard.getData('text/html');
+    const plain = clipboard.getData('text/plain');
+    if (!html && !plain) return;
+
+    event.preventDefault();
+    if (html) {
+      const parsed = new DOMParser().parseFromString(html, 'text/html');
+      const markdown = toMarkdown(fromElement(parsed.body));
+      document.execCommand('insertHTML', false, renderMarkdown(markdown));
+    } else {
+      // Plain text is already clean; inserted as text so newlines become blocks
+      // rather than one long line.
+      document.execCommand('insertText', false, plain);
+    }
+    readDocument();
+  }
+
+  /// The reflexes anybody has in a list, which a bare editable region does not have.
+  ///
+  /// Tab and Shift-Tab move an item in and out; Enter on an empty item leaves the
+  /// list rather than making a fourth empty bullet. Their absence is most of what
+  /// makes an editor feel broken rather than merely limited.
+  function handleKeydown(event: KeyboardEvent) {
+    if (view !== 'document') return;
+
+    if (event.key === 'Tab') {
+      const inList = blockOf(window.getSelection()?.anchorNode ?? null) === 'li';
+      if (!inList) return;
+      event.preventDefault();
+      document.execCommand(event.shiftKey ? 'outdent' : 'indent');
+      readDocument();
+      return;
+    }
+
+    if (event.key === 'Enter' && !event.shiftKey) {
+      const selection = window.getSelection();
+      const item = itemAt(selection?.anchorNode ?? null);
+      if (item && item.textContent?.trim() === '') {
+        event.preventDefault();
+        document.execCommand('outdent');
+        readDocument();
+      }
+    }
+  }
+
+  function itemAt(node: Node | null): HTMLElement | null {
+    let at: Node | null = node;
+    while (at && at !== documentSurface) {
+      if (at.nodeType === 1 && (at as Element).tagName === 'LI') return at as HTMLElement;
+      at = at.parentNode;
+    }
+    return null;
+  }
+
   /// Tables, which are the one thing `execCommand` has no answer for at all.
   ///
   /// The formal style ends in an actions table, so this is the most-used structure
@@ -943,6 +1008,8 @@
           aria-label="Protocol"
           style={`${documentStyle}; --zoom: ${textScale}`}
           oninput={readDocument}
+          onpaste={handlePaste}
+          onkeydown={handleKeydown}
         >
           {@html rendered}
         </div>
