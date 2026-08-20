@@ -477,6 +477,29 @@ attributes left behind.
 **Tab and Shift-Tab** move a list item in and out, and Enter on an empty item leaves
 the list instead of making another empty bullet. Measured: depth 1 → 2 → 1.
 
+## Find, replace and undo — done, 20 August
+
+**Find** only ever worked in the Markdown box: it read a textarea's selection, and
+the document view has no textarea, so the button did nothing there. It now walks the
+document's text nodes — over the text rather than the HTML, so a search for "table"
+finds the word and not the markup — and wraps at the end. **Replace all** is the case
+that asks for this, one name misspelt through a protocol: it works on the Markdown,
+so it behaves the same in both views, and says how many matches there are before
+anything happens and how many were replaced after.
+
+**Undo now knows what a heading is.** The browser's own undo covers typing in an
+editable region and nothing else, so adding a table row, removing a column, replacing
+a name and accepting a rewrite all went past it invisibly — undo skipped exactly the
+operations somebody most wants back. The history is kept over the Markdown, which is
+the document, and typing is remembered in pauses rather than per keystroke so undo
+steps back a phrase at a time.
+
+One thing that only showed up by trying it: stepping back left the screen unchanged,
+because a table row had been added to the document without going through the rendered
+string — so after undo that string was _identical_ to what it already was, and
+nothing identical is ever reapplied. The restored document is written to the surface
+directly. Measured: 3 rows → 4 → 3 → 4.
+
 ## Wanted, from looking at it — 20 August
 
 The owner's, recorded rather than built, and none of them urgent.

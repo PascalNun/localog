@@ -85,6 +85,7 @@
   /// the caret — is read back into it rather than kept.
   function readDocument() {
     if (!documentSurface) return;
+    rememberAfterTyping();
     typingInDocument = true;
     markdown = toMarkdown(fromElement(documentSurface));
     renderedFrom = markdown;
@@ -103,6 +104,7 @@
   /// behind is read back through the same reader as everything else.
   function format(command: string, value?: string) {
     if (!documentSurface) return;
+    remember();
     documentSurface.focus();
     document.execCommand(command, false, value);
     readDocument();
@@ -274,6 +276,7 @@
 
   function acceptProposal() {
     if (!proposal || !documentSurface) return;
+    remember();
     documentSurface.focus();
     const selection = window.getSelection();
     selection?.removeAllRanges();
@@ -300,6 +303,7 @@
   function handlePaste(event: ClipboardEvent) {
     const clipboard = event.clipboardData;
     if (!clipboard) return;
+    remember();
     const html = clipboard.getData('text/html');
     const plain = clipboard.getData('text/plain');
     if (!html && !plain) return;
@@ -471,6 +475,7 @@
   /// uses. Two columns, because the actions table is a task and who owns it.
   function insertTable() {
     if (!documentSurface) return;
+    remember();
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
     const range = selection.getRangeAt(0);
@@ -655,11 +660,83 @@
     }, 420);
   }
 
-  function editorCommand(command: 'undo' | 'redo') {
-    editor.focus();
-    document.execCommand(command);
-    markdown = editor.value;
+  /// Undo that knows what a heading is.
+  ///
+  /// The browser's own undo covers typing in an editable region and nothing else.
+  /// Adding a table row, removing a column, replacing a name through the document
+  /// and accepting a rewrite are all done to the document directly, and none of
+  /// them ever reached that stack — so undo silently skipped past the very
+  /// operations somebody is most likely to want back.
+  ///
+  /// The history is kept over the Markdown, which is the document. That costs a
+  /// re-render on undo, and buys an undo that means the same thing everywhere.
+  let history: string[] = [];
+  let future: string[] = [];
+  const MOST_REMEMBERED = 60;
+
+  /// Remember the document as it is now, before something changes it.
+  function remember() {
+    if (history[history.length - 1] === markdown) return;
+    history = [...history, markdown].slice(-MOST_REMEMBERED);
+    future = [];
+  }
+
+  /// Typing is remembered in pauses rather than per keystroke, so that undo steps
+  /// back a phrase at a time as it does in a word processor.
+  let restingTimer: ReturnType<typeof setTimeout> | null = null;
+  function rememberAfterTyping() {
+    if (restingTimer) clearTimeout(restingTimer);
+    const before = markdown;
+    restingTimer = setTimeout(() => {
+      if (history[history.length - 1] !== before) {
+        history = [...history, before].slice(-MOST_REMEMBERED);
+        future = [];
+      }
+    }, 600);
+  }
+
+  function stepBack() {
+    const previous = history[history.length - 1];
+    if (previous === undefined) return;
+    history = history.slice(0, -1);
+    future = [...future, markdown];
+    showAgain(previous);
+  }
+
+  function stepForward() {
+    const next = future[future.length - 1];
+    if (next === undefined) return;
+    future = future.slice(0, -1);
+    history = [...history, markdown];
+    showAgain(next);
+  }
+
+  /// Put a remembered document back on screen.
+  ///
+  /// The surface is written to directly rather than left to the reactive render.
+  /// Operations like adding a table row change the document without going through
+  /// the rendered string, so after stepping back that string can be *identical* to
+  /// what it already was — and nothing identical is ever reapplied. Undo then
+  /// appeared to do nothing at all, which is how this was found.
+  function showAgain(text: string) {
+    markdown = text;
+    rendered = renderMarkdown(text);
+    renderedFrom = text;
+    if (documentSurface) documentSurface.innerHTML = rendered;
     scheduleSave();
+  }
+
+  function editorCommand(command: 'undo' | 'redo') {
+    if (view === 'markdown') {
+      // A textarea's own undo is good and knows the caret; leave it alone.
+      editor?.focus();
+      document.execCommand(command);
+      markdown = editor?.value ?? markdown;
+      scheduleSave();
+      return;
+    }
+    if (command === 'undo') stepBack();
+    else stepForward();
   }
 
   /// How many times the search appears, counted on the stored form.
@@ -734,6 +811,7 @@
   /// the Markdown and re-rendered, which is why it works the same in both views.
   function replaceAll() {
     if (findQuery.trim() === '' || matchCount === 0) return;
+    remember();
     const pattern = new RegExp(findQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
     markdown = markdown.replace(pattern, replaceQuery);
     renderedFrom = '';
@@ -764,6 +842,7 @@
 
   onDestroy(() => {
     if (saveTimer) clearTimeout(saveTimer);
+    if (restingTimer) clearTimeout(restingTimer);
   });
 </script>
 
