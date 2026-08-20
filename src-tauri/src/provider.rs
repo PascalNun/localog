@@ -2237,8 +2237,35 @@ fn protocol_schema() -> serde_json::Value {
 /// Density is kept structured rather than written into a style's instruction list
 /// so that it can also size the answer budget and be shown in the library, but the
 /// model still needs telling, and this is where it is told.
+/// The rules no style may set, because they are not matters of style.
+///
+/// A style decides how a protocol is written. These decide whether it is true, and
+/// a document that reports a decision nobody made is not a differently-styled
+/// protocol — it is a wrong one. They are held here rather than in each style's own
+/// list so that they cannot be edited away: authoring a style cannot reach them,
+/// not because the interface forbids it but because they are not in the thing being
+/// edited.
+///
+/// Every one of these was earned. The placeholder rule exists because drafts came
+/// back with `[Datum]` in them; the coverage rule because a protocol that reads well
+/// and silently drops a subject is the failure a reader cannot see.
+pub const FIDELITY_RULES: &[&str] = &[
+    "Write the entire protocol in the meeting's language.",
+    "Reproduce every number, measurement, area, date, and proper name exactly as stated. Never round or approximate them.",
+    "Never invent a decision, an action, an owner, or a date. If the source does not say who is responsible, leave it unattributed.",
+    "Separate what was decided from what remains open. Where no decision was reached, say so plainly rather than implying one.",
+    "Mark uncertainty in the words the meeting used, such as an intention, an estimate, or a matter still to be confirmed.",
+    "Cover every topic that was discussed. A protocol that silently omits a topic is incomplete, even if what remains reads well.",
+    "Never leave a placeholder such as [Datum] or [Details]. If something is not in the source, omit the line instead.",
+];
+
+/// A style's own instructions, the fidelity rules, and how much room to take.
+///
+/// The order is deliberate: what to write, then what may never be done to it, then
+/// how long. Fidelity last of the three would be read as an afterthought.
 fn with_density(request: &GenerationRequest) -> Vec<String> {
     let mut instructions = request.style.instructions.clone();
+    instructions.extend(FIDELITY_RULES.iter().map(|rule| (*rule).to_string()));
     instructions.push(request.style.density.directive().to_string());
     instructions
 }

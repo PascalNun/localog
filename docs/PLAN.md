@@ -320,18 +320,30 @@ PDF. Verified without trusting this project's own code: `file` reports Microsoft
 umlauts, the m² and the table intact. **Word itself has not opened it**, which is the
 one check left, and needs a machine with Word on it.
 
-### 5. Let a protocol style be authored
+### 5. Let a protocol style be authored — done, 20 August
 
-The real version, and bigger than the page suggests. There are no style commands at
-all — nothing creates, updates, duplicates or deletes one — so this is a vertical
-through storage, commands and interface.
+- Duplicate a shipped style; edit its name, its description, its instructions and its
+  density; delete one you made. A style that shipped cannot be edited, so a protocol
+  written last year can be written the same way again — it is copied first.
+- A style in use cannot be deleted, and the refusal names what is using it.
 
-- Duplicate a built-in style; edit its voice, its structure, its density.
-- Fidelity rules shown and locked, with the reason given rather than hidden: never
-  invent a decision, reproduce every number exactly, never leave a placeholder. A style
-  is how a thing is said, never whether it is true.
-- Replace `required_sections` with structural expectations that can be checked in any
-  language, as the action table now is.
+**Fidelity is not shown as locked. It is not there to lock.** The seven rules that
+decide whether a protocol is _true_ rather than how it _reads_ were sitting in each
+style's own instruction list, beside "use numbered headings" — one a matter of style
+and the other not. They now live in the code and are added to every style as a
+protocol is written, so authoring a style cannot reach them: not because the
+interface forbids it, but because they are not in the thing being edited. Migration
+20 takes them out of every style, including edited ones, since they were never the
+style's to keep.
+
+They are still shown, under "Always, in every style", with the reason — a document
+reporting a decision nobody made is not a differently-styled protocol but a wrong
+one. A test asserts they are absent from all three shipped styles and present in what
+reaches the model, because "unauthorable by construction" is only worth anything if
+both halves hold.
+
+Still outstanding from this item: replacing `required_sections` with structural
+expectations checkable in any language, as the action table now is.
 
 ### 6. The recording screen against the reference images
 

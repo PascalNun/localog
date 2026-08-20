@@ -3,6 +3,7 @@
     ProjectSummary,
     ExportTemplate,
     PageFurniture,
+    ProtocolDensity,
     ProtocolStyle,
     ProtocolStyleDetail,
     VocabularyDraft,
@@ -21,6 +22,16 @@
   export let onOpenStyle: (styleId: string) => Promise<ProtocolStyleDetail> = async () => {
     throw new Error('Styles cannot be read here.');
   };
+  export let onDuplicateStyle: (styleId: string, name: string) => Promise<void> = async () =>
+    undefined;
+  export let onUpdateStyle: (
+    styleId: string,
+    name: string,
+    description: string,
+    instructions: string[],
+    density: ProtocolDensity,
+  ) => Promise<void> = async () => undefined;
+  export let onDeleteStyle: (styleId: string) => Promise<void> = async () => undefined;
   export let onSaveTerm: (entry: VocabularyDraft) => Promise<void> = async () => undefined;
   export let onDeleteTerm: (entryId: string) => Promise<void> = async () => undefined;
 
@@ -53,11 +64,85 @@
   let openingStyleId = '';
   let styleError = '';
 
+  /// Editing a style, which is editing what it asks for and nothing else.
+  ///
+  /// The fidelity rules are not here to edit: they are not stored with the style at
+  /// all. They are shown beneath, so that what cannot be changed is visible rather
+  /// than merely absent.
+  let editingStyle = false;
+  let editName = '';
+  let editDescription = '';
+  let editInstructions: string[] = [];
+  let editDensity: ProtocolDensity = 'concise';
+  let styleBusy = false;
+
+  function startStyleEditing(detail: ProtocolStyleDetail) {
+    editingStyle = true;
+    editName = detail.name;
+    editDescription = detail.description;
+    editInstructions = [...detail.instructions];
+    editDensity = detail.density;
+  }
+
+  async function saveStyle(styleId: string) {
+    styleBusy = true;
+    styleError = '';
+    try {
+      await onUpdateStyle(
+        styleId,
+        editName,
+        editDescription,
+        editInstructions.filter((line) => line.trim() !== ''),
+        editDensity,
+      );
+      editingStyle = false;
+      openStyle = await onOpenStyle(styleId);
+    } catch (cause) {
+      styleError = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      styleBusy = false;
+    }
+  }
+
+  async function duplicateStyle(detail: ProtocolStyleDetail) {
+    styleBusy = true;
+    styleError = '';
+    try {
+      await onDuplicateStyle(detail.id, `${detail.name} (copy)`);
+      openStyle = null;
+    } catch (cause) {
+      styleError = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      styleBusy = false;
+    }
+  }
+
+  async function removeStyle(styleId: string) {
+    styleBusy = true;
+    styleError = '';
+    try {
+      await onDeleteStyle(styleId);
+      openStyle = null;
+    } catch (cause) {
+      styleError = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      styleBusy = false;
+    }
+  }
+
+  const DENSITY_CHOICES: { value: ProtocolDensity; label: string }[] = [
+    { value: 'comprehensive', label: 'Full prose' },
+    { value: 'concise', label: 'Plain statements' },
+    { value: 'terse', label: 'A line per point' },
+  ];
+
   async function openStyleDetail(styleId: string) {
     if (openStyle?.id === styleId) {
       openStyle = null;
+      editingStyle = false;
       return;
     }
+    editingStyle = false;
     openingStyleId = styleId;
     styleError = '';
     try {
@@ -269,19 +354,61 @@
                 <p>{DENSITY_MEANING[detail.density] ?? detail.density}</p>
               </div>
 
-              <div class="style-instructions">
-                <h3>What this style asks for</h3>
-                <p class="style-note">
-                  These are the instructions the model is given, in the order it is given them{detail.asShipped
-                    ? ', exactly as this style shipped'
-                    : ''}.
-                </p>
-                <ol>
-                  {#each detail.instructions as instruction, at (at)}
-                    <li>{instruction}</li>
-                  {/each}
-                </ol>
-              </div>
+              {#if editingStyle}
+                <div class="style-editor">
+                  <label>
+                    <span>Name</span>
+                    <input bind:value={editName} maxlength="120" />
+                  </label>
+                  <label>
+                    <span>Description</span>
+                    <input bind:value={editDescription} maxlength="240" />
+                  </label>
+                  <label>
+                    <span>Length</span>
+                    <select bind:value={editDensity}>
+                      {#each DENSITY_CHOICES as choice (choice.value)}
+                        <option value={choice.value}>{choice.label}</option>
+                      {/each}
+                    </select>
+                  </label>
+                  <div class="style-instruction-fields">
+                    <span class="style-fields-label">What this style asks for</span>
+                    {#each editInstructions as _, at (at)}
+                      <div class="style-instruction-row">
+                        <textarea bind:value={editInstructions[at]} rows="2"></textarea>
+                        <button
+                          class="icon-button compact"
+                          aria-label="Remove this instruction"
+                          onclick={() =>
+                            (editInstructions = editInstructions.filter(
+                              (__, index) => index !== at,
+                            ))}><Icon name="close" size={14} /></button
+                        >
+                      </div>
+                    {/each}
+                    <button
+                      class="text-action"
+                      onclick={() => (editInstructions = [...editInstructions, ''])}
+                      ><Icon name="plus" size={14} /> Add an instruction</button
+                    >
+                  </div>
+                </div>
+              {:else}
+                <div class="style-instructions">
+                  <h3>What this style asks for</h3>
+                  <p class="style-note">
+                    These are the instructions the model is given, in the order it is given them{detail.asShipped
+                      ? ', exactly as this style shipped'
+                      : ''}.
+                  </p>
+                  <ol>
+                    {#each detail.instructions as instruction, at (at)}
+                      <li>{instruction}</li>
+                    {/each}
+                  </ol>
+                </div>
+              {/if}
 
               {#if detail.requiredSections.length > 0}
                 <div class="style-sections">
@@ -294,11 +421,59 @@
                 </div>
               {/if}
 
-              <p class="style-note">
-                Editing a style is not built yet. When it is, how a thing is said will be yours to
-                change and whether it is true will not: reproducing every number exactly, never
-                inventing a decision, and never leaving a placeholder stay fixed in every style.
-              </p>
+              <div class="style-fidelity">
+                <h3>Always, in every style</h3>
+                <p class="style-note">
+                  These are not part of this style and cannot be edited here — they are not stored
+                  with a style at all. They are added to every protocol as it is written, because a
+                  document that reports a decision nobody made is not a differently-styled protocol
+                  but a wrong one.
+                </p>
+                <ul>
+                  {#each detail.fidelity as rule, at (at)}
+                    <li>{rule}</li>
+                  {/each}
+                </ul>
+              </div>
+
+              <div class="style-actions">
+                {#if detail.editable}
+                  {#if editingStyle}
+                    <button
+                      class="primary-action"
+                      disabled={styleBusy}
+                      onclick={() => void saveStyle(detail.id)}>Save style</button
+                    >
+                    <button class="secondary-action" onclick={() => (editingStyle = false)}
+                      >Cancel</button
+                    >
+                    <button
+                      class="text-action"
+                      disabled={styleBusy}
+                      onclick={() => void removeStyle(detail.id)}>Delete</button
+                    >
+                  {:else}
+                    <button class="secondary-action" onclick={() => startStyleEditing(detail)}
+                      >Edit this style</button
+                    >
+                    <button
+                      class="text-action"
+                      disabled={styleBusy}
+                      onclick={() => void duplicateStyle(detail)}>Duplicate</button
+                    >
+                  {/if}
+                {:else}
+                  <button
+                    class="secondary-action"
+                    disabled={styleBusy}
+                    onclick={() => void duplicateStyle(detail)}>Duplicate to edit</button
+                  >
+                  <span class="style-note"
+                    >A style that shipped stays as it is, so a protocol written last year can be
+                    written the same way again. Copy it to make your own.</span
+                  >
+                {/if}
+              </div>
             </div>
           {/if}
         </article>

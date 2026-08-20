@@ -30,6 +30,7 @@
     FakeJobOutcome,
     MeetingSummary,
     ProjectSummary,
+    ProtocolDensity,
     ProtocolDraft,
     ExportTemplate,
     SetAsideSection,
@@ -774,6 +775,16 @@
           vocabulary={snapshot.vocabulary}
           projects={snapshot.projects}
           onOpenStyle={(styleId: string) => bridge.protocolStyleDetail(styleId)}
+          onDuplicateStyle={(styleId: string, name: string) =>
+            bridge.duplicateProtocolStyle(styleId, name)}
+          onUpdateStyle={(
+            styleId: string,
+            name: string,
+            description: string,
+            instructions: string[],
+            density: ProtocolDensity,
+          ) => bridge.updateProtocolStyle(styleId, name, description, instructions, density)}
+          onDeleteStyle={(styleId: string) => bridge.deleteProtocolStyle(styleId)}
           templates={exportTemplates}
           onDeleteTemplate={async (templateId: string) => {
             exportTemplates = await bridge.deleteExportTemplate(templateId);

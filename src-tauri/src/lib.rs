@@ -1145,6 +1145,53 @@ async fn set_project_appearance(
     .await
 }
 
+/// Copy a style so it can be changed without touching the one that shipped.
+#[tauri::command]
+async fn duplicate_protocol_style(
+    state: State<'_, StorageState>,
+    style_id: String,
+    name: String,
+) -> Result<WorkspaceSnapshot, String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.duplicate_protocol_style(&style_id, &name)?;
+        repository.workspace_snapshot()
+    })
+    .await
+}
+
+/// Change what a style asks for.
+///
+/// Its own instructions only. The fidelity rules are not in the styles table at all
+/// — they are added to every style when a protocol is written — so this cannot reach
+/// them, which is the point.
+#[tauri::command]
+async fn update_protocol_style(
+    state: State<'_, StorageState>,
+    style_id: String,
+    name: String,
+    description: String,
+    instructions: Vec<String>,
+    density: domain::ProtocolDensity,
+) -> Result<WorkspaceSnapshot, String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.update_protocol_style(&style_id, &name, &description, &instructions, density)?;
+        repository.workspace_snapshot()
+    })
+    .await
+}
+
+#[tauri::command]
+async fn delete_protocol_style(
+    state: State<'_, StorageState>,
+    style_id: String,
+) -> Result<WorkspaceSnapshot, String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.delete_protocol_style(&style_id)?;
+        repository.workspace_snapshot()
+    })
+    .await
+}
+
 /// What replacing a name through a protocol would do, and the text it would become.
 ///
 /// Stores nothing: the editor shows the changes, and writes the result only if
@@ -1590,6 +1637,9 @@ pub fn run() {
             start_generation,
             cancel_processing,
             protocol_style_detail,
+            duplicate_protocol_style,
+            update_protocol_style,
+            delete_protocol_style,
             recording_status,
             start_recording,
             stop_recording,

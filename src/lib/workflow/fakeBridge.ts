@@ -5,6 +5,7 @@ import type {
   RefinedPassage,
   ExportTemplate,
   NameReplacement,
+  ProtocolDensity,
   SetAsideSection,
   ProtocolStyleDetail,
   ActiveJob,
@@ -571,6 +572,47 @@ export class FakeWorkflowBridge implements WorkflowBridge {
    * Shaped like the real thing measured on a long meeting: a handful of words, some
    * of them names worth keeping and some of them the transcriber simply fumbling.
    */
+  async duplicateProtocolStyle(styleId: string, name: string): Promise<void> {
+    if (this.workspaceStore?.duplicateProtocolStyle) {
+      this.applyDurableWorkspace(await this.workspaceStore.duplicateProtocolStyle(styleId, name));
+      this.emit();
+      return;
+    }
+    throw new Error('Editing styles needs the desktop application.');
+  }
+
+  async updateProtocolStyle(
+    styleId: string,
+    name: string,
+    description: string,
+    instructions: string[],
+    density: ProtocolDensity,
+  ): Promise<void> {
+    if (this.workspaceStore?.updateProtocolStyle) {
+      this.applyDurableWorkspace(
+        await this.workspaceStore.updateProtocolStyle(
+          styleId,
+          name,
+          description,
+          instructions,
+          density,
+        ),
+      );
+      this.emit();
+      return;
+    }
+    throw new Error('Editing styles needs the desktop application.');
+  }
+
+  async deleteProtocolStyle(styleId: string): Promise<void> {
+    if (this.workspaceStore?.deleteProtocolStyle) {
+      this.applyDurableWorkspace(await this.workspaceStore.deleteProtocolStyle(styleId));
+      this.emit();
+      return;
+    }
+    throw new Error('Editing styles needs the desktop application.');
+  }
+
   /**
    * A style read in full. Real when there is a workspace, and otherwise the
    * instructions the application actually ships, so the screen is not designed
@@ -588,6 +630,8 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       instructions: SEEDED_INSTRUCTIONS[style.id] ?? [],
       requiredSections: [],
       asShipped: true,
+      fidelity: SEEDED_FIDELITY,
+      editable: false,
     };
   }
 
@@ -1400,3 +1444,19 @@ const SEEDED_INSTRUCTIONS: Record<string, string[]> = {
     'Never leave a placeholder such as [Datum] or [Details]. If something is not in the source, omit the line instead.',
   ],
 };
+
+/**
+ * The rules every style carries, copied from the code that owns them.
+ *
+ * Only used when there is no workspace behind the interface. The real list lives in
+ * Rust and is added to every protocol as it is written.
+ */
+const SEEDED_FIDELITY: string[] = [
+  "Write the entire protocol in the meeting's language.",
+  'Reproduce every number, measurement, area, date, and proper name exactly as stated. Never round or approximate them.',
+  'Never invent a decision, an action, an owner, or a date. If the source does not say who is responsible, leave it unattributed.',
+  'Separate what was decided from what remains open. Where no decision was reached, say so plainly rather than implying one.',
+  'Mark uncertainty in the words the meeting used, such as an intention, an estimate, or a matter still to be confirmed.',
+  'Cover every topic that was discussed. A protocol that silently omits a topic is incomplete, even if what remains reads well.',
+  'Never leave a placeholder such as [Datum] or [Details]. If something is not in the source, omit the line instead.',
+];

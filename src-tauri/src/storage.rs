@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 19;
+const CURRENT_SCHEMA_VERSION: i64 = 20;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -156,6 +156,9 @@ pub(crate) struct ResolvedProtocolStyle {
     pub density: ProtocolDensity,
 }
 
+/// The styles that came with the application, which are copied rather than edited.
+const SHIPPED_STYLES: &[&str] = &["style-formal", "style-working-note", "style-decision-log"];
+
 /// A saved way of presenting a protocol.
 ///
 /// The typography and the running header and footer, named. Not the protocol style:
@@ -194,6 +197,11 @@ pub struct ProtocolStyleDetail {
     pub instructions: Vec<String>,
     pub required_sections: Vec<String>,
     pub as_shipped: bool,
+    /// The rules every style carries and none may change, so they can be shown as
+    /// what they are rather than quietly enforced.
+    pub fidelity: Vec<String>,
+    /// Whether this style can be edited here. The shipped ones are copied first.
+    pub editable: bool,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -292,6 +300,125 @@ impl WorkspaceRepository {
             vocabulary: resolved_vocabulary,
             vocabulary_revision: format!("sha256:{}", checksum_bytes(&vocabulary_json)),
         })
+    }
+
+    /// Copy a style so it can be changed without touching the one that shipped.
+    pub fn duplicate_protocol_style(&self, style_id: &str, name: &str) -> Result<String> {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err(StorageError::InvalidData("Give the style a name."));
+        }
+        let (description, language_scope, instructions, sections, density): (
+            String,
+            String,
+            String,
+            String,
+            String,
+        ) = self
+            .connection
+            .query_row(
+                "SELECT description, language_scope, instructions_json,
+                        required_sections_json, density
+                 FROM protocol_styles WHERE id = ?1",
+                [style_id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
+            )
+            .optional()?
+            .ok_or(StorageError::InvalidData("That style no longer exists."))?;
+
+        let new_style = new_id("style");
+        self.connection.execute(
+            "INSERT INTO protocol_styles
+                (id, name, description, language_scope, instructions_json,
+                 required_sections_json, revision, density, enabled)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, 1)",
+            params![
+                new_style,
+                name,
+                description,
+                language_scope,
+                instructions,
+                sections,
+                density
+            ],
+        )?;
+        Ok(new_style)
+    }
+
+    /// Change what a style asks for.
+    ///
+    /// Only its own instructions: the fidelity rules are not in this table and are
+    /// added to every style when a protocol is written, so there is nothing here to
+    /// edit them with. The revision moves, because a protocol records which revision
+    /// of which style produced it.
+    pub fn update_protocol_style(
+        &self,
+        style_id: &str,
+        name: &str,
+        description: &str,
+        instructions: &[String],
+        density: ProtocolDensity,
+    ) -> Result<()> {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err(StorageError::InvalidData("Give the style a name."));
+        }
+        let kept: Vec<&String> = instructions
+            .iter()
+            .filter(|instruction| !instruction.trim().is_empty())
+            .collect();
+        let json = serde_json::to_string(&kept)
+            .map_err(|_| StorageError::InvalidData("The style could not be saved."))?;
+        let changed = self.connection.execute(
+            "UPDATE protocol_styles
+                SET name = ?1, description = ?2, instructions_json = ?3, density = ?4,
+                    revision = revision + 1
+              WHERE id = ?5",
+            params![name, description.trim(), json, density.as_str(), style_id],
+        )?;
+        if changed == 0 {
+            return Err(StorageError::InvalidData("That style no longer exists."));
+        }
+        Ok(())
+    }
+
+    /// Remove a style, unless a meeting is using it.
+    pub fn delete_protocol_style(&self, style_id: &str) -> Result<()> {
+        let in_use: i64 = self.connection.query_row(
+            "SELECT COUNT(*) FROM meetings WHERE style_id = ?1 AND archived_at_ms IS NULL",
+            [style_id],
+            |row| row.get(0),
+        )?;
+        if in_use > 0 {
+            return Err(StorageError::InvalidData(
+                "A meeting is using this style. Change those meetings first.",
+            ));
+        }
+        let projects: i64 = self.connection.query_row(
+            "SELECT COUNT(*) FROM projects WHERE default_style_id = ?1 AND archived_at_ms IS NULL",
+            [style_id],
+            |row| row.get(0),
+        )?;
+        if projects > 0 {
+            return Err(StorageError::InvalidData(
+                "A project uses this style by default. Change that first.",
+            ));
+        }
+        let changed = self
+            .connection
+            .execute("DELETE FROM protocol_styles WHERE id = ?1", [style_id])?;
+        if changed == 0 {
+            return Err(StorageError::InvalidData("That style no longer exists."));
+        }
+        Ok(())
     }
 
     /// Every saved way of presenting a protocol, shipped ones first.
@@ -1109,6 +1236,11 @@ impl WorkspaceRepository {
             // A style that has never been edited is the one that shipped. The
             // distinction matters to somebody deciding whether they may change it.
             as_shipped: edited == 1,
+            fidelity: crate::provider::FIDELITY_RULES
+                .iter()
+                .map(|rule| (*rule).to_string())
+                .collect(),
+            editable: !SHIPPED_STYLES.contains(&style_id),
         })
     }
 
@@ -2255,6 +2387,46 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
         )?;
         seed_export_templates(connection)?;
         connection.pragma_update(None, "user_version", 19)?;
+        version = 19;
+    }
+    if version == 19 {
+        // Fidelity comes out of every style's own list and lives in the code, where
+        // authoring a style cannot reach it. Before this, "never invent a decision"
+        // sat in the same list as "use numbered headings" — one a matter of style,
+        // the other not — and letting somebody edit their style would have let them
+        // edit that.
+        //
+        // Applied to every style including edited ones, because these are not the
+        // style's to have kept in the first place.
+        let mut styles: Vec<(String, String)> = Vec::new();
+        {
+            let mut statement =
+                connection.prepare("SELECT id, instructions_json FROM protocol_styles")?;
+            let rows = statement.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+            for row in rows {
+                styles.push(row?);
+            }
+        }
+        for (id, json) in styles {
+            let Ok(instructions) = serde_json::from_str::<Vec<String>>(&json) else {
+                continue;
+            };
+            let kept: Vec<String> = instructions
+                .into_iter()
+                .filter(|instruction| {
+                    !crate::provider::FIDELITY_RULES
+                        .iter()
+                        .any(|rule| rule == instruction)
+                })
+                .collect();
+            let rewritten = serde_json::to_string(&kept)
+                .map_err(|_| StorageError::InvalidData("A style could not be migrated."))?;
+            connection.execute(
+                "UPDATE protocol_styles SET instructions_json = ?1 WHERE id = ?2",
+                params![rewritten, id],
+            )?;
+        }
+        connection.pragma_update(None, "user_version", 20)?;
     }
     Ok(())
 }
@@ -2889,16 +3061,44 @@ mod tests {
         let repository = WorkspaceRepository::open(temporary.path()).unwrap();
         let style = repository.protocol_inputs_style("style-formal");
         assert!(
-            style.instructions.len() >= 10,
+            style.instructions.len() >= 5,
             "the shipped style should be a real specification, not a sentence: {} instructions",
             style.instructions.len()
         );
         let joined = style.instructions.join(" ");
-        // The properties a protocol of this kind depends on.
+        // The properties a protocol of this kind depends on, which are the style's.
         assert!(joined.contains("by topic"), "must organise by topic");
         assert!(joined.contains("next steps"), "must end in an action table");
-        assert!(joined.contains("Never invent"), "must forbid invention");
-        assert!(joined.contains("placeholder"), "must forbid placeholders");
+    }
+
+    /// Fidelity is not the style's to carry, and the point is that it cannot be.
+    ///
+    /// These rules decide whether a protocol is true rather than how it reads, so
+    /// they live in the code and are added to every style. Authoring a style cannot
+    /// remove them because they are not in the thing being edited — which is only
+    /// worth anything if they are genuinely absent from the style and genuinely
+    /// present in what reaches the model.
+    #[test]
+    fn fidelity_is_not_something_a_style_can_edit_away() {
+        let temporary = tempdir().unwrap();
+        let repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        for id in ["style-formal", "style-working-note", "style-decision-log"] {
+            let style = repository.protocol_inputs_style(id);
+            let joined = style.instructions.join(" ");
+            assert!(
+                !joined.contains("Never invent"),
+                "{id} still carries a fidelity rule in its own instructions"
+            );
+            assert!(
+                !joined.contains("placeholder"),
+                "{id} still carries the placeholder rule in its own instructions"
+            );
+        }
+
+        let rules = crate::provider::FIDELITY_RULES.join(" ");
+        assert!(rules.contains("Never invent"), "the rule must exist somewhere");
+        assert!(rules.contains("placeholder"), "the rule must exist somewhere");
+        assert!(rules.contains("exactly as stated"), "figures must be protected");
     }
 
     /// Starting a recording, against the real table rather than against a reading of

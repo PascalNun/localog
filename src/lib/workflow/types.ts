@@ -330,9 +330,20 @@ export interface ProtocolStyleDetail {
   name: string;
   description: string;
   density: ProtocolDensity;
+  /** What this style asks for, which is the part that can be changed. */
   instructions: string[];
   requiredSections: string[];
   asShipped: boolean;
+  /**
+   * The rules every style carries and none may change.
+   *
+   * They are not stored with the style: they live in the code and are added to every
+   * protocol as it is written, so editing a style cannot reach them. Shown here so
+   * they read as a promise rather than as something quietly enforced.
+   */
+  fidelity: string[];
+  /** The shipped styles are copied rather than edited. */
+  editable: boolean;
 }
 
 /** A file being dragged over the window, or let go of. */
@@ -535,6 +546,15 @@ export interface WorkflowBridge {
    */
   /** What a recording in progress is doing. Cheap; polled while the screen is open. */
   protocolStyleDetail(styleId: string): Promise<ProtocolStyleDetail>;
+  duplicateProtocolStyle(styleId: string, name: string): Promise<void>;
+  updateProtocolStyle(
+    styleId: string,
+    name: string,
+    description: string,
+    instructions: string[],
+    density: ProtocolDensity,
+  ): Promise<void>;
+  deleteProtocolStyle(styleId: string): Promise<void>;
   setProjectAppearance(projectId: string, appearance: DocumentAppearance): Promise<void>;
   setProjectFurniture(projectId: string, furniture: PageFurniture): Promise<void>;
   /**

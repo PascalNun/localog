@@ -429,6 +429,16 @@ impl ProtocolDensity {
     /// target length is given: a number of words invites padding to reach it, and
     /// a meeting that warrants three pages should not be stretched to five because
     /// the style asked for prose.
+    /// The word this is stored as, which is also the word the CHECK constraint
+    /// and every migration use.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Comprehensive => "comprehensive",
+            Self::Concise => "concise",
+            Self::Terse => "terse",
+        }
+    }
+
     pub fn directive(self) -> &'static str {
         match self {
             Self::Comprehensive => {
