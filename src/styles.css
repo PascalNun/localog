@@ -1535,19 +1535,22 @@ button.review-summary[aria-pressed='true'] {
      own text and the page scrolls, rather than a fixed box scrolling inside a page
      that also scrolls. */
   grid-template-rows: auto auto auto;
-  background: var(--raised);
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  /* No frame of its own. The toolbar and the document are two things sitting on the
+     page, not one box inside another — a border round both drew a second edge just
+     inside the first, which is a box for nothing. */
+  gap: 14px;
 }
 .editor-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 48px;
-  padding: 7px 18px;
+  min-height: 44px;
+  padding: 5px 12px;
   color: var(--muted);
-  border-bottom: 1px solid var(--line);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 6px;
   font-size: 0.76rem;
 }
 .editor-tools {
@@ -2957,7 +2960,7 @@ button.review-summary[aria-pressed='true'] {
 
 .choice.chosen {
   color: var(--ink);
-  background: var(--surface);
+  background: var(--raised);
   box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
 }
 
@@ -3064,7 +3067,7 @@ button.review-summary[aria-pressed='true'] {
   margin: 0 auto;
   padding: 40px 44px 56px;
   color: var(--ink);
-  background: var(--surface);
+  background: var(--raised);
   border: 1px solid var(--line);
   border-radius: 3px;
   font-family: var(--document-font, inherit);
@@ -3321,7 +3324,7 @@ button.review-summary[aria-pressed='true'] {
   gap: 2px;
   align-items: center;
   padding: 4px 5px;
-  background: var(--surface);
+  background: var(--raised);
   border: 1px solid var(--line-strong);
   border-radius: 7px;
   box-shadow: 0 6px 20px rgb(0 0 0 / 16%);
@@ -3369,7 +3372,7 @@ button.review-summary[aria-pressed='true'] {
   display: grid;
   min-width: 190px;
   padding: 5px;
-  background: var(--surface);
+  background: var(--raised);
   border: 1px solid var(--line-strong);
   border-radius: 7px;
   box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
@@ -3449,7 +3452,7 @@ button.review-summary[aria-pressed='true'] {
   min-height: 30px;
   padding: 4px 7px;
   color: var(--ink);
-  background: var(--surface);
+  background: var(--raised);
   border: 1px solid var(--line-strong);
   border-radius: 4px;
   font-size: 0.83rem;
@@ -3582,7 +3585,7 @@ button.review-summary[aria-pressed='true'] {
   width: 92px;
   padding: 1px 4px;
   color: var(--ink);
-  background: var(--surface);
+  background: var(--raised);
   border: 1px solid var(--line);
   border-radius: 3px;
   font-size: 0.78rem;
@@ -3621,7 +3624,7 @@ button.review-summary[aria-pressed='true'] {
   gap: 2px;
   align-items: center;
   padding: 3px 6px;
-  background: var(--surface);
+  background: var(--raised);
   border: 1px solid var(--line-strong);
   border-radius: 6px;
   box-shadow: 0 4px 14px rgb(0 0 0 / 12%);
