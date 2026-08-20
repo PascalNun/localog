@@ -500,6 +500,35 @@ string — so after undo that string was _identical_ to what it already was, and
 nothing identical is ever reapplied. The restored document is written to the surface
 directly. Measured: 3 rows → 4 → 3 → 4.
 
+## The sections list — done, 20 August
+
+From the reference: the parts the protocol is made of, listed in the inspector with a
+grip to reorder them and a way to take one out.
+
+**Nothing is stored to make the list.** A protocol already says where its sections
+are — it is a document with headings — so a second list kept alongside would be a
+second truth to keep in agreement with the first, and the first would win. The list
+is read from the Markdown and every action writes the Markdown back.
+
+Which headings count as sections is the one judgement: **the shallowest level that
+occurs more than once.** A protocol usually opens with a single `#` title and divides
+into `##`, so taking the shallowest outright would make the whole document one
+section. A subsection stays inside its section rather than beside it.
+
+**Setting a section aside takes it out of the document**, and that is deliberate. A
+section kept in the file but hidden from the page would make the screen and the PDF
+differ, which is the one thing this editor exists not to do. It goes into a stash
+beside the working draft — stored, so it survives closing the meeting — and can be
+put back whole. The document and the stash are written in one call, because a
+failure between the two would either lose a section or duplicate it.
+
+Eleven tests on the arithmetic, including the property that matters: rearranging the
+sections must not lose a word, checked by sorting every word before and after.
+Verified in the application: four sections listed; setting one aside removed it from
+the list, put it in the stash and took its prose out of the document; putting it back
+restored all three; and a drag from first to third reordered the document with every
+other section's content intact.
+
 ## Wanted, from looking at it — 20 August
 
 The owner's, recorded rather than built, and none of them urgent.

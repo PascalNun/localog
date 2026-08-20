@@ -31,6 +31,7 @@ import type {
   DocumentAppearance,
   PageFurniture,
   RefinedPassage,
+  SetAsideSection,
   ProtocolStyleDetail,
   RecordingStatus,
   CorrectionMatch,
@@ -84,6 +85,12 @@ export interface WorkspaceStore {
     appearance: DocumentAppearance,
   ) => Promise<WorkspaceData>;
   setProjectFurniture?: (projectId: string, furniture: PageFurniture) => Promise<WorkspaceData>;
+  protocolSetAside?: (meetingId: string) => Promise<SetAsideSection[]>;
+  setProtocolSections?: (
+    meetingId: string,
+    markdown: string,
+    setAside: SetAsideSection[],
+  ) => Promise<WorkspaceData>;
   refinePassage?: (
     meetingId: string,
     passage: string,

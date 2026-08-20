@@ -24,12 +24,20 @@
     needsPageNumbers,
   } from '../protocol/furniture';
   import { diffWords, isUnchanged, type Change } from '../protocol/diff';
+  import {
+    appendSection,
+    moveSection,
+    newSection,
+    readSections,
+    removeSection,
+  } from '../protocol/sections';
   import type {
     DocumentAppearance,
     FurnitureField,
     FurnitureRow,
     PageFurniture,
     RefinedPassage,
+    SetAsideSection,
   } from '../workflow/types';
 
   export let project: ProjectSummary;
@@ -45,6 +53,11 @@
   export let onSetAppearance: (appearance: DocumentAppearance) => Promise<void> = async () =>
     undefined;
   export let onSetFurniture: (furniture: PageFurniture) => Promise<void> = async () => undefined;
+  export let onSectionsChanged: (
+    markdown: string,
+    setAside: SetAsideSection[],
+  ) => Promise<void> = async () => undefined;
+  export let setAside: SetAsideSection[] = [];
   export let onRefine: (
     passage: string,
     instruction: string,
@@ -502,6 +515,66 @@
     putCaretIn(head.cells[0] ?? table);
     readDocument();
     readSelection();
+  }
+
+  /// The parts the protocol is made of, read from its own headings.
+  ///
+  /// Nothing is stored to make the list: a protocol already says where its sections
+  /// are. A second list kept alongside would be a second truth to keep in agreement
+  /// with the first, and the first would win.
+  $: sections = readSections(markdown);
+
+  let draggingSection: number | null = null;
+
+  async function commitSections(next: string, stash: SetAsideSection[]) {
+    remember();
+    showAgain(next);
+    await onSectionsChanged(next, stash);
+  }
+
+  async function dropSection(onto: number) {
+    const from = draggingSection;
+    draggingSection = null;
+    if (from === null || from === onto) return;
+    await commitSections(moveSection(markdown, from, onto), setAside);
+  }
+
+  /// Take a section out without throwing it away.
+  ///
+  /// It leaves the document, because the document must remain exactly what every
+  /// export produces — a section kept in the file but hidden from the page would
+  /// make the screen and the PDF differ, which is the one thing this editor exists
+  /// not to do. It is kept beside the draft instead, and can be put back.
+  async function setSectionAside(index: number) {
+    const section = sections[index];
+    if (!section) return;
+    const { markdown: without, removed } = removeSection(markdown, index);
+    await commitSections(without, [...setAside, { title: section.title, markdown: removed }]);
+  }
+
+  async function bringSectionBack(index: number) {
+    const held = setAside[index];
+    if (!held) return;
+    await commitSections(
+      appendSection(markdown, held.markdown),
+      setAside.filter((_, at) => at !== index),
+    );
+  }
+
+  async function addSection() {
+    await commitSections(appendSection(markdown, newSection(markdown, 'New section')), setAside);
+  }
+
+  /// Put the caret at a section, so the list is a way through the document.
+  function goToSection(index: number) {
+    if (view !== 'document' || !documentSurface) return;
+    const headings = Array.from(
+      documentSurface.querySelectorAll(`h${sections[index]?.level ?? 2}`),
+    );
+    const wanted = headings.find(
+      (heading) => heading.textContent?.trim() === sections[index]?.title,
+    );
+    (wanted ?? headings[index])?.scrollIntoView({ block: 'center' });
   }
 
   /// Where the printed pages would end, drawn over the document.
@@ -1351,6 +1424,66 @@
             <p class="eyebrow">Style</p>
             <h3>{style.name}</h3>
             <p>{style.description}</p>
+          </div>
+          <div class="inspector-section">
+            <p class="eyebrow">Sections</p>
+            {#if sections.length === 0}
+              <p class="section-none">
+                This protocol has no headings yet, so there is nothing to list.
+              </p>
+            {:else}
+              <ul class="section-list">
+                {#each sections as section, index (section.from)}
+                  <li
+                    class:dragging={draggingSection === index}
+                    draggable="true"
+                    ondragstart={() => (draggingSection = index)}
+                    ondragover={(event) => event.preventDefault()}
+                    ondrop={() => void dropSection(index)}
+                    ondragend={() => (draggingSection = null)}
+                  >
+                    <span class="section-grip" aria-hidden="true">⠿</span>
+                    <button class="section-name" onclick={() => goToSection(index)}
+                      >{section.title}</button
+                    >
+                    <button
+                      class="icon-button compact"
+                      title="Set this section aside"
+                      aria-label={`Set aside ${section.title}`}
+                      onclick={() => void setSectionAside(index)}
+                      ><Icon name="close" size={14} /></button
+                    >
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+            {#if setAside.length > 0}
+              <p class="section-stash-label">Set aside</p>
+              <ul class="section-list stashed">
+                {#each setAside as held, index (held.title + index)}
+                  <li>
+                    <span class="section-grip" aria-hidden="true"></span>
+                    <span class="section-name">{held.title}</span>
+                    <button
+                      class="icon-button compact"
+                      title="Put this section back"
+                      aria-label={`Put back ${held.title}`}
+                      onclick={() => void bringSectionBack(index)}
+                      ><Icon name="plus" size={14} /></button
+                    >
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+            <button class="inspector-control" onclick={() => void addSection()}>
+              <Icon name="plus" size={16} />
+              <span>Add section</span>
+              <span></span>
+            </button>
+            <p class="section-note">
+              A section set aside leaves the document, so what you read is still exactly what is
+              exported. It is kept here and can be put back.
+            </p>
           </div>
           <div class="inspector-section">
             <p class="eyebrow">Appearance</p>

@@ -3,6 +3,7 @@ import type {
   DocumentAppearance,
   PageFurniture,
   RefinedPassage,
+  SetAsideSection,
   ProtocolStyleDetail,
   ActiveJob,
   FakeJobOutcome,
@@ -1034,6 +1035,36 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       };
     }
     this.emit();
+  }
+
+  /// Held here when there is no workspace behind the interface, so the list can be
+  /// used in the browser preview without inventing a backend.
+  private stashed: Record<string, SetAsideSection[]> = {};
+
+  async protocolSetAside(meetingId: string): Promise<SetAsideSection[]> {
+    if (this.workspaceStore?.protocolSetAside) {
+      return this.workspaceStore.protocolSetAside(meetingId);
+    }
+    return this.stashed[meetingId] ?? [];
+  }
+
+  async setProtocolSections(
+    meetingId: string,
+    markdown: string,
+    setAside: SetAsideSection[],
+  ): Promise<void> {
+    if (this.workspaceStore?.setProtocolSections) {
+      const workspace = await this.workspaceStore.setProtocolSections(
+        meetingId,
+        markdown,
+        setAside,
+      );
+      this.snapshot = { ...this.snapshot, ...workspace };
+      this.emit();
+      return;
+    }
+    this.stashed[meetingId] = setAside;
+    await this.updateProtocol(meetingId, markdown);
   }
 
   async refinePassage(

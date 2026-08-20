@@ -1145,6 +1145,42 @@ async fn set_project_appearance(
     .await
 }
 
+/// The sections somebody has taken out of this protocol without discarding them.
+#[tauri::command]
+async fn protocol_set_aside(
+    state: State<'_, StorageState>,
+    meeting_id: String,
+) -> Result<Vec<storage::SetAsideSection>, String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.set_aside_sections(&meeting_id)
+    })
+    .await
+}
+
+/// Set a section aside, or put one back — the document and the stash together.
+///
+/// Both are written in one call because they are one change: a section is either in
+/// the document or in the stash, and a failure between the two would either lose it
+/// or duplicate it.
+#[tauri::command]
+async fn set_protocol_sections(
+    state: State<'_, StorageState>,
+    meeting_id: String,
+    markdown: String,
+    set_aside: Vec<storage::SetAsideSection>,
+) -> Result<WorkspaceSnapshot, String> {
+    let root = state.root.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        processing::autosave_protocol(&root, &meeting_id, &markdown)?;
+        let repository = storage::WorkspaceRepository::open(&root)?;
+        repository.write_set_aside_sections(&meeting_id, &set_aside)?;
+        repository.workspace_snapshot()
+    })
+    .await
+    .map_err(|_| "The local storage task stopped unexpectedly.".to_string())?
+    .map_err(|error| error.user_message())
+}
+
 /// Rewrite one passage of a protocol, as asked.
 ///
 /// Returns the new text and does not store it: the editor puts it in place, and
@@ -1487,6 +1523,8 @@ pub fn run() {
             export_protocol_bytes,
             print_window,
             refine_passage,
+            protocol_set_aside,
+            set_protocol_sections,
             set_project_appearance,
             set_project_furniture,
             save_workspace_location

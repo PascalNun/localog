@@ -261,6 +261,13 @@ export interface RefinedPassage {
   checked: boolean;
 }
 
+/** A section taken out of a protocol and kept in case it is wanted back. */
+export interface SetAsideSection {
+  title: string;
+  /** The whole block, heading and all, exactly as it was. */
+  markdown: string;
+}
+
 export const EMPTY_FURNITURE: PageFurniture = {
   header: { left: [], centre: [], right: [] },
   footer: { left: [], centre: [], right: [] },
@@ -501,6 +508,14 @@ export interface WorkflowBridge {
   protocolStyleDetail(styleId: string): Promise<ProtocolStyleDetail>;
   setProjectAppearance(projectId: string, appearance: DocumentAppearance): Promise<void>;
   setProjectFurniture(projectId: string, furniture: PageFurniture): Promise<void>;
+  /** Sections taken out of a protocol and kept in case they are wanted back. */
+  protocolSetAside(meetingId: string): Promise<SetAsideSection[]>;
+  /** The document and the stash together, because they are one change. */
+  setProtocolSections(
+    meetingId: string,
+    markdown: string,
+    setAside: SetAsideSection[],
+  ): Promise<void>;
   /** Rewrite one passage as asked, returning the new text without storing it. */
   refinePassage(meetingId: string, passage: string, instruction: string): Promise<RefinedPassage>;
   recordingStatus(): Promise<RecordingStatus>;

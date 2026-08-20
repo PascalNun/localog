@@ -4007,3 +4007,82 @@ button.review-summary[aria-pressed='true'] {
   font-size: 0.78rem;
   line-height: 1.55;
 }
+
+/* The parts the protocol is made of, read from its own headings rather than kept
+   in a second list beside them. */
+.section-list {
+  display: grid;
+  gap: 1px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.section-list li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) 28px;
+  gap: 6px;
+  align-items: center;
+  padding: 2px 2px 2px 0;
+  border-radius: 4px;
+}
+
+.section-list li:hover {
+  background: var(--subtle);
+}
+
+.section-list li.dragging {
+  opacity: 0.5;
+}
+
+.section-grip {
+  color: var(--line-strong);
+  font-size: 0.8rem;
+  cursor: grab;
+  text-align: center;
+  user-select: none;
+}
+
+.section-name {
+  min-height: 30px;
+  padding: 4px 0;
+  overflow: hidden;
+  color: var(--ink);
+  background: transparent;
+  font-size: 0.85rem;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.section-list .icon-button {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.section-list li:hover .icon-button,
+.section-list .icon-button:focus-visible {
+  opacity: 1;
+}
+
+.section-list.stashed .section-name {
+  color: var(--faint);
+}
+
+.section-stash-label {
+  margin-top: 14px;
+  color: var(--faint);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.section-note,
+.section-none {
+  max-width: 44ch;
+  margin-top: 10px;
+  color: var(--faint);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}

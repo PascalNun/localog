@@ -31,6 +31,7 @@
     MeetingSummary,
     ProjectSummary,
     ProtocolDraft,
+    SetAsideSection,
     NewMeetingInput,
     NewProjectInput,
     ProtocolProviderStatus,
@@ -60,6 +61,24 @@
   /// So "auto" is a real choice and the default, and following the system means
   /// listening rather than reading once.
   let themeChoice: 'auto' | 'light' | 'dark' = 'auto';
+
+  /// Sections taken out of the open protocol and kept in case they are wanted back.
+  /// Read when a protocol is opened rather than held in the workspace snapshot,
+  /// because it belongs to one meeting's working draft and nothing else reads it.
+  let protocolSetAside: SetAsideSection[] = [];
+  let setAsideFor = '';
+  $: if (route.name === 'protocol' && route.meetingId !== setAsideFor) {
+    setAsideFor = route.meetingId;
+    protocolSetAside = [];
+    void bridge
+      .protocolSetAside(route.meetingId)
+      .then((held) => {
+        protocolSetAside = held;
+      })
+      .catch(() => {
+        protocolSetAside = [];
+      });
+  }
   let theme: 'light' | 'dark' = 'light';
   let sidebarOpen = false;
   let sidebarWidth = DEFAULT_SIDEBAR_WIDTH;
@@ -711,6 +730,11 @@
           onExport={exportProtocol}
           onSetAppearance={(appearance) => bridge.setProjectAppearance(project.id, appearance)}
           onSetFurniture={(furniture) => bridge.setProjectFurniture(project.id, furniture)}
+          setAside={protocolSetAside}
+          onSectionsChanged={async (markdown: string, stash: SetAsideSection[]) => {
+            await bridge.setProtocolSections(meeting.id, markdown, stash);
+            protocolSetAside = stash;
+          }}
           onRefine={(passage: string, instruction: string) =>
             bridge.refinePassage(meeting.id, passage, instruction)}
         />

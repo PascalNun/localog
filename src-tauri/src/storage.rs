@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 17;
+const CURRENT_SCHEMA_VERSION: i64 = 18;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -155,6 +155,15 @@ pub(crate) struct ResolvedProtocolStyle {
     pub density: ProtocolDensity,
 }
 
+/// A section taken out of a protocol and kept in case it is wanted back.
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetAsideSection {
+    pub title: String,
+    /// The whole block, heading and all, exactly as it was.
+    pub markdown: String,
+}
+
 /// A protocol style as somebody reading it needs to see it.
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -265,6 +274,44 @@ impl WorkspaceRepository {
             vocabulary: resolved_vocabulary,
             vocabulary_revision: format!("sha256:{}", checksum_bytes(&vocabulary_json)),
         })
+    }
+
+    /// Sections taken out of a protocol without being thrown away.
+    pub fn set_aside_sections(&self, meeting_id: &str) -> Result<Vec<SetAsideSection>> {
+        let json: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT set_aside_json FROM protocol_working WHERE meeting_id = ?1",
+                [meeting_id],
+                |row| row.get(0),
+            )
+            .optional()?
+            .flatten();
+        // Unreadable is treated as none: a stash nobody can parse is not worth
+        // refusing to open the protocol over.
+        Ok(json
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .unwrap_or_default())
+    }
+
+    pub fn write_set_aside_sections(
+        &self,
+        meeting_id: &str,
+        sections: &[SetAsideSection],
+    ) -> Result<()> {
+        let json = serde_json::to_string(sections)
+            .map_err(|_| StorageError::InvalidData("The section could not be set aside."))?;
+        let changed = self.connection.execute(
+            "UPDATE protocol_working SET set_aside_json = ?1, updated_at_ms = ?2
+             WHERE meeting_id = ?3",
+            params![json, unix_time_millis(), meeting_id],
+        )?;
+        if changed == 0 {
+            return Err(StorageError::InvalidData(
+                "Generate a protocol before setting a section aside.",
+            ));
+        }
+        Ok(())
     }
 
     pub(crate) fn protocol_working_markdown(&self, meeting_id: &str) -> Result<Vec<u8>> {
@@ -2078,6 +2125,21 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             connection.execute("ALTER TABLE projects ADD COLUMN furniture_json TEXT", [])?;
         }
         connection.pragma_update(None, "user_version", 17)?;
+        version = 17;
+    }
+    if version == 17 {
+        // Sections somebody took out of a protocol without wanting them gone. Kept
+        // beside the working draft rather than inside it, because the document has
+        // to remain exactly what every export produces — a section that is in the
+        // file but hidden from the page would make the screen and the PDF differ,
+        // which is the one thing this editor is built not to do.
+        if !has_column(connection, "protocol_working", "set_aside_json")? {
+            connection.execute(
+                "ALTER TABLE protocol_working ADD COLUMN set_aside_json TEXT",
+                [],
+            )?;
+        }
+        connection.pragma_update(None, "user_version", 18)?;
     }
     Ok(())
 }
