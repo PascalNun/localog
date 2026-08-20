@@ -377,6 +377,30 @@ Ordered as the concept orders it, not by size.
    a change somebody is already reading rather than the only thing standing between
    a model and the record.
 
+   **A second model pass was then measured too**, because the owner asked whether
+   one would catch what a token check cannot. Eight pairs — four with a fact
+   genuinely altered, four merely reworded — put to a checking prompt:
+
+   | Asked for                      | Caught | False alarms |
+   | ------------------------------ | ------ | ------------ |
+   | `qwen3.5:4b`, boolean + schema | 1 of 3 | 0 of 5       |
+   | `gemma4:12b`, boolean + schema | 0 of 3 | 0 of 5       |
+   | `qwen3.5:4b`, list the changes | 3 of 4 | 4 of 4       |
+   | `gemma4:12b`, list the changes | 3 of 4 | 1 of 4       |
+
+   Three things come out of that. **The boolean was the fault, not the idea**:
+   `gemma4:12b` wrote "The date was changed from September to October" and returned
+   `factChanged: false` in the same answer. Asked instead to list what differs, it
+   found the invented "einstimmig genehmigt", the altered floor and the changed
+   month. **Size decides usefulness**: the 4B model finds them too and flags
+   everything else as well, which is the same as finding nothing. **And its one
+   false alarm is arguable** — it objected that "hat zugesagt, zu nennen" became
+   "nennt", which is a commitment turning into an act, and is a fair objection.
+
+   Even so it missed `KW 38` → `Woche 38`, as everything has. A second pass is
+   therefore worth having as **another hint on the panel where a capable model is
+   installed** — never as a gate, and never in place of reading the difference.
+
    Two other answers were considered and rejected. **Stricter instructions**: the
    prompt already says to reproduce every figure exactly, and the model altered them
    anyway; asking harder does not make a four-billion-parameter model obey.
