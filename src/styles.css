@@ -1574,11 +1574,6 @@ button.review-summary[aria-pressed='true'] {
   gap: 14px;
 }
 .editor-toolbar {
-  /* The same reasoning as the find bar: undo, redo and the zoom are reached while
-     reading, not only at the top of the document. */
-  position: sticky;
-  top: 0;
-  z-index: 21;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1610,10 +1605,9 @@ button.review-summary[aria-pressed='true'] {
 
 /* Find stays contextual to the writing surface instead of becoming a permanent toolbar. */
 .editor-find {
-  /* Stays with you down the document. It sat at the top and scrolled away, so the
-     moment Next moved the caret past the first screen, the controls for finding the
-     next one were somewhere above. A thing you use repeatedly has to stay reachable
-     between uses. */
+  /* Stays with you down the document — only this, and only while it is open. It sat
+     at the top and scrolled away, so the moment Next moved the caret past the first
+     screen the controls for finding the next one were somewhere above. */
   position: sticky;
   top: 8px;
   z-index: 20;
@@ -1625,9 +1619,24 @@ button.review-summary[aria-pressed='true'] {
   gap: 8px;
   align-items: center;
   padding: 9px 12px;
-  background: var(--subtle);
+
+  /* Frosted rather than flat: the document passes behind it and should read as
+     behind it. The colour is mixed rather than solid so the blur has something to
+     do, and the prefixed property is not decoration — the application runs in
+     WebKit, which still wants it. */
+  background: color-mix(in srgb, var(--canvas) 78%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
   border: 1px solid var(--line);
   border-radius: 6px;
+}
+
+/* Where a backdrop filter is not available the bar has to stay legible, so it
+   falls back to a solid ground rather than a pale wash over live text. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .editor-find {
+    background: var(--subtle);
+  }
 }
 
 .editor-find label {
@@ -4195,4 +4204,112 @@ button.review-summary[aria-pressed='true'] {
 .replacement-change {
   color: var(--ink);
   white-space: nowrap;
+}
+
+/* What every style carries and none may change. Shown so that it reads as a promise
+   rather than as something quietly enforced. */
+.style-fidelity {
+  padding: 14px 16px;
+  background: var(--subtle);
+  border-radius: 6px;
+}
+
+.style-fidelity ul {
+  max-width: 78ch;
+  margin-top: 10px;
+}
+
+.style-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.style-actions .style-note {
+  flex: 1 1 24ch;
+  margin: 0;
+}
+
+.style-editor {
+  display: grid;
+  gap: 12px;
+  max-width: 78ch;
+}
+
+.style-editor > label {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.style-editor > label > span {
+  color: var(--muted);
+}
+
+.style-editor input,
+.style-editor select,
+.style-instruction-row textarea {
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+
+.style-instruction-row textarea {
+  min-height: 52px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.style-instruction-fields {
+  display: grid;
+  gap: 8px;
+}
+
+.style-fields-label {
+  color: var(--faint);
+  font-size: 0.67rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.style-instruction-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  gap: 6px;
+  align-items: start;
+}
+
+/* The text passing under the find bar fades instead of being cut.
+   A sticky bar with a hard edge chops a line of prose in half as it scrolls
+   beneath, which reads as a rendering fault rather than as a bar. Two short
+   gradients — above and below — let the words dissolve into it instead. The strips
+   sit outside the bar and ignore the pointer, so nothing they cover stops working. */
+.editor-find::before,
+.editor-find::after {
+  content: '';
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  height: 18px;
+  pointer-events: none;
+}
+
+.editor-find::before {
+  top: -19px;
+  background: linear-gradient(to top, var(--canvas), transparent);
+}
+
+.editor-find::after {
+  bottom: -19px;
+  background: linear-gradient(to bottom, var(--canvas), transparent);
 }
