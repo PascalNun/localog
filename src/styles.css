@@ -1574,6 +1574,11 @@ button.review-summary[aria-pressed='true'] {
   gap: 14px;
 }
 .editor-toolbar {
+  /* The same reasoning as the find bar: undo, redo and the zoom are reached while
+     reading, not only at the top of the document. */
+  position: sticky;
+  top: 0;
+  z-index: 21;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1605,6 +1610,14 @@ button.review-summary[aria-pressed='true'] {
 
 /* Find stays contextual to the writing surface instead of becoming a permanent toolbar. */
 .editor-find {
+  /* Stays with you down the document. It sat at the top and scrolled away, so the
+     moment Next moved the caret past the first screen, the controls for finding the
+     next one were somewhere above. A thing you use repeatedly has to stay reachable
+     between uses. */
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+
   /* Find, next, replace, replace-all and the count, on one line that wraps rather
      than a two-column grid that now has five things in it. */
   display: flex;

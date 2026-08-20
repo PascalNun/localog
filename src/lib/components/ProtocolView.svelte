@@ -935,9 +935,26 @@
       if (index < 0) return;
       editor?.focus();
       editor?.setSelectionRange(index, index + findQuery.length);
+      // A textarea that grows to its content does not scroll itself, so the page
+      // has to be told where the match went.
+      bringIntoView(index);
       return;
     }
     findNextInDocument();
+  }
+
+  /// Put a match in the middle of the window rather than wherever it happened to be.
+  ///
+  /// The editor is as tall as its text and the page does the scrolling, so nothing
+  /// moves by itself when the selection changes.
+  function bringIntoView(index: number) {
+    if (!editor) return;
+    const before = editor.value.slice(0, index).split('\n').length - 1;
+    const lineHeight = parseFloat(getComputedStyle(editor).lineHeight) || 20;
+    const target = editor.offsetTop + before * lineHeight;
+    editor
+      .closest('.workspace')
+      ?.scrollTo({ top: Math.max(0, target - window.innerHeight / 2), behavior: 'smooth' });
   }
 
   /// The next occurrence in the rendered document.
