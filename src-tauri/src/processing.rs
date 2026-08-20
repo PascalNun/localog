@@ -3345,6 +3345,13 @@ pub(crate) struct RefinedPassage {
     /// became "Obergeschoss (Etage II)" — and a protocol whose figures drift is
     /// worse than one nobody rewrote.
     pub missing_figures: Vec<String>,
+    /// What a second pass thought the rewrite changed about the facts.
+    ///
+    /// Empty when it found nothing, and also empty when the installed model is too
+    /// small to be worth asking — `checked` says which.
+    pub noticed_changes: Vec<String>,
+    /// Whether a model was asked at all.
+    pub checked: bool,
 }
 
 pub(crate) fn refine_passage(
@@ -3437,9 +3444,40 @@ pub(crate) fn refine_passage(
         }
     }
 
+    // A second opinion, where the installed model is big enough for one to be worth
+    // having. Measured: a 4.7B model objects to every rewrite, clean or not, which
+    // is the same as objecting to none.
+    let capable = provider::OllamaProvider::loopback()
+        .installed_models()
+        .ok()
+        .and_then(|models| {
+            models
+                .into_iter()
+                .find(|model| model.name == request.model)
+                .map(|model| provider::can_check_a_rewrite(&model))
+        })
+        .unwrap_or(false);
+
+    let noticed_changes = if capable {
+        provider::OllamaProvider::loopback()
+            .check_rewrite(
+                &request,
+                passage,
+                &text,
+                &std::sync::atomic::AtomicBool::new(false),
+            )
+            // A checking pass that fails is a hint that did not arrive, not a
+            // rewrite that failed. The rewrite is still returned.
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
     Ok(RefinedPassage {
         text,
         missing_figures,
+        noticed_changes,
+        checked: capable,
     })
 }
 
@@ -4691,6 +4729,67 @@ mod tests {
                 &cancellation,
             )
             .unwrap()
+        );
+    }
+}
+
+#[cfg(test)]
+mod refine_against_the_real_model {
+    /// The whole path, on this machine's own Ollama.
+    ///
+    /// Ignored by default because it needs a running runtime and a model, and takes
+    /// tens of seconds. Run with the model to use:
+    ///     LOCALOG_REFINE_MODEL=ministral-3:8b cargo test --lib refine_against -- --ignored --nocapture
+    #[test]
+    #[ignore = "requires a running Ollama and an installed model"]
+    fn a_passage_is_rewritten_and_checked() {
+        let model = std::env::var("LOCALOG_REFINE_MODEL")
+            .expect("set LOCALOG_REFINE_MODEL to an installed model");
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+
+        let mut repository = crate::storage::WorkspaceRepository::open(root).unwrap();
+        repository
+            .write_setting("generation.ollamaModel", &model)
+            .unwrap();
+        let project = repository
+            .create_project(crate::domain::NewProjectInput {
+                name: "Nordenstadt".to_string(),
+                description: String::new(),
+                default_language: "German".to_string(),
+            })
+            .unwrap();
+        let placeholder = root.join("placeholder.wav");
+        std::fs::write(&placeholder, b"placeholder").unwrap();
+        let meeting = repository
+            .create_meeting(crate::domain::NewMeetingInput {
+                project_id: project.id,
+                title: "Jour fixe".to_string(),
+                occurred_at: "2026-08-20".to_string(),
+                language: "German".to_string(),
+                source_name: "placeholder.wav".to_string(),
+                source_path: Some(placeholder.to_string_lossy().into_owned()),
+                style_id: "style-formal".to_string(),
+            })
+            .unwrap();
+        drop(repository);
+
+        let passage = "Die Anpassungen im 2. Obergeschoss im Bereich der Lüftung wurden \
+                       aufgrund von Änderungen seitens der Architekten vorgenommen. Die \
+                       betroffene Fläche beträgt 148,5 m². Herr Planung hat zugesagt, die \
+                       Kostenspanne bis zum 12. September 2026 zu nennen.";
+        let refined = super::refine_passage(root, &meeting.id, passage, "Say this in fewer words.")
+            .expect("the passage is rewritten");
+
+        println!("--- rewrite ---\n{}", refined.text);
+        println!("checked: {}", refined.checked);
+        println!("missing figures: {:?}", refined.missing_figures);
+        println!("noticed changes: {:?}", refined.noticed_changes);
+
+        assert!(!refined.text.trim().is_empty(), "a rewrite comes back");
+        assert!(
+            refined.text != passage || refined.missing_figures.is_empty(),
+            "an unchanged passage cannot have lost a figure"
         );
     }
 }

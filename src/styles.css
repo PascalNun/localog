@@ -3777,3 +3777,26 @@ button.review-summary[aria-pressed='true'] {
   display: flex;
   gap: 8px;
 }
+
+.proposal-noticed {
+  padding: 11px 13px;
+  background: var(--subtle);
+  border-radius: 5px;
+}
+
+.proposal-noticed ul {
+  display: grid;
+  gap: 4px;
+  margin: 7px 0;
+  padding-left: 18px;
+  font-size: 0.83rem;
+  line-height: 1.5;
+}
+
+.proposal-noticed p:last-child,
+.proposal-checked {
+  max-width: 64ch;
+  color: var(--faint);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}

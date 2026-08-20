@@ -250,6 +250,15 @@ export interface PageFurniture {
 export interface RefinedPassage {
   text: string;
   missingFigures: string[];
+  /**
+   * What a second model pass thought the rewrite changed about the facts.
+   *
+   * Empty when it found nothing and also when no model was asked; `checked` says
+   * which. A hint on a change somebody is already reading, never a verdict — it
+   * misses things too.
+   */
+  noticedChanges: string[];
+  checked: boolean;
 }
 
 export const EMPTY_FURNITURE: PageFurniture = {

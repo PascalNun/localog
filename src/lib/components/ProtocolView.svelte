@@ -220,6 +220,8 @@
     revised: string;
     changes: Change[];
     missingFigures: string[];
+    noticedChanges: string[];
+    checked: boolean;
   } | null = null;
 
   const REFINEMENTS = [
@@ -257,6 +259,8 @@
         revised: revised.text,
         changes: diffWords(passage, revised.text),
         missingFigures: revised.missingFigures,
+        noticedChanges: revised.noticedChanges,
+        checked: revised.checked,
       };
     } catch (cause) {
       refineError = cause instanceof Error ? cause.message : String(cause);
@@ -905,6 +909,22 @@
                   {waiting.missingFigures.join(', ')}.</span
                 >
               </p>
+            {/if}
+            {#if waiting.noticedChanges.length > 0}
+              <div class="proposal-noticed">
+                <p class="eyebrow">A second pass thinks these facts moved</p>
+                <ul>
+                  {#each waiting.noticedChanges as noticed, at (at)}
+                    <li>{noticed}</li>
+                  {/each}
+                </ul>
+                <p>
+                  Asked of your own model, and it is wrong in both directions: it misses changes and
+                  it queries wording that is fine. Worth a look, not a verdict.
+                </p>
+              </div>
+            {:else if waiting.checked}
+              <p class="proposal-checked">A second pass found no fact moved. It misses things.</p>
             {/if}
             <div class="proposal-actions">
               <button class="primary-action" onclick={acceptProposal}>Use this</button>

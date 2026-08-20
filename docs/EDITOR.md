@@ -397,9 +397,23 @@ Ordered as the concept orders it, not by size.
    false alarm is arguable** — it objected that "hat zugesagt, zu nennen" became
    "nennt", which is a commitment turning into an act, and is a fair objection.
 
-   Even so it missed `KW 38` → `Woche 38`, as everything has. A second pass is
-   therefore worth having as **another hint on the panel where a capable model is
-   installed** — never as a gate, and never in place of reading the difference.
+   `ministral-3:8b` (8.9B) was then measured too, and matched the 11.9B exactly —
+   three of four, one arguable objection. So the line goes at **7B**, between a size
+   measured useless and a size measured useful, rather than at a round number
+   somebody liked. A test pins it to those three readings.
+
+   Even so it missed `KW 38` → `Woche 38`, as everything has. **Built, 20 August**,
+   as another hint on the proposal panel where a capable model is installed — never
+   a gate, and never in place of reading the difference. On a real passage it named
+   the floor abbreviation and the date reformat that the figure check also caught,
+   plus three rewordings it treats as facts and a person would not.
+
+   Two faults surfaced only by running it against a real runtime. The capability
+   check read `parameterSize` while Ollama says `parameter_size`, so **every model
+   arrived sizeless and was quietly judged too small** — which looks exactly like
+   "no capable model installed". And the rewrite came back with the floor and the
+   date in bold, which the passage never had and the instruction forbade; emphasis
+   the passage did not have is now removed. Both have tests.
 
    Two other answers were considered and rejected. **Stricter instructions**: the
    prompt already says to reproduce every figure exactly, and the model altered them

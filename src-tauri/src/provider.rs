@@ -92,6 +92,41 @@ pub struct ModelDescriptor {
     pub size: u64,
     #[serde(default)]
     pub digest: String,
+    #[serde(default)]
+    pub details: ModelDetails,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelDetails {
+    /// Ollama's own reading, such as "8.9B". Absent on older builds.
+    ///
+    /// The alias is not decoration. This shape is serialised to the interface in
+    /// camelCase and read from Ollama in snake_case, and without it every model
+    /// arrived with an empty size and was quietly judged too small to ask.
+    #[serde(default, alias = "parameter_size")]
+    pub parameter_size: String,
+}
+
+/// How many billions of parameters a model has, as far as the runtime will say.
+pub fn billions_of_parameters(descriptor: &ModelDescriptor) -> Option<f32> {
+    let text = descriptor.details.parameter_size.trim();
+    let number = text.strip_suffix(['B', 'b'])?;
+    number.parse::<f32>().ok()
+}
+
+/// Whether a model is worth asking to check a rewrite.
+///
+/// Measured rather than guessed, on eight pairs of passages where four had a fact
+/// genuinely altered: a 4.7B model found three of them and objected to every clean
+/// rewrite as well, which is the same as finding nothing. An 8.9B and an 11.9B both
+/// found three and objected once, to a commitment becoming an act — which is a fair
+/// objection. The line therefore sits between them and not at a round number
+/// somebody liked the look of.
+pub const LEAST_PARAMETERS_TO_CHECK: f32 = 7.0;
+
+pub fn can_check_a_rewrite(descriptor: &ModelDescriptor) -> bool {
+    billions_of_parameters(descriptor).is_some_and(|size| size >= LEAST_PARAMETERS_TO_CHECK)
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
@@ -1310,13 +1345,67 @@ impl OllamaProvider {
             &mut |_| Ok(()),
         )?;
 
-        let revised = tidy_refinement(&generated);
+        let revised = tidy_refinement(&generated, passage);
         if revised.trim().is_empty() {
             return Err(ProviderError::InvalidResponse(
                 "The model returned nothing for that passage.".into(),
             ));
         }
         Ok(revised)
+    }
+
+    /// Ask the model what the rewrite changed about the facts.
+    ///
+    /// A list of differences rather than a verdict, because a verdict is what this
+    /// gets wrong: asked whether a fact changed, an 11.9B model wrote "The date was
+    /// changed from September to October" and answered no in the same breath. Asked
+    /// what differs, it says so.
+    ///
+    /// Never a gate. What comes back is shown beside a difference somebody is
+    /// already reading, because it misses things too.
+    pub fn check_rewrite(
+        &self,
+        request: &GenerationRequest,
+        passage: &str,
+        revised: &str,
+        cancelled: &AtomicBool,
+    ) -> Result<Vec<String>> {
+        let payload = CheckPayload {
+            original: passage,
+            rewrite: revised,
+        };
+        let prompt = encode_prompt(&payload)?;
+        let generated = self.complete(
+            request,
+            Completion {
+                system: CHECK_SYSTEM,
+                prompt: &prompt,
+                format: serde_json::Value::Null,
+                num_predict: 320,
+            },
+            cancelled,
+            &mut |_| Ok(()),
+        )?;
+
+        let answer = generated.trim();
+        if answer.is_empty() || answer.eq_ignore_ascii_case("NOTHING") {
+            return Ok(Vec::new());
+        }
+        Ok(answer
+            .lines()
+            .map(|line| line.trim().trim_start_matches(['-', '*', '•']).trim())
+            .map(|line| line.replace("**", ""))
+            .filter(|line| !line.is_empty())
+            // The template repeated as a bare header, and the sign-off after the
+            // real answers. Both are the model narrating its own form rather than
+            // naming a difference, and both were in the first real run.
+            .filter(|line| {
+                let upper = line.to_uppercase();
+                !upper.starts_with("NOTHING")
+                    && upper.trim_end_matches([':', '.']) != "ORIGINAL -> REWRITE"
+            })
+            .take(6)
+            .collect())
     }
 
     fn complete(
@@ -1564,6 +1653,25 @@ const SYNTHESIS_SYSTEM: &str = "Write a reviewable professional meeting protocol
 #[cfg(test)]
 const TOPIC_SECTION_SYSTEM: &str = "Write one section of a professional meeting protocol, in the meeting's language, from the passages supplied. They are the only source. Never invent decisions, actions, owners or dates, and reproduce every number, measurement, area, date and proper name exactly as stated. Write about this section's own subject only: the outline names what the other sections cover, and repeating them is a fault. Keep close to the character budget given — it is this subject's share of the whole protocol, and overrunning it is the failure this format exists to prevent. Begin with a heading for the subject. Do not write an introduction, a participants list or a table of actions; those are written separately. Return only schema-valid JSON. If the payload carries a correction, your previous answer was rejected for the reason it gives; fix exactly that and return the whole answer again.";
 
+/// What a checking pass is told. It lists differences; it never judges.
+const CHECK_SYSTEM: &str = "You are given the original of a passage from a meeting \
+protocol and a rewrite of it. Name every fact the rewrite states differently from \
+the original, or states that the original did not state, or leaves out. \
+A fact is a number, measurement, date, deadline, name, organisation, room or floor, \
+an abbreviation, or a stated commitment. \
+Writing a fact differently counts: an abbreviation spelled out, a designation \
+replaced, a number expressed another way. \
+Rewording, reordering and different grammar are not facts — ignore them completely. \
+List each one on its own line as: ORIGINAL -> REWRITE. \
+If every fact is identical, reply with exactly: NOTHING";
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CheckPayload<'a> {
+    original: &'a str,
+    rewrite: &'a str,
+}
+
 /// What a rewrite is told, which is mostly what it may not do.
 const REFINE_SYSTEM: &str = "You revise one passage of a meeting protocol. \
 Return only the revised passage: no preamble, no explanation, no quotation marks \
@@ -1589,7 +1697,7 @@ struct RefinePayload<'a> {
 /// Every one of these has been seen from a local model: a fenced block, a leading
 /// "Here is the revised passage:", and the whole thing in quotation marks. Stripped
 /// rather than retried, because the text inside is usually right.
-fn tidy_refinement(generated: &str) -> String {
+fn tidy_refinement(generated: &str, passage: &str) -> String {
     let mut text = generated.trim();
 
     if let Some(rest) = text.strip_prefix("```") {
@@ -1608,6 +1716,13 @@ fn tidy_refinement(generated: &str) -> String {
 
     if text.len() > 1 && text.starts_with('"') && text.ends_with('"') {
         text = text[1..text.len() - 1].trim();
+    }
+
+    // Emphasis the passage did not have and did not ask for. The instruction says
+    // not to add formatting; the first real run came back with the floor and the
+    // date in bold anyway, which would have gone into the document as bold.
+    if !passage.contains("**") && text.contains("**") {
+        return text.replace("**", "");
     }
 
     text.to_string()
@@ -1903,6 +2018,101 @@ fn answer_budget(context_tokens: u32, prompt_chars: usize, requested: u32) -> u3
 /// about whether a window can hold a protocol is answered by arithmetic rather than
 /// by inference from a failure. Used by the evaluation harness.
 #[cfg(test)]
+#[cfg(test)]
+mod tidying_a_rewrite {
+    use super::tidy_refinement;
+
+    #[test]
+    fn strips_the_wrapping_a_model_adds_when_asked_for_only_the_answer() {
+        assert_eq!(tidy_refinement("```\nDie Fassade.\n```", "x"), "Die Fassade.");
+        assert_eq!(
+            tidy_refinement("Here is the revised passage:\nDie Fassade.", "x"),
+            "Die Fassade."
+        );
+        assert_eq!(tidy_refinement("\"Die Fassade.\"", "x"), "Die Fassade.");
+    }
+
+    /// From the first run against a real model: it returned the floor and the date
+    /// in bold, which the passage did not have and the instruction forbade.
+    #[test]
+    fn removes_emphasis_the_passage_never_had() {
+        assert_eq!(
+            tidy_refinement("Im **2. OG** bis **12.09.2026**.", "Im 2. OG bis 12.09.2026."),
+            "Im 2. OG bis 12.09.2026."
+        );
+    }
+
+    #[test]
+    fn keeps_emphasis_the_passage_already_had() {
+        assert_eq!(
+            tidy_refinement("Frau **Bauleitung** nennt es.", "Frau **Bauleitung** sagt es."),
+            "Frau **Bauleitung** nennt es."
+        );
+    }
+}
+
+#[cfg(test)]
+mod checking_capability {
+    use super::{ModelDescriptor, ModelDetails, billions_of_parameters, can_check_a_rewrite};
+
+    fn model(parameter_size: &str) -> ModelDescriptor {
+        ModelDescriptor {
+            name: "test".into(),
+            size: 0,
+            digest: String::new(),
+            details: ModelDetails {
+                parameter_size: parameter_size.into(),
+            },
+        }
+    }
+
+    /// The line, and the measurements it sits on.
+    ///
+    /// Eight pairs of passages, four with a fact genuinely altered. `qwen3.5:4b`
+    /// (4.7B) found three and objected to all four clean rewrites as well.
+    /// `ministral-3:8b` (8.9B) and `gemma4:12b` (11.9B) each found three and
+    /// objected once, to a commitment becoming an act — a fair objection. So the
+    /// line goes between 4.7 and 8.9, and the numbers below are the models that
+    /// were actually measured rather than a round figure.
+    #[test]
+    fn only_a_model_measured_to_be_useful_is_asked() {
+        assert!(!can_check_a_rewrite(&model("4.7B")), "4.7B objects to everything");
+        assert!(can_check_a_rewrite(&model("8.9B")), "8.9B was measured useful");
+        assert!(can_check_a_rewrite(&model("11.9B")), "11.9B was measured useful");
+    }
+
+    /// An older runtime says nothing about size, and a hint that might be noise is
+    /// worse than no hint.
+    #[test]
+    fn a_model_that_will_not_say_its_size_is_not_asked() {
+        assert_eq!(billions_of_parameters(&model("")), None);
+        assert!(!can_check_a_rewrite(&model("")));
+        assert!(!can_check_a_rewrite(&model("large")));
+    }
+
+    /// The fault this alias exists for.
+    ///
+    /// Ollama says `parameter_size`; this shape is sent to the interface in
+    /// camelCase. Without the alias every model arrived sizeless and was judged too
+    /// small, which looks exactly like "no capable model installed".
+    #[test]
+    fn reads_the_size_in_the_words_ollama_uses() {
+        let descriptor: ModelDescriptor = serde_json::from_str(
+            r#"{"name":"ministral-3:8b","size":6000000000,"digest":"abc",
+                "details":{"family":"mistral3","parameter_size":"8.9B"}}"#,
+        )
+        .expect("Ollama's own shape parses");
+        assert_eq!(billions_of_parameters(&descriptor), Some(8.9));
+        assert!(can_check_a_rewrite(&descriptor));
+    }
+
+    #[test]
+    fn reads_the_runtime_own_wording() {
+        assert_eq!(billions_of_parameters(&model("8.9B")), Some(8.9));
+        assert_eq!(billions_of_parameters(&model("70b")), Some(70.0));
+    }
+}
+
 pub(crate) fn sizing_probe(context_tokens: u32, maximum_output_tokens: u32) -> (usize, usize, u32) {
     let style = GenerationStyle {
         id: "style-formal".into(),
