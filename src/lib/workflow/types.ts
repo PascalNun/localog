@@ -20,6 +20,7 @@ export type AppRoute =
   | { name: 'protocol'; meetingId: string }
   | { name: 'styles' }
   | { name: 'vocabulary' }
+  | { name: 'export-templates' }
   | { name: 'settings' };
 
 export interface ProjectSummary {
@@ -259,6 +260,22 @@ export interface RefinedPassage {
    */
   noticedChanges: string[];
   checked: boolean;
+}
+
+/**
+ * A saved way of presenting a protocol.
+ *
+ * The typography and the running header and footer, named. Not the protocol style:
+ * that decides what the document says, this decides how it is set.
+ */
+export interface ExportTemplate {
+  id: string;
+  name: string;
+  description: string;
+  appearance: DocumentAppearance;
+  furniture: PageFurniture;
+  /** One that shipped, which can be used and copied but not overwritten. */
+  builtIn: boolean;
 }
 
 /** A section taken out of a protocol and kept in case it is wanted back. */
@@ -508,6 +525,15 @@ export interface WorkflowBridge {
   protocolStyleDetail(styleId: string): Promise<ProtocolStyleDetail>;
   setProjectAppearance(projectId: string, appearance: DocumentAppearance): Promise<void>;
   setProjectFurniture(projectId: string, furniture: PageFurniture): Promise<void>;
+  exportTemplates(): Promise<ExportTemplate[]>;
+  saveExportTemplate(
+    name: string,
+    description: string,
+    appearance: DocumentAppearance,
+    furniture: PageFurniture,
+  ): Promise<ExportTemplate[]>;
+  deleteExportTemplate(templateId: string): Promise<ExportTemplate[]>;
+  applyExportTemplate(projectId: string, templateId: string): Promise<void>;
   /** Sections taken out of a protocol and kept in case they are wanted back. */
   protocolSetAside(meetingId: string): Promise<SetAsideSection[]>;
   /** The document and the stash together, because they are one change. */

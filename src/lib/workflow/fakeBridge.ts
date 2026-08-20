@@ -3,6 +3,7 @@ import type {
   DocumentAppearance,
   PageFurniture,
   RefinedPassage,
+  ExportTemplate,
   SetAsideSection,
   ProtocolStyleDetail,
   ActiveJob,
@@ -1040,6 +1041,97 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   /// Held here when there is no workspace behind the interface, so the list can be
   /// used in the browser preview without inventing a backend.
   private stashed: Record<string, SetAsideSection[]> = {};
+
+  /// Stand-ins matching what the workspace seeds, so the library can be looked at
+  /// in the browser preview without a backend behind it.
+  private templates: ExportTemplate[] = [
+    {
+      id: 'template-client',
+      name: 'Client protocol',
+      description: 'A4 with the project and the date at the top and a page count at the foot.',
+      appearance: DEFAULT_APPEARANCE,
+      furniture: {
+        header: { left: [{ kind: 'projectName' }], centre: [], right: [{ kind: 'meetingDate' }] },
+        footer: {
+          left: [{ kind: 'documentType' }],
+          centre: [],
+          right: [{ kind: 'pageOfCount' }],
+        },
+        skipFirstPage: false,
+      },
+      builtIn: true,
+    },
+    {
+      id: 'template-internal',
+      name: 'Internal note',
+      description: 'Smaller and tighter, with nothing repeated on the page.',
+      appearance: {
+        ...DEFAULT_APPEARANCE,
+        bodySize: 10,
+        headingScale: 'compact',
+        lineSpacing: 'compact',
+        pageWidth: 'standard',
+      },
+      furniture: EMPTY_FURNITURE,
+      builtIn: true,
+    },
+  ];
+
+  async exportTemplates(): Promise<ExportTemplate[]> {
+    if (this.workspaceStore?.exportTemplates) return this.workspaceStore.exportTemplates();
+    return this.templates;
+  }
+
+  async saveExportTemplate(
+    name: string,
+    description: string,
+    appearance: DocumentAppearance,
+    furniture: PageFurniture,
+  ): Promise<ExportTemplate[]> {
+    if (this.workspaceStore?.saveExportTemplate) {
+      return this.workspaceStore.saveExportTemplate(name, description, appearance, furniture);
+    }
+    this.templates = [
+      ...this.templates,
+      {
+        id: `template-demo-${this.templates.length}`,
+        name,
+        description,
+        appearance,
+        furniture,
+        builtIn: false,
+      },
+    ];
+    return this.templates;
+  }
+
+  async deleteExportTemplate(templateId: string): Promise<ExportTemplate[]> {
+    if (this.workspaceStore?.deleteExportTemplate) {
+      return this.workspaceStore.deleteExportTemplate(templateId);
+    }
+    this.templates = this.templates.filter((template) => template.id !== templateId);
+    return this.templates;
+  }
+
+  async applyExportTemplate(projectId: string, templateId: string): Promise<void> {
+    if (this.workspaceStore?.applyExportTemplate) {
+      const workspace = await this.workspaceStore.applyExportTemplate(projectId, templateId);
+      this.snapshot = { ...this.snapshot, ...workspace };
+      this.emit();
+      return;
+    }
+    const template = this.templates.find((candidate) => candidate.id === templateId);
+    if (!template) return;
+    this.snapshot = {
+      ...this.snapshot,
+      projects: this.snapshot.projects.map((project) =>
+        project.id === projectId
+          ? { ...project, appearance: template.appearance, furniture: template.furniture }
+          : project,
+      ),
+    };
+    this.emit();
+  }
 
   async protocolSetAside(meetingId: string): Promise<SetAsideSection[]> {
     if (this.workspaceStore?.protocolSetAside) {

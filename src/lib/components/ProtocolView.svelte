@@ -36,6 +36,7 @@
     FurnitureField,
     FurnitureRow,
     PageFurniture,
+    ExportTemplate,
     RefinedPassage,
     SetAsideSection,
   } from '../workflow/types';
@@ -58,6 +59,9 @@
     setAside: SetAsideSection[],
   ) => Promise<void> = async () => undefined;
   export let setAside: SetAsideSection[] = [];
+  export let templates: ExportTemplate[] = [];
+  export let onApplyTemplate: (templateId: string) => Promise<void> = async () => undefined;
+  export let onSaveTemplate: (name: string) => Promise<void> = async () => undefined;
   export let onRefine: (
     passage: string,
     instruction: string,
@@ -515,6 +519,22 @@
     putCaretIn(head.cells[0] ?? table);
     readDocument();
     readSelection();
+  }
+
+  /// Saved ways of presenting a protocol.
+  ///
+  /// Applying one sets the appearance and the header and footer together, because
+  /// they are two halves of one look and a template that set only half would be a
+  /// template nobody could trust.
+  let savingTemplate = false;
+  let templateName = '';
+
+  async function saveTemplate() {
+    const name = templateName.trim();
+    if (name === '') return;
+    await onSaveTemplate(name);
+    templateName = '';
+    savingTemplate = false;
   }
 
   /// The parts the protocol is made of, read from its own headings.
@@ -1676,6 +1696,42 @@
               The PDF is printed from the document you are reading, set the way this project sets
               its protocols — choose "Save as PDF" in the print dialog.
             </p>
+            {#if templates.length > 0}
+              <label class="template-apply">
+                <span>Use a template</span>
+                <select
+                  value=""
+                  onchange={(event) => {
+                    const chosen = event.currentTarget.value;
+                    event.currentTarget.value = '';
+                    if (chosen) void onApplyTemplate(chosen);
+                  }}
+                >
+                  <option value="">Choose…</option>
+                  {#each templates as template (template.id)}
+                    <option value={template.id}>{template.name}</option>
+                  {/each}
+                </select>
+              </label>
+            {/if}
+            {#if savingTemplate}
+              <div class="template-save">
+                <label>
+                  <span class="sr-only">Name for this template</span>
+                  <input
+                    bind:value={templateName}
+                    placeholder="Name this template"
+                    onkeydown={(event) => event.key === 'Enter' && void saveTemplate()}
+                  />
+                </label>
+                <button class="secondary-action" onclick={() => void saveTemplate()}>Save</button>
+                <button class="text-action" onclick={() => (savingTemplate = false)}>Cancel</button>
+              </div>
+            {:else}
+              <button class="text-action template-save-open" onclick={() => (savingTemplate = true)}
+                >Save these settings as a template</button
+              >
+            {/if}
           </div>
         {:else if inspectorTab === 'transcript'}
           <div class="inspector-section">

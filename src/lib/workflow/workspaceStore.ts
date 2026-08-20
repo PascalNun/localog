@@ -31,6 +31,7 @@ import type {
   DocumentAppearance,
   PageFurniture,
   RefinedPassage,
+  ExportTemplate,
   SetAsideSection,
   ProtocolStyleDetail,
   RecordingStatus,
@@ -85,6 +86,15 @@ export interface WorkspaceStore {
     appearance: DocumentAppearance,
   ) => Promise<WorkspaceData>;
   setProjectFurniture?: (projectId: string, furniture: PageFurniture) => Promise<WorkspaceData>;
+  exportTemplates?: () => Promise<ExportTemplate[]>;
+  saveExportTemplate?: (
+    name: string,
+    description: string,
+    appearance: DocumentAppearance,
+    furniture: PageFurniture,
+  ) => Promise<ExportTemplate[]>;
+  deleteExportTemplate?: (templateId: string) => Promise<ExportTemplate[]>;
+  applyExportTemplate?: (projectId: string, templateId: string) => Promise<WorkspaceData>;
   protocolSetAside?: (meetingId: string) => Promise<SetAsideSection[]>;
   setProtocolSections?: (
     meetingId: string,

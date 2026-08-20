@@ -1,5 +1,6 @@
 use crate::domain::{
-    DocumentAppearance, JobErrorSummary, PageFurniture, JobState, JobSummary, MeetingLifecycle, MeetingSummary, NewMeetingInput,
+    DocumentAppearance, FurnitureField, FurnitureRow, JobErrorSummary, PageFurniture,
+    PageWidth, Scale, Spacing, JobState, JobSummary, MeetingLifecycle, MeetingSummary, NewMeetingInput,
     NewProjectInput, ProjectSummary, ProtocolDensity, ProtocolDocument, ProtocolEvidence,
     ProtocolRevisionSummary, ProtocolStyle, SpeakerResolution, TranscriptDocument,
     TranscriptSegment, VocabularyDraft, VocabularyEntry, WorkspaceSnapshot,
@@ -13,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 18;
+const CURRENT_SCHEMA_VERSION: i64 = 19;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -155,6 +156,23 @@ pub(crate) struct ResolvedProtocolStyle {
     pub density: ProtocolDensity,
 }
 
+/// A saved way of presenting a protocol.
+///
+/// The typography and the running header and footer, named. Not the protocol style:
+/// that decides what the document says, this decides how it is set, and the two are
+/// kept apart on purpose.
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportTemplate {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub appearance: DocumentAppearance,
+    pub furniture: PageFurniture,
+    /// One that shipped, which can be used and copied but not overwritten.
+    pub built_in: bool,
+}
+
 /// A section taken out of a protocol and kept in case it is wanted back.
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -274,6 +292,76 @@ impl WorkspaceRepository {
             vocabulary: resolved_vocabulary,
             vocabulary_revision: format!("sha256:{}", checksum_bytes(&vocabulary_json)),
         })
+    }
+
+    /// Every saved way of presenting a protocol, shipped ones first.
+    pub fn list_export_templates(&self) -> Result<Vec<ExportTemplate>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id, name, description, appearance_json, furniture_json, built_in
+             FROM export_templates ORDER BY built_in DESC, name COLLATE NOCASE, id",
+        )?;
+        let rows = statement.query_map([], |row| {
+            let appearance: String = row.get(3)?;
+            let furniture: String = row.get(4)?;
+            let built_in: i64 = row.get(5)?;
+            Ok(ExportTemplate {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                // A template nobody can read falls back to the defaults rather than
+                // taking the whole library down with it.
+                appearance: serde_json::from_str(&appearance).unwrap_or_default(),
+                furniture: serde_json::from_str(&furniture).unwrap_or_default(),
+                built_in: built_in == 1,
+            })
+        })?;
+        Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
+    /// Save how a project sets its protocols, under a name.
+    pub fn save_export_template(
+        &self,
+        name: &str,
+        description: &str,
+        appearance: &DocumentAppearance,
+        furniture: &PageFurniture,
+    ) -> Result<()> {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err(StorageError::InvalidData("Give the template a name."));
+        }
+        let now = unix_time_millis();
+        self.connection.execute(
+            "INSERT INTO export_templates
+                (id, name, description, appearance_json, furniture_json, built_in,
+                 created_at_ms, updated_at_ms)
+             VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?6)",
+            params![
+                new_id("template"),
+                name,
+                description.trim(),
+                serde_json::to_string(appearance)
+                    .map_err(|_| StorageError::InvalidData("The template could not be saved."))?,
+                serde_json::to_string(furniture)
+                    .map_err(|_| StorageError::InvalidData("The template could not be saved."))?,
+                now
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Remove one that was made here. The shipped ones stay.
+    pub fn delete_export_template(&self, template_id: &str) -> Result<()> {
+        let changed = self.connection.execute(
+            "DELETE FROM export_templates WHERE id = ?1 AND built_in = 0",
+            [template_id],
+        )?;
+        if changed == 0 {
+            return Err(StorageError::InvalidData(
+                "A template that shipped with LocaLog cannot be deleted.",
+            ));
+        }
+        Ok(())
     }
 
     /// Sections taken out of a protocol without being thrown away.
@@ -2140,6 +2228,101 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             )?;
         }
         connection.pragma_update(None, "user_version", 18)?;
+        version = 18;
+    }
+    if version == 18 {
+        // A saved way of presenting a protocol: the typography and the running
+        // header and footer together, named and reusable.
+        //
+        // Deliberately not the protocol style, which decides what the document says.
+        // A template decides how it is set, which is why it holds exactly the two
+        // things a project already holds and nothing about content.
+        connection.execute_batch(
+            r#"
+            BEGIN IMMEDIATE;
+            CREATE TABLE IF NOT EXISTS export_templates (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                appearance_json TEXT NOT NULL,
+                furniture_json TEXT NOT NULL,
+                built_in INTEGER NOT NULL DEFAULT 0 CHECK (built_in IN (0, 1)),
+                created_at_ms INTEGER NOT NULL,
+                updated_at_ms INTEGER NOT NULL
+            );
+            COMMIT;
+            "#,
+        )?;
+        seed_export_templates(connection)?;
+        connection.pragma_update(None, "user_version", 19)?;
+    }
+    Ok(())
+}
+
+/// The two a firm actually has: what goes to a client, and what stays inside.
+///
+/// Written only when the table is empty, so a workspace that has had them deleted
+/// does not grow them back every time it opens.
+fn seed_export_templates(connection: &Connection) -> Result<()> {
+    let existing: i64 =
+        connection.query_row("SELECT COUNT(*) FROM export_templates", [], |row| row.get(0))?;
+    if existing > 0 {
+        return Ok(());
+    }
+
+    let client = DocumentAppearance::default();
+    let client_furniture = PageFurniture {
+        header: FurnitureRow {
+            left: vec![FurnitureField::ProjectName],
+            centre: Vec::new(),
+            right: vec![FurnitureField::MeetingDate],
+        },
+        footer: FurnitureRow {
+            left: vec![FurnitureField::DocumentType],
+            centre: Vec::new(),
+            right: vec![FurnitureField::PageOfCount],
+        },
+        skip_first_page: false,
+    };
+    let internal = DocumentAppearance {
+        body_size: 10,
+        heading_scale: Scale::Compact,
+        line_spacing: Spacing::Compact,
+        page_width: PageWidth::Standard,
+        ..DocumentAppearance::default()
+    };
+
+    let now = unix_time_millis();
+    for (id, name, description, appearance, furniture) in [
+        (
+            "template-client",
+            "Client protocol",
+            "A4 with the project and the date at the top and a page count at the foot.",
+            client,
+            client_furniture,
+        ),
+        (
+            "template-internal",
+            "Internal note",
+            "Smaller and tighter, with nothing repeated on the page.",
+            internal,
+            PageFurniture::default(),
+        ),
+    ] {
+        connection.execute(
+            "INSERT INTO export_templates
+                (id, name, description, appearance_json, furniture_json, built_in,
+                 created_at_ms, updated_at_ms)
+             VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6, ?6)",
+            params![
+                id,
+                name,
+                description,
+                serde_json::to_string(&appearance).unwrap_or_default(),
+                serde_json::to_string(&furniture).unwrap_or_default(),
+                now
+            ],
+        )?;
     }
     Ok(())
 }

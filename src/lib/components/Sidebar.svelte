@@ -154,6 +154,12 @@
         onclick={() => navigate({ name: 'vocabulary' })}
         ><Icon name="book" size={17} /> Names &amp; terms</button
       >
+      <button
+        class:active={route.name === 'export-templates'}
+        class="nav-link"
+        onclick={() => navigate({ name: 'export-templates' })}
+        ><Icon name="download" size={16} /> Export templates</button
+      >
     </section>
 
     <section aria-labelledby="settings-label">

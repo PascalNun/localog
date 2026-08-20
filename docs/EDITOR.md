@@ -529,6 +529,30 @@ the list, put it in the stash and took its prose out of the document; putting it
 restored all three; and a drag from first to third reordered the document with every
 other section's content intact.
 
+## Export templates — done, 20 August
+
+From the reference's third library item. A template is a saved **presentation**: the
+typography and the running header and footer together, named and reusable across
+projects.
+
+Kept apart from the protocol style on purpose, and the library page says so on both
+pages: a style decides what the document says and in what order, a template decides
+how it is set. Conflating them is how "make the headings smaller" turns into a
+different protocol.
+
+Applying one sets **both halves at once**, because they are two parts of one look and
+a template that set only half would be a template nobody could trust. Two ship —
+a client protocol on A4 with the project and date at the top and a page count at the
+foot, and an internal note, smaller and tighter with nothing repeated on the page —
+and they are seeded only when the table is empty, so a workspace that has had them
+deleted does not grow them back on every open. A shipped template can be used and
+copied but not removed; anything saved from a project can be.
+
+Verified in the application: both listed with what they actually contain; applying
+the internal note took the document from 11pt to 10pt and the measure from the A4
+column to standard; applying the client protocol put both back and turned "Nothing
+repeated on the page" into "Project name, Meeting date · Document type, Page n of m".
+
 ## Wanted, from looking at it — 20 August
 
 The owner's, recorded rather than built, and none of them urgent.

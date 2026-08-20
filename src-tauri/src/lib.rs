@@ -1145,6 +1145,67 @@ async fn set_project_appearance(
     .await
 }
 
+/// Every saved way of presenting a protocol.
+#[tauri::command]
+async fn export_templates(
+    state: State<'_, StorageState>,
+) -> Result<Vec<storage::ExportTemplate>, String> {
+    with_repository(state.root.clone(), |repository| {
+        repository.list_export_templates()
+    })
+    .await
+}
+
+/// Save how this project sets its protocols, under a name.
+#[tauri::command]
+async fn save_export_template(
+    state: State<'_, StorageState>,
+    name: String,
+    description: String,
+    appearance: domain::DocumentAppearance,
+    furniture: domain::PageFurniture,
+) -> Result<Vec<storage::ExportTemplate>, String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.save_export_template(&name, &description, &appearance, &furniture)?;
+        repository.list_export_templates()
+    })
+    .await
+}
+
+#[tauri::command]
+async fn delete_export_template(
+    state: State<'_, StorageState>,
+    template_id: String,
+) -> Result<Vec<storage::ExportTemplate>, String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.delete_export_template(&template_id)?;
+        repository.list_export_templates()
+    })
+    .await
+}
+
+/// Put a saved presentation on a project — both halves of it, in one change.
+#[tauri::command]
+async fn apply_export_template(
+    state: State<'_, StorageState>,
+    project_id: String,
+    template_id: String,
+) -> Result<WorkspaceSnapshot, String> {
+    with_repository(state.root.clone(), move |repository| {
+        let template = repository
+            .list_export_templates()?
+            .into_iter()
+            .find(|candidate| candidate.id == template_id)
+            .ok_or(storage::StorageError::InvalidData(
+                "That export template is no longer available.",
+            ))?;
+        repository.set_project_appearance(&project_id, &template.appearance)?;
+        repository.set_project_furniture(&project_id, &template.furniture)?;
+        repository.workspace_snapshot()
+    })
+    .await
+}
+
 /// The sections somebody has taken out of this protocol without discarding them.
 #[tauri::command]
 async fn protocol_set_aside(
@@ -1524,6 +1585,10 @@ pub fn run() {
             print_window,
             refine_passage,
             protocol_set_aside,
+            export_templates,
+            save_export_template,
+            delete_export_template,
+            apply_export_template,
             set_protocol_sections,
             set_project_appearance,
             set_project_furniture,

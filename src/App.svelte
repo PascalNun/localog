@@ -31,6 +31,7 @@
     MeetingSummary,
     ProjectSummary,
     ProtocolDraft,
+    ExportTemplate,
     SetAsideSection,
     NewMeetingInput,
     NewProjectInput,
@@ -61,6 +62,21 @@
   /// So "auto" is a real choice and the default, and following the system means
   /// listening rather than reading once.
   let themeChoice: 'auto' | 'light' | 'dark' = 'auto';
+
+  /// Saved ways of presenting a protocol, read once and kept as they change.
+  let exportTemplates: ExportTemplate[] = [];
+  let templatesRead = false;
+  $: if (!templatesRead && (route.name === 'export-templates' || route.name === 'protocol')) {
+    templatesRead = true;
+    void bridge
+      .exportTemplates()
+      .then((found) => {
+        exportTemplates = found;
+      })
+      .catch(() => {
+        exportTemplates = [];
+      });
+  }
 
   /// Sections taken out of the open protocol and kept in case they are wanted back.
   /// Read when a protocol is opened rather than held in the workspace snapshot,
@@ -730,6 +746,17 @@
           onExport={exportProtocol}
           onSetAppearance={(appearance) => bridge.setProjectAppearance(project.id, appearance)}
           onSetFurniture={(furniture) => bridge.setProjectFurniture(project.id, furniture)}
+          templates={exportTemplates}
+          onApplyTemplate={(templateId: string) =>
+            bridge.applyExportTemplate(project.id, templateId)}
+          onSaveTemplate={async (name: string) => {
+            exportTemplates = await bridge.saveExportTemplate(
+              name,
+              `Saved from ${project.name}.`,
+              project.appearance,
+              project.furniture,
+            );
+          }}
           setAside={protocolSetAside}
           onSectionsChanged={async (markdown: string, stash: SetAsideSection[]) => {
             await bridge.setProtocolSections(meeting.id, markdown, stash);
@@ -738,13 +765,17 @@
           onRefine={(passage: string, instruction: string) =>
             bridge.refinePassage(meeting.id, passage, instruction)}
         />
-      {:else if route.name === 'styles' || route.name === 'vocabulary'}
+      {:else if route.name === 'styles' || route.name === 'vocabulary' || route.name === 'export-templates'}
         <LibraryView
           kind={route.name}
           styles={snapshot.styles}
           vocabulary={snapshot.vocabulary}
           projects={snapshot.projects}
           onOpenStyle={(styleId: string) => bridge.protocolStyleDetail(styleId)}
+          templates={exportTemplates}
+          onDeleteTemplate={async (templateId: string) => {
+            exportTemplates = await bridge.deleteExportTemplate(templateId);
+          }}
           onSaveTerm={(entry) => bridge.saveVocabularyEntry(entry)}
           onDeleteTerm={(entryId) => bridge.deleteVocabularyEntry(entryId)}
         />
