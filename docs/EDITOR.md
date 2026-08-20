@@ -364,13 +364,27 @@ Ordered as the concept orders it, not by size.
 38` became `Woche 38`, twice. The instruction to reproduce every figure exactly
    is there and is not enough.
 
-   So the rewrite is checked rather than trusted: every number in the passage is
-   looked for in what comes back, and any that went missing is named in the editor
-   beside a button that puts the original back. That catches the floor number; it
-   does not catch `KW` becoming `Woche`, because the number survived and only the
-   abbreviation changed. **Said plainly rather than papered over: this is an
-   assistant on a passage somebody is reading, not a pass that can be trusted
-   unread.**
+   The first answer was to check the result: look for every number of the passage in
+   what came back. That catches the floor number and **not** `KW` becoming `Woche`,
+   because there the number survived and only the abbreviation changed. A checker
+   good enough to catch that is a checker that understands German — which is the
+   thing being checked.
+
+   So the answer is not a better checker. **A rewrite is a proposal, not an action.**
+   It is shown as a word-level difference — struck through where words went, marked
+   where they came — and nothing is applied until somebody has looked at it and said
+   so. The figure check is still run and named in the panel, but it is now a hint on
+   a change somebody is already reading rather than the only thing standing between
+   a model and the record.
+
+   Two other answers were considered and rejected. **Stricter instructions**: the
+   prompt already says to reproduce every figure exactly, and the model altered them
+   anyway; asking harder does not make a four-billion-parameter model obey.
+   **Checking the rewrite against the transcript**: a protocol legitimately
+   paraphrases the meeting, so "does this sentence match the source" has no clean
+   answer and would be slow and full of false alarms. That machinery exists where it
+   belongs — on generation, where the evidence panel counts which stated figures the
+   draft kept.
 
 8. **The Transcript tab does not exist** (§9).
 9. **A History timeline does not exist** (§11), though the revisions behind it do.

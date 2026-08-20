@@ -18,6 +18,7 @@
     furnitureIsEmpty,
     needsPageNumbers,
   } from '../protocol/furniture';
+  import { diffWords, isUnchanged, type Change } from '../protocol/diff';
   import type {
     DocumentAppearance,
     FurnitureField,
@@ -207,10 +208,19 @@
   let refineError = '';
   let customOpen = false;
   let customInstruction = '';
-  /// Kept so the original can be put back when a rewrite is not wanted.
-  let lastOriginal: string | null = null;
-  /// Figures the passage had and the rewrite does not.
-  let missingFigures: string[] = [];
+  /// A rewrite waiting to be looked at.
+  ///
+  /// Nothing is applied until somebody has seen what changed. Checking a rewrite
+  /// afterwards catches some of what a small local model gets wrong and not all of
+  /// it — "KW 38" becoming "Woche 38" loses nothing a checker can count — so the
+  /// answer is not a better checker but a change nobody has to take on trust.
+  let proposal: {
+    range: Range;
+    passage: string;
+    revised: string;
+    changes: Change[];
+    missingFigures: string[];
+  } | null = null;
 
   const REFINEMENTS = [
     { id: 'clarity', label: 'Improve clarity', instruction: 'Make this clearer to read.' },
@@ -239,15 +249,15 @@
     refineError = '';
     try {
       const revised = await onRefine(passage, instruction);
-      lastOriginal = passage;
-      missingFigures = revised.missingFigures;
-      // Put it back through the selection so that undo owns it, rather than
-      // rebuilding the document underneath the person who asked.
-      documentSurface.focus();
-      selection.removeAllRanges();
-      selection.addRange(range);
-      document.execCommand('insertText', false, revised.text);
-      readDocument();
+      // The range is kept rather than the text: it is where the change goes if it
+      // is wanted, and a selection does not survive a panel opening.
+      proposal = {
+        range: range.cloneRange(),
+        passage,
+        revised: revised.text,
+        changes: diffWords(passage, revised.text),
+        missingFigures: revised.missingFigures,
+      };
     } catch (cause) {
       refineError = cause instanceof Error ? cause.message : String(cause);
     } finally {
@@ -258,13 +268,21 @@
     }
   }
 
-  function undoRefinement() {
-    if (lastOriginal === null || !documentSurface) return;
+  function acceptProposal() {
+    if (!proposal || !documentSurface) return;
     documentSurface.focus();
-    document.execCommand('insertText', false, lastOriginal);
-    lastOriginal = null;
-    missingFigures = [];
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(proposal.range);
+    // Applied through the selection so that undo owns it, rather than rebuilding
+    // the document underneath the person who asked.
+    document.execCommand('insertText', false, proposal.revised);
+    proposal = null;
     readDocument();
+  }
+
+  function discardProposal() {
+    proposal = null;
   }
 
   /// Tables, which are the one thing `execCommand` has no answer for at all.
@@ -855,25 +873,44 @@
         {#if refineError}
           <p class="setting-error" role="alert">{refineError}</p>
         {/if}
-        {#if lastOriginal !== null}
-          {#if missingFigures.length > 0}
-            <p class="refine-lost" role="alert">
-              <Icon name="warning" size={15} />
-              <span
-                >{missingFigures.length === 1
-                  ? 'A figure the passage stated is not in the rewrite'
-                  : `${missingFigures.length} figures the passage stated are not in the rewrite`}:
-                {missingFigures.join(', ')}. Checked rather than assumed — put the original back
-                unless you meant this.</span
-              >
-            </p>
-          {/if}
-          <p class="refine-undo">
-            {missingFigures.length > 0
-              ? 'Rewritten.'
-              : 'A passage was rewritten. Its figures all came back.'}
-            <button class="text-action" onclick={undoRefinement}>Put the original back</button>
-          </p>
+        {#if proposal}
+          {@const waiting = proposal}
+          <section class="proposal" aria-label="Proposed rewrite">
+            <div class="proposal-heading">
+              <p class="eyebrow">Proposed change</p>
+              <p>
+                Nothing has been changed yet. Read it, then keep it or leave it — a local model
+                rewrites well and is not to be taken on trust.
+              </p>
+            </div>
+            {#if isUnchanged(waiting.changes)}
+              <p class="proposal-same">The model returned the passage unchanged.</p>
+            {:else}
+              <p class="proposal-diff">
+                {#each waiting.changes as change, at (at)}
+                  {#if change.kind === 'same'}<span>{change.text}</span
+                    >{:else if change.kind === 'removed'}<del>{change.text}</del>{:else}<ins
+                      >{change.text}</ins
+                    >{/if}
+                {/each}
+              </p>
+            {/if}
+            {#if waiting.missingFigures.length > 0}
+              <p class="refine-lost" role="alert">
+                <Icon name="warning" size={15} />
+                <span
+                  >{waiting.missingFigures.length === 1
+                    ? 'A figure the passage stated is missing from this rewrite'
+                    : `${waiting.missingFigures.length} figures the passage stated are missing from this rewrite`}:
+                  {waiting.missingFigures.join(', ')}.</span
+                >
+              </p>
+            {/if}
+            <div class="proposal-actions">
+              <button class="primary-action" onclick={acceptProposal}>Use this</button>
+              <button class="secondary-action" onclick={discardProposal}>Leave it</button>
+            </div>
+          </section>
         {/if}
         <!-- eslint-disable-next-line svelte/no-at-html-tags -->
         <div
