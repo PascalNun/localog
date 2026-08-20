@@ -2018,7 +2018,6 @@ fn answer_budget(context_tokens: u32, prompt_chars: usize, requested: u32) -> u3
 /// about whether a window can hold a protocol is answered by arithmetic rather than
 /// by inference from a failure. Used by the evaluation harness.
 #[cfg(test)]
-#[cfg(test)]
 mod tidying_a_rewrite {
     use super::tidy_refinement;
 
@@ -2113,6 +2112,8 @@ mod checking_capability {
     }
 }
 
+/// Only ever built for tests: it reads instructions that live in the eval harness.
+#[cfg(test)]
 pub(crate) fn sizing_probe(context_tokens: u32, maximum_output_tokens: u32) -> (usize, usize, u32) {
     let style = GenerationStyle {
         id: "style-formal".into(),
