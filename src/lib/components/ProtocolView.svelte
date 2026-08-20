@@ -908,7 +908,9 @@
                   onclick={() => {
                     view = view === 'document' ? 'markdown' : 'document';
                     moreOpen = false;
-                  }}>{view === 'document' ? 'Markdown view' : 'Document view'}</button
+                  }}
+                  ><Icon name="document" size={15} />
+                  {view === 'document' ? 'Markdown view' : 'Document view'}</button
                 >
                 <button
                   role="menuitem"
@@ -916,7 +918,8 @@
                     insertTable();
                     moreOpen = false;
                   }}
-                  disabled={view !== 'document'}>Insert table</button
+                  disabled={view !== 'document'}
+                  ><Icon name="table" size={15} /> Insert table</button
                 >
                 <button
                   role="menuitem"
@@ -924,7 +927,8 @@
                     format('insertHorizontalRule');
                     moreOpen = false;
                   }}
-                  disabled={view !== 'document'}>Insert divider</button
+                  disabled={view !== 'document'}
+                  ><Icon name="rule" size={15} /> Insert divider</button
                 >
                 <button
                   role="menuitem"
@@ -932,7 +936,8 @@
                     format('removeFormat');
                     moreOpen = false;
                   }}
-                  disabled={view !== 'document'}>Clear formatting</button
+                  disabled={view !== 'document'}
+                  ><Icon name="close" size={15} /> Clear formatting</button
                 >
               </div>
             {/if}
@@ -983,33 +988,47 @@
             <button
               class="text-action"
               title="Add a row above"
-              onclick={() => tableCommand('row-above')}>↑ Row</button
+              onclick={() => tableCommand('row-above')}
+              ><Icon name="row-add-above" size={15} /><span class="sr-only">Add a row above</span
+              ></button
             >
             <button
               class="text-action"
               title="Add a row below"
-              onclick={() => tableCommand('row-below')}>↓ Row</button
+              onclick={() => tableCommand('row-below')}
+              ><Icon name="row-add-below" size={15} /><span class="sr-only">Add a row below</span
+              ></button
             >
             <button
               class="text-action"
               title="Delete this row"
-              onclick={() => tableCommand('row-delete')}>− Row</button
+              onclick={() => tableCommand('row-delete')}
+              ><Icon name="row-remove" size={15} /><span class="sr-only">Delete this row</span
+              ></button
             >
             <span class="format-divider" aria-hidden="true"></span>
             <button
               class="text-action"
               title="Add a column to the left"
-              onclick={() => tableCommand('column-left')}>← Col</button
+              onclick={() => tableCommand('column-left')}
+              ><Icon name="column-add-left" size={15} /><span class="sr-only"
+                >Add a column to the left</span
+              ></button
             >
             <button
               class="text-action"
               title="Add a column to the right"
-              onclick={() => tableCommand('column-right')}>Col →</button
+              onclick={() => tableCommand('column-right')}
+              ><Icon name="column-add-right" size={15} /><span class="sr-only"
+                >Add a column to the right</span
+              ></button
             >
             <button
               class="text-action"
               title="Delete this column"
-              onclick={() => tableCommand('column-delete')}>− Col</button
+              onclick={() => tableCommand('column-delete')}
+              ><Icon name="column-remove" size={15} /><span class="sr-only">Delete this column</span
+              ></button
             >
           </div>
         {/if}
@@ -1038,29 +1057,32 @@
               class="text-action"
               class:chosen={marks.bold}
               title="Bold"
-              onclick={() => format('bold')}><strong>B</strong></button
+              onclick={() => format('bold')}><Icon name="bold" size={15} /></button
             >
             <button
               class="text-action"
               class:chosen={marks.italic}
               title="Italic"
-              onclick={() => format('italic')}><em>I</em></button
+              onclick={() => format('italic')}><Icon name="italic" size={15} /></button
             >
             <span class="format-divider" aria-hidden="true"></span>
             <button
               class="text-action"
               title="Bulleted list"
-              onclick={() => format('insertUnorderedList')}>•</button
+              onclick={() => format('insertUnorderedList')}
+              ><Icon name="list-bulleted" size={15} /></button
             >
             <button
               class="text-action"
               title="Numbered list"
-              onclick={() => format('insertOrderedList')}>1.</button
+              onclick={() => format('insertOrderedList')}
+              ><Icon name="list-numbered" size={15} /></button
             >
             <button
               class="text-action"
               title="Quotation"
-              onclick={() => format('formatBlock', 'blockquote')}>&rdquo;</button
+              onclick={() => format('formatBlock', 'blockquote')}
+              ><Icon name="quote" size={15} /></button
             >
             <span class="format-divider" aria-hidden="true"></span>
             <button

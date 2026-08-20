@@ -3819,3 +3819,38 @@ button.review-summary[aria-pressed='true'] {
   font-size: 0.78rem;
   white-space: nowrap;
 }
+
+/* Menu rows read as an icon and a name, not as text with something in front. */
+.editor-menu-sheet button,
+.refine-sheet button {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+
+.editor-menu-sheet .icon,
+.refine-sheet .icon {
+  flex: 0 0 auto;
+  color: var(--faint);
+}
+
+.editor-menu-sheet button:hover .icon {
+  color: var(--muted);
+}
+
+/* The one control in the selection toolbar that keeps a word, because a picture of
+   "rewrite this" is a picture nobody reads the same way twice. */
+.selection-toolbar .action-word {
+  font-size: 0.8rem;
+}
+
+.table-toolbar .text-action,
+.selection-toolbar .text-action {
+  color: var(--muted);
+}
+
+.table-toolbar .text-action:hover,
+.selection-toolbar .text-action:hover:not(:disabled) {
+  color: var(--ink);
+  background: var(--subtle);
+}
