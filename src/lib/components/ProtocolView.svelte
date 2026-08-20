@@ -1272,11 +1272,14 @@
               {appearance.bodySize} pt
             </h3>
             <button
-              class="text-action inspector-disclosure"
+              class="inspector-control"
               aria-expanded={appearanceOpen}
               onclick={() => (appearanceOpen = !appearanceOpen)}
-              >{appearanceOpen ? 'Done' : 'Edit appearance'}</button
             >
+              <Icon name="document" size={16} />
+              <span>Edit appearance</span>
+              <Icon name={appearanceOpen ? 'chevron-down' : 'chevron'} size={15} />
+            </button>
             {#if appearanceOpen}
               <div class="appearance-fields">
                 <label>
@@ -1362,11 +1365,14 @@
             <p class="eyebrow">Header &amp; footer</p>
             <h3>{furnitureSummary}</h3>
             <button
-              class="text-action inspector-disclosure"
+              class="inspector-control"
               aria-expanded={furnitureOpen}
               onclick={() => (furnitureOpen = !furnitureOpen)}
-              >{furnitureOpen ? 'Done' : 'Edit header & footer'}</button
             >
+              <Icon name="rule" size={16} />
+              <span>Edit header &amp; footer</span>
+              <Icon name={furnitureOpen ? 'chevron-down' : 'chevron'} size={15} />
+            </button>
             {#if furnitureOpen}
               <div class="furniture-editor">
                 {#each [{ id: 'header', label: 'Header' }, { id: 'footer', label: 'Footer' }] as band (band.id)}

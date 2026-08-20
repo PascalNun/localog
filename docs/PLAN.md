@@ -107,10 +107,10 @@ broken, then wrong, then missing.
     they cannot be opened, read, edited, copied or added to. The page states that
     styles are presets rather than prompts and then offers no way to hold one.
 
-14. **A small mark beside the wordmark.** The sidebar says "LocaLog" in words and
-    carries nothing of the mark itself. A small version of the logo to the left of
-    it, at the same height as the word, would give the application a face in the one
-    place somebody looks first.
+14. ~~**A small mark beside the wordmark.**~~ Done, 20 August. The same waveform the
+    application icon and the start page already use, cropped to its middle five bars
+    so that it reads at the height of a word, and sized in `em` against the wordmark
+    so the two stay one thing at any size.
 
 ### Open questions, which are the owner's
 

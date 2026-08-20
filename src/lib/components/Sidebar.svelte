@@ -98,7 +98,18 @@
 {/if}
 
 <aside class:open class="sidebar" aria-label="Primary navigation">
-  <button class="wordmark" onclick={() => navigate({ name: 'start' })}>LocaLog</button>
+  <button class="wordmark" onclick={() => navigate({ name: 'start' })}>
+    <!-- The application's own mark, the same seven bars as its icon and its start
+         page, cropped to the middle five so it reads at the height of a word. -->
+    <svg class="wordmark-mark" viewBox="0 0 62 44" aria-hidden="true">
+      <line x1="5" y1="16" x2="5" y2="28" />
+      <line x1="17" y1="7" x2="17" y2="37" />
+      <line x1="29" y1="2" x2="29" y2="42" />
+      <line x1="41" y1="9" x2="41" y2="35" />
+      <line x1="53" y1="17" x2="53" y2="27" />
+    </svg>
+    <span>LocaLog</span>
+  </button>
 
   <nav class="sidebar-nav">
     <section aria-labelledby="projects-label">

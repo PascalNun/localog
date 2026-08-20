@@ -526,8 +526,14 @@ The owner's, recorded rather than built, and none of them urgent.
    The header and footer should presumably be visible on each page too, since being
    able to see them is half the reason for having them.
 
-3. **The appearance panel is not styled to the standard of the rest.** It works and
-   it looks like a form. The reference shows something quieter.
+3. ~~**The appearance panel is not styled to the standard of the rest.**~~ **Done,
+   20 August.** The reference builds the inspector from controls rather than from
+   text that happens to be clickable, so "Edit appearance" and "Edit header & footer"
+   are now full-width bordered controls with an icon saying what they open and a
+   chevron saying that they open. The five settings read as a description of the
+   document rather than as a form to fill in: the label quiet on the left, the value
+   right-aligned with a mark to say it can be changed, and an edge that appears on
+   hover instead of five boxes stacked in a column.
 
 ## The decision that shapes the rest
 
