@@ -504,10 +504,17 @@ directly. Measured: 3 rows → 4 → 3 → 4.
 
 The owner's, recorded rather than built, and none of them urgent.
 
-1. **The toolbar should be the width of the page under it.** It currently spans the
-   whole workspace while the document sits in a narrower column beneath, so the two
-   do not line up. The toolbar belongs to the document and should measure like it —
-   which also means it moves when the page width setting changes.
+1. ~~**The toolbar should be the width of the page under it.**~~ **Done, 20 August.**
+   The toolbar, the find bar and the rewrite panel all measure like the page and move
+   with the page-width setting. Measured at all four widths: 469, 587, 675, 763 —
+   toolbar and sheet identical at each.
+
+   Two unit traps on the way, both invisible until measured. The measure was in `em`,
+   which resolves against whatever element reads it: the sheet sets its own font size
+   and the toolbar does not, so one "46em" came out 675px and the other 552px. It is
+   an absolute length now. And the sheet carried `margin: 0 auto` as a grid item,
+   which makes an item take its content's width rather than its share of the row — so
+   it sat at 648px whatever it was asked for.
 
 2. **Show where the pages break.** With A4 chosen, the editor should divide the
    document the way a word processor does, so it is always clear what falls on which

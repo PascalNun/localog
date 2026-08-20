@@ -13,7 +13,14 @@ const PIXELS_PER_POINT = 96 / 72;
 
 const HEADING_SCALE = { compact: 1.12, standard: 1.22, large: 1.34 } as const;
 const LINE_SPACING = { compact: 1.4, comfortable: 1.62, spacious: 1.85 } as const;
-/** The text measure, in the document's own body sizes rather than in pixels. */
+/**
+ * The text measure, counted in characters of the document's own body size.
+ *
+ * Turned into an absolute length below rather than left as `em`, because `em`
+ * resolves against whatever element reads it: the sheet sets its own font size, the
+ * toolbar above it does not, and the same "46em" came out 675px on one and 552px on
+ * the other. Two things that are meant to be the same width were not.
+ */
 const PAGE_WIDTH = { narrow: 32, standard: 40, wide: 52, a4: 46 } as const;
 
 /**
@@ -24,11 +31,12 @@ const PAGE_WIDTH = { narrow: 32, standard: 40, wide: 52, a4: 46 } as const;
  */
 export function appearanceStyle(appearance: DocumentAppearance): string {
   const step = HEADING_SCALE[appearance.headingScale];
+  const bodyPixels = appearance.bodySize * PIXELS_PER_POINT;
   return [
     `--document-font: ${fontStack(appearance.font)}`,
-    `--document-size: ${(appearance.bodySize * PIXELS_PER_POINT).toFixed(2)}px`,
+    `--document-size: ${bodyPixels.toFixed(2)}px`,
     `--document-leading: ${LINE_SPACING[appearance.lineSpacing]}`,
-    `--document-measure: ${PAGE_WIDTH[appearance.pageWidth]}em`,
+    `--document-measure: ${(PAGE_WIDTH[appearance.pageWidth] * bodyPixels).toFixed(1)}px`,
     // Each heading is one step of the scale above the one below it, so choosing
     // "large" moves the whole hierarchy rather than only the top of it.
     `--heading-1: ${(step * step * step).toFixed(3)}em`,

@@ -1297,6 +1297,18 @@ textarea::placeholder {
   min-width: 0;
 }
 
+/* The toolbar and the find bar belong to the document, so they measure like it:
+   the same column, moving with the page-width setting rather than spanning the
+   whole workspace while the page sits narrower beneath. The padding matches the
+   sheet's own, so the controls line up with the text inside it. */
+.protocol-main > .editor-toolbar,
+.protocol-main > .editor-find,
+.protocol-main > .proposal {
+  width: 100%;
+  max-width: var(--document-measure, 46em);
+  margin: 0 auto;
+}
+
 .audio-transport {
   /* Follow-along scrolls the list; the controls must stay reachable. */
   position: sticky;
@@ -3074,8 +3086,14 @@ button.review-summary[aria-pressed='true'] {
      Zoom multiplies the size and nothing else. It is how large the document looks,
      not how large it prints, so it must not reach the stored appearance. */
   --zoom: 1;
-  /* Centred in whatever room the workspace has, so a narrow measure reads as a
-     page on a desk rather than as text pushed against the left. */
+  /* Centred in whatever room the workspace has, so a narrow measure reads as a page
+     on a desk rather than as text pushed against the left.
+
+     The width is stated rather than left to stretch: this is a grid item, and an
+     auto inline margin on a grid item makes it take its content's width instead of
+     its share of the row. The sheet sat at 648px while the toolbar above it sat at
+     the measure it was asked for, and the two never lined up. */
+  width: 100%;
   max-width: var(--document-measure, 46em);
   margin: 0 auto;
   padding: 40px 44px 56px;

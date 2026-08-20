@@ -863,7 +863,7 @@
 
   <StageRail meetingId={meeting.id} lifecycle={meeting.lifecycle} {onNavigate} />
   <div class:without-inspector={!inspectorOpen} class="context-layout protocol-layout">
-    <div class="protocol-main">
+    <div class="protocol-main" style={documentStyle}>
       <div class="editor-toolbar">
         <div class="editor-tools" aria-label="Editor tools">
           <button class="text-action" onclick={() => editorCommand('undo')}
@@ -1198,7 +1198,7 @@
           tabindex="0"
           aria-multiline="true"
           aria-label="Protocol"
-          style={`${documentStyle}; --zoom: ${textScale}`}
+          style={`--zoom: ${textScale}`}
           oninput={readDocument}
           onpaste={handlePaste}
           onkeydown={handleKeydown}
