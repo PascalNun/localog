@@ -711,6 +711,8 @@
           onExport={exportProtocol}
           onSetAppearance={(appearance) => bridge.setProjectAppearance(project.id, appearance)}
           onSetFurniture={(furniture) => bridge.setProjectFurniture(project.id, furniture)}
+          onRefine={(passage: string, instruction: string) =>
+            bridge.refinePassage(meeting.id, passage, instruction)}
         />
       {:else if route.name === 'styles' || route.name === 'vocabulary'}
         <LibraryView

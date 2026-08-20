@@ -239,6 +239,19 @@ export interface PageFurniture {
   skipFirstPage: boolean;
 }
 
+/**
+ * A rewritten passage, and what checking it found.
+ *
+ * `missingFigures` are numbers that were in the passage and are not in what came
+ * back. Measured rather than trusted: on a real German passage the small local model
+ * altered a fact in three of twenty-four rewrites, and a protocol whose figures
+ * drift is worse than one nobody rewrote.
+ */
+export interface RefinedPassage {
+  text: string;
+  missingFigures: string[];
+}
+
 export const EMPTY_FURNITURE: PageFurniture = {
   header: { left: [], centre: [], right: [] },
   footer: { left: [], centre: [], right: [] },
@@ -479,6 +492,8 @@ export interface WorkflowBridge {
   protocolStyleDetail(styleId: string): Promise<ProtocolStyleDetail>;
   setProjectAppearance(projectId: string, appearance: DocumentAppearance): Promise<void>;
   setProjectFurniture(projectId: string, furniture: PageFurniture): Promise<void>;
+  /** Rewrite one passage as asked, returning the new text without storing it. */
+  refinePassage(meetingId: string, passage: string, instruction: string): Promise<RefinedPassage>;
   recordingStatus(): Promise<RecordingStatus>;
   startRecording(meetingId: string): Promise<void>;
   stopRecording(): Promise<void>;

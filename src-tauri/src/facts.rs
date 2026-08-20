@@ -601,3 +601,61 @@ Zwischentext.
         ));
     }
 }
+
+/// Every number in a passage, unit or no unit.
+///
+/// `quantities` wants a unit after the number, because it is looking for the
+/// measurements a meeting stated. This wants the opposite: anything a rewrite could
+/// quietly change — a floor, a calendar week, a price, a year — so that the passage
+/// coming back can be checked against the one that went out.
+pub(crate) fn numbers_in(text: &str) -> Vec<String> {
+    let bytes = text.as_bytes();
+    let mut found = Vec::new();
+    let mut index = 0;
+    while index < bytes.len() {
+        if !bytes[index].is_ascii_digit() {
+            index += 1;
+            continue;
+        }
+        if index > 0 && bytes[index - 1].is_ascii_alphanumeric() {
+            index += 1;
+            continue;
+        }
+        let start = index;
+        while index < bytes.len()
+            && (bytes[index].is_ascii_digit()
+                // A separator counts only between digits: "148,5" is one number and
+                // "beträgt 148, und" is not.
+                || ((bytes[index] == b',' || bytes[index] == b'.')
+                    && index + 1 < bytes.len()
+                    && bytes[index + 1].is_ascii_digit()))
+        {
+            index += 1;
+        }
+        found.push(text[start..index].to_string());
+    }
+    found
+}
+
+#[cfg(test)]
+mod number_tests {
+    use super::numbers_in;
+
+    #[test]
+    fn reads_the_numbers_a_rewrite_could_lose() {
+        assert_eq!(
+            numbers_in("Die Fläche beträgt 148,5 m² im 2. Obergeschoss, Kosten 4.200 EUR"),
+            vec!["148,5", "2", "4.200"]
+        );
+    }
+
+    #[test]
+    fn a_trailing_separator_is_punctuation_rather_than_part_of_the_number() {
+        assert_eq!(numbers_in("bis zum 12. September 2026."), vec!["12", "2026"]);
+    }
+
+    #[test]
+    fn a_number_inside_a_word_is_not_a_number() {
+        assert_eq!(numbers_in("KW38 und A4"), Vec::<String>::new());
+    }
+}

@@ -23,6 +23,7 @@
     FurnitureField,
     FurnitureRow,
     PageFurniture,
+    RefinedPassage,
   } from '../workflow/types';
 
   export let project: ProjectSummary;
@@ -38,6 +39,12 @@
   export let onSetAppearance: (appearance: DocumentAppearance) => Promise<void> = async () =>
     undefined;
   export let onSetFurniture: (furniture: PageFurniture) => Promise<void> = async () => undefined;
+  export let onRefine: (
+    passage: string,
+    instruction: string,
+  ) => Promise<RefinedPassage> = async () => {
+    throw new Error('Rewriting is not available here.');
+  };
 
   let markdown = protocol.markdown;
   let saveState: 'saved' | 'saving' | 'failed' = protocol.saveState;
@@ -163,6 +170,10 @@
     // selection, and a toolbar that follows the caret is a toolbar in the way.
     if (range.collapsed) {
       selectionBox = null;
+      if (!refineBusy) {
+        refineOpen = false;
+        customOpen = false;
+      }
       return;
     }
     const rect = range.getBoundingClientRect();
@@ -182,6 +193,78 @@
     selectionBox = null;
     tableBox = null;
     moreOpen = false;
+  }
+
+  /// Asking the model to say a passage differently.
+  ///
+  /// Contextual and momentary, never a conversation: the selection goes to the
+  /// model with an instruction, the answer replaces it, and undo takes it back like
+  /// any other edit. Nothing runs unless somebody asks, and the passage travels
+  /// alone — no transcript, no meeting — because the job is to rephrase what is
+  /// there, and anything else the model could see is something it could add.
+  let refineOpen = false;
+  let refineBusy = '';
+  let refineError = '';
+  let customOpen = false;
+  let customInstruction = '';
+  /// Kept so the original can be put back when a rewrite is not wanted.
+  let lastOriginal: string | null = null;
+  /// Figures the passage had and the rewrite does not.
+  let missingFigures: string[] = [];
+
+  const REFINEMENTS = [
+    { id: 'clarity', label: 'Improve clarity', instruction: 'Make this clearer to read.' },
+    { id: 'shorter', label: 'Shorten', instruction: 'Say this in fewer words.' },
+    {
+      id: 'formal',
+      label: 'Make more formal',
+      instruction: 'Make the register more formal, as a professional minute would be written.',
+    },
+    {
+      id: 'plain',
+      label: 'Make plainer',
+      instruction: 'Make the wording plainer and more direct, without losing precision.',
+    },
+  ];
+
+  async function refine(instruction: string, label: string) {
+    if (!documentSurface) return;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    const passage = range.toString();
+    if (passage.trim() === '') return;
+
+    refineBusy = label;
+    refineError = '';
+    try {
+      const revised = await onRefine(passage, instruction);
+      lastOriginal = passage;
+      missingFigures = revised.missingFigures;
+      // Put it back through the selection so that undo owns it, rather than
+      // rebuilding the document underneath the person who asked.
+      documentSurface.focus();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.execCommand('insertText', false, revised.text);
+      readDocument();
+    } catch (cause) {
+      refineError = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      refineBusy = '';
+      refineOpen = false;
+      customOpen = false;
+      customInstruction = '';
+    }
+  }
+
+  function undoRefinement() {
+    if (lastOriginal === null || !documentSurface) return;
+    documentSurface.focus();
+    document.execCommand('insertText', false, lastOriginal);
+    lastOriginal = null;
+    missingFigures = [];
+    readDocument();
   }
 
   /// Tables, which are the one thing `execCommand` has no answer for at all.
@@ -722,7 +805,75 @@
               title="Quotation"
               onclick={() => format('formatBlock', 'blockquote')}>&rdquo;</button
             >
+            <span class="format-divider" aria-hidden="true"></span>
+            <button
+              class="text-action"
+              class:chosen={refineOpen}
+              title="Ask the model to say this differently"
+              aria-haspopup="true"
+              aria-expanded={refineOpen}
+              onclick={() => (refineOpen = !refineOpen)}
+              disabled={refineBusy !== ''}
+              >{refineBusy === '' ? 'Rewrite' : `${refineBusy}…`}</button
+            >
+            {#if refineOpen}
+              <div class="refine-sheet" role="menu">
+                {#each REFINEMENTS as choice (choice.id)}
+                  <button
+                    role="menuitem"
+                    onclick={() => void refine(choice.instruction, choice.label)}
+                    >{choice.label}</button
+                  >
+                {/each}
+                <button role="menuitem" onclick={() => (customOpen = !customOpen)}
+                  >Custom instruction…</button
+                >
+                {#if customOpen}
+                  <div class="refine-custom">
+                    <label>
+                      <span class="sr-only">What should change?</span>
+                      <input
+                        bind:value={customInstruction}
+                        placeholder="What should change?"
+                        onkeydown={(event) => {
+                          if (event.key === 'Enter' && customInstruction.trim() !== '') {
+                            void refine(customInstruction.trim(), 'Rewriting');
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                {/if}
+                <p class="refine-note">
+                  The passage goes to your local model on its own. Numbers, names and dates are to
+                  come back unchanged — check them, and undo if they did not.
+                </p>
+              </div>
+            {/if}
           </div>
+        {/if}
+        {#if refineError}
+          <p class="setting-error" role="alert">{refineError}</p>
+        {/if}
+        {#if lastOriginal !== null}
+          {#if missingFigures.length > 0}
+            <p class="refine-lost" role="alert">
+              <Icon name="warning" size={15} />
+              <span
+                >{missingFigures.length === 1
+                  ? 'A figure the passage stated is not in the rewrite'
+                  : `${missingFigures.length} figures the passage stated are not in the rewrite`}:
+                {missingFigures.join(', ')}. Checked rather than assumed — put the original back
+                unless you meant this.</span
+              >
+            </p>
+          {/if}
+          <p class="refine-undo">
+            {missingFigures.length > 0
+              ? 'Rewritten.'
+              : 'A passage was rewritten. Its figures all came back.'}
+            <button class="text-action" onclick={undoRefinement}>Put the original back</button>
+          </p>
         {/if}
         <!-- eslint-disable-next-line svelte/no-at-html-tags -->
         <div

@@ -1270,6 +1270,55 @@ impl OllamaProvider {
     }
 
     /// One bounded, cancellable, streamed completion.
+    /// Rewrite one passage of a protocol, as asked.
+    ///
+    /// The narrowest use of a model in this application: it is given the passage and
+    /// nothing else — not the transcript, not the meeting — because the job is to
+    /// say the same thing differently, and everything else it could see is something
+    /// it could add.
+    ///
+    /// Fidelity is not negotiable here any more than it is in a style. A rewrite
+    /// that rounds a figure or drops a name has changed the record rather than the
+    /// prose, so the instruction says so plainly, and the caller keeps the original
+    /// to put back.
+    pub fn refine_passage(
+        &self,
+        request: &GenerationRequest,
+        passage: &str,
+        instruction: &str,
+        cancelled: &AtomicBool,
+    ) -> Result<String> {
+        let payload = RefinePayload {
+            meeting_language: &request.meeting_language,
+            instruction,
+            passage,
+        };
+        let prompt = encode_prompt(&payload)?;
+        // Room for the passage again, half as much over for a rewrite that runs
+        // long, and a floor so that a one-line selection still has somewhere to go.
+        let budget = ((passage.len() / 2) as u32 + 256).min(request.maximum_output_tokens);
+        let generated = self.complete(
+            request,
+            Completion {
+                system: REFINE_SYSTEM,
+                prompt: &prompt,
+                // Prose, not a schema: this returns the passage and nothing round it.
+                format: serde_json::Value::Null,
+                num_predict: budget,
+            },
+            cancelled,
+            &mut |_| Ok(()),
+        )?;
+
+        let revised = tidy_refinement(&generated);
+        if revised.trim().is_empty() {
+            return Err(ProviderError::InvalidResponse(
+                "The model returned nothing for that passage.".into(),
+            ));
+        }
+        Ok(revised)
+    }
+
     fn complete(
         &self,
         request: &GenerationRequest,
@@ -1514,6 +1563,55 @@ const SYNTHESIS_SYSTEM: &str = "Write a reviewable professional meeting protocol
 
 #[cfg(test)]
 const TOPIC_SECTION_SYSTEM: &str = "Write one section of a professional meeting protocol, in the meeting's language, from the passages supplied. They are the only source. Never invent decisions, actions, owners or dates, and reproduce every number, measurement, area, date and proper name exactly as stated. Write about this section's own subject only: the outline names what the other sections cover, and repeating them is a fault. Keep close to the character budget given — it is this subject's share of the whole protocol, and overrunning it is the failure this format exists to prevent. Begin with a heading for the subject. Do not write an introduction, a participants list or a table of actions; those are written separately. Return only schema-valid JSON. If the payload carries a correction, your previous answer was rejected for the reason it gives; fix exactly that and return the whole answer again.";
+
+/// What a rewrite is told, which is mostly what it may not do.
+const REFINE_SYSTEM: &str = "You revise one passage of a meeting protocol. \
+Return only the revised passage: no preamble, no explanation, no quotation marks \
+around it, and no note about what you changed. \
+Write in the language of the passage. \
+Reproduce every number, measurement, date, name and proper noun exactly as they \
+appear. Never round them, never rephrase them, never leave one out. \
+Never add information that is not already in the passage, and never remove a fact \
+in order to make it read better. \
+Keep the passage's own form: if it is a list item, return a list item; if it is a \
+heading, return a heading. Do not add Markdown formatting that was not there.";
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RefinePayload<'a> {
+    meeting_language: &'a str,
+    instruction: &'a str,
+    passage: &'a str,
+}
+
+/// What a model wraps an answer in when it has been asked for only the answer.
+///
+/// Every one of these has been seen from a local model: a fenced block, a leading
+/// "Here is the revised passage:", and the whole thing in quotation marks. Stripped
+/// rather than retried, because the text inside is usually right.
+fn tidy_refinement(generated: &str) -> String {
+    let mut text = generated.trim();
+
+    if let Some(rest) = text.strip_prefix("```") {
+        let rest = rest.split_once('\n').map(|(_, body)| body).unwrap_or(rest);
+        text = rest.trim_end().strip_suffix("```").unwrap_or(rest).trim();
+    }
+
+    // A preamble ends at the first line break; a passage that is genuinely one line
+    // is left alone rather than beheaded.
+    if let Some((first, rest)) = text.split_once('\n') {
+        let opener = first.trim_end();
+        if opener.ends_with(':') && opener.len() < 80 && !rest.trim().is_empty() {
+            text = rest.trim();
+        }
+    }
+
+    if text.len() > 1 && text.starts_with('"') && text.ends_with('"') {
+        text = text[1..text.len() - 1].trim();
+    }
+
+    text.to_string()
+}
 
 const INTRODUCTIONS_SYSTEM: &str = "List the people who introduce themselves in this opening of a meeting: somebody saying their own name, usually alongside what they do or who they work for. Give each one their role or organisation as they stated it, and the sentence they said it in. Copy each name exactly as it appears in the text, character for character, even where it is plainly misspelt — the text is a transcript, that spelling is what has to be corrected afterwards, and correcting it here destroys the only thing this list is for. Skip anybody who is merely mentioned rather than introducing themselves. Return only schema-valid JSON.";
 

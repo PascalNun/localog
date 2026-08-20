@@ -3328,6 +3328,121 @@ pub(crate) fn finish_recording(
 /// resolves. It is one small request, and it runs when somebody asks for it rather
 /// than automatically, because it is model work and this application runs one heavy
 /// task at a time.
+/// Rewrite one passage of a protocol, as asked.
+///
+/// The passage travels alone: no transcript, no meeting, no vocabulary. The job is
+/// to say the same thing differently, and everything else the model could see is
+/// something it could add.
+/// A rewritten passage, and what checking it found.
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RefinedPassage {
+    pub text: String,
+    /// Figures that were in the passage and are not in what came back.
+    ///
+    /// Measured rather than trusted. On a real German passage the shipped small
+    /// model altered a fact in three of twenty-four rewrites — "2. Obergeschoss"
+    /// became "Obergeschoss (Etage II)" — and a protocol whose figures drift is
+    /// worse than one nobody rewrote.
+    pub missing_figures: Vec<String>,
+}
+
+pub(crate) fn refine_passage(
+    root: &Path,
+    meeting_id: &str,
+    passage: &str,
+    instruction: &str,
+) -> StorageResult<RefinedPassage> {
+    if passage.trim().is_empty() {
+        return Err(StorageError::InvalidData("Select some text to change."));
+    }
+    // A whole protocol is not a passage. The limit is generous — several paragraphs
+    // — and exists so that "rewrite" cannot quietly become "regenerate", which is a
+    // different operation with a different cost and its own button.
+    const LONGEST_PASSAGE: usize = 6_000;
+    if passage.len() > LONGEST_PASSAGE {
+        return Err(StorageError::InvalidData(
+            "That is too much text to change at once. Select a section rather than the document.",
+        ));
+    }
+
+    let repository = WorkspaceRepository::open(root)?;
+    let language: String = repository
+        .connection
+        .query_row(
+            "SELECT language FROM meetings WHERE id = ?1",
+            [meeting_id],
+            |row| row.get(0),
+        )
+        .unwrap_or_else(|_| "German".to_string());
+
+    let selected = repository
+        .read_setting("generation.ollamaModel")?
+        .filter(|value| !value.is_empty());
+    let status = provider::OllamaProvider::loopback().status(selected);
+    if !status.server_reachable {
+        return Err(StorageError::InvalidData(
+            "Start your existing Ollama installation before changing a passage.",
+        ));
+    }
+    let model = status.selected_model.ok_or(StorageError::InvalidData(
+        "Choose an installed Ollama model in Settings → Protocol generation.",
+    ))?;
+
+    let request = provider::GenerationRequest {
+        model,
+        model_digest: status.selected_model_digest.unwrap_or_default(),
+        runtime_version: status.runtime_version.unwrap_or_else(|| "unknown".into()),
+        meeting_language: language,
+        style: provider::GenerationStyle {
+            id: "refine".into(),
+            revision: "1".into(),
+            density: crate::domain::ProtocolDensity::Concise,
+            instructions: Vec::new(),
+            required_sections: Vec::new(),
+        },
+        vocabulary_revision: "refine".into(),
+        vocabulary: Vec::new(),
+        transcript: Vec::new(),
+        seed: 7,
+        // Low, but not zero: a rewrite asked for twice should be able to differ.
+        temperature_milli: 300,
+        // The passage is all that is sent, so the window can be small — which on an
+        // eight-gigabyte machine is the difference between an answer and a wait.
+        context_tokens: 8_192,
+        maximum_output_tokens: 2_048,
+    };
+
+    let text = provider::OllamaProvider::loopback()
+        .refine_passage(
+            &request,
+            passage,
+            instruction,
+            &std::sync::atomic::AtomicBool::new(false),
+        )
+        // The provider's own message is not passed on: a model's complaint can quote
+        // the meeting back at whoever reads the error.
+        .map_err(|_| StorageError::InvalidData("That passage could not be rewritten."))?;
+
+    // The instruction tells the model to keep every figure. Whether it did is a
+    // separate question, and one that can be answered rather than assumed.
+    let mut remaining = crate::facts::numbers_in(&text);
+    let mut missing_figures = Vec::new();
+    for figure in crate::facts::numbers_in(passage) {
+        match remaining.iter().position(|candidate| *candidate == figure) {
+            Some(at) => {
+                remaining.remove(at);
+            }
+            None => missing_figures.push(figure),
+        }
+    }
+
+    Ok(RefinedPassage {
+        text,
+        missing_figures,
+    })
+}
+
 pub(crate) fn find_introductions(
     root: &Path,
     meeting_id: &str,

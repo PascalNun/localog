@@ -3319,6 +3319,7 @@ button.review-summary[aria-pressed='true'] {
    that the document is what is on screen rather than the tools for changing it. */
 .selection-toolbar {
   position: fixed;
+  /* The rewrite menu hangs from this, so it is the positioning parent. */
   z-index: 40;
   display: flex;
   gap: 2px;
@@ -3655,4 +3656,77 @@ button.review-summary[aria-pressed='true'] {
 .protocol-document.editable td,
 .protocol-document.editable th {
   min-width: 2.5em;
+}
+
+/* Asking the model is contextual and momentary, never a conversation. */
+.refine-sheet {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 41;
+  display: grid;
+  min-width: 216px;
+  padding: 5px;
+  background: var(--raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
+}
+
+.refine-sheet button {
+  padding: 8px 11px;
+  color: var(--ink);
+  background: transparent;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.refine-sheet button:hover {
+  background: var(--subtle);
+}
+
+.refine-custom {
+  padding: 4px 7px 7px;
+}
+
+.refine-custom input {
+  width: 100%;
+  min-height: 30px;
+  padding: 5px 8px;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  font-size: 0.83rem;
+  font-family: inherit;
+}
+
+.refine-note {
+  padding: 7px 11px 4px;
+  color: var(--faint);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.refine-undo {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.refine-lost {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 10px;
+  padding: 9px 11px;
+  color: var(--warning-ink, var(--ink));
+  background: color-mix(in srgb, var(--warning, #b3541e) 12%, transparent);
+  border-radius: 5px;
+  font-size: 0.81rem;
+  line-height: 1.5;
 }

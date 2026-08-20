@@ -2,6 +2,7 @@ import { DEFAULT_APPEARANCE, EMPTY_FURNITURE } from './types';
 import type {
   DocumentAppearance,
   PageFurniture,
+  RefinedPassage,
   ProtocolStyleDetail,
   ActiveJob,
   FakeJobOutcome,
@@ -1033,6 +1034,19 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       };
     }
     this.emit();
+  }
+
+  async refinePassage(
+    meetingId: string,
+    passage: string,
+    instruction: string,
+  ): Promise<RefinedPassage> {
+    if (this.workspaceStore?.refinePassage) {
+      return this.workspaceStore.refinePassage(meetingId, passage, instruction);
+    }
+    // No model behind the browser preview. Saying so is better than handing back
+    // invented prose that would look like the feature working.
+    throw new Error('Rewriting needs the desktop application and a local model.');
   }
 
   async exportProtocolBytes(

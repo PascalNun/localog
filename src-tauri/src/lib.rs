@@ -1145,6 +1145,23 @@ async fn set_project_appearance(
     .await
 }
 
+/// Rewrite one passage of a protocol, as asked.
+///
+/// Returns the new text and does not store it: the editor puts it in place, and
+/// whoever asked can undo it like any other edit. Nothing about this is automatic.
+#[tauri::command]
+async fn refine_passage(
+    state: State<'_, StorageState>,
+    meeting_id: String,
+    passage: String,
+    instruction: String,
+) -> Result<processing::RefinedPassage, String> {
+    with_repository_root(state.root.clone(), move |root| {
+        processing::refine_passage(root, &meeting_id, &passage, &instruction)
+    })
+    .await
+}
+
 /// Set what repeats at the top and bottom of a project's printed pages.
 #[tauri::command]
 async fn set_project_furniture(
@@ -1469,6 +1486,7 @@ pub fn run() {
             export_protocol,
             export_protocol_bytes,
             print_window,
+            refine_passage,
             set_project_appearance,
             set_project_furniture,
             save_workspace_location

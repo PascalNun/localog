@@ -30,6 +30,7 @@ import type {
   Introduction,
   DocumentAppearance,
   PageFurniture,
+  RefinedPassage,
   ProtocolStyleDetail,
   RecordingStatus,
   CorrectionMatch,
@@ -83,6 +84,11 @@ export interface WorkspaceStore {
     appearance: DocumentAppearance,
   ) => Promise<WorkspaceData>;
   setProjectFurniture?: (projectId: string, furniture: PageFurniture) => Promise<WorkspaceData>;
+  refinePassage?: (
+    meetingId: string,
+    passage: string,
+    instruction: string,
+  ) => Promise<RefinedPassage>;
   recordingStatus(): Promise<RecordingStatus>;
   startRecording(meetingId: string): Promise<void>;
   stopRecording(): Promise<WorkspaceData>;

@@ -349,7 +349,29 @@ Ordered as the concept orders it, not by size.
    → 4r×3c → 5r×3c → 5r×2c → 4r×2c, with text typed into a new row arriving in the
    Markdown in the right cell.
 
-7. **AI-assisted editing does not exist** (§8).
+7. ~~**AI-assisted editing does not exist**~~ (§8). **Done, 20 August**, for
+   selected-text refinement: improve clarity, shorten, make more formal, make
+   plainer, and a custom instruction. Contextual and momentary as the concept asks —
+   a menu on the selection toolbar, gone when the selection goes, and never a
+   conversation. The passage travels to the model **alone**: no transcript, no
+   meeting, no vocabulary, because the job is to say the same thing differently and
+   anything else the model could see is something it could add.
+
+   **Measured against the real model before being trusted, and it does not hold.**
+   Nine rewrites of three German passages on `qwen3.5:4b`: form survived 9 of 9 — a
+   list item came back a list item, a heading a heading — but **facts changed in
+   three of twenty-four**. `2. Obergeschoss` became `Obergeschoss (Etage II)`; `KW
+38` became `Woche 38`, twice. The instruction to reproduce every figure exactly
+   is there and is not enough.
+
+   So the rewrite is checked rather than trusted: every number in the passage is
+   looked for in what comes back, and any that went missing is named in the editor
+   beside a button that puts the original back. That catches the floor number; it
+   does not catch `KW` becoming `Woche`, because the number survived and only the
+   abbreviation changed. **Said plainly rather than papered over: this is an
+   assistant on a passage somebody is reading, not a pass that can be trusted
+   unread.**
+
 8. **The Transcript tab does not exist** (§9).
 9. **A History timeline does not exist** (§11), though the revisions behind it do.
 10. **Zoom is not separate from body size** (§14).
