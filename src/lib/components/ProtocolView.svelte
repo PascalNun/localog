@@ -246,6 +246,23 @@
 
   let findField: HTMLInputElement | null = null;
 
+  /// Whether the page has moved at all.
+  ///
+  /// The find bar is only frosted once there is something behind it to frost. At the
+  /// top of a document it sits on the page with nothing passing under it, and a
+  /// blur there is an effect for its own sake — so it fades in on the first scroll
+  /// and fades out again at the top.
+  ///
+  /// Only a boolean changes, and only when the threshold is crossed, so the handler
+  /// costs one comparison per scroll event and never reads layout.
+  let workspace: HTMLElement | null = null;
+  let pageMoved = false;
+
+  function readScroll() {
+    const moved = (workspace?.scrollTop ?? 0) > 6;
+    if (moved !== pageMoved) pageMoved = moved;
+  }
+
   $: if (view !== 'document') {
     selectionBox = null;
     tableBox = null;
@@ -1063,7 +1080,12 @@
   });
 </script>
 
-<main class="workspace stage-workspace" id="main-content">
+<main
+  bind:this={workspace}
+  class="workspace stage-workspace"
+  id="main-content"
+  onscroll={readScroll}
+>
   <header class="workspace-header meeting-header protocol-header">
     <div>
       <p class="breadcrumb">{project.name} <span>›</span> {meeting.title}</p>
@@ -1174,7 +1196,7 @@
           </div>
         </div>
       </div>
-      {#if findOpen}<div class="editor-find">
+      {#if findOpen}<div class:floating={pageMoved} class="editor-find">
           <label
             ><span class="sr-only">Find in protocol</span><input
               bind:this={findField}
