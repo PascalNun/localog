@@ -463,6 +463,28 @@ only reachable from the webview. The number to watch is the DOM walk: if protoco
 reach a few hundred thousand characters, or if the walk shows up in a profile, the
 fix is to read only the block that changed rather than to move languages.
 
+## Wanted, from looking at it — 20 August
+
+The owner's, recorded rather than built, and none of them urgent.
+
+1. **The toolbar should be the width of the page under it.** It currently spans the
+   whole workspace while the document sits in a narrower column beneath, so the two
+   do not line up. The toolbar belongs to the document and should measure like it —
+   which also means it moves when the page width setting changes.
+
+2. **Show where the pages break.** With A4 chosen, the editor should divide the
+   document the way a word processor does, so it is always clear what falls on which
+   sheet. This is the question from earlier answered in the affirmative: pages in the
+   editor, now that a page size and a header and footer exist and there is something
+   for a page to mean. It stays hard — pagination in an editable surface is the
+   difficult part — and it is worth doing rather than avoiding.
+
+   The header and footer should presumably be visible on each page too, since being
+   able to see them is half the reason for having them.
+
+3. **The appearance panel is not styled to the standard of the rest.** It works and
+   it looks like a form. The reference shows something quieter.
+
 ## The decision that shapes the rest
 
 **How much editing engine to write.**
