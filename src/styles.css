@@ -1620,13 +1620,15 @@ button.review-summary[aria-pressed='true'] {
   align-items: center;
   padding: 9px 12px;
 
-  /* Frosted rather than flat: the document passes behind it and should read as
-     behind it. The colour is mixed rather than solid so the blur has something to
-     do, and the prefixed property is not decoration — the application runs in
-     WebKit, which still wants it. */
-  background: color-mix(in srgb, var(--canvas) 78%, transparent);
-  backdrop-filter: blur(14px) saturate(1.4);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  /* The colour it always had, kept: only enough transparency for the blur to have
+     something to do. A ground the document is genuinely visible through was the
+     wrong trade — this reads as the same bar, sitting on frosted glass.
+
+     The prefixed property is not decoration: the application runs in WebKit, which
+     still wants it. */
+  background: color-mix(in srgb, var(--subtle) 88%, transparent);
+  backdrop-filter: blur(22px) saturate(1.3);
+  -webkit-backdrop-filter: blur(22px) saturate(1.3);
   border: 1px solid var(--line);
   border-radius: 6px;
 }
@@ -4291,25 +4293,29 @@ button.review-summary[aria-pressed='true'] {
 
 /* The text passing under the find bar fades instead of being cut.
    A sticky bar with a hard edge chops a line of prose in half as it scrolls
-   beneath, which reads as a rendering fault rather than as a bar. Two short
-   gradients — above and below — let the words dissolve into it instead. The strips
-   sit outside the bar and ignore the pointer, so nothing they cover stops working. */
+   beneath, which reads as a rendering fault rather than as a bar.
+
+   Wider than the bar and taller than looks necessary: a short strip the exact width
+   of the field reads as a band with two ends, where a broad soft one reads as the
+   page simply giving out. The extra width stays inside the workspace's own padding,
+   so nothing overflows and no scrollbar appears. The strips ignore the pointer, so
+   nothing they cover stops working. */
 .editor-find::before,
 .editor-find::after {
   content: '';
   position: absolute;
-  left: -1px;
-  right: -1px;
-  height: 18px;
+  left: -18px;
+  right: -18px;
+  height: 34px;
   pointer-events: none;
 }
 
 .editor-find::before {
-  top: -19px;
-  background: linear-gradient(to top, var(--canvas), transparent);
+  top: -35px;
+  background: linear-gradient(to top, var(--canvas) 30%, transparent);
 }
 
 .editor-find::after {
-  bottom: -19px;
-  background: linear-gradient(to bottom, var(--canvas), transparent);
+  bottom: -35px;
+  background: linear-gradient(to bottom, var(--canvas) 30%, transparent);
 }
