@@ -278,6 +278,18 @@ export interface ExportTemplate {
   builtIn: boolean;
 }
 
+export interface NameMatch {
+  line: number;
+  context: string;
+  matched: string;
+  replacement: string;
+}
+
+export interface NameReplacement {
+  matches: NameMatch[];
+  markdown: string;
+}
+
 /** A section taken out of a protocol and kept in case it is wanted back. */
 export interface SetAsideSection {
   title: string;
@@ -525,6 +537,14 @@ export interface WorkflowBridge {
   protocolStyleDetail(styleId: string): Promise<ProtocolStyleDetail>;
   setProjectAppearance(projectId: string, appearance: DocumentAppearance): Promise<void>;
   setProjectFurniture(projectId: string, furniture: PageFurniture): Promise<void>;
+  /**
+   * What replacing a name through a protocol would do.
+   *
+   * Uses the same rule as the transcript corrections, so a capitalised name is found
+   * in its compound form too — German writes the interior of a compound in lower
+   * case, and a literal replace walks past it.
+   */
+  previewNameReplacement(text: string, wrong: string, right: string): Promise<NameReplacement>;
   exportTemplates(): Promise<ExportTemplate[]>;
   saveExportTemplate(
     name: string,

@@ -529,6 +529,32 @@ the list, put it in the stash and took its prose out of the document; putting it
 restored all three; and a drag from first to third reordered the document with every
 other section's content intact.
 
+## Replacing a name — done, 20 August
+
+The owner's case, from using it: the company is named wrongly throughout a protocol
+and should be right everywhere. Three different problems hide in that, and they need
+three different answers.
+
+**A literal replace is not enough**, and this project already knew why. German writes
+the interior of a compound in lower case, so a firm called `Klinker` sits inside
+`klinkerfassade` and a plain find-and-replace walks straight past it. The transcript
+corrections learned that months ago and have carried the rule since. The protocol's
+replace now **calls that rule** rather than carrying a copy of it: a second copy
+would be a second answer, and they would drift.
+
+**It is shown before it happens.** Forty changes at once is not something to meet
+afterwards, so the matches are listed with the line and the words around each one,
+and nothing is written until they are kept. Same reason as the rewrite panel, and the
+same shape.
+
+**And where context is genuinely needed**, replacing is the wrong tool — that is what
+the contextual rewrite on a selection is for. Three tiers, and the editor now has all
+three: literal find, name-aware replace, and a model on a passage.
+
+`⌘F` opens find, `Escape` closes it. Seven tests on the rule, including the compound
+form, the abbreviation left alone (`HOAI` must not become `hOAI`), and the
+document's own line endings surviving untouched.
+
 ## Export templates — done, 20 August
 
 From the reference's third library item. A template is a saved **presentation**: the

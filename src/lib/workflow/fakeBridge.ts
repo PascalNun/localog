@@ -4,6 +4,7 @@ import type {
   PageFurniture,
   RefinedPassage,
   ExportTemplate,
+  NameReplacement,
   SetAsideSection,
   ProtocolStyleDetail,
   ActiveJob,
@@ -1076,6 +1077,19 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       builtIn: true,
     },
   ];
+
+  async previewNameReplacement(
+    text: string,
+    wrong: string,
+    right: string,
+  ): Promise<NameReplacement> {
+    if (this.workspaceStore?.previewNameReplacement) {
+      return this.workspaceStore.previewNameReplacement(text, wrong, right);
+    }
+    // The rule lives in Rust and is not reimplemented here: a second copy would be a
+    // second answer. Without a workspace this says it cannot help.
+    throw new Error('Replacing a name needs the desktop application.');
+  }
 
   async exportTemplates(): Promise<ExportTemplate[]> {
     if (this.workspaceStore?.exportTemplates) return this.workspaceStore.exportTemplates();

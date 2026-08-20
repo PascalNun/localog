@@ -1145,6 +1145,33 @@ async fn set_project_appearance(
     .await
 }
 
+/// What replacing a name through a protocol would do, and the text it would become.
+///
+/// Stores nothing: the editor shows the changes, and writes the result only if
+/// somebody keeps it. The rule is the transcript corrections' own, so a name and its
+/// compound form are found together — German writes the interior of a compound in
+/// lower case, and a literal replace walks straight past it.
+#[tauri::command]
+async fn preview_name_replacement(
+    text: String,
+    wrong: String,
+    right: String,
+) -> Result<NameReplacement, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let (matches, markdown) = corrections::replace_in_text(&text, &wrong, &right);
+        NameReplacement { matches, markdown }
+    })
+    .await
+    .map_err(|_| "The replacement could not be prepared.".to_string())
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NameReplacement {
+    matches: Vec<corrections::TextMatch>,
+    markdown: String,
+}
+
 /// Every saved way of presenting a protocol.
 #[tauri::command]
 async fn export_templates(
@@ -1585,6 +1612,7 @@ pub fn run() {
             print_window,
             refine_passage,
             protocol_set_aside,
+            preview_name_replacement,
             export_templates,
             save_export_template,
             delete_export_template,

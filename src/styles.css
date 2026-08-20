@@ -4148,3 +4148,38 @@ button.review-summary[aria-pressed='true'] {
   margin-top: 8px;
   padding: 6px 0;
 }
+
+.replacement-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.replacement-list li {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 0.82rem;
+}
+
+.replacement-line {
+  color: var(--faint);
+  font-size: 0.76rem;
+}
+
+.replacement-context {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.replacement-change {
+  color: var(--ink);
+  white-space: nowrap;
+}

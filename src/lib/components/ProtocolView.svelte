@@ -37,6 +37,7 @@
     FurnitureRow,
     PageFurniture,
     ExportTemplate,
+    NameReplacement,
     RefinedPassage,
     SetAsideSection,
   } from '../workflow/types';
@@ -62,6 +63,13 @@
   export let templates: ExportTemplate[] = [];
   export let onApplyTemplate: (templateId: string) => Promise<void> = async () => undefined;
   export let onSaveTemplate: (name: string) => Promise<void> = async () => undefined;
+  export let onPreviewReplacement: (
+    text: string,
+    wrong: string,
+    right: string,
+  ) => Promise<NameReplacement> = async () => {
+    throw new Error('Replacing a name is not available here.');
+  };
   export let onRefine: (
     passage: string,
     instruction: string,
@@ -212,8 +220,31 @@
 
   onMount(() => {
     document.addEventListener('selectionchange', readSelection);
-    return () => document.removeEventListener('selectionchange', readSelection);
+    window.addEventListener('keydown', handleShortcut);
+    return () => {
+      document.removeEventListener('selectionchange', readSelection);
+      window.removeEventListener('keydown', handleShortcut);
+    };
   });
+
+  /// The keys a writing tool is expected to answer to.
+  ///
+  /// Find is the one somebody reaches for without thinking, and it was only ever
+  /// reachable by finding the button first.
+  function handleShortcut(event: KeyboardEvent) {
+    const held = event.metaKey || event.ctrlKey;
+    if (held && event.key.toLowerCase() === 'f') {
+      event.preventDefault();
+      findOpen = true;
+      queueMicrotask(() => findField?.focus());
+      return;
+    }
+    if (event.key === 'Escape' && findOpen) {
+      findOpen = false;
+    }
+  }
+
+  let findField: HTMLInputElement | null = null;
 
   $: if (view !== 'document') {
     selectionBox = null;
@@ -950,19 +981,42 @@
     (node.parentElement ?? documentSurface)?.scrollIntoView({ block: 'center' });
   }
 
-  /// Replace every occurrence, on the stored form.
+  /// Replace a name through the protocol, shown before it happens.
   ///
-  /// The case that asks for this is one name misspelt through a whole protocol, so
-  /// it matches without regard to case and writes exactly what was typed. Done on
-  /// the Markdown and re-rendered, which is why it works the same in both views.
-  function replaceAll() {
-    if (findQuery.trim() === '' || matchCount === 0) return;
+  /// The case that asks for this is a firm or a person named wrongly throughout, and
+  /// a literal replace is not enough for it: German writes the interior of a compound
+  /// in lower case, so `Klinker` hides inside `klinkerfassade` and a plain replace
+  /// walks past it. The rule that finds both is the one the transcript corrections
+  /// already use, and it is called rather than copied — a second copy would be a
+  /// second answer.
+  ///
+  /// Shown first, then kept or not, for the same reason a rewrite is: a change made
+  /// in forty places at once is not one somebody should meet after the fact.
+  let replacement: NameReplacement | null = null;
+  let replaceError = '';
+  let replaceBusy = false;
+
+  async function previewReplace() {
+    if (findQuery.trim() === '') return;
+    replaceBusy = true;
+    replaceError = '';
+    try {
+      replacement = await onPreviewReplacement(markdown, findQuery, replaceQuery);
+      if (replacement.matches.length === 0) replaceError = 'That name is not in this protocol.';
+    } catch (cause) {
+      replacement = null;
+      replaceError = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      replaceBusy = false;
+    }
+  }
+
+  function keepReplacement() {
+    if (!replacement) return;
     remember();
-    const pattern = new RegExp(findQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-    markdown = markdown.replace(pattern, replaceQuery);
-    renderedFrom = '';
-    scheduleSave();
-    lastReplaced = matchCount;
+    lastReplaced = replacement.matches.length;
+    showAgain(replacement.markdown);
+    replacement = null;
   }
 
   let replaceQuery = '';
@@ -1106,6 +1160,7 @@
       {#if findOpen}<div class="editor-find">
           <label
             ><span class="sr-only">Find in protocol</span><input
+              bind:this={findField}
               bind:value={findQuery}
               placeholder="Find in protocol"
               onkeydown={(event) => event.key === 'Enter' && findNext()}
@@ -1118,11 +1173,14 @@
             ><span class="sr-only">Replace with</span><input
               bind:value={replaceQuery}
               placeholder="Replace with"
-              onkeydown={(event) => event.key === 'Enter' && replaceAll()}
+              onkeydown={(event) => event.key === 'Enter' && void previewReplace()}
             /></label
           >
-          <button class="secondary-action" onclick={replaceAll} disabled={matchCount === 0}
-            >Replace all</button
+          <button
+            class="secondary-action"
+            onclick={() => void previewReplace()}
+            disabled={findQuery.trim() === '' || replaceBusy}
+            >{replaceBusy ? 'Looking…' : 'Replace all'}</button
           >
           <span class="find-count"
             >{findQuery.trim() === ''
@@ -1134,6 +1192,40 @@
               : ''}</span
           >
         </div>{/if}
+      {#if replaceError}<p class="setting-error" role="alert">{replaceError}</p>{/if}
+      {#if replacement && replacement.matches.length > 0}
+        {@const waiting = replacement}
+        <section class="proposal" aria-label="Proposed replacement">
+          <div class="proposal-heading">
+            <p class="eyebrow">
+              {waiting.matches.length}
+              {waiting.matches.length === 1 ? 'change' : 'changes'}, not yet made
+            </p>
+            <p>
+              A capitalised name is looked for inside compounds as well, which is where a plain
+              replace misses it. Read them, then keep them or leave them.
+            </p>
+          </div>
+          <ul class="replacement-list">
+            {#each waiting.matches.slice(0, 12) as match, at (at)}
+              <li>
+                <span class="replacement-line">Line {match.line}</span>
+                <span class="replacement-context">{match.context}</span>
+                <span class="replacement-change">{match.matched} → {match.replacement}</span>
+              </li>
+            {/each}
+          </ul>
+          {#if waiting.matches.length > 12}
+            <p class="proposal-same">
+              and {waiting.matches.length - 12} more, all of the same two forms.
+            </p>
+          {/if}
+          <div class="proposal-actions">
+            <button class="primary-action" onclick={keepReplacement}>Make these changes</button>
+            <button class="secondary-action" onclick={() => (replacement = null)}>Leave it</button>
+          </div>
+        </section>
+      {/if}
       {#if view === 'document'}
         {#if tableBox}
           <div

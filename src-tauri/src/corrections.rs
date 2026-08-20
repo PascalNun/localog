@@ -317,6 +317,74 @@ fn around(text: &str, at: usize, length: usize) -> String {
 }
 
 #[cfg(test)]
+mod replacing_a_name_in_a_protocol {
+    use super::replace_in_text;
+
+    /// The reason this does not use a plain find and replace.
+    ///
+    /// German writes the interior of a compound in lower case, so a firm called
+    /// Klinker appears inside "klinkerfassade" — and a literal replace walks past it.
+    /// The rule is the transcript corrections' own, over prose rather than segments.
+    #[test]
+    fn catches_the_compound_form_as_well_as_the_name() {
+        let text = "Klinker plant den Umbau. Das klinkerfassade Team ist zuständig.";
+        let (found, written) = replace_in_text(text, "Klinker", "Nordenstadt");
+        assert_eq!(found.len(), 2);
+        assert_eq!(written, "Nordenstadt plant den Umbau. Das nordenstadter Team ist zuständig.");
+    }
+
+    /// Lowering the first letter of an abbreviation would produce hOAI, and an
+    /// abbreviation never appears inside a compound that way.
+    #[test]
+    fn leaves_an_abbreviation_in_capitals_alone() {
+        let (found, written) = replace_in_text("HOAI und hoai", "HOAI", "IBC");
+        assert_eq!(found.len(), 1);
+        assert_eq!(written, "IBC und hoai");
+    }
+
+    #[test]
+    fn reports_the_line_and_the_words_around_each_change() {
+        let text = "# Protokoll\n\nFrau Bauleitung von Klinker nannte die Frist.";
+        let (found, _) = replace_in_text(text, "Klinker", "Nordenstadt");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].line, 3);
+        assert!(found[0].context.contains("Bauleitung"));
+        assert_eq!(found[0].matched, "Klinker");
+        assert_eq!(found[0].replacement, "Nordenstadt");
+    }
+
+    #[test]
+    fn changes_every_occurrence_on_a_line() {
+        let (found, written) = replace_in_text("Klinker, Klinker, Klinker", "Klinker", "X");
+        assert_eq!(found.len(), 3);
+        assert_eq!(written, "X, X, X");
+    }
+
+    #[test]
+    fn leaves_a_document_without_the_name_exactly_as_it_was() {
+        let text = "Nichts hier trägt den Namen.\nAuch hier nicht.";
+        let (found, written) = replace_in_text(text, "Klinker", "Nordenstadt");
+        assert!(found.is_empty());
+        assert_eq!(written, text);
+    }
+
+    #[test]
+    fn does_nothing_for_an_empty_search() {
+        let (found, written) = replace_in_text("Klinker", "  ", "X");
+        assert!(found.is_empty());
+        assert_eq!(written, "Klinker");
+    }
+
+    /// Line endings are the document's, and a replace must not rewrite them.
+    #[test]
+    fn keeps_the_shape_of_the_document() {
+        let text = "Eins\n\nKlinker\n\nDrei";
+        let (_, written) = replace_in_text(text, "Klinker", "Zwei");
+        assert_eq!(written, "Eins\n\nZwei\n\nDrei");
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -612,4 +680,77 @@ mod tests {
         assert_eq!(apply(&mut segments, &[correction("", "X")]), vec![0]);
         assert_eq!(segments[0].text, "Die Fassade.");
     }
+}
+
+/// One place in a protocol where a name would change.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TextMatch {
+    /// The line it is on, so somebody can see where in the document it falls.
+    pub line: u32,
+    /// The words around it, which is what makes a preview worth reading.
+    pub context: String,
+    pub matched: String,
+    pub replacement: String,
+}
+
+/// What replacing a name through a protocol would actually do.
+///
+/// The same rule the transcript corrections use, over prose rather than segments:
+/// a capitalised name is looked for in its compound form as well, because German
+/// writes the interior of a compound in lower case and a firm called `Klinker`
+/// appears inside `klinkerfassade` untouched by a literal replace.
+///
+/// Returns what would change and the text it would become, and stores nothing. The
+/// caller decides whether to keep it.
+pub(crate) fn replace_in_text(
+    text: &str,
+    wrong: &str,
+    right: &str,
+) -> (Vec<TextMatch>, String) {
+    let correction = Correction {
+        wrong: wrong.trim().to_string(),
+        right: right.to_string(),
+    };
+    if correction.wrong.is_empty() {
+        return (Vec::new(), text.to_string());
+    }
+
+    let mut found = Vec::new();
+    let mut written = String::with_capacity(text.len());
+
+    for (index, line) in text.split('\n').enumerate() {
+        if index > 0 {
+            written.push('\n');
+        }
+        let mut rest = line;
+        let mut line_out = String::with_capacity(line.len());
+        loop {
+            // The earliest match of any form, so a name and its own compound form
+            // do not race each other and produce overlapping edits.
+            let hit = correction
+                .forms()
+                .into_iter()
+                .filter_map(|(from, to)| rest.find(from.as_str()).map(|at| (at, from, to)))
+                .min_by_key(|(at, _, _)| *at);
+            let Some((at, from, to)) = hit else {
+                break;
+            };
+
+            let consumed = line.len() - rest.len();
+            line_out.push_str(&rest[..at]);
+            line_out.push_str(&to);
+            found.push(TextMatch {
+                line: index as u32 + 1,
+                context: around(line, consumed + at, from.len()),
+                matched: from.clone(),
+                replacement: to.clone(),
+            });
+            rest = &rest[at + from.len()..];
+        }
+        line_out.push_str(rest);
+        written.push_str(&line_out);
+    }
+
+    (found, written)
 }
