@@ -3951,3 +3951,59 @@ button.review-summary[aria-pressed='true'] {
   color: var(--ink);
   background: var(--subtle);
 }
+
+/* The pages, drawn over the document rather than cut into it: one editable region
+   has to stay one editable region, or a selection cannot cross a page. */
+.document-stack {
+  position: relative;
+}
+
+.page-edges {
+  position: absolute;
+  inset: 0;
+  /* Only the document takes the caret; these are a picture over it. */
+  pointer-events: none;
+  z-index: 2;
+}
+
+.page-edge {
+  position: absolute;
+  left: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  padding: 0 14px;
+  border-top: 1px dashed var(--line-strong);
+}
+
+.page-edge-furniture,
+.page-edge-label {
+  transform: translateY(-50%);
+  padding: 2px 7px;
+  background: var(--raised);
+  color: var(--faint);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+}
+
+.page-edge-furniture {
+  margin-right: auto;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-edge-label {
+  text-transform: uppercase;
+}
+
+.page-note {
+  max-width: 62ch;
+  margin-top: 14px;
+  color: var(--faint);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}

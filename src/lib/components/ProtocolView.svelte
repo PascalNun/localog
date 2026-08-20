@@ -11,7 +11,12 @@
   import StageRail from './StageRail.svelte';
   import { fromElement, toMarkdown } from '../protocol/html';
   import { renderMarkdown } from '../protocol/markdown';
-  import { APPEARANCE_CHOICES, appearanceStyle } from '../protocol/appearance';
+  import {
+    APPEARANCE_CHOICES,
+    PAGE_CONTENT_PIXELS,
+    appearanceStyle,
+    pageBreaks,
+  } from '../protocol/appearance';
   import {
     FURNITURE_FIELDS,
     fieldLabel,
@@ -90,6 +95,7 @@
     markdown = toMarkdown(fromElement(documentSurface));
     renderedFrom = markdown;
     scheduleSave();
+    if (showPages) queueMicrotask(measurePages);
     // Released after the save is scheduled, so the re-render above does not fire
     // against the surface somebody is still typing in.
     queueMicrotask(() => {
@@ -497,6 +503,53 @@
     readDocument();
     readSelection();
   }
+
+  /// Where the printed pages would end, drawn over the document.
+  ///
+  /// Not by cutting the document into pages: one editable region has to stay one
+  /// editable region, or a selection cannot cross a page and the whole round trip to
+  /// Markdown comes apart. The boundaries are measured and drawn over the top
+  /// instead, which is a picture of the pagination rather than the pagination
+  /// itself — and honest about being an estimate.
+  ///
+  /// Off unless asked for, because the concept wants no permanent page breaks: this
+  /// is for checking what falls where, not for living in.
+  let showPages = false;
+  let pageEdges: number[] = [];
+
+  /// Only where the measure is the printed one.
+  ///
+  /// Any other page width sets the text to a different column from the paper, so the
+  /// lines fall differently and a break drawn here would be a break nowhere. Better
+  /// to say why than to draw a wrong one.
+  $: pagesCanBeShown = appearance.pageWidth === 'a4';
+
+  function measurePages() {
+    if (!documentSurface || !showPages || !pagesCanBeShown) {
+      pageEdges = [];
+      return;
+    }
+    const style = getComputedStyle(documentSurface);
+    const top = parseFloat(style.paddingTop) || 0;
+    const blocks = Array.from(documentSurface.children).map((child) => {
+      const element = child as HTMLElement;
+      return {
+        top: element.offsetTop - top,
+        height: element.offsetHeight,
+        // The two the print stylesheet refuses to split.
+        unbreakable: /^(H1|H2|H3|H4|TABLE)$/.test(element.tagName),
+      };
+    });
+    // A page holds the same text however large the screen shows it, so the zoom
+    // stretches the picture rather than changing what fits.
+    pageEdges = pageBreaks(blocks, PAGE_CONTENT_PIXELS * textScale);
+  }
+
+  // Whenever the document, its setting or its scale changes the pagination moves.
+  $: if (showPages && (rendered || textScale || appearance)) {
+    queueMicrotask(measurePages);
+  }
+  $: if (!showPages) pageEdges = [];
 
   /// Zoom, which is how large the document looks and not how large it prints.
   ///
@@ -915,6 +968,19 @@
                 <button
                   role="menuitem"
                   onclick={() => {
+                    showPages = !showPages;
+                    moreOpen = false;
+                  }}
+                  disabled={view !== 'document' || !pagesCanBeShown}
+                  title={pagesCanBeShown
+                    ? ''
+                    : 'Set the page width to the A4 text column to see where the pages end.'}
+                  ><Icon name="rule" size={15} />
+                  {showPages ? 'Hide page breaks' : 'Show page breaks'}</button
+                >
+                <button
+                  role="menuitem"
+                  onclick={() => {
                     insertTable();
                     moreOpen = false;
                   }}
@@ -1189,21 +1255,42 @@
             </div>
           </section>
         {/if}
-        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-        <div
-          bind:this={documentSurface}
-          class="protocol-document editable"
-          contenteditable="true"
-          role="textbox"
-          tabindex="0"
-          aria-multiline="true"
-          aria-label="Protocol"
-          style={`--zoom: ${textScale}`}
-          oninput={readDocument}
-          onpaste={handlePaste}
-          onkeydown={handleKeydown}
-        >
-          {@html rendered}
+        <div class="document-stack">
+          {#if showPages && pageEdges.length > 0}
+            <div class="page-edges" aria-hidden="true">
+              {#each pageEdges as edge, at (at)}
+                <div class="page-edge" style={`top: ${edge}px`}>
+                  {#if !furnitureIsEmpty(furniture)}
+                    <span class="page-edge-furniture">{furnitureSummary}</span>
+                  {/if}
+                  <span class="page-edge-label">Page {at + 2}</span>
+                </div>
+              {/each}
+            </div>
+          {/if}
+          <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+          <div
+            bind:this={documentSurface}
+            class="protocol-document editable"
+            contenteditable="true"
+            role="textbox"
+            tabindex="0"
+            aria-multiline="true"
+            aria-label="Protocol"
+            style={`--zoom: ${textScale}`}
+            oninput={readDocument}
+            onpaste={handlePaste}
+            onkeydown={handleKeydown}
+          >
+            {@html rendered}
+          </div>
+          {#if showPages}
+            <p class="page-note">
+              Where the pages would end, measured the way the print stylesheet sets them: a heading
+              or a table moves down whole rather than splitting, prose does not. The printer settles
+              the last line or two, so treat this as within a line rather than exact.
+            </p>
+          {/if}
         </div>
       {:else}
         <label class="protocol-editor"

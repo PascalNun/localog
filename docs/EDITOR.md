@@ -516,15 +516,26 @@ The owner's, recorded rather than built, and none of them urgent.
    which makes an item take its content's width rather than its share of the row — so
    it sat at 648px whatever it was asked for.
 
-2. **Show where the pages break.** With A4 chosen, the editor should divide the
-   document the way a word processor does, so it is always clear what falls on which
-   sheet. This is the question from earlier answered in the affirmative: pages in the
-   editor, now that a page size and a header and footer exist and there is something
-   for a page to mean. It stays hard — pagination in an editable surface is the
-   difficult part — and it is worth doing rather than avoiding.
+2. ~~**Show where the pages break.**~~ **Done, 20 August**, and the shape of it was
+   the decision. The document is **not** cut into pages: one editable region has to
+   stay one editable region, or a selection cannot cross a page and the round trip to
+   Markdown comes apart. The boundaries are measured and drawn over the top instead —
+   a picture of the pagination rather than the pagination itself.
 
-   The header and footer should presumably be visible on each page too, since being
-   able to see them is half the reason for having them.
+   Where they fall follows the two rules the print stylesheet actually states: a
+   heading or a table moves down whole, prose splits. Measured on a six-page
+   document, the breaks came at 945, 1890, **2826**, 3771 and 4716 — that third one
+   short of the multiple because a heading moved rather than split, which is the rule
+   working. The arithmetic is testable without a browser and has eight tests.
+
+   Two honesties are built in. It is **off unless asked for**, because §1 wants no
+   permanent page breaks; it is for checking what falls where, not for living in. And
+   it is **only offered when the page width is the A4 column**, because any other
+   measure sets the text to a different column from the paper, so the lines fall
+   differently and a break drawn here would be a break nowhere. The note under the
+   document says the printer settles the last line or two.
+
+   The header and footer show at each boundary where they are set.
 
 3. ~~**The appearance panel is not styled to the standard of the rest.**~~ **Done,
    20 August.** The reference builds the inspector from controls rather than from

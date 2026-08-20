@@ -124,3 +124,57 @@ export const APPEARANCE_CHOICES = {
     { value: 'a4', label: 'A4 text column' },
   ],
 } as const;
+
+/**
+ * The height of one printed page's text column, in CSS pixels.
+ *
+ * A4 is 297mm tall and the print stylesheet takes 25mm off the top and 22mm off the
+ * bottom, so 250mm is left for text. A CSS pixel is 1/96 inch by definition, which
+ * is what makes this arithmetic and not a guess — the same definition the print
+ * stylesheet's own millimetres are resolved against.
+ */
+export const PAGE_CONTENT_PIXELS = (250 * 96) / 25.4;
+
+/**
+ * Where the pages would break, given the blocks of the document and their heights.
+ *
+ * An estimate, and it is important to be clear which kind. It follows the two rules
+ * the print stylesheet actually states — a heading and a table are not split — and
+ * it lets prose split, because print does. What it cannot know is what the printer
+ * finally does with a widow or an orphan, so this says where a page ends to within
+ * a line or two rather than exactly.
+ *
+ * Offsets in, offsets out: this does no measuring itself, so it can be tested
+ * without a browser.
+ */
+export interface MeasuredBlock {
+  top: number;
+  height: number;
+  /** Blocks the print stylesheet refuses to split. */
+  unbreakable: boolean;
+}
+
+export function pageBreaks(blocks: MeasuredBlock[], pageHeight: number): number[] {
+  if (pageHeight <= 0) return [];
+  const breaks: number[] = [];
+  let bottomOfPage = pageHeight;
+
+  for (const block of blocks) {
+    const bottom = block.top + block.height;
+    if (bottom <= bottomOfPage) continue;
+
+    // A block that will not split and has already started moves to the next page
+    // whole, which is what `break-inside: avoid` does.
+    const movesWhole = block.unbreakable && block.top < bottomOfPage && block.top > 0;
+    const at = movesWhole ? block.top : bottomOfPage;
+    breaks.push(at);
+    bottomOfPage = at + pageHeight;
+
+    // Something taller than a page still has to be crossed, however it is set.
+    while (bottom > bottomOfPage) {
+      breaks.push(bottomOfPage);
+      bottomOfPage += pageHeight;
+    }
+  }
+  return breaks;
+}
