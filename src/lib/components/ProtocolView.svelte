@@ -662,17 +662,87 @@
     scheduleSave();
   }
 
+  /// How many times the search appears, counted on the stored form.
+  ///
+  /// The Markdown is the document, so counting there counts once for both views
+  /// rather than once per view — and it is the number somebody wants before
+  /// replacing a name through a protocol.
+  $: matchCount =
+    findQuery.trim() === '' ? 0 : markdown.toLowerCase().split(findQuery.toLowerCase()).length - 1;
+
   function findNext() {
     if (!findQuery) return;
-    const from = editor.selectionEnd;
-    const lowerText = markdown.toLowerCase();
-    const lowerQuery = findQuery.toLowerCase();
-    let index = lowerText.indexOf(lowerQuery, from);
-    if (index < 0) index = lowerText.indexOf(lowerQuery);
-    if (index < 0) return;
-    editor.focus();
-    editor.setSelectionRange(index, index + findQuery.length);
+    if (view === 'markdown') {
+      const from = editor?.selectionEnd ?? 0;
+      const lowerText = markdown.toLowerCase();
+      const lowerQuery = findQuery.toLowerCase();
+      let index = lowerText.indexOf(lowerQuery, from);
+      if (index < 0) index = lowerText.indexOf(lowerQuery);
+      if (index < 0) return;
+      editor?.focus();
+      editor?.setSelectionRange(index, index + findQuery.length);
+      return;
+    }
+    findNextInDocument();
   }
+
+  /// The next occurrence in the rendered document.
+  ///
+  /// Walked over the text nodes rather than searched in the HTML, because the HTML
+  /// contains tag names and a search for "table" would otherwise find the table
+  /// rather than the word.
+  function findNextInDocument() {
+    if (!documentSurface) return;
+    const walker = document.createTreeWalker(documentSurface, NodeFilter.SHOW_TEXT);
+    const selection = window.getSelection();
+    const from = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    const needle = findQuery.toLowerCase();
+
+    // Two passes: after the caret, then from the top, so the search wraps.
+    for (const afterCaret of [true, false]) {
+      walker.currentNode = documentSurface;
+      let node = walker.nextNode();
+      let reached = !afterCaret;
+      while (node) {
+        if (afterCaret && from && node === from.endContainer) {
+          reached = true;
+          const at = (node.nodeValue ?? '').toLowerCase().indexOf(needle, from.endOffset);
+          if (at >= 0) return select(node, at);
+        } else if (reached) {
+          const at = (node.nodeValue ?? '').toLowerCase().indexOf(needle);
+          if (at >= 0) return select(node, at);
+        }
+        node = walker.nextNode();
+      }
+    }
+  }
+
+  function select(node: Node, at: number) {
+    const range = document.createRange();
+    range.setStart(node, at);
+    range.setEnd(node, at + findQuery.length);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    (node.parentElement ?? documentSurface)?.scrollIntoView({ block: 'center' });
+  }
+
+  /// Replace every occurrence, on the stored form.
+  ///
+  /// The case that asks for this is one name misspelt through a whole protocol, so
+  /// it matches without regard to case and writes exactly what was typed. Done on
+  /// the Markdown and re-rendered, which is why it works the same in both views.
+  function replaceAll() {
+    if (findQuery.trim() === '' || matchCount === 0) return;
+    const pattern = new RegExp(findQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    markdown = markdown.replace(pattern, replaceQuery);
+    renderedFrom = '';
+    scheduleSave();
+    lastReplaced = matchCount;
+  }
+
+  let replaceQuery = '';
+  let lastReplaced = 0;
 
   async function createRevision() {
     await onCreateRevision();
@@ -798,7 +868,28 @@
               onkeydown={(event) => event.key === 'Enter' && findNext()}
             /></label
           >
-          <button class="secondary-action" onclick={findNext}>Next</button>
+          <button class="secondary-action" onclick={findNext} disabled={matchCount === 0}
+            >Next</button
+          >
+          <label
+            ><span class="sr-only">Replace with</span><input
+              bind:value={replaceQuery}
+              placeholder="Replace with"
+              onkeydown={(event) => event.key === 'Enter' && replaceAll()}
+            /></label
+          >
+          <button class="secondary-action" onclick={replaceAll} disabled={matchCount === 0}
+            >Replace all</button
+          >
+          <span class="find-count"
+            >{findQuery.trim() === ''
+              ? ''
+              : matchCount === 0
+                ? 'Not found'
+                : `${matchCount} ${matchCount === 1 ? 'match' : 'matches'}`}{lastReplaced > 0
+              ? ` · replaced ${lastReplaced}`
+              : ''}</span
+          >
         </div>{/if}
       {#if view === 'document'}
         {#if tableBox}

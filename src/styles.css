@@ -1572,12 +1572,25 @@ button.review-summary[aria-pressed='true'] {
 
 /* Find stays contextual to the writing surface instead of becoming a permanent toolbar. */
 .editor-find {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  /* Find, next, replace, replace-all and the count, on one line that wraps rather
+     than a two-column grid that now has five things in it. */
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  padding: 9px 18px;
+  align-items: center;
+  padding: 9px 12px;
   background: var(--subtle);
-  border-bottom: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.editor-find label {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.editor-find input {
+  width: 100%;
 }
 .editor-find input,
 .editor-find .secondary-action {
@@ -3799,4 +3812,10 @@ button.review-summary[aria-pressed='true'] {
   color: var(--faint);
   font-size: 0.78rem;
   line-height: 1.5;
+}
+
+.find-count {
+  color: var(--faint);
+  font-size: 0.78rem;
+  white-space: nowrap;
 }
