@@ -28,6 +28,7 @@
   } from '../protocol/furniture';
   import { diffWords, isUnchanged, type Change } from '../protocol/diff';
   import { atMoment, findInSource } from '../protocol/source';
+  import { errorMessage } from '../errors';
   import {
     appendSection,
     moveSection,
@@ -352,7 +353,7 @@
         checked: revised.checked,
       };
     } catch (cause) {
-      refineError = cause instanceof Error ? cause.message : String(cause);
+      refineError = errorMessage(cause);
     } finally {
       refineBusy = '';
       refineOpen = false;
@@ -1027,7 +1028,7 @@
       if (replacement.matches.length === 0) replaceError = 'That name is not in this protocol.';
     } catch (cause) {
       replacement = null;
-      replaceError = cause instanceof Error ? cause.message : String(cause);
+      replaceError = errorMessage(cause);
     } finally {
       replaceBusy = false;
     }

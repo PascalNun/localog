@@ -13,7 +13,11 @@
   import RecordingView from './lib/components/RecordingView.svelte';
   import TranscriptView from './lib/components/TranscriptView.svelte';
   import Icon from './lib/components/Icon.svelte';
-  import { DEFAULT_APPEARANCE, EMPTY_FURNITURE } from './lib/workflow/types';
+  import {
+    DEFAULT_APPEARANCE,
+    EMPTY_FURNITURE,
+    SPEAKER_SEPARATION_UNREADY,
+  } from './lib/workflow/types';
   import { buildDocx } from './lib/protocol/docx';
   import { printProtocol } from './lib/protocol/print';
   import {
@@ -25,6 +29,7 @@
   import { resolveWindowChrome } from './lib/platform/windowChrome';
   import { FakeWorkflowBridge } from './lib/workflow/fakeBridge';
   import { createNativeWorkspaceStore } from './lib/workflow/workspaceStore';
+  import { errorMessage } from './lib/errors';
   import type {
     AppRoute,
     FakeJobOutcome,
@@ -170,14 +175,7 @@
     modelByteCount: null,
   };
   let runtimeError: string | null = null;
-  let speakerStatus: SpeakerSeparationStatus = {
-    modelsInstalled: false,
-    runtimeConfigured: false,
-    runtimeHealthy: false,
-    runtimeVersion: null,
-    runtimePath: null,
-    downloadBytes: 0,
-  };
+  let speakerStatus: SpeakerSeparationStatus = SPEAKER_SEPARATION_UNREADY;
   let speakerError: string | null = null;
   let capability: TranscriptionCapability = { selectedPreset: 'balanced', presets: [] };
   // modelId → percent, present only while a download is in flight.
@@ -288,7 +286,7 @@
     bridge
       .getTranscriptionCapability()
       .then((next) => (capability = next))
-      .catch((error) => (modelError = error instanceof Error ? error.message : String(error)));
+      .catch((error) => (modelError = errorMessage(error)));
 
     const stopModelEvents = bridge.subscribeModelEvents({
       onProgress: ({ modelId, percent }) => {
@@ -563,7 +561,7 @@
           bridge.nativePrint(),
         );
       } catch (cause) {
-        announcement = `PDF export failed: ${cause instanceof Error ? cause.message : String(cause)}`;
+        announcement = `PDF export failed: ${errorMessage(cause)}`;
       }
       return;
     }
@@ -588,7 +586,7 @@
         if (saved) announcement = 'Word export saved';
         else if (!isDesktop) announcement = 'Word export needs the desktop application.';
       } catch (cause) {
-        announcement = `Word export failed: ${cause instanceof Error ? cause.message : String(cause)}`;
+        announcement = `Word export failed: ${errorMessage(cause)}`;
       }
       return;
     }
@@ -607,7 +605,7 @@
       // A cancelled dialog is a choice, not a failure, and says nothing.
       if (isDesktop) return;
     } catch (cause) {
-      announcement = `${name} export failed: ${cause instanceof Error ? cause.message : String(cause)}`;
+      announcement = `${name} export failed: ${errorMessage(cause)}`;
       return;
     }
     const content =
@@ -738,7 +736,7 @@
               await bridge.downloadSpeakerModels();
             } catch (error) {
               downloading = withoutModel(downloading, 'speaker-separation');
-              speakerError = error instanceof Error ? error.message : String(error);
+              speakerError = errorMessage(error);
             }
           }}
           onCancel={() => bridge.cancelActiveJob(meeting.id)}
@@ -883,7 +881,7 @@
               modelError = null;
               runtimeStatus = await bridge.getTranscriptionRuntimeStatus();
             } catch (error) {
-              modelError = error instanceof Error ? error.message : String(error);
+              modelError = errorMessage(error);
             }
           }}
           onDownloadModel={async (modelId: string) => {
@@ -894,7 +892,7 @@
               await bridge.downloadTranscriptionModel(modelId);
             } catch (error) {
               downloading = withoutModel(downloading, modelId);
-              modelError = error instanceof Error ? error.message : String(error);
+              modelError = errorMessage(error);
             }
           }}
           onCancelDownload={async (modelId: string) => {
@@ -907,7 +905,7 @@
               modelError = null;
               runtimeStatus = await bridge.getTranscriptionRuntimeStatus();
             } catch (error) {
-              modelError = error instanceof Error ? error.message : String(error);
+              modelError = errorMessage(error);
             }
           }}
           onConfigureRuntime={async (executablePath) => {
@@ -915,7 +913,7 @@
               runtimeStatus = await bridge.configureTranscriptionRuntime(executablePath);
               runtimeError = null;
             } catch (error) {
-              runtimeError = error instanceof Error ? error.message : String(error);
+              runtimeError = errorMessage(error);
             }
           }}
           onRefreshSpeaker={async () => {
@@ -923,7 +921,7 @@
               speakerStatus = await bridge.getSpeakerSeparationStatus();
               speakerError = null;
             } catch (error) {
-              speakerError = error instanceof Error ? error.message : String(error);
+              speakerError = errorMessage(error);
             }
           }}
           onDownloadSpeaker={async () => {
@@ -946,7 +944,7 @@
               }
             } catch (error) {
               downloading = withoutModel(downloading, 'speaker-separation');
-              speakerError = error instanceof Error ? error.message : String(error);
+              speakerError = errorMessage(error);
             }
           }}
           onRefreshProvider={async () => {
@@ -954,7 +952,7 @@
               providerStatus = await bridge.getProtocolProviderStatus();
               providerError = null;
             } catch (error) {
-              providerError = error instanceof Error ? error.message : String(error);
+              providerError = errorMessage(error);
             }
           }}
           onConfigureProvider={async (model) => {
@@ -962,7 +960,7 @@
               providerStatus = await bridge.configureProtocolProvider(model);
               providerError = null;
             } catch (error) {
-              providerError = error instanceof Error ? error.message : String(error);
+              providerError = errorMessage(error);
             }
           }}
         />

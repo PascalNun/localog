@@ -6,6 +6,7 @@
     ProjectSummary,
   } from '../workflow/types';
   import Icon from './Icon.svelte';
+  import { errorMessage } from '../errors';
 
   export let project: ProjectSummary;
   export let meetings: MeetingSummary[];
@@ -25,7 +26,7 @@
     try {
       await onDeleteMeeting(meeting.id);
     } catch (cause) {
-      deleteError = cause instanceof Error ? cause.message : String(cause);
+      deleteError = errorMessage(cause);
     } finally {
       confirming = '';
     }

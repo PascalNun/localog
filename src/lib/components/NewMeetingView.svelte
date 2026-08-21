@@ -7,6 +7,7 @@
   } from '../workflow/types';
   import { COMMON_MEETING_LANGUAGES, DETECT_LANGUAGE_LABEL } from '../workflow/languages';
   import Icon from './Icon.svelte';
+  import { errorMessage } from '../errors';
 
   export let projects: ProjectSummary[];
   export let initialProjectId: string | null;
@@ -74,7 +75,7 @@
       sourcePath = selection.path;
       if (!title) title = titleFromFile(sourceName);
     } catch (error) {
-      submitError = error instanceof Error ? error.message : String(error);
+      submitError = errorMessage(error);
     }
   }
 
@@ -95,7 +96,7 @@
     try {
       await onCreate({ projectId, title, occurredAt, language, sourceName, sourcePath, styleId });
     } catch (error) {
-      submitError = error instanceof Error ? error.message : String(error);
+      submitError = errorMessage(error);
       submitting = false;
     }
   }

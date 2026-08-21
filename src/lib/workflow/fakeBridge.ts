@@ -1,4 +1,4 @@
-import { DEFAULT_APPEARANCE, EMPTY_FURNITURE } from './types';
+import { DEFAULT_APPEARANCE, EMPTY_FURNITURE, SPEAKER_SEPARATION_UNREADY } from './types';
 import type {
   DocumentAppearance,
   PageFurniture,
@@ -34,6 +34,7 @@ import type {
   CorrectionMatch,
   AppliedCorrection,
 } from './types';
+import { errorMessage } from '../errors';
 import type { WorkspaceStore } from './workspaceStore';
 
 /** What every durable call hands back: the whole workspace, as SQLite now has it. */
@@ -351,7 +352,9 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         .then(() => {
           if (this.listeners.has(listener)) listener(cloneSnapshot(this.snapshot));
         })
-        .catch((error: unknown) => onError?.(errorMessage(error)));
+        .catch((error: unknown) =>
+          onError?.(errorMessage(error, 'LocaLog could not prepare its local workspace.')),
+        );
     } else {
       listener(cloneSnapshot(this.snapshot));
     }
@@ -892,14 +895,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     if (this.workspaceStore?.getSpeakerSeparationStatus) {
       return this.workspaceStore.getSpeakerSeparationStatus();
     }
-    return {
-      modelsInstalled: false,
-      runtimeConfigured: false,
-      runtimeHealthy: false,
-      runtimeVersion: null,
-      runtimePath: null,
-      downloadBytes: 0,
-    };
+    return SPEAKER_SEPARATION_UNREADY;
   }
 
   async configureSpeakerRuntime(executablePath: string): Promise<SpeakerSeparationStatus> {
@@ -1409,14 +1405,6 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
   }
-}
-
-function errorMessage(error: unknown): string {
-  return typeof error === 'string'
-    ? error
-    : error instanceof Error
-      ? error.message
-      : 'LocaLog could not prepare its local workspace.';
 }
 
 /**

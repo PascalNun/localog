@@ -7,10 +7,12 @@
     SpeakerRequest,
     SpeakerSeparationStatus,
   } from '../workflow/types';
+  import { SPEAKER_SEPARATION_UNREADY } from '../workflow/types';
   import { COMMON_MEETING_LANGUAGES, meetingLanguageLabel } from '../workflow/languages';
   import Icon from './Icon.svelte';
   import ProgressPanel from './ProgressPanel.svelte';
   import StageRail from './StageRail.svelte';
+  import { errorMessage } from '../errors';
 
   export let project: ProjectSummary;
   export let meeting: MeetingSummary;
@@ -25,14 +27,7 @@
   export let onReselectSource: () => Promise<void>;
   export let onRename: (title: string) => Promise<void>;
   export let onUpdateLanguage: (language: string) => Promise<void>;
-  export let speakerStatus: SpeakerSeparationStatus = {
-    modelsInstalled: false,
-    runtimeConfigured: false,
-    runtimeHealthy: false,
-    runtimeVersion: null,
-    runtimePath: null,
-    downloadBytes: 0,
-  };
+  export let speakerStatus: SpeakerSeparationStatus = SPEAKER_SEPARATION_UNREADY;
   export let speakerPreparing = false;
   export let speakerDownloadPercent = 0;
   export let onPrepareSpeakerModels: () => Promise<void>;
@@ -81,7 +76,7 @@
       await onUpdateLanguage(languageDraft);
       editingLanguage = false;
     } catch (error) {
-      languageError = error instanceof Error ? error.message : String(error);
+      languageError = errorMessage(error);
     }
   }
 

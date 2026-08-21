@@ -2,6 +2,7 @@
   import type { NewProjectInput } from '../workflow/types';
   import { COMMON_MEETING_LANGUAGES, DETECT_LANGUAGE_LABEL } from '../workflow/languages';
   import Icon from './Icon.svelte';
+  import { errorMessage } from '../errors';
 
   export let returnToImport: boolean;
   export let onCancel: () => void;
@@ -24,7 +25,7 @@
     try {
       await onCreate({ name, description, defaultLanguage });
     } catch (error) {
-      submitError = error instanceof Error ? error.message : String(error);
+      submitError = errorMessage(error);
       submitting = false;
     }
   }

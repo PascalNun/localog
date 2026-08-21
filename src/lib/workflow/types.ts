@@ -311,6 +311,22 @@ export const DEFAULT_APPEARANCE: DocumentAppearance = {
   pageWidth: 'a4',
 };
 
+/**
+ * What is known about speaker separation before anything has been asked.
+ *
+ * Every field says no, which is the safe reading: an interface that assumed the
+ * models were there would offer separation and fail at the point of use. Three
+ * components and the bridge each wrote this object out.
+ */
+export const SPEAKER_SEPARATION_UNREADY: SpeakerSeparationStatus = {
+  modelsInstalled: false,
+  runtimeConfigured: false,
+  runtimeHealthy: false,
+  runtimeVersion: null,
+  runtimePath: null,
+  downloadBytes: 0,
+};
+
 export interface ProtocolStyle {
   id: string;
   name: string;

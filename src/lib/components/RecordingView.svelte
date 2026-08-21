@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { AppRoute, MeetingSummary, RecordingStatus } from '../workflow/types';
+  import { errorMessage } from '../errors';
 
   export let meeting: MeetingSummary;
   export let onNavigate: (route: AppRoute) => void;
@@ -62,7 +63,7 @@
     try {
       await onStart(meeting.id);
     } catch (cause) {
-      error = cause instanceof Error ? cause.message : String(cause);
+      error = errorMessage(cause);
     } finally {
       working = false;
     }
@@ -74,7 +75,7 @@
       await onStop();
       onNavigate({ name: 'meeting', meetingId: meeting.id });
     } catch (cause) {
-      error = cause instanceof Error ? cause.message : String(cause);
+      error = errorMessage(cause);
     } finally {
       working = false;
     }

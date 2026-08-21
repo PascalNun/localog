@@ -8,6 +8,7 @@
     TranscriptionRuntimeStatus,
     SpeakerSeparationStatus,
   } from '../workflow/types';
+  import { SPEAKER_SEPARATION_UNREADY } from '../workflow/types';
   import {
     GENERATION_MODEL_CATALOG,
     browserMemoryGb,
@@ -45,14 +46,7 @@
   export let onRefreshProvider: () => Promise<void>;
   export let onConfigureProvider: (model: string | null) => Promise<void>;
   export let providerError: string | null = null;
-  export let speakerStatus: SpeakerSeparationStatus = {
-    modelsInstalled: false,
-    runtimeConfigured: false,
-    runtimeHealthy: false,
-    runtimeVersion: null,
-    runtimePath: null,
-    downloadBytes: 0,
-  };
+  export let speakerStatus: SpeakerSeparationStatus = SPEAKER_SEPARATION_UNREADY;
   export let speakerError: string | null = null;
   export let onRefreshSpeaker: () => Promise<void>;
   export let onDownloadSpeaker: () => Promise<void>;

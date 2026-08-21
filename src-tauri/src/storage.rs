@@ -840,17 +840,7 @@ impl WorkspaceRepository {
     pub(crate) fn import_job_for_meeting(&self, meeting_id: &str) -> Result<ImportJobRecord> {
         self.connection
             .query_row(
-                "SELECT
-                    j.id, j.meeting_id, m.project_id, j.recording_id, r.original_name,
-                    j.state, j.stage, j.source_path, j.duplicate_allowed,
-                    j.result_checksum, j.result_byte_count, j.result_media_type,
-                    j.final_relative_path
-                 FROM jobs j
-                 JOIN meetings m ON m.id = j.meeting_id
-                 JOIN recordings r ON r.id = j.recording_id
-                 WHERE j.meeting_id = ?1 AND j.kind = 'import'
-                 ORDER BY j.created_at_ms DESC, j.id DESC
-                 LIMIT 1",
+                &format!("{IMPORT_JOB_SELECT} WHERE j.meeting_id = ?1 AND j.kind = 'import' ORDER BY j.created_at_ms DESC, j.id DESC LIMIT 1"),
                 [meeting_id],
                 import_job_from_row,
             )
@@ -861,15 +851,7 @@ impl WorkspaceRepository {
     pub(crate) fn import_job_by_id(&self, job_id: &str) -> Result<ImportJobRecord> {
         self.connection
             .query_row(
-                "SELECT
-                    j.id, j.meeting_id, m.project_id, j.recording_id, r.original_name,
-                    j.state, j.stage, j.source_path, j.duplicate_allowed,
-                    j.result_checksum, j.result_byte_count, j.result_media_type,
-                    j.final_relative_path
-                 FROM jobs j
-                 JOIN meetings m ON m.id = j.meeting_id
-                 JOIN recordings r ON r.id = j.recording_id
-                 WHERE j.id = ?1 AND j.kind = 'import'",
+                &format!("{IMPORT_JOB_SELECT} WHERE j.id = ?1 AND j.kind = 'import'"),
                 [job_id],
                 import_job_from_row,
             )
@@ -879,16 +861,7 @@ impl WorkspaceRepository {
 
     pub(crate) fn unfinished_import_jobs(&self) -> Result<Vec<ImportJobRecord>> {
         let mut statement = self.connection.prepare(
-            "SELECT
-                j.id, j.meeting_id, m.project_id, j.recording_id, r.original_name,
-                j.state, j.stage, j.source_path, j.duplicate_allowed,
-                j.result_checksum, j.result_byte_count, j.result_media_type,
-                j.final_relative_path
-             FROM jobs j
-             JOIN meetings m ON m.id = j.meeting_id
-             JOIN recordings r ON r.id = j.recording_id
-             WHERE j.kind = 'import' AND j.state != 'completed'
-             ORDER BY j.created_at_ms, j.id",
+            &format!("{IMPORT_JOB_SELECT} WHERE j.kind = 'import' AND j.state != 'completed' ORDER BY j.created_at_ms, j.id"),
         )?;
         let rows = statement.query_map([], import_job_from_row)?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
@@ -2808,6 +2781,21 @@ fn job_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<JobSummary> {
         error,
     })
 }
+
+/// The columns `import_job_from_row` reads, in the order it reads them.
+///
+/// rusqlite reads a row by position, so this order and that function are one fact
+/// kept in two places. Several of these columns are TEXT: swapping two would not
+/// fail, it would quietly file a checksum where a media type belongs. Three
+/// queries want exactly these columns and differ only in what follows.
+const IMPORT_JOB_SELECT: &str = "SELECT
+        j.id, j.meeting_id, m.project_id, j.recording_id, r.original_name,
+        j.state, j.stage, j.source_path, j.duplicate_allowed,
+        j.result_checksum, j.result_byte_count, j.result_media_type,
+        j.final_relative_path
+     FROM jobs j
+     JOIN meetings m ON m.id = j.meeting_id
+     JOIN recordings r ON r.id = j.recording_id";
 
 fn import_job_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ImportJobRecord> {
     let source_path: Option<String> = row.get(7)?;

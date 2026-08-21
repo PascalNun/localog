@@ -12,6 +12,7 @@
   import Icon from './Icon.svelte';
   import { APPEARANCE_CHOICES } from '../protocol/appearance';
   import { fieldLabel, furnitureIsEmpty } from '../protocol/furniture';
+  import { errorMessage } from '../errors';
 
   export let kind: 'styles' | 'vocabulary' | 'export-templates';
   export let templates: ExportTemplate[] = [];
@@ -98,7 +99,7 @@
       editingStyle = false;
       openStyle = await onOpenStyle(styleId);
     } catch (cause) {
-      styleError = cause instanceof Error ? cause.message : String(cause);
+      styleError = errorMessage(cause);
     } finally {
       styleBusy = false;
     }
@@ -111,7 +112,7 @@
       await onDuplicateStyle(detail.id, `${detail.name} (copy)`);
       openStyle = null;
     } catch (cause) {
-      styleError = cause instanceof Error ? cause.message : String(cause);
+      styleError = errorMessage(cause);
     } finally {
       styleBusy = false;
     }
@@ -124,7 +125,7 @@
       await onDeleteStyle(styleId);
       openStyle = null;
     } catch (cause) {
-      styleError = cause instanceof Error ? cause.message : String(cause);
+      styleError = errorMessage(cause);
     } finally {
       styleBusy = false;
     }
@@ -149,7 +150,7 @@
       openStyle = await onOpenStyle(styleId);
     } catch (cause) {
       openStyle = null;
-      styleError = cause instanceof Error ? cause.message : String(cause);
+      styleError = errorMessage(cause);
     } finally {
       openingStyleId = '';
     }
@@ -209,7 +210,7 @@
       await onSaveTerm(next);
       draft = null;
     } catch (cause) {
-      error = cause instanceof Error ? cause.message : String(cause);
+      error = errorMessage(cause);
     } finally {
       busy = false;
     }
@@ -237,7 +238,7 @@
       await onDeleteTerm(entryId);
       confirmingDelete = '';
     } catch (cause) {
-      error = cause instanceof Error ? cause.message : String(cause);
+      error = errorMessage(cause);
     } finally {
       busy = false;
     }

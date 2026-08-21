@@ -17,6 +17,7 @@
   import Icon from './Icon.svelte';
   import ProgressPanel from './ProgressPanel.svelte';
   import StageRail from './StageRail.svelte';
+  import { errorMessage } from '../errors';
 
   export let project: ProjectSummary;
   export let meeting: MeetingSummary;
@@ -74,7 +75,7 @@
       introductions = found;
       spellings = Object.fromEntries(found.map((person) => [person.heard, person.heard]));
     } catch (cause) {
-      readError = cause instanceof Error ? cause.message : String(cause);
+      readError = errorMessage(cause);
     } finally {
       reading = false;
     }
@@ -350,7 +351,7 @@
       await onUpdateLanguage(languageDraft);
       editingLanguage = false;
     } catch (error) {
-      languageError = error instanceof Error ? error.message : String(error);
+      languageError = errorMessage(error);
     }
   }
 
@@ -365,7 +366,7 @@
     try {
       await onRerunTranscription();
     } catch (error) {
-      rerunError = error instanceof Error ? error.message : String(error);
+      rerunError = errorMessage(error);
     } finally {
       rerunning = false;
     }
