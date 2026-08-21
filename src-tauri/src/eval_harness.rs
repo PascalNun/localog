@@ -470,6 +470,7 @@ fn formal_minutes_style() -> GenerationStyle {
             "Never leave a placeholder such as [Datum] or [Details]. If something is not in the source, omit the line instead.".into(),
         ],
         required_sections: vec!["Teilnehmende".into()],
+        expectations: vec![crate::domain::StructuralExpectation::ActionTable],
     };
     if std::env::var("LOCALOG_EVAL_DROP_LENGTH_INSTRUCTION").is_ok() {
         style

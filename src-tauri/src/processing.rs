@@ -821,6 +821,7 @@ fn generation_metadata(
             density: inputs.style.density,
             instructions: inputs.style.instructions.clone(),
             required_sections: inputs.style.required_sections.clone(),
+            expectations: inputs.style.expectations.clone(),
         },
         vocabulary_revision: inputs.vocabulary_revision.clone(),
         vocabulary: inputs
@@ -3407,6 +3408,7 @@ pub(crate) fn refine_passage(
             density: crate::domain::ProtocolDensity::Concise,
             instructions: Vec::new(),
             required_sections: Vec::new(),
+            expectations: Vec::new(),
         },
         vocabulary_revision: "refine".into(),
         vocabulary: Vec::new(),
@@ -3521,6 +3523,7 @@ pub(crate) fn find_introductions(
             density: crate::domain::ProtocolDensity::Concise,
             instructions: Vec::new(),
             required_sections: Vec::new(),
+            expectations: Vec::new(),
         },
         vocabulary_revision: "introductions".into(),
         vocabulary: Vec::new(),

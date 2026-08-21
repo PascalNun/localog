@@ -342,8 +342,26 @@ one. A test asserts they are absent from all three shipped styles and present in
 reaches the model, because "unauthorable by construction" is only worth anything if
 both halves hold.
 
-Still outstanding from this item: replacing `required_sections` with structural
-expectations checkable in any language, as the action table now is.
+**And the part that had to follow it.** The actions-table check used to ask whether
+the style was called `style-formal`. That was true while one style existed and became
+wrong the moment a style could be copied: a duplicate has a new id, so a copy of the
+formal style would have quietly stopped requiring the table its original demands, and
+nothing would have said so. Adding duplication without this would have introduced
+that fault.
+
+`required_sections` was the field meant for this and could not do it — it holds
+English section names while the protocol is written in the meeting's language, so
+matching "Actions" against "Aufgaben" needs something this application does not have,
+and it was therefore never checked anywhere. A table needs no translating.
+
+Styles now carry **structural expectations**: things that can be checked in whatever
+language the protocol is written in. One exists, because one can be checked. A
+duplicate carries its original's, and a test requires exactly that — along with the
+opposite, that a copy of a style with no table does not acquire one.
+
+Writing that test immediately found a second fault: the duplication statement never
+supplied `updated_at_ms`, which is `NOT NULL`, so duplicating any style would have
+failed outright the first time somebody tried it.
 
 ### 6. The recording screen against the reference images
 

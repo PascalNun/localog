@@ -1,5 +1,6 @@
 use crate::domain::{
     DocumentAppearance, FurnitureField, FurnitureRow, JobErrorSummary, PageFurniture,
+    StructuralExpectation,
     PageWidth, Scale, Spacing, JobState, JobSummary, MeetingLifecycle, MeetingSummary, NewMeetingInput,
     NewProjectInput, ProjectSummary, ProtocolDensity, ProtocolDocument, ProtocolEvidence,
     ProtocolRevisionSummary, ProtocolStyle, SpeakerResolution, TranscriptDocument,
@@ -14,7 +15,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 20;
+const CURRENT_SCHEMA_VERSION: i64 = 21;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -153,6 +154,7 @@ pub(crate) struct ResolvedProtocolStyle {
     pub revision: String,
     pub instructions: Vec<String>,
     pub required_sections: Vec<String>,
+    pub expectations: Vec<StructuralExpectation>,
     pub density: ProtocolDensity,
 }
 
@@ -274,7 +276,7 @@ impl WorkspaceRepository {
             .connection
             .query_row(
                 "SELECT id, name, description, language_scope, instructions_json,
-                        required_sections_json, revision, density
+                        required_sections_json, revision, density, expectations_json
                  FROM protocol_styles WHERE id = ?1 AND enabled = 1",
                 [&style_id],
                 protocol_style_from_row,
@@ -308,7 +310,8 @@ impl WorkspaceRepository {
         if name.is_empty() {
             return Err(StorageError::InvalidData("Give the style a name."));
         }
-        let (description, language_scope, instructions, sections, density): (
+        let (description, language_scope, instructions, sections, density, expectations): (
+            String,
             String,
             String,
             String,
@@ -318,7 +321,7 @@ impl WorkspaceRepository {
             .connection
             .query_row(
                 "SELECT description, language_scope, instructions_json,
-                        required_sections_json, density
+                        required_sections_json, density, expectations_json
                  FROM protocol_styles WHERE id = ?1",
                 [style_id],
                 |row| {
@@ -328,6 +331,7 @@ impl WorkspaceRepository {
                         row.get(2)?,
                         row.get(3)?,
                         row.get(4)?,
+                        row.get(5)?,
                     ))
                 },
             )
@@ -338,8 +342,9 @@ impl WorkspaceRepository {
         self.connection.execute(
             "INSERT INTO protocol_styles
                 (id, name, description, language_scope, instructions_json,
-                 required_sections_json, revision, density, enabled)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, 1)",
+                 required_sections_json, revision, density, enabled, expectations_json,
+                 updated_at_ms)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, 1, ?8, ?9)",
             params![
                 new_style,
                 name,
@@ -347,7 +352,12 @@ impl WorkspaceRepository {
                 language_scope,
                 instructions,
                 sections,
-                density
+                density,
+                // Carried, not dropped: a copy of a style that requires an actions
+                // table requires one too, which is the whole reason this stopped
+                // being keyed on the style's name.
+                expectations,
+                unix_time_millis()
             ],
         )?;
         Ok(new_style)
@@ -549,7 +559,7 @@ impl WorkspaceRepository {
         self.connection
             .query_row(
                 "SELECT id, name, description, language_scope, instructions_json,
-                        required_sections_json, revision, density
+                        required_sections_json, revision, density, expectations_json
                  FROM protocol_styles WHERE id = ?1",
                 [style_id],
                 protocol_style_from_row,
@@ -1212,7 +1222,7 @@ impl WorkspaceRepository {
             .connection
             .query_row(
                 "SELECT id, name, description, language_scope, instructions_json,
-                        required_sections_json, revision, density
+                        required_sections_json, revision, density, expectations_json
                  FROM protocol_styles WHERE id = ?1 AND enabled = 1",
                 [style_id],
                 protocol_style_from_row,
@@ -2427,6 +2437,28 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             )?;
         }
         connection.pragma_update(None, "user_version", 20)?;
+        version = 20;
+    }
+    if version == 20 {
+        // What a protocol of a style must contain, in a form that can be checked in
+        // the language it is written in.
+        //
+        // The action-table check used to key on the style's id, which was true while
+        // only one style existed and became wrong the moment a style could be
+        // copied: the duplicate has a new id and would have quietly stopped
+        // requiring the table its original demands.
+        if !has_column(connection, "protocol_styles", "expectations_json")? {
+            connection.execute_batch(
+                r#"
+                BEGIN IMMEDIATE;
+                ALTER TABLE protocol_styles ADD COLUMN expectations_json TEXT NOT NULL DEFAULT '[]';
+                UPDATE protocol_styles SET expectations_json = '["action-table"]'
+                 WHERE id = 'style-formal';
+                COMMIT;
+                "#,
+            )?;
+        }
+        connection.pragma_update(None, "user_version", 21)?;
     }
     Ok(())
 }
@@ -2561,6 +2593,13 @@ fn protocol_style_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Resolved
             .get::<_, String>(7)
             .ok()
             .and_then(|value| ProtocolDensity::from_str(&value))
+            .unwrap_or_default(),
+        // An expectation nobody can read is no expectation: a protocol is not held
+        // back over a column this version does not understand.
+        expectations: row
+            .get::<_, String>(8)
+            .ok()
+            .and_then(|json| serde_json::from_str(&json).ok())
             .unwrap_or_default(),
     })
 }
@@ -3069,6 +3108,54 @@ mod tests {
         // The properties a protocol of this kind depends on, which are the style's.
         assert!(joined.contains("by topic"), "must organise by topic");
         assert!(joined.contains("next steps"), "must end in an action table");
+    }
+
+    /// The fault that made structural expectations necessary.
+    ///
+    /// The actions-table check used to ask whether the style was called
+    /// "style-formal". That was true while one style existed and became wrong the
+    /// moment a style could be copied: the duplicate has a new id, so a copy of the
+    /// formal style would have quietly stopped requiring the table its original
+    /// demands — and nothing would have said so.
+    #[test]
+    fn a_copied_style_keeps_what_its_original_required() {
+        let temporary = tempdir().unwrap();
+        let repository = WorkspaceRepository::open(temporary.path()).unwrap();
+
+        let original = repository.protocol_inputs_style("style-formal");
+        assert!(
+            original
+                .expectations
+                .contains(&StructuralExpectation::ActionTable),
+            "the formal style must require its actions table"
+        );
+
+        let copy_id = repository
+            .duplicate_protocol_style("style-formal", "Formal minutes (copy)")
+            .unwrap();
+        let copy = repository.protocol_inputs_style(&copy_id);
+
+        assert_ne!(copy_id, "style-formal", "a copy is a different style");
+        assert!(
+            copy.expectations.contains(&StructuralExpectation::ActionTable),
+            "a copy of a style that requires an actions table requires one too"
+        );
+    }
+
+    /// A style that never asked for a table must not acquire one by being copied.
+    #[test]
+    fn a_copy_of_a_style_without_a_table_still_has_none() {
+        let temporary = tempdir().unwrap();
+        let repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let copy_id = repository
+            .duplicate_protocol_style("style-working-note", "Working note (copy)")
+            .unwrap();
+        assert!(
+            repository
+                .protocol_inputs_style(&copy_id)
+                .expectations
+                .is_empty()
+        );
     }
 
     /// Fidelity is not the style's to carry, and the point is that it cannot be.

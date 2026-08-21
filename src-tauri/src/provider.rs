@@ -162,6 +162,8 @@ pub struct GenerationStyle {
     pub id: String,
     pub revision: String,
     pub instructions: Vec<String>,
+    /// What a protocol of this style must contain, checkable in any language.
+    pub expectations: Vec<crate::domain::StructuralExpectation>,
     /// What a style intends a protocol to contain. Kept as a description of the
     /// style, and deliberately **not** sent to the model.
     ///
@@ -2121,6 +2123,7 @@ pub(crate) fn sizing_probe(context_tokens: u32, maximum_output_tokens: u32) -> (
         density: crate::domain::ProtocolDensity::Comprehensive,
         instructions: crate::eval_harness::formal_minutes_instructions(),
         required_sections: Vec::new(),
+        expectations: vec![crate::domain::StructuralExpectation::ActionTable],
     };
     // A transcript the size of the reference meeting, in segments its size.
     let transcript: Vec<GenerationSegment> = (0..675)
@@ -2701,13 +2704,21 @@ fn within_budget(section: &str, budget: usize) -> Result<()> {
 /// create another, so keying on it is honest about what is true now and wrong about
 /// where this is going. It must be replaced when authoring arrives.
 ///
-/// `required_sections` is the field that was supposed to do this and cannot. It holds
+/// Now read from the style rather than from its name.
+///
+/// It used to be `style.id == "style-formal"`, which was honest about what was true
+/// then and became wrong the moment a style could be copied: a duplicate has a new
+/// id, so the copy of the formal style would have quietly stopped requiring the
+/// table its original demands.
+///
+/// `required_sections` was the field meant for this and could not do it. It holds
 /// English section names while the protocol is written in the meeting's language, so
-/// matching "Actions" against "Aufgaben" needs something the application does not
-/// have — and it has therefore never been checked anywhere. A table needs no
-/// translating, which is why the check is structural.
+/// matching "Actions" against "Aufgaben" needs something this application does not
+/// have, and it was therefore never checked anywhere. A table needs no translating.
 fn wants_an_action_table(style: &GenerationStyle) -> bool {
-    style.id == "style-formal"
+    style
+        .expectations
+        .contains(&crate::domain::StructuralExpectation::ActionTable)
 }
 
 /// Whether the document contains a markdown table.
@@ -3202,6 +3213,7 @@ mod tests {
             density: crate::domain::ProtocolDensity::Comprehensive,
             instructions: Vec::new(),
             required_sections: Vec::new(),
+            expectations: vec![crate::domain::StructuralExpectation::ActionTable],
         }
     }
 
@@ -3504,6 +3516,7 @@ mod tests {
                 density: crate::domain::ProtocolDensity::Comprehensive,
                 instructions: vec!["Write a calm, factual professional protocol.".into()],
                 required_sections: vec!["Zusammenfassung".into()],
+                expectations: vec![crate::domain::StructuralExpectation::ActionTable],
             },
             vocabulary_revision: "1".into(),
             vocabulary: Vec::new(),

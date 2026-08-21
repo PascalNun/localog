@@ -21,6 +21,23 @@ pub struct NewMeetingInput {
     pub style_id: String,
 }
 
+/// Something a protocol of this style must actually contain.
+///
+/// The replacement for `required_sections`, which held English section names while
+/// the protocol is written in the meeting's language — matching "Actions" against
+/// "Aufgaben" needs something this application does not have, so it was never
+/// checked anywhere and could not be.
+///
+/// These are structural: a table is a table in every language. Only what can be
+/// checked belongs here, which is why the list is short and grows only when a check
+/// exists to go with it.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum StructuralExpectation {
+    /// A markdown table, which is what a list of agreed actions is.
+    ActionTable,
+}
+
 /// How a project's protocols look, as opposed to what they say.
 ///
 /// Kept apart from the protocol style on purpose. A style decides what belongs in
