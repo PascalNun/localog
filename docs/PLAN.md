@@ -363,10 +363,39 @@ Writing that test immediately found a second fault: the duplication statement ne
 supplied `updated_at_ms`, which is `NOT NULL`, so duplicating any style would have
 failed outright the first time somebody tried it.
 
-### 6. The recording screen against the reference images
+### 6. The recording screen — built from the written direction, 21 August
 
-Last, because it is the only item on this list that is purely how something looks, and
-because step 0 may well change what it needs to show.
+There is no reference image for it. `docs/assets/ui-reference/` holds six studies —
+start in both themes, the project view, the new-meeting flow, transcript review and
+the protocol editor — and none of a recording. The owner asked for it to be built
+from the written direction instead, which is specific enough to work from.
+
+What the direction actually demands, and what it got:
+
+- **"Recording is part of the interface, not an instrument panel bolted onto it."**
+  The mark is the same waveform as the start page and the application icon, drawn live
+  from what is arriving — one stroke per second of the recent past rather than a
+  meter. No filled bars, no pulsing red, no clipping indicator borrowed from a DAW.
+- **"A recording in progress must be unmistakable at a glance, because hiding it would
+  be dishonest."** This was the one that was not met. It was unmistakable only on the
+  screen that started it; navigating to another project or to settings left a live
+  recorder with nothing anywhere saying so. The sidebar now carries it wherever
+  somebody is, in the same quiet vocabulary as every other status — a dot that
+  breathes slowly, steady for anybody who has asked for less movement — and clicking
+  it goes back.
+- **"Whether the people in the room have agreed is the responsibility of the person
+  recording them."** Said once, plainly, in the lead. Not a checkbox, not a consent
+  gate: a product cannot witness an agreement it was not present for, and one that
+  pretends to would be manufacturing a record of it.
+
+The screen also stopped polling on its own. It now reads the status the application
+already takes once a second, because two pollers asking the same question on different
+schedules is two answers — the screen and the sidebar could disagree by up to a second,
+and the recorder was asked twice as often for nothing.
+
+**Still unproven, and only the owner can prove it:** pressing Record in the real window
+and getting a meeting that transcribes. That needs the macOS system-audio permission
+dialog, which appears only to somebody sitting at the machine.
 
 ### The two questions that were the owner's, answered
 
