@@ -410,12 +410,12 @@
                 </div>
               {/if}
 
-              {#if detail.requiredSections.length > 0}
+              {#if detail.checks.length > 0}
                 <div class="style-sections">
-                  <h3>Sections it must produce</h3>
+                  <h3>Checked on the finished protocol</h3>
                   <ul>
-                    {#each detail.requiredSections as section (section)}
-                      <li>{section}</li>
+                    {#each detail.checks as check, at (at)}
+                      <li>{check}</li>
                     {/each}
                   </ul>
                 </div>

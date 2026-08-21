@@ -332,7 +332,15 @@ export interface ProtocolStyleDetail {
   density: ProtocolDensity;
   /** What this style asks for, which is the part that can be changed. */
   instructions: string[];
-  requiredSections: string[];
+  /**
+   * What is actually checked when a protocol is written.
+   *
+   * Replaced `requiredSections`, which held English section names while the protocol
+   * is written in the meeting's language and could therefore never be checked.
+   * Showing it as "sections it must produce" claimed a guarantee this application
+   * does not make.
+   */
+  checks: string[];
   asShipped: boolean;
   /**
    * The rules every style carries and none may change.

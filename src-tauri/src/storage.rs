@@ -197,7 +197,13 @@ pub struct ProtocolStyleDetail {
     pub density: ProtocolDensity,
     /// What the style asks the model for, in the order it asks.
     pub instructions: Vec<String>,
-    pub required_sections: Vec<String>,
+    /// What is actually checked when a protocol is written.
+    ///
+    /// This replaced `required_sections`, which held English section names while the
+    /// protocol is written in the meeting's language and was therefore never checked
+    /// anywhere. Showing it as "sections it must produce" was a guarantee this
+    /// application does not make.
+    pub checks: Vec<String>,
     pub as_shipped: bool,
     /// The rules every style carries and none may change, so they can be shown as
     /// what they are rather than quietly enforced.
@@ -1242,7 +1248,18 @@ impl WorkspaceRepository {
             description,
             density: style.density,
             instructions: style.instructions,
-            required_sections: style.required_sections,
+            checks: style
+                .expectations
+                .iter()
+                .map(|expectation| match expectation {
+                    StructuralExpectation::ActionTable => {
+                        "Ends with a table of agreed next steps. A table is a table in \
+                         every language, so this is checked on the protocol itself and \
+                         the draft is asked again if it is missing."
+                            .to_string()
+                    }
+                })
+                .collect(),
             // A style that has never been edited is the one that shipped. The
             // distinction matters to somebody deciding whether they may change it.
             as_shipped: edited == 1,

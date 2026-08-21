@@ -628,7 +628,9 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       description: style.description,
       density: style.density,
       instructions: SEEDED_INSTRUCTIONS[style.id] ?? [],
-      requiredSections: [],
+      // What the real workspace returns for this style, so the preview shows what
+      // is actually checked rather than an empty list that reads as "nothing is".
+      checks: SEEDED_CHECKS[style.id] ?? [],
       asShipped: true,
       fidelity: SEEDED_FIDELITY,
       editable: false,
@@ -1460,3 +1462,10 @@ const SEEDED_FIDELITY: string[] = [
   'Cover every topic that was discussed. A protocol that silently omits a topic is incomplete, even if what remains reads well.',
   'Never leave a placeholder such as [Datum] or [Details]. If something is not in the source, omit the line instead.',
 ];
+
+/** The checks the workspace reports, for the preview that has no workspace. */
+const SEEDED_CHECKS: Record<string, string[]> = {
+  'style-formal': [
+    'Ends with a table of agreed next steps. A table is a table in every language, so this is checked on the protocol itself and the draft is asked again if it is missing.',
+  ],
+};
