@@ -1189,7 +1189,7 @@ textarea::placeholder {
 .progress-subnote {
   width: 100%;
   margin: -2px 0 0;
-  color: var(--text-muted);
+  color: var(--muted);
   font-size: 0.76rem;
   line-height: 1.4;
 }
@@ -1306,7 +1306,7 @@ textarea::placeholder {
   font-size: 0.84rem;
 }
 .transcription-option span {
-  color: var(--text);
+  color: var(--ink);
 }
 .transcription-option select {
   min-height: 38px;
@@ -1314,7 +1314,7 @@ textarea::placeholder {
 .transcription-option small {
   grid-column: 2;
   margin-top: -4px;
-  color: var(--text-muted);
+  color: var(--muted);
   font-size: 0.74rem;
 }
 .speaker-preparation {
@@ -1325,7 +1325,7 @@ textarea::placeholder {
   max-width: 640px;
   margin: 18px 0;
   padding: 14px 16px;
-  border-left: 2px solid var(--accent);
+  border-left: 2px solid var(--action);
   background: var(--subtle);
 }
 .speaker-preparation strong {
@@ -1336,7 +1336,7 @@ textarea::placeholder {
 .speaker-preparation p {
   max-width: 430px;
   margin: 0;
-  color: var(--text-muted);
+  color: var(--muted);
   font-size: 0.78rem;
   line-height: 1.45;
 }
@@ -1566,7 +1566,7 @@ button.review-summary[aria-pressed='true'] {
   align-items: flex-start;
   gap: 7px;
   margin: -8px 0 18px;
-  color: var(--text-muted);
+  color: var(--muted);
   font-size: 0.75rem;
   line-height: 1.45;
 }
@@ -2187,7 +2187,7 @@ button.review-summary[aria-pressed='true'] {
 }
 .preset-row.active .preset-name::before {
   content: '● ';
-  color: var(--accent-ink, var(--ink));
+  color: var(--ink);
 }
 .preset-name {
   font-size: 0.94rem;
@@ -2881,7 +2881,7 @@ button.review-summary[aria-pressed='true'] {
 .correction-candidates button.candidate:hover,
 .correction-candidates button.candidate:focus-visible {
   border-color: var(--line);
-  background: var(--surface-raised, transparent);
+  background: transparent;
 }
 .candidate-word {
   font-weight: 600;
@@ -3903,8 +3903,8 @@ button.review-summary[aria-pressed='true'] {
   align-items: flex-start;
   margin-top: 10px;
   padding: 9px 11px;
-  color: var(--warning-ink, var(--ink));
-  background: color-mix(in srgb, var(--warning, #b3541e) 12%, transparent);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
   border-radius: 5px;
   font-size: 0.81rem;
   line-height: 1.5;
@@ -3936,14 +3936,14 @@ button.review-summary[aria-pressed='true'] {
 
 .proposal-diff del {
   padding: 1px 2px;
-  background: color-mix(in srgb, #b3541e 16%, transparent);
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
   text-decoration: line-through;
   text-decoration-thickness: 1px;
 }
 
 .proposal-diff ins {
   padding: 1px 2px;
-  background: color-mix(in srgb, #3f7d4e 18%, transparent);
+  background: color-mix(in srgb, var(--success) 18%, transparent);
   text-decoration: none;
 }
 
@@ -4352,7 +4352,7 @@ button.review-summary[aria-pressed='true'] {
   flex: 0 0 auto;
   width: 8px;
   height: 8px;
-  background: var(--recording-mark, #b3541e);
+  background: var(--danger);
   border-radius: 50%;
   animation: recording-breath 2.4s ease-in-out infinite;
 }
