@@ -330,7 +330,10 @@ mod replacing_a_name_in_a_protocol {
         let text = "Klinker plant den Umbau. Das klinkerfassade Team ist zuständig.";
         let (found, written) = replace_in_text(text, "Klinker", "Nordenstadt");
         assert_eq!(found.len(), 2);
-        assert_eq!(written, "Nordenstadt plant den Umbau. Das nordenstadter Team ist zuständig.");
+        assert_eq!(
+            written,
+            "Nordenstadt plant den Umbau. Das nordenstadter Team ist zuständig."
+        );
     }
 
     /// Lowering the first letter of an abbreviation would produce hOAI, and an
@@ -703,11 +706,7 @@ pub(crate) struct TextMatch {
 ///
 /// Returns what would change and the text it would become, and stores nothing. The
 /// caller decides whether to keep it.
-pub(crate) fn replace_in_text(
-    text: &str,
-    wrong: &str,
-    right: &str,
-) -> (Vec<TextMatch>, String) {
+pub(crate) fn replace_in_text(text: &str, wrong: &str, right: &str) -> (Vec<TextMatch>, String) {
     let correction = Correction {
         wrong: wrong.trim().to_string(),
         right: right.to_string(),

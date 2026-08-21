@@ -651,7 +651,10 @@ mod number_tests {
 
     #[test]
     fn a_trailing_separator_is_punctuation_rather_than_part_of_the_number() {
-        assert_eq!(numbers_in("bis zum 12. September 2026."), vec!["12", "2026"]);
+        assert_eq!(
+            numbers_in("bis zum 12. September 2026."),
+            vec!["12", "2026"]
+        );
     }
 
     #[test]

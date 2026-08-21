@@ -96,12 +96,6 @@ pub struct FurnitureRow {
     pub right: Vec<FurnitureField>,
 }
 
-impl FurnitureRow {
-    pub fn is_empty(&self) -> bool {
-        self.left.is_empty() && self.centre.is_empty() && self.right.is_empty()
-    }
-}
-
 /// One thing that can appear in a header or a footer.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", tag = "kind", content = "value")]
@@ -130,30 +124,6 @@ pub enum DocumentFont {
     TimesNewRoman,
     Arial,
     Calibri,
-}
-
-impl DocumentFont {
-    /// What to ask a browser for, in order.
-    pub fn css_stack(self) -> &'static str {
-        match self {
-            Self::Barlow => "'Barlow', system-ui, sans-serif",
-            Self::Georgia => "Georgia, 'Times New Roman', serif",
-            Self::TimesNewRoman => "'Times New Roman', Times, serif",
-            Self::Arial => "Arial, Helvetica, sans-serif",
-            Self::Calibri => "Calibri, Carlito, system-ui, sans-serif",
-        }
-    }
-
-    /// What to name in a Word document, which asks for one family and no fallback.
-    pub fn word_name(self) -> &'static str {
-        match self {
-            Self::Barlow => "Barlow",
-            Self::Georgia => "Georgia",
-            Self::TimesNewRoman => "Times New Roman",
-            Self::Arial => "Arial",
-            Self::Calibri => "Calibri",
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]

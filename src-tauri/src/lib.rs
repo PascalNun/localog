@@ -244,12 +244,11 @@ async fn transcription_capability(
     storage: State<'_, StorageState>,
 ) -> Result<models::TranscriptionCapability, String> {
     let root = storage.root.clone();
-    tauri::async_runtime::spawn_blocking(move || {
+    off_thread(move || {
         let repository = WorkspaceRepository::open(&root).map_err(|error| error.user_message())?;
         Ok(models::capability(&root, &selected_preset(&repository)))
     })
-    .await
-    .map_err(|_| "The local storage task stopped unexpectedly.".to_string())?
+    .await?
 }
 
 #[tauri::command]
@@ -258,7 +257,7 @@ async fn set_transcription_preset(
     preset: String,
 ) -> Result<models::TranscriptionCapability, String> {
     let root = storage.root.clone();
-    tauri::async_runtime::spawn_blocking(move || {
+    off_thread(move || {
         if !models::is_known_preset(&preset) {
             return Err("Choose a known transcription quality.".to_string());
         }
@@ -268,8 +267,7 @@ async fn set_transcription_preset(
             .map_err(|error| error.user_message())?;
         Ok(models::capability(&root, &preset))
     })
-    .await
-    .map_err(|_| "The local storage task stopped unexpectedly.".to_string())?
+    .await?
 }
 
 #[tauri::command]
@@ -278,13 +276,12 @@ async fn remove_transcription_model(
     model_id: String,
 ) -> Result<models::TranscriptionCapability, String> {
     let root = storage.root.clone();
-    tauri::async_runtime::spawn_blocking(move || {
+    off_thread(move || {
         models::remove_model(&root, &model_id).map_err(|error| error.to_string())?;
         let repository = WorkspaceRepository::open(&root).map_err(|error| error.user_message())?;
         Ok(models::capability(&root, &selected_preset(&repository)))
     })
-    .await
-    .map_err(|_| "The local storage task stopped unexpectedly.".to_string())?
+    .await?
 }
 
 /// Download a model in the background: progress and completion arrive as events so
@@ -1173,7 +1170,7 @@ async fn delete_meeting(
         return Err("This meeting is still being worked on. Cancel that first.".into());
     }
     let root = storage.root.clone();
-    tauri::async_runtime::spawn_blocking(move || {
+    off_thread(move || {
         let mut repository = storage::WorkspaceRepository::open(&root)?;
         let folder = repository.delete_meeting(&meeting_id)?;
         // The row is gone whatever happens here. Audio without a row is orphaned and
@@ -1181,8 +1178,7 @@ async fn delete_meeting(
         let _ = std::fs::remove_dir_all(&folder);
         repository.workspace_snapshot()
     })
-    .await
-    .map_err(|_| "The local storage task stopped unexpectedly.".to_string())?
+    .await?
     .map_err(|error: storage::StorageError| error.user_message())
 }
 
@@ -1346,14 +1342,13 @@ async fn set_protocol_sections(
     set_aside: Vec<storage::SetAsideSection>,
 ) -> Result<WorkspaceSnapshot, String> {
     let root = state.root.clone();
-    tauri::async_runtime::spawn_blocking(move || {
+    off_thread(move || {
         processing::autosave_protocol(&root, &meeting_id, &markdown)?;
         let repository = storage::WorkspaceRepository::open(&root)?;
         repository.write_set_aside_sections(&meeting_id, &set_aside)?;
         repository.workspace_snapshot()
     })
-    .await
-    .map_err(|_| "The local storage task stopped unexpectedly.".to_string())?
+    .await?
     .map_err(|error| error.user_message())
 }
 
@@ -1409,9 +1404,8 @@ async fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
 /// other export: an absolute path, never over an existing file, never half-written.
 #[tauri::command]
 async fn export_protocol_bytes(destination: String, contents: Vec<u8>) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || processing::write_export(&destination, &contents))
-        .await
-        .map_err(|_| "The local storage task stopped unexpectedly.".to_string())?
+    off_thread(move || processing::write_export(&destination, &contents))
+        .await?
         .map_err(|error| error.user_message())
 }
 
@@ -1606,17 +1600,31 @@ async fn update_meeting_language(
     .await
 }
 
+/// Run blocking work away from the interface thread.
+///
+/// What every caller shares is not the work but the answer when the task itself
+/// dies — which is a different thing from the work failing, and was written out
+/// eight times before it was written here once.
+async fn off_thread<R, F>(work: F) -> Result<R, String>
+where
+    R: Send + 'static,
+    F: FnOnce() -> R + Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|_| "The local storage task stopped unexpectedly.".to_string())
+}
+
 async fn with_repository<T, F>(root: PathBuf, operation: F) -> Result<T, String>
 where
     T: Send + 'static,
     F: FnOnce(&mut WorkspaceRepository) -> StorageResult<T> + Send + 'static,
 {
-    tauri::async_runtime::spawn_blocking(move || {
+    off_thread(move || {
         let mut repository = WorkspaceRepository::open(root)?;
         operation(&mut repository)
     })
-    .await
-    .map_err(|_| "The local storage task stopped unexpectedly.".to_string())?
+    .await?
     .map_err(|error| error.user_message())
 }
 
@@ -1625,9 +1633,8 @@ where
     T: Send + 'static,
     F: FnOnce(&std::path::Path) -> StorageResult<T> + Send + 'static,
 {
-    tauri::async_runtime::spawn_blocking(move || operation(&root))
-        .await
-        .map_err(|_| "The local storage task stopped unexpectedly.".to_string())?
+    off_thread(move || operation(&root))
+        .await?
         .map_err(|error| error.user_message())
 }
 

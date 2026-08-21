@@ -1,9 +1,8 @@
 use crate::domain::{
-    DocumentAppearance, FurnitureField, FurnitureRow, JobErrorSummary, PageFurniture,
-    StructuralExpectation,
-    PageWidth, Scale, Spacing, JobState, JobSummary, MeetingLifecycle, MeetingSummary, NewMeetingInput,
-    NewProjectInput, ProjectSummary, ProtocolDensity, ProtocolDocument, ProtocolEvidence,
-    ProtocolRevisionSummary, ProtocolStyle, SpeakerResolution, TranscriptDocument,
+    DocumentAppearance, FurnitureField, FurnitureRow, JobErrorSummary, JobState, JobSummary,
+    MeetingLifecycle, MeetingSummary, NewMeetingInput, NewProjectInput, PageFurniture, PageWidth,
+    ProjectSummary, ProtocolDensity, ProtocolDocument, ProtocolEvidence, ProtocolRevisionSummary,
+    ProtocolStyle, Scale, Spacing, SpeakerResolution, StructuralExpectation, TranscriptDocument,
     TranscriptSegment, VocabularyDraft, VocabularyEntry, WorkspaceSnapshot,
 };
 use rusqlite::{Connection, OptionalExtension, params};
@@ -1570,11 +1569,7 @@ impl WorkspaceRepository {
     }
 
     /// Set what repeats at the top and bottom of this project's printed pages.
-    pub fn set_project_furniture(
-        &self,
-        project_id: &str,
-        furniture: &PageFurniture,
-    ) -> Result<()> {
+    pub fn set_project_furniture(&self, project_id: &str, furniture: &PageFurniture) -> Result<()> {
         let json = serde_json::to_string(furniture)
             .map_err(|_| StorageError::InvalidData("The header and footer could not be stored."))?;
         let changed = self.connection.execute(
@@ -2595,7 +2590,9 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
 /// does not grow them back every time it opens.
 fn seed_export_templates(connection: &Connection) -> Result<()> {
     let existing: i64 =
-        connection.query_row("SELECT COUNT(*) FROM export_templates", [], |row| row.get(0))?;
+        connection.query_row("SELECT COUNT(*) FROM export_templates", [], |row| {
+            row.get(0)
+        })?;
     if existing > 0 {
         return Ok(());
     }
@@ -3334,7 +3331,9 @@ mod tests {
         let comprehensive = ProtocolDensity::Comprehensive.directive();
         assert!(comprehensive.contains("whatever length the material requires"));
         assert!(
-            !ProtocolDensity::Terse.directive().contains("whatever length"),
+            !ProtocolDensity::Terse
+                .directive()
+                .contains("whatever length"),
             "a terse protocol is not told to write at any length it likes"
         );
     }
@@ -3366,7 +3365,8 @@ mod tests {
 
         assert_ne!(copy_id, "style-formal", "a copy is a different style");
         assert!(
-            copy.expectations.contains(&StructuralExpectation::ActionTable),
+            copy.expectations
+                .contains(&StructuralExpectation::ActionTable),
             "a copy of a style that requires an actions table requires one too"
         );
     }
@@ -3412,9 +3412,18 @@ mod tests {
         }
 
         let rules = crate::provider::FIDELITY_RULES.join(" ");
-        assert!(rules.contains("Never invent"), "the rule must exist somewhere");
-        assert!(rules.contains("placeholder"), "the rule must exist somewhere");
-        assert!(rules.contains("exactly as stated"), "figures must be protected");
+        assert!(
+            rules.contains("Never invent"),
+            "the rule must exist somewhere"
+        );
+        assert!(
+            rules.contains("placeholder"),
+            "the rule must exist somewhere"
+        );
+        assert!(
+            rules.contains("exactly as stated"),
+            "figures must be protected"
+        );
     }
 
     /// Starting a recording, against the real table rather than against a reading of
@@ -4100,5 +4109,3 @@ mod tests {
         assert_eq!(recovered.jobs[0].state, JobState::Queued);
     }
 }
-
-

@@ -3797,7 +3797,10 @@ mod recording_contract {
             )
             .unwrap();
 
-        assert_eq!(state, "committed", "transcription only reads committed rows");
+        assert_eq!(
+            state, "committed",
+            "transcription only reads committed rows"
+        );
         let checksum = checksum.expect("transcription verifies a checksum");
         assert_eq!(checksum.len(), 64, "a sha-256 digest, as everywhere else");
         let combined = root.join(relative.expect("a committed recording has a path"));

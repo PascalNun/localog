@@ -2066,7 +2066,10 @@ mod what_reaches_the_model {
             ProtocolDensity::Terse,
             vec!["Organise the protocol by topic.".into()],
         ));
-        assert_eq!(full.first().map(String::as_str), Some("Organise the protocol by topic."));
+        assert_eq!(
+            full.first().map(String::as_str),
+            Some("Organise the protocol by topic.")
+        );
         assert_eq!(
             full.last().map(String::as_str),
             Some(ProtocolDensity::Terse.directive())
@@ -2158,7 +2161,10 @@ mod tidying_a_rewrite {
 
     #[test]
     fn strips_the_wrapping_a_model_adds_when_asked_for_only_the_answer() {
-        assert_eq!(tidy_refinement("```\nDie Fassade.\n```", "x"), "Die Fassade.");
+        assert_eq!(
+            tidy_refinement("```\nDie Fassade.\n```", "x"),
+            "Die Fassade."
+        );
         assert_eq!(
             tidy_refinement("Here is the revised passage:\nDie Fassade.", "x"),
             "Die Fassade."
@@ -2171,7 +2177,10 @@ mod tidying_a_rewrite {
     #[test]
     fn removes_emphasis_the_passage_never_had() {
         assert_eq!(
-            tidy_refinement("Im **2. OG** bis **12.09.2026**.", "Im 2. OG bis 12.09.2026."),
+            tidy_refinement(
+                "Im **2. OG** bis **12.09.2026**.",
+                "Im 2. OG bis 12.09.2026."
+            ),
             "Im 2. OG bis 12.09.2026."
         );
     }
@@ -2210,9 +2219,18 @@ mod checking_capability {
     /// were actually measured rather than a round figure.
     #[test]
     fn only_a_model_measured_to_be_useful_is_asked() {
-        assert!(!can_check_a_rewrite(&model("4.7B")), "4.7B objects to everything");
-        assert!(can_check_a_rewrite(&model("8.9B")), "8.9B was measured useful");
-        assert!(can_check_a_rewrite(&model("11.9B")), "11.9B was measured useful");
+        assert!(
+            !can_check_a_rewrite(&model("4.7B")),
+            "4.7B objects to everything"
+        );
+        assert!(
+            can_check_a_rewrite(&model("8.9B")),
+            "8.9B was measured useful"
+        );
+        assert!(
+            can_check_a_rewrite(&model("11.9B")),
+            "11.9B was measured useful"
+        );
     }
 
     /// An older runtime says nothing about size, and a hint that might be noise is
