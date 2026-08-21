@@ -510,3 +510,182 @@ pub struct AppliedCorrection {
     #[serde(default)]
     pub remember: bool,
 }
+
+#[cfg(test)]
+mod the_words_both_halves_use {
+    use super::*;
+
+    /// The vocabularies Rust sends and TypeScript expects, checked against each other.
+    ///
+    /// Nothing in either type system connects a variant here to a string union in
+    /// `types.ts`: the wire is JSON, and a name that exists on one side and not the
+    /// other is a runtime surprise rather than a compile error. A meeting lifecycle
+    /// added in Rust and not in the interface reaches the sidebar as a state nothing
+    /// knows how to draw.
+    ///
+    /// The enums cannot be generated from one another without a code generator, and
+    /// that is a dependency this project would rather not carry for eighteen words.
+    /// So they are written twice on purpose, and this reads both and insists they say
+    /// the same thing.
+    const TYPES: &str = include_str!("../../src/lib/workflow/types.ts");
+
+    /// The variants of one enum, with a compile-time check that none is missing.
+    ///
+    /// The match is the point. Adding a variant to the enum makes it non-exhaustive,
+    /// and the compiler stops the build here until the new name is written into the
+    /// list — which is the moment to notice that TypeScript needs it too.
+    macro_rules! every {
+        ($enum:ident, [$($variant:ident),+ $(,)?]) => {{
+            fn nothing_left_out(value: &$enum) {
+                match value {
+                    $($enum::$variant => {}),+
+                }
+            }
+            let _ = nothing_left_out;
+            vec![$($enum::$variant),+]
+        }};
+    }
+
+    /// The quoted alternatives of `export type <name> = 'a' | 'b';`.
+    fn typescript_union(name: &str) -> Vec<String> {
+        let opening = format!("export type {name} =");
+        let at = TYPES
+            .find(&opening)
+            .unwrap_or_else(|| panic!("types.ts no longer declares {name}"));
+        let rest = &TYPES[at + opening.len()..];
+        let end = rest
+            .find(';')
+            .unwrap_or_else(|| panic!("the declaration of {name} does not end"));
+        rest[..end]
+            .split('\'')
+            .skip(1)
+            .step_by(2)
+            .map(str::to_string)
+            .collect()
+    }
+
+    fn assert_agree<T: Serialize>(name: &str, variants: Vec<T>) {
+        let mut sent: Vec<String> = variants
+            .iter()
+            .map(|variant| {
+                serde_json::to_value(variant)
+                    .expect("a wire enum serialises")
+                    .as_str()
+                    .expect("as a string")
+                    .to_string()
+            })
+            .collect();
+        let mut expected = typescript_union(name);
+        sent.sort();
+        expected.sort();
+        assert_eq!(
+            sent, expected,
+            "{name} has drifted: Rust sends {sent:?}, types.ts expects {expected:?}"
+        );
+    }
+
+    /// The quoted alternatives of one field of an interface, for the vocabularies
+    /// that cross the wire inside `DocumentAppearance` rather than under a name of
+    /// their own.
+    fn typescript_field(interface: &str, field: &str) -> Vec<String> {
+        let opening = format!("export interface {interface} {{");
+        let at = TYPES
+            .find(&opening)
+            .unwrap_or_else(|| panic!("types.ts no longer declares {interface}"));
+        let body = &TYPES[at..];
+        let end = body.find("\n}").expect("the interface does not end");
+        let line = body[..end]
+            .lines()
+            .find(|line| line.trim_start().starts_with(&format!("{field}:")))
+            .unwrap_or_else(|| panic!("{interface} has no {field}"));
+        line.split('\'')
+            .skip(1)
+            .step_by(2)
+            .map(str::to_string)
+            .collect()
+    }
+
+    fn assert_field_agrees<T: Serialize>(field: &str, variants: Vec<T>) {
+        let mut sent: Vec<String> = variants
+            .iter()
+            .map(|variant| {
+                serde_json::to_value(variant)
+                    .expect("a wire enum serialises")
+                    .as_str()
+                    .expect("as a string")
+                    .to_string()
+            })
+            .collect();
+        let mut expected = typescript_field("DocumentAppearance", field);
+        sent.sort();
+        expected.sort();
+        assert_eq!(
+            sent, expected,
+            "DocumentAppearance.{field} has drifted: Rust sends {sent:?}, types.ts expects {expected:?}"
+        );
+    }
+    #[test]
+    fn a_job_state_means_the_same_on_both_sides() {
+        assert_agree(
+            "JobState",
+            every!(
+                JobState,
+                [
+                    Queued,
+                    Running,
+                    Cancelling,
+                    Failed,
+                    Cancelled,
+                    Interrupted,
+                    Completed
+                ]
+            ),
+        );
+    }
+
+    #[test]
+    fn a_meeting_lifecycle_means_the_same_on_both_sides() {
+        assert_agree(
+            "MeetingLifecycle",
+            every!(
+                MeetingLifecycle,
+                [
+                    Draft,
+                    SourceReady,
+                    TranscriptReady,
+                    ProtocolDraft,
+                    Reviewed,
+                    Archived
+                ]
+            ),
+        );
+    }
+
+    #[test]
+    fn a_protocol_density_means_the_same_on_both_sides() {
+        assert_agree(
+            "ProtocolDensity",
+            every!(ProtocolDensity, [Comprehensive, Concise, Terse]),
+        );
+    }
+
+    /// How a protocol is set on the page: four vocabularies the appearance panel
+    /// writes and the exporters read, and the one place they could disagree without
+    /// anything saying so.
+    #[test]
+    fn the_appearance_vocabulary_means_the_same_on_both_sides() {
+        assert_field_agrees(
+            "font",
+            every!(
+                DocumentFont,
+                [Barlow, Georgia, TimesNewRoman, Arial, Calibri]
+            ),
+        );
+        assert_field_agrees("headingScale", every!(Scale, [Compact, Standard, Large]));
+        assert_field_agrees(
+            "lineSpacing",
+            every!(Spacing, [Compact, Comfortable, Spacious]),
+        );
+        assert_field_agrees("pageWidth", every!(PageWidth, [Narrow, Standard, Wide, A4]));
+    }
+}
