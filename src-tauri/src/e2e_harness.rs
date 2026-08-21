@@ -361,7 +361,6 @@ fn finds_the_topics_of_a_real_meeting() {
             revision: "1".into(),
             density: crate::domain::ProtocolDensity::Comprehensive,
             instructions: Vec::new(),
-            required_sections: Vec::new(),
             expectations: Vec::new(),
         },
         vocabulary_revision: "topics".into(),

@@ -153,7 +153,6 @@ pub(crate) struct ResolvedProtocolStyle {
     pub id: String,
     pub revision: String,
     pub instructions: Vec<String>,
-    pub required_sections: Vec<String>,
     pub expectations: Vec<StructuralExpectation>,
     pub density: ProtocolDensity,
 }
@@ -2652,20 +2651,20 @@ fn project_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ProjectSummary>
 
 fn protocol_style_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ResolvedProtocolStyle> {
     let instructions_json: String = row.get(4)?;
-    let required_sections_json: String = row.get(5)?;
     let instructions = serde_json::from_str(&instructions_json).map_err(|error| {
         rusqlite::Error::FromSqlConversionFailure(4, rusqlite::types::Type::Text, Box::new(error))
     })?;
-    let required_sections = serde_json::from_str(&required_sections_json).map_err(|error| {
-        rusqlite::Error::FromSqlConversionFailure(5, rusqlite::types::Type::Text, Box::new(error))
-    })?;
+    // Column 5 is `required_sections_json`, which nothing reads any more. The column
+    // stays because it is NOT NULL and rebuilding the table to drop it would cost
+    // more than an unread column does; every query still selects it so the indexes
+    // below keep their meaning.
+
     let id: String = row.get(0)?;
     let revision: i64 = row.get(6)?;
     Ok(ResolvedProtocolStyle {
         id,
         revision: format!("{}@{}", row.get::<_, String>(0)?, revision),
         instructions,
-        required_sections,
         density: row
             .get::<_, String>(7)
             .ok()

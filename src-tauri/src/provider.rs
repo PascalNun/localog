@@ -164,21 +164,6 @@ pub struct GenerationStyle {
     pub instructions: Vec<String>,
     /// What a protocol of this style must contain, checkable in any language.
     pub expectations: Vec<crate::domain::StructuralExpectation>,
-    /// What a style intends a protocol to contain. Kept as a description of the
-    /// style, and deliberately **not** sent to the model.
-    ///
-    /// These are stored as literal English strings — "Summary", "Decisions" —
-    /// while the protocol is written in the language of the meeting. Putting them
-    /// in the prompt told a German-language model to produce four English
-    /// headings while the style instructions told it to organise by topic into
-    /// numbered sections, and the two instructions fought. Measured on the real
-    /// meeting, removing them took the protocol from 2,747 characters and two
-    /// headings to 17,393 and forty-one, and the quantities it recorded from one
-    /// of nineteen to fourteen.
-    ///
-    /// The style instructions already prescribe the structure in the meeting's own
-    /// language, which is where that belongs. Do not add this back to a payload.
-    pub required_sections: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -241,6 +226,19 @@ struct StructuredProtocol {
 }
 
 #[derive(Serialize)]
+/// What the model is given. Section names are deliberately not among them.
+///
+/// A `required_sections` field once held literal English strings — "Summary",
+/// "Decisions" — while the protocol is written in the language of the meeting.
+/// Putting them in this payload told a German-language model to produce four English
+/// headings while the style instructions told it to organise by topic into numbered
+/// sections, and the two fought. Measured on the real meeting, removing them took the
+/// protocol from 2,747 characters and two headings to 17,393 and forty-one, and the
+/// quantities it recorded from one of nineteen to fourteen.
+///
+/// The field itself is gone now, replaced by structural expectations that are checked
+/// on the finished document rather than asked for in a prompt. Do not add section
+/// names back here.
 struct PromptPayload<'a> {
     meeting_language: &'a str,
     style_id: &'a str,
@@ -2034,7 +2032,6 @@ mod the_table_a_style_asks_for {
             revision: "1".into(),
             density: ProtocolDensity::Comprehensive,
             instructions: Vec::new(),
-            required_sections: Vec::new(),
             expectations,
         }
     }
@@ -2186,7 +2183,6 @@ pub(crate) fn sizing_probe(context_tokens: u32, maximum_output_tokens: u32) -> (
         revision: "probe".into(),
         density: crate::domain::ProtocolDensity::Comprehensive,
         instructions: crate::eval_harness::formal_minutes_instructions(),
-        required_sections: Vec::new(),
         expectations: vec![crate::domain::StructuralExpectation::ActionTable],
     };
     // A transcript the size of the reference meeting, in segments its size.
@@ -2775,10 +2771,11 @@ fn within_budget(section: &str, budget: usize) -> Result<()> {
 /// id, so the copy of the formal style would have quietly stopped requiring the
 /// table its original demands.
 ///
-/// `required_sections` was the field meant for this and could not do it. It holds
-/// English section names while the protocol is written in the meeting's language, so
-/// matching "Actions" against "Aufgaben" needs something this application does not
-/// have, and it was therefore never checked anywhere. A table needs no translating.
+/// The field this replaced — `required_sections` — held English section names while
+/// the protocol is written in the meeting's language, so matching "Actions" against
+/// "Aufgaben" needed something this application does not have. It was never checked
+/// anywhere and has been removed rather than left to look load-bearing. A table needs
+/// no translating.
 fn wants_an_action_table(style: &GenerationStyle) -> bool {
     style
         .expectations
@@ -3250,7 +3247,7 @@ mod tests {
     }
 
     /// A table is a table in any language, which is the whole reason the check is
-    /// structural: required_sections holds English names and the protocol is German.
+    /// structural rather than a list of section names.
     #[test]
     fn the_table_check_does_not_depend_on_language() {
         assert!(has_a_table(
@@ -3276,7 +3273,6 @@ mod tests {
             revision: "formal-minutes@2".into(),
             density: crate::domain::ProtocolDensity::Comprehensive,
             instructions: Vec::new(),
-            required_sections: Vec::new(),
             expectations: vec![crate::domain::StructuralExpectation::ActionTable],
         }
     }
@@ -3579,7 +3575,6 @@ mod tests {
                 revision: "1".into(),
                 density: crate::domain::ProtocolDensity::Comprehensive,
                 instructions: vec!["Write a calm, factual professional protocol.".into()],
-                required_sections: vec!["Zusammenfassung".into()],
                 expectations: vec![crate::domain::StructuralExpectation::ActionTable],
             },
             vocabulary_revision: "1".into(),
