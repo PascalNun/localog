@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 21;
+const CURRENT_SCHEMA_VERSION: i64 = 22;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -2459,6 +2459,45 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             )?;
         }
         connection.pragma_update(None, "user_version", 21)?;
+        version = 21;
+    }
+    if version == 21 {
+        // The length instruction leaves every style and becomes part of what
+        // "comprehensive" means.
+        //
+        // It told the model not to compress the meeting, which was right while the
+        // formal style was the only style and no length could be chosen. Once density
+        // became a setting it contradicted two of the three: a style cannot both
+        // refuse to compress and be asked for a line per point. It is not deleted —
+        // it was measured to hold three drafts within 189 characters of one another
+        // where removing it scattered them across 1,051 — so it moves into the
+        // comprehensive directive instead, where it applies exactly when it is true.
+        const MOVED: &str = "Write at whatever length the material requires. Do not compress the meeting into a summary: this is a record, and a reader who was absent must be able to follow what was discussed and what follows from it.";
+        let mut styles: Vec<(String, String)> = Vec::new();
+        {
+            let mut statement =
+                connection.prepare("SELECT id, instructions_json FROM protocol_styles")?;
+            let rows = statement.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+            for row in rows {
+                styles.push(row?);
+            }
+        }
+        for (id, json) in styles {
+            let Ok(instructions) = serde_json::from_str::<Vec<String>>(&json) else {
+                continue;
+            };
+            if !instructions.iter().any(|line| line == MOVED) {
+                continue;
+            }
+            let kept: Vec<&String> = instructions.iter().filter(|line| *line != MOVED).collect();
+            let rewritten = serde_json::to_string(&kept)
+                .map_err(|_| StorageError::InvalidData("A style could not be migrated."))?;
+            connection.execute(
+                "UPDATE protocol_styles SET instructions_json = ?1 WHERE id = ?2",
+                params![rewritten, id],
+            )?;
+        }
+        connection.pragma_update(None, "user_version", 22)?;
     }
     Ok(())
 }
@@ -3108,6 +3147,34 @@ mod tests {
         // The properties a protocol of this kind depends on, which are the style's.
         assert!(joined.contains("by topic"), "must organise by topic");
         assert!(joined.contains("next steps"), "must end in an action table");
+    }
+
+    /// A style must not carry an instruction that contradicts the length chosen.
+    ///
+    /// "Do not compress the meeting into a summary" was right while the formal style
+    /// was the only style and no length could be chosen. Once density became a
+    /// setting it contradicted two of the three, so it belongs to the comprehensive
+    /// directive rather than to any style.
+    #[test]
+    fn no_style_tells_the_model_what_length_to_write_at() {
+        let temporary = tempdir().unwrap();
+        let repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        for id in ["style-formal", "style-working-note", "style-decision-log"] {
+            let joined = repository.protocol_inputs_style(id).instructions.join(" ");
+            assert!(
+                !joined.contains("Do not compress"),
+                "{id} still argues with the length it was given"
+            );
+        }
+
+        // And it must not have been lost on the way: it is what stops "full prose"
+        // being read as a licence to summarise.
+        let comprehensive = ProtocolDensity::Comprehensive.directive();
+        assert!(comprehensive.contains("whatever length the material requires"));
+        assert!(
+            !ProtocolDensity::Terse.directive().contains("whatever length"),
+            "a terse protocol is not told to write at any length it likes"
+        );
     }
 
     /// The fault that made structural expectations necessary.

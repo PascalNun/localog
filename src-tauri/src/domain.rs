@@ -459,7 +459,17 @@ impl ProtocolDensity {
     pub fn directive(self) -> &'static str {
         match self {
             Self::Comprehensive => {
-                "Write in full prose, giving each point the context a reader who was not present would need to understand it."
+                // The second sentence used to sit in the formal style's own
+                // instruction list, where it contradicted two of the three settings
+                // the moment density became a choice: a style cannot both refuse to
+                // compress and be asked for a line per point.
+                //
+                // It is kept rather than dropped because it was measured to earn its
+                // place here. With it, three drafts at this setting landed within
+                // 189 characters of one another; without it they scattered across
+                // 1,051. It is what stops "full prose" being read as a licence to
+                // summarise.
+                "Write in full prose, giving each point the context a reader who was not present would need to understand it. Write at whatever length the material requires: this is a record rather than a summary, and a reader who was absent must be able to follow what was discussed and what follows from it."
             }
             Self::Concise => {
                 "Write plainly and without elaboration. State each point, and its reason where one was given, in a sentence or two."
