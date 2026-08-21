@@ -2020,6 +2020,70 @@ fn answer_budget(context_tokens: u32, prompt_chars: usize, requested: u32) -> u3
 /// about whether a window can hold a protocol is answered by arithmetic rather than
 /// by inference from a failure. Used by the evaluation harness.
 #[cfg(test)]
+mod the_table_a_style_asks_for {
+    use super::{GenerationStyle, validate_protocol};
+    use crate::domain::{ProtocolDensity, StructuralExpectation};
+
+    fn with_table() -> String {
+        format!("{BODY}{TABLE}")
+    }
+
+    fn style(expectations: Vec<StructuralExpectation>) -> GenerationStyle {
+        GenerationStyle {
+            id: "whatever-it-is-called".into(),
+            revision: "1".into(),
+            density: ProtocolDensity::Comprehensive,
+            instructions: Vec::new(),
+            required_sections: Vec::new(),
+            expectations,
+        }
+    }
+
+    /// Long enough to clear the floor a protocol must reach: `validate_markdown`
+    /// refuses anything under two hundred characters as a non-answer.
+    const BODY: &str = "# Protokoll der Sitzung\n\n## 1. Fassade\n\nDie Ausführung wurde \
+        besprochen und die betroffene Fläche von 148,5 m² im zweiten Obergeschoss \
+        bestätigt. Die Anpassungen im Bereich der Lüftung wurden aufgrund von \
+        Änderungen seitens der Architekten vorgenommen, und Herr Planung hat zugesagt, \
+        die Kostenspanne bis zum 12. September 2026 zu nennen.\n";
+
+    const TABLE: &str = "\n## 2. Nächste Schritte\n\n| Aufgabe | Verantwortlich |\n\
+        | --- | --- |\n| Angebot einholen | Frau Bauleitung |\n";
+
+    /// The check now reads what the style requires rather than what it is called,
+    /// which is what makes a duplicated style behave like the one it was copied from.
+    #[test]
+    fn a_style_that_asks_for_a_table_is_refused_a_protocol_without_one() {
+        let asking = style(vec![StructuralExpectation::ActionTable]);
+        // The transcript length only sets a floor on how short a protocol may be;
+        // these fixtures are short, so the transcript they claim to come from is too.
+        assert!(validate_protocol(BODY, 900, &asking).is_err());
+        assert!(validate_protocol(&with_table(), 900, &asking).is_ok());
+    }
+
+    #[test]
+    fn a_style_that_does_not_ask_is_content_either_way() {
+        let quiet = style(Vec::new());
+        assert!(validate_protocol(BODY, 900, &quiet).is_ok());
+        assert!(validate_protocol(&with_table(), 900, &quiet).is_ok());
+    }
+
+    /// The name is no longer consulted, which is the whole point of the change.
+    #[test]
+    fn the_style_being_called_something_else_changes_nothing() {
+        let mut named = style(vec![StructuralExpectation::ActionTable]);
+        named.id = "style-formal".into();
+        let mut copied = style(vec![StructuralExpectation::ActionTable]);
+        copied.id = "style-01ABCDEF-a-copy".into();
+        assert!(validate_protocol(BODY, 900, &named).is_err());
+        assert!(
+            validate_protocol(BODY, 900, &copied).is_err(),
+            "a copy must be held to the same requirement as its original"
+        );
+    }
+}
+
+#[cfg(test)]
 mod tidying_a_rewrite {
     use super::tidy_refinement;
 
