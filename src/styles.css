@@ -1411,8 +1411,7 @@ textarea::placeholder {
   background: var(--action);
   border-radius: 50%;
 }
-.time-readout,
-.speed-control {
+.time-readout {
   color: var(--muted);
   font-size: 0.76rem;
   font-variant-numeric: tabular-nums;
@@ -2198,9 +2197,6 @@ button.review-summary[aria-pressed='true'] {
   color: var(--muted);
   font-size: 0.78rem;
 }
-.preset-model {
-  font-variant-numeric: tabular-nums;
-}
 .preset-state {
   display: flex;
   align-items: center;
@@ -2236,15 +2232,6 @@ button.review-summary[aria-pressed='true'] {
   gap: 16px;
   padding: 16px 0 4px;
   flex-wrap: wrap;
-}
-.speaker-count-field {
-  display: grid;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 0.76rem;
-}
-.speaker-count-field select {
-  min-width: 200px;
 }
 .transcript-segment.playing {
   background: var(--subtle);
@@ -2589,7 +2576,6 @@ button.review-summary[aria-pressed='true'] {
     gap: 7px;
     padding: 12px;
   }
-  .speed-control,
   .follow-toggle {
     display: none;
   }
@@ -3308,18 +3294,7 @@ button.review-summary[aria-pressed='true'] {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-.document-note {
-  max-width: 40em;
-  padding-top: 14px;
-  color: var(--faint);
-  font-size: 0.8rem;
-  line-height: 1.55;
-  border-top: 1px solid var(--line);
-}
-
-/* The protocol on paper.
+} /* The protocol on paper.
    The sheet is built beside the application and only exists while the print dialog
    is open, so nothing about the editor's layout reaches the page. */
 #protocol-print-root {
@@ -3922,16 +3897,6 @@ button.review-summary[aria-pressed='true'] {
   font-size: 0.74rem;
   line-height: 1.5;
 }
-
-.refine-undo {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-top: 10px;
-  color: var(--muted);
-  font-size: 0.8rem;
-}
-
 .refine-lost {
   display: flex;
   gap: 8px;
@@ -4038,13 +4003,6 @@ button.review-summary[aria-pressed='true'] {
 .editor-menu-sheet button:hover .icon {
   color: var(--muted);
 }
-
-/* The one control in the selection toolbar that keeps a word, because a picture of
-   "rewrite this" is a picture nobody reads the same way twice. */
-.selection-toolbar .action-word {
-  font-size: 0.8rem;
-}
-
 .table-toolbar .text-action,
 .selection-toolbar .text-action {
   color: var(--muted);
