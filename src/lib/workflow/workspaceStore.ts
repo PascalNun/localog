@@ -92,6 +92,7 @@ export interface WorkspaceStore {
     density: ProtocolDensity,
   ) => Promise<WorkspaceData>;
   deleteProtocolStyle?: (styleId: string) => Promise<WorkspaceData>;
+  deleteMeeting?: (meetingId: string) => Promise<WorkspaceData>;
   setProjectAppearance?: (
     projectId: string,
     appearance: DocumentAppearance,
@@ -313,6 +314,10 @@ class TauriWorkspaceStore implements WorkspaceStore {
 
   deleteProtocolStyle(styleId: string): Promise<WorkspaceData> {
     return invoke('delete_protocol_style', { styleId });
+  }
+
+  deleteMeeting(meetingId: string): Promise<WorkspaceData> {
+    return invoke('delete_meeting', { meetingId });
   }
 
   setProjectAppearance(projectId: string, appearance: DocumentAppearance): Promise<WorkspaceData> {

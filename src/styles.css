@@ -447,6 +447,19 @@ body.sidebar-resizing * {
   font-size: 0.78rem;
 }
 
+/* It is a way through to the meeting, so it has to look like one. */
+.local-status {
+  width: 100%;
+  padding: 8px 9px;
+  background: transparent;
+  border-radius: 5px;
+  text-align: left;
+}
+
+.local-status:hover {
+  background: var(--subtle);
+}
+
 .local-status > span:last-child {
   display: grid;
   gap: 2px;
@@ -784,11 +797,51 @@ body.sidebar-resizing * {
 /* Project overview and meeting index */
 
 .meeting-index-header,
+/* The row opens the meeting; the last column is how it leaves. The columns stay
+   where they were — the header above them still names four of them — so the opening
+   button carries the grid and the row only holds it beside the delete. */
 .meeting-row {
   display: grid;
-  grid-template-columns: 130px minmax(240px, 1.7fr) 100px minmax(150px, 1fr) 24px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.meeting-open {
+  display: grid;
+  grid-template-columns: 130px minmax(240px, 1.7fr) 100px minmax(150px, 1fr);
   align-items: center;
   gap: 18px;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  text-align: left;
+}
+
+/* Quiet until wanted, and reachable from the keyboard rather than by hovering. */
+.meeting-delete {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.meeting-row:hover .meeting-delete,
+.meeting-delete:focus-visible {
+  opacity: 1;
+}
+
+.meeting-confirm {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.meeting-delete-note {
+  max-width: 62ch;
+  margin-top: 12px;
+  color: var(--faint);
+  font-size: 0.8rem;
+  line-height: 1.5;
 }
 
 .meeting-index-header {

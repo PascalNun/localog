@@ -132,6 +132,19 @@ impl JobCoordinatorState {
         }
     }
 
+    /// Whether anything heavy is running for this meeting.
+    ///
+    /// Asked before a meeting is deleted: cancelling a transcription by removing the
+    /// folder underneath it would leave a runtime writing into somewhere that no
+    /// longer exists.
+    fn is_busy(&self, meeting_id: &str) -> bool {
+        self.heavy
+            .lock()
+            .ok()
+            .and_then(|held| held.as_ref().map(|task| task.key.contains(meeting_id)))
+            .unwrap_or(false)
+    }
+
     /// Release the slot, but only if it is still ours.
     fn release_heavy(&self, key: &str) {
         if let Ok(mut held) = self.heavy.lock()
@@ -1145,6 +1158,34 @@ async fn set_project_appearance(
     .await
 }
 
+/// Delete a meeting, its recordings, its transcript and its protocols.
+///
+/// Refused while the meeting is being worked on: cancelling a transcription by
+/// deleting the meeting underneath it would leave a runtime writing into a folder
+/// that no longer exists.
+#[tauri::command]
+async fn delete_meeting(
+    storage: State<'_, StorageState>,
+    jobs: State<'_, JobCoordinatorState>,
+    meeting_id: String,
+) -> Result<WorkspaceSnapshot, String> {
+    if jobs.is_busy(&meeting_id) {
+        return Err("This meeting is still being worked on. Cancel that first.".into());
+    }
+    let root = storage.root.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut repository = storage::WorkspaceRepository::open(&root)?;
+        let folder = repository.delete_meeting(&meeting_id)?;
+        // The row is gone whatever happens here. Audio without a row is orphaned and
+        // findable; a row pointing at audio that is gone is simply broken.
+        let _ = std::fs::remove_dir_all(&folder);
+        repository.workspace_snapshot()
+    })
+    .await
+    .map_err(|_| "The local storage task stopped unexpectedly.".to_string())?
+    .map_err(|error: storage::StorageError| error.user_message())
+}
+
 /// Copy a style so it can be changed without touching the one that shipped.
 #[tauri::command]
 async fn duplicate_protocol_style(
@@ -1637,6 +1678,7 @@ pub fn run() {
             start_generation,
             cancel_processing,
             protocol_style_detail,
+            delete_meeting,
             duplicate_protocol_style,
             update_protocol_style,
             delete_protocol_style,

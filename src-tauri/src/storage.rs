@@ -309,6 +309,56 @@ impl WorkspaceRepository {
         })
     }
 
+    /// Delete a meeting and everything that belongs to it.
+    ///
+    /// Really delete. A meeting recorded by mistake, or a test, should be able to
+    /// leave — and leaving a row marked hidden while its audio still sits on the disk
+    /// would be a deletion that did not delete, which is the wrong thing to tell
+    /// somebody about their own recording.
+    ///
+    /// The order is the order the foreign keys allow: the things that point at
+    /// revisions, then the revisions, then the things that point at the meeting, then
+    /// the meeting. Done in one transaction, because a meeting half-deleted is worse
+    /// than one still there.
+    ///
+    /// Returns the meeting's folder so the caller can remove the files. The database
+    /// goes first: a row pointing at audio that is gone is unreadable, while audio
+    /// with no row is merely orphaned, and the sweep can find it.
+    pub fn delete_meeting(&mut self, meeting_id: &str) -> Result<PathBuf> {
+        let project_id: String = self
+            .connection
+            .query_row(
+                "SELECT project_id FROM meetings WHERE id = ?1",
+                [meeting_id],
+                |row| row.get(0),
+            )
+            .optional()?
+            .ok_or(StorageError::MissingMeeting)?;
+
+        let transaction = self.connection.transaction()?;
+        for statement in [
+            "DELETE FROM normalized_media WHERE recording_id IN
+                 (SELECT id FROM recordings WHERE meeting_id = ?1)",
+            "DELETE FROM jobs WHERE meeting_id = ?1",
+            "DELETE FROM protocol_working WHERE meeting_id = ?1",
+            "DELETE FROM protocol_revisions WHERE meeting_id = ?1",
+            "DELETE FROM transcript_working WHERE meeting_id = ?1",
+            "DELETE FROM transcript_revisions WHERE meeting_id = ?1",
+            "DELETE FROM recordings WHERE meeting_id = ?1",
+            "DELETE FROM meetings WHERE id = ?1",
+        ] {
+            transaction.execute(statement, [meeting_id])?;
+        }
+        transaction.commit()?;
+
+        Ok(self
+            .root
+            .join("projects")
+            .join(project_id)
+            .join("meetings")
+            .join(meeting_id))
+    }
+
     /// Copy a style so it can be changed without touching the one that shipped.
     pub fn duplicate_protocol_style(&self, style_id: &str, name: &str) -> Result<String> {
         let name = name.trim();
@@ -3184,6 +3234,81 @@ mod tests {
         // The properties a protocol of this kind depends on, which are the style's.
         assert!(joined.contains("by topic"), "must organise by topic");
         assert!(joined.contains("next steps"), "must end in an action table");
+    }
+
+    /// A meeting deleted must take everything with it.
+    ///
+    /// A recorded meeting owns rows in six tables and a folder of audio. Leaving any
+    /// of it behind is the kind of deletion that looks done and is not — and a
+    /// foreign key would refuse the row anyway, so a partial delete fails loudly in
+    /// the middle rather than quietly at the end.
+    #[test]
+    fn deleting_a_meeting_leaves_nothing_of_it() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        let mut repository = WorkspaceRepository::open(root).unwrap();
+        let (project_id, meeting_id) = project_with_meeting(&mut repository, root);
+
+        // A recording, so the delete has something to cascade through.
+        repository
+            .connection
+            .execute(
+                crate::processing::START_RECORDING_ROW,
+                params![
+                    "recording-doomed",
+                    meeting_id,
+                    "recording-doomed-system.wav",
+                    1
+                ],
+            )
+            .unwrap();
+        let folder = root
+            .join("projects")
+            .join(&project_id)
+            .join("meetings")
+            .join(&meeting_id);
+        fs::create_dir_all(&folder).unwrap();
+        fs::write(folder.join("audio.wav"), b"not really audio").unwrap();
+
+        let removed = repository.delete_meeting(&meeting_id).unwrap();
+        assert_eq!(removed, folder, "the caller is told which folder to remove");
+
+        for (table, column) in [
+            ("meetings", "id"),
+            ("recordings", "meeting_id"),
+            ("jobs", "meeting_id"),
+            ("transcript_revisions", "meeting_id"),
+            ("protocol_revisions", "meeting_id"),
+        ] {
+            let left: i64 = repository
+                .connection
+                .query_row(
+                    &format!("SELECT COUNT(*) FROM {table} WHERE {column} = ?1"),
+                    [&meeting_id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(left, 0, "{table} still holds rows for a deleted meeting");
+        }
+
+        // The project itself stays: deleting a meeting is not deleting the project.
+        assert!(
+            repository
+                .list_projects()
+                .unwrap()
+                .iter()
+                .any(|project| project.id == project_id)
+        );
+    }
+
+    #[test]
+    fn deleting_a_meeting_that_is_not_there_says_so() {
+        let temporary = tempdir().unwrap();
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        assert!(matches!(
+            repository.delete_meeting("meeting-that-never-was"),
+            Err(StorageError::MissingMeeting)
+        ));
     }
 
     /// A style must not carry an instruction that contradicts the length chosen.

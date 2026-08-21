@@ -563,6 +563,8 @@ export interface WorkflowBridge {
     density: ProtocolDensity,
   ): Promise<void>;
   deleteProtocolStyle(styleId: string): Promise<void>;
+  /** Delete a meeting, its recordings, its transcript and its protocols. */
+  deleteMeeting(meetingId: string): Promise<void>;
   setProjectAppearance(projectId: string, appearance: DocumentAppearance): Promise<void>;
   setProjectFurniture(projectId: string, furniture: PageFurniture): Promise<void>;
   /**

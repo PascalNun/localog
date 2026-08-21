@@ -10,6 +10,26 @@
   export let project: ProjectSummary;
   export let meetings: MeetingSummary[];
   export let onNavigate: (route: AppRoute) => void;
+  export let onDeleteMeeting: (meetingId: string) => Promise<void> = async () => undefined;
+
+  /// Deleting is asked twice, in the row itself.
+  ///
+  /// A meeting takes its recording, its transcript and every protocol revision with
+  /// it, so it should not go on one stray click — and a dialog for something this
+  /// small would be more ceremony than the rest of the interface uses.
+  let confirming = '';
+  let deleteError = '';
+
+  async function remove(meeting: MeetingSummary) {
+    deleteError = '';
+    try {
+      await onDeleteMeeting(meeting.id);
+    } catch (cause) {
+      deleteError = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      confirming = '';
+    }
+  }
 
   const lifecycleLabel: Record<MeetingLifecycle, string> = {
     draft: 'Draft',
@@ -61,20 +81,41 @@
           <span>Date</span><span>Meeting</span><span>Duration</span><span>Status</span><span></span>
         </div>
         {#each meetings as meeting (meeting.id)}
-          <button class="meeting-row" onclick={() => openMeeting(meeting)}>
-            <span>{formatDate(meeting.occurredAt)}</span>
-            <span class="meeting-name"
-              ><strong>{meeting.title}</strong><small>{meeting.sourceName}</small></span
-            >
-            <span>{meeting.durationLabel ?? '—'}</span>
-            <span class="status-label"
-              ><span class={`status-dot ${meeting.lifecycle}`}></span>{lifecycleLabel[
-                meeting.lifecycle
-              ]}</span
-            >
-            <Icon name="chevron" size={16} />
-          </button>
+          <div class="meeting-row">
+            <button class="meeting-open" onclick={() => openMeeting(meeting)}>
+              <span>{formatDate(meeting.occurredAt)}</span>
+              <span class="meeting-name"
+                ><strong>{meeting.title}</strong><small>{meeting.sourceName}</small></span
+              >
+              <span>{meeting.durationLabel ?? '—'}</span>
+              <span class="status-label"
+                ><span class={`status-dot ${meeting.lifecycle}`}></span>{lifecycleLabel[
+                  meeting.lifecycle
+                ]}</span
+              >
+            </button>
+            {#if confirming === meeting.id}
+              <span class="meeting-confirm">
+                <button class="text-action" onclick={() => void remove(meeting)}>Delete</button>
+                <button class="text-action" onclick={() => (confirming = '')}>Keep</button>
+              </span>
+            {:else}
+              <button
+                class="icon-button compact meeting-delete"
+                title={`Delete ${meeting.title}`}
+                aria-label={`Delete ${meeting.title}`}
+                onclick={() => (confirming = meeting.id)}><Icon name="close" size={15} /></button
+              >
+            {/if}
+          </div>
         {/each}
+        {#if confirming}
+          <p class="meeting-delete-note">
+            Deleting a meeting removes its recording, its transcript and every protocol revision,
+            from this device. It cannot be undone.
+          </p>
+        {/if}
+        {#if deleteError}<p class="setting-error" role="alert">{deleteError}</p>{/if}
       </div>
     {:else}
       <div class="empty-inline">

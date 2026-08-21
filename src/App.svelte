@@ -718,6 +718,7 @@
             .filter((candidate) => candidate.projectId === project.id)
             .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))}
           onNavigate={navigate}
+          onDeleteMeeting={(meetingId: string) => bridge.deleteMeeting(meetingId)}
         />
       {:else if route.name === 'meeting' && project && meeting}
         <MeetingView

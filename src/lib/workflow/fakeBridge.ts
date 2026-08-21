@@ -572,6 +572,29 @@ export class FakeWorkflowBridge implements WorkflowBridge {
    * Shaped like the real thing measured on a long meeting: a handful of words, some
    * of them names worth keeping and some of them the transcriber simply fumbling.
    */
+  async deleteMeeting(meetingId: string): Promise<void> {
+    if (this.workspaceStore?.deleteMeeting) {
+      this.applyDurableWorkspace(await this.workspaceStore.deleteMeeting(meetingId));
+      this.emit();
+      return;
+    }
+    const { [meetingId]: _transcript, ...transcripts } = this.snapshot.transcripts;
+    const { [meetingId]: _protocol, ...protocols } = this.snapshot.protocols;
+    this.snapshot = {
+      ...this.snapshot,
+      meetings: this.snapshot.meetings.filter((meeting) => meeting.id !== meetingId),
+      transcripts,
+      protocols,
+      projects: this.snapshot.projects.map((project) => ({
+        ...project,
+        meetingCount: this.snapshot.meetings.filter(
+          (meeting) => meeting.projectId === project.id && meeting.id !== meetingId,
+        ).length,
+      })),
+    };
+    this.emit();
+  }
+
   async duplicateProtocolStyle(styleId: string, name: string): Promise<void> {
     if (this.workspaceStore?.duplicateProtocolStyle) {
       this.applyDurableWorkspace(await this.workspaceStore.duplicateProtocolStyle(styleId, name));

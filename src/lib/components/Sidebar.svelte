@@ -208,13 +208,23 @@
       </button>
     {/if}
     {#if operationalJob}
-      <div class:attention={jobNeedsAttention} class="local-status" aria-live="polite">
+      <!-- Somewhere to go. This said that something needed attention and gave no way
+           to reach it: the meeting it belongs to was the one thing a reader wanted
+           and the one thing it would not offer. -->
+      <button
+        class:attention={jobNeedsAttention}
+        class="local-status"
+        aria-live="polite"
+        title={jobNeedsAttention ? 'Open the meeting that needs attention' : 'Open this meeting'}
+        onclick={() =>
+          operationalJob && navigate({ name: 'meeting', meetingId: operationalJob.meetingId })}
+      >
         <span
           class:processing-dot={!jobNeedsAttention && operationalJob.state !== 'queued'}
           class:status-dot={jobNeedsAttention || operationalJob.state === 'queued'}
         ></span>
         <span><strong>{jobHeading}</strong><small>{jobDetail(operationalJob)}</small></span>
-      </div>
+      </button>
     {/if}
     <button
       class="icon-button"
