@@ -743,7 +743,7 @@
         <RecordingView
           {meeting}
           onNavigate={navigate}
-          onStatus={() => bridge.recordingStatus()}
+          status={recording}
           onStart={async (meetingId: string) => {
             await bridge.startRecording(meetingId);
             // Asked for at once rather than at the next idle tick: a recording that

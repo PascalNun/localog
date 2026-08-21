@@ -1,22 +1,15 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import type { AppRoute, MeetingSummary, RecordingStatus } from '../workflow/types';
 
   export let meeting: MeetingSummary;
   export let onNavigate: (route: AppRoute) => void;
-  export let onStatus: () => Promise<RecordingStatus>;
+  /// Read once for the whole application and handed down, rather than polled again
+  /// here. Two pollers asking the same question at different rates is two answers,
+  /// and the sidebar and this screen would disagree by up to a second.
+  export let status: RecordingStatus;
   export let onStart: (meetingId: string) => Promise<void>;
   export let onStop: () => Promise<void>;
 
-  let status: RecordingStatus = {
-    available: false,
-    recording: false,
-    meetingId: null,
-    seconds: 0,
-    systemPeak: 0,
-    microphonePeak: 0,
-    stoppedUnexpectedly: false,
-  };
   let error = '';
   let working = false;
 
@@ -49,27 +42,16 @@
   let microphoneHeard = false;
   const SILENCE_IS_SUSPICIOUS_AFTER = 12;
 
-  async function poll() {
-    try {
-      const next = await onStatus();
-      remember(next);
-      if (next.systemPeak > 0.001) systemHeard = true;
-      if (next.microphonePeak > 0.001) microphoneHeard = true;
-      status = next;
-    } catch (cause) {
-      error = cause instanceof Error ? cause.message : String(cause);
-    }
+  /// Each new reading feeds the mark and the two track readouts.
+  ///
+  /// Driven by the status arriving rather than by a timer of its own: the reading is
+  /// already taken once a second for the whole application, and taking it twice would
+  /// let this screen and the sidebar disagree.
+  $: if (status) {
+    remember(status);
+    if (status.systemPeak > 0.001) systemHeard = true;
+    if (status.microphonePeak > 0.001) microphoneHeard = true;
   }
-
-  // Once a second, matching what the recorder reports; asking faster would show the
-  // same number twice. Started on mount rather than in a reactive statement, because
-  // nothing it reads ever changes and it would therefore run exactly once — which is
-  // what the linter noticed.
-  onMount(() => {
-    void poll();
-    const timer = setInterval(() => void poll(), 1000);
-    return () => clearInterval(timer);
-  });
 
   async function start() {
     working = true;
@@ -79,7 +61,6 @@
     microphoneHeard = false;
     try {
       await onStart(meeting.id);
-      await poll();
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
     } finally {
@@ -91,7 +72,6 @@
     working = true;
     try {
       await onStop();
-      await poll();
       onNavigate({ name: 'meeting', meetingId: meeting.id });
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
