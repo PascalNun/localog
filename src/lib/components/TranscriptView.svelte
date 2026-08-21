@@ -185,7 +185,15 @@
   let query = '';
   /** Narrows the list to the passages whisper reported as unclear. */
   let onlyFlagged = false;
-  let inspectorOpen = true;
+  /// Open beside the document where there is room, closed where the drawer would
+  /// cover it.
+  ///
+  /// Below 900px the inspector is a drawer laid over the workspace rather than a
+  /// column beside it, so starting open means arriving at a document with its middle
+  /// hidden — the find bar and the right-hand third of every line were behind it.
+  /// The direction is plain that the document must remain usable, so at that size it
+  /// is opened deliberately rather than by default.
+  let inspectorOpen = typeof window === 'undefined' || window.innerWidth > 900;
   let saveState: 'saved' | 'saving' | 'failed' = transcript?.saveState ?? 'saved';
   let audioElement: HTMLAudioElement | null = null;
   let audioSource: string | null = null;
