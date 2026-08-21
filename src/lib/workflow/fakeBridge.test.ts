@@ -133,8 +133,8 @@ describe('FakeWorkflowBridge', () => {
 
   it('preserves the reviewed revision when working content changes', async () => {
     const bridge = new FakeWorkflowBridge();
-    await bridge.markReviewed('meeting-envelope-options');
-    await bridge.updateProtocol('meeting-envelope-options', '# Revised protocol');
+    await bridge.markProtocolReviewed('meeting-envelope-options');
+    await bridge.autosaveProtocol('meeting-envelope-options', '# Revised protocol');
     const snapshot = await bridge.getSnapshot();
     expect(snapshot.meetings.find(({ id }) => id === 'meeting-envelope-options')?.lifecycle).toBe(
       'reviewed',

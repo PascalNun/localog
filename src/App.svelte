@@ -505,7 +505,7 @@
       navigate({ name: 'recording', meetingId: created.id });
       return;
     }
-    await bridge.importRecording(created.id);
+    await bridge.startImport(created.id);
     navigate({ name: 'meeting', meetingId: created.id });
   }
 
@@ -790,7 +790,7 @@
           transcript={snapshot.transcripts[meeting.id] ?? null}
           job={snapshot.jobs.find((job) => job.meetingId === meeting.id) ?? snapshot.activeJob}
           onNavigate={navigate}
-          onGenerate={() => bridge.generateProtocol(meeting.id)}
+          onGenerate={() => bridge.startGeneration(meeting.id)}
           onCancel={() => bridge.cancelActiveJob(meeting.id)}
           onRetry={() => bridge.retryActiveJob(meeting.id)}
           onRerunTranscription={() => bridge.startTranscription(meeting.id)}
@@ -799,7 +799,7 @@
           onUpdateSegment={(segmentId, text) =>
             bridge.updateTranscriptSegment(meeting.id, segmentId, text)}
           onUpdateSpeaker={(speaker, replacement) =>
-            bridge.updateSpeaker(meeting.id, speaker, replacement)}
+            bridge.renameTranscriptSpeaker(meeting.id, speaker, replacement)}
         />
       {:else if route.name === 'protocol' && project && meeting && protocol && protocolStyle}
         <ProtocolView
@@ -808,9 +808,9 @@
           {protocol}
           style={protocolStyle}
           onNavigate={navigate}
-          onSave={(markdown) => bridge.updateProtocol(meeting.id, markdown)}
+          onSave={(markdown) => bridge.autosaveProtocol(meeting.id, markdown)}
           onCreateRevision={() => bridge.createProtocolRevision(meeting.id)}
-          onMarkReviewed={() => bridge.markReviewed(meeting.id)}
+          onMarkReviewed={() => bridge.markProtocolReviewed(meeting.id)}
           onRestoreRevision={(revisionId) => bridge.restoreProtocolRevision(meeting.id, revisionId)}
           onExport={exportProtocol}
           onSetAppearance={(appearance) => bridge.setProjectAppearance(project.id, appearance)}

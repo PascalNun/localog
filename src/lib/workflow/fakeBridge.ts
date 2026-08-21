@@ -36,6 +36,9 @@ import type {
 } from './types';
 import type { WorkspaceStore } from './workspaceStore';
 
+/** What every durable call hands back: the whole workspace, as SQLite now has it. */
+type DurableWorkspace = Awaited<ReturnType<WorkspaceStore['loadWorkspace']>>;
+
 interface FakeBridgeOptions {
   tickMs?: number;
   progressStep?: number;
@@ -399,11 +402,8 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     return structuredClone(meeting);
   }
 
-  async importRecording(meetingId: string): Promise<void> {
-    if (this.workspaceStore) {
-      await this.workspaceStore.startImport(meetingId);
-      return;
-    }
+  async startImport(meetingId: string): Promise<void> {
+    if (await this.durable((store) => store.startImport(meetingId))) return;
     this.startJob(meetingId, 'import');
   }
 
@@ -412,18 +412,16 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     speakers: SpeakerRequest = 'together',
   ): Promise<void> {
     if (this.workspaceStore) {
-      const failRequested = this.snapshot.nextJobOutcome === 'failure';
-      this.snapshot.nextJobOutcome = 'success';
+      const failRequested = this.takeNextOutcome();
       await this.workspaceStore.startTranscription(meetingId, failRequested, speakers);
       return;
     }
     this.startJob(meetingId, 'transcription');
   }
 
-  async generateProtocol(meetingId: string): Promise<void> {
+  async startGeneration(meetingId: string): Promise<void> {
     if (this.workspaceStore) {
-      const failRequested = this.snapshot.nextJobOutcome === 'failure';
-      this.snapshot.nextJobOutcome = 'success';
+      const failRequested = this.takeNextOutcome();
       await this.workspaceStore.startGeneration(meetingId, failRequested);
       return;
     }
@@ -439,10 +437,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       await this.workspaceStore.cancelImport(job.meetingId);
       return;
     }
-    if (this.workspaceStore) {
-      await this.workspaceStore.cancelProcessing(job.meetingId);
-      return;
-    }
+    if (await this.durable((store) => store.cancelProcessing(job.meetingId))) return;
     job.state = 'cancelling';
     job.stage = 'Stopping local process safely';
     this.emit();
@@ -457,10 +452,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       await this.workspaceStore.retryImport(job.meetingId, false);
       return;
     }
-    if (this.workspaceStore) {
-      await this.workspaceStore.retryProcessing(job.meetingId);
-      return;
-    }
+    if (await this.durable((store) => store.retryProcessing(job.meetingId))) return;
     this.snapshot.nextJobOutcome = 'success';
     this.startJob(job.meetingId, job.kind, job.attempt + 1);
   }
@@ -490,10 +482,8 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   async updateMeetingLanguage(meetingId: string, language: string): Promise<void> {
     const nextLanguage = language.trim();
     if (!nextLanguage) throw new Error('Choose a meeting language.');
-    if (this.workspaceStore?.updateMeetingLanguage) {
-      await this.workspaceStore.updateMeetingLanguage(meetingId, nextLanguage);
+    if (await this.durable((store) => store.updateMeetingLanguage?.(meetingId, nextLanguage)))
       return;
-    }
     this.findMeeting(meetingId).language = nextLanguage;
     const transcript = this.snapshot.transcripts[meetingId];
     if (transcript) transcript.language = nextLanguage;
@@ -501,13 +491,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<void> {
-    if (this.workspaceStore) {
-      this.applyDurableWorkspace(
-        await this.workspaceStore.deleteTranscriptSegment(meetingId, segmentId),
-      );
-      this.emit();
-      return;
-    }
+    if (await this.durable((store) => store.deleteTranscriptSegment(meetingId, segmentId))) return;
     const document = this.snapshot.transcripts[meetingId];
     // The last one stays, as it does in the application: a transcript of nothing
     // is not a document somebody meant to make.
@@ -519,13 +503,8 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async updateTranscriptSegment(meetingId: string, segmentId: string, text: string): Promise<void> {
-    if (this.workspaceStore) {
-      this.applyDurableWorkspace(
-        await this.workspaceStore.updateTranscriptSegment(meetingId, segmentId, text),
-      );
-      this.emit();
+    if (await this.durable((store) => store.updateTranscriptSegment(meetingId, segmentId, text)))
       return;
-    }
     const document = this.snapshot.transcripts[meetingId];
     const segment = document?.segments.find((candidate) => candidate.id === segmentId);
     if (!segment) return;
@@ -538,14 +517,15 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     this.emit();
   }
 
-  async updateSpeaker(meetingId: string, speaker: string, replacement: string): Promise<void> {
-    if (this.workspaceStore) {
-      this.applyDurableWorkspace(
-        await this.workspaceStore.renameTranscriptSpeaker(meetingId, speaker, replacement),
-      );
-      this.emit();
+  async renameTranscriptSpeaker(
+    meetingId: string,
+    speaker: string,
+    replacement: string,
+  ): Promise<void> {
+    if (
+      await this.durable((store) => store.renameTranscriptSpeaker(meetingId, speaker, replacement))
+    )
       return;
-    }
     const nextSpeaker = replacement.trim();
     if (!nextSpeaker) return;
     const document = this.snapshot.transcripts[meetingId];
@@ -573,11 +553,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
    * of them names worth keeping and some of them the transcriber simply fumbling.
    */
   async deleteMeeting(meetingId: string): Promise<void> {
-    if (this.workspaceStore?.deleteMeeting) {
-      this.applyDurableWorkspace(await this.workspaceStore.deleteMeeting(meetingId));
-      this.emit();
-      return;
-    }
+    if (await this.durable((store) => store.deleteMeeting?.(meetingId))) return;
     const { [meetingId]: _transcript, ...transcripts } = this.snapshot.transcripts;
     const { [meetingId]: _protocol, ...protocols } = this.snapshot.protocols;
     this.snapshot = {
@@ -596,11 +572,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async duplicateProtocolStyle(styleId: string, name: string): Promise<void> {
-    if (this.workspaceStore?.duplicateProtocolStyle) {
-      this.applyDurableWorkspace(await this.workspaceStore.duplicateProtocolStyle(styleId, name));
-      this.emit();
-      return;
-    }
+    if (await this.durable((store) => store.duplicateProtocolStyle?.(styleId, name))) return;
     throw new Error('Editing styles needs the desktop application.');
   }
 
@@ -611,28 +583,17 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     instructions: string[],
     density: ProtocolDensity,
   ): Promise<void> {
-    if (this.workspaceStore?.updateProtocolStyle) {
-      this.applyDurableWorkspace(
-        await this.workspaceStore.updateProtocolStyle(
-          styleId,
-          name,
-          description,
-          instructions,
-          density,
-        ),
-      );
-      this.emit();
+    if (
+      await this.durable((store) =>
+        store.updateProtocolStyle?.(styleId, name, description, instructions, density),
+      )
+    )
       return;
-    }
     throw new Error('Editing styles needs the desktop application.');
   }
 
   async deleteProtocolStyle(styleId: string): Promise<void> {
-    if (this.workspaceStore?.deleteProtocolStyle) {
-      this.applyDurableWorkspace(await this.workspaceStore.deleteProtocolStyle(styleId));
-      this.emit();
-      return;
-    }
+    if (await this.durable((store) => store.deleteProtocolStyle?.(styleId))) return;
     throw new Error('Editing styles needs the desktop application.');
   }
 
@@ -697,11 +658,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async stopRecording(): Promise<void> {
-    if (this.workspaceStore) {
-      this.applyDurableWorkspace(await this.workspaceStore.stopRecording());
-      this.emit();
-      return;
-    }
+    if (await this.durable((store) => store.stopRecording())) return;
     this.fakeRecording = null;
   }
 
@@ -801,11 +758,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async saveVocabularyEntry(draft: VocabularyDraft): Promise<void> {
-    if (this.workspaceStore) {
-      this.applyDurableWorkspace(await this.workspaceStore.saveVocabularyEntry(draft));
-      this.emit();
-      return;
-    }
+    if (await this.durable((store) => store.saveVocabularyEntry(draft))) return;
     const term = draft.term.trim();
     if (!term) return;
     const projectId = draft.scope === 'Project' ? draft.projectId : null;
@@ -835,21 +788,13 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async deleteVocabularyEntry(entryId: string): Promise<void> {
-    if (this.workspaceStore) {
-      this.applyDurableWorkspace(await this.workspaceStore.deleteVocabularyEntry(entryId));
-      this.emit();
-      return;
-    }
+    if (await this.durable((store) => store.deleteVocabularyEntry(entryId))) return;
     this.snapshot.vocabulary = this.snapshot.vocabulary.filter((entry) => entry.id !== entryId);
     this.emit();
   }
 
-  async updateProtocol(meetingId: string, markdown: string): Promise<void> {
-    if (this.workspaceStore) {
-      this.applyDurableWorkspace(await this.workspaceStore.autosaveProtocol(meetingId, markdown));
-      this.emit();
-      return;
-    }
+  async autosaveProtocol(meetingId: string, markdown: string): Promise<void> {
+    if (await this.durable((store) => store.autosaveProtocol(meetingId, markdown))) return;
     const protocol = this.snapshot.protocols[meetingId];
     if (!protocol) return;
     protocol.markdown = markdown;
@@ -860,11 +805,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async createProtocolRevision(meetingId: string): Promise<void> {
-    if (this.workspaceStore) {
-      this.applyDurableWorkspace(await this.workspaceStore.createProtocolRevision(meetingId));
-      this.emit();
-      return;
-    }
+    if (await this.durable((store) => store.createProtocolRevision(meetingId))) return;
     const protocol = this.snapshot.protocols[meetingId];
     if (!protocol) return;
     protocol.revisionId = `protocol-demo-${Date.now()}`;
@@ -880,12 +821,8 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     this.emit();
   }
 
-  async markReviewed(meetingId: string): Promise<void> {
-    if (this.workspaceStore) {
-      this.applyDurableWorkspace(await this.workspaceStore.markProtocolReviewed(meetingId));
-      this.emit();
-      return;
-    }
+  async markProtocolReviewed(meetingId: string): Promise<void> {
+    if (await this.durable((store) => store.markProtocolReviewed(meetingId))) return;
     await this.createProtocolRevision(meetingId);
     const meeting = this.findMeeting(meetingId);
     const protocol = this.snapshot.protocols[meetingId];
@@ -899,13 +836,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async restoreProtocolRevision(meetingId: string, revisionId: string): Promise<void> {
-    if (this.workspaceStore) {
-      this.applyDurableWorkspace(
-        await this.workspaceStore.restoreProtocolRevision(meetingId, revisionId),
-      );
-      this.emit();
-      return;
-    }
+    if (await this.durable((store) => store.restoreProtocolRevision(meetingId, revisionId))) return;
     const protocol = this.snapshot.protocols[meetingId];
     if (!protocol?.revisions.some((revision) => revision.id === revisionId)) return;
     protocol.revisionId = `protocol-demo-restored-${Date.now()}`;
@@ -1239,7 +1170,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       return;
     }
     this.stashed[meetingId] = setAside;
-    await this.updateProtocol(meetingId, markdown);
+    await this.autosaveProtocol(meetingId, markdown);
   }
 
   async refinePassage(
@@ -1327,7 +1258,50 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     this.applyDurableWorkspace(workspace);
   }
 
-  private applyDurableWorkspace(workspace: Awaited<ReturnType<WorkspaceStore['loadWorkspace']>>) {
+  /**
+   * Hand a call to the real workspace and take the workspace it hands back as the
+   * new truth. Answers whether there was a real workspace to hand it to, so the
+   * caller can fall through to the demo simulation when there was not.
+   *
+   * Every durable method used to open with the same five lines, and the `return`
+   * ending them was load-bearing: forget it and the demo simulation runs on top of
+   * real data. `subscribeFileDrops` once forgot the preamble outright, and dropping
+   * a file onto the window did nothing at all — a method that does not pass the
+   * call through is indistinguishable from a feature nobody built. Written in one
+   * place it cannot be half-written.
+   *
+   * `run` may return undefined, which is how a store that does not implement an
+   * optional method declines it: write `store.deleteMeeting?.(id)` and a store
+   * without one falls through to the demo exactly as a missing store does.
+   */
+  /**
+   * Whether the next job was asked to fail, spending the request as it reads it.
+   *
+   * Reading and clearing are one act: `setNextJobOutcome` arms a single job, and a
+   * caller that read the flag without clearing it would arm every job after it too.
+   */
+  private takeNextOutcome(): boolean {
+    const failRequested = this.snapshot.nextJobOutcome === 'failure';
+    this.snapshot.nextJobOutcome = 'success';
+    return failRequested;
+  }
+
+  private async durable(
+    run: (store: WorkspaceStore) => Promise<DurableWorkspace | void> | undefined,
+  ): Promise<boolean> {
+    const answered = this.workspaceStore && run(this.workspaceStore);
+    if (!answered) return false;
+    const workspace = await answered;
+    // Some calls start a job and answer with nothing; the workspace arrives later
+    // on the subscription instead. Whether to apply one is the answer's to say.
+    if (workspace) {
+      this.applyDurableWorkspace(workspace);
+      this.emit();
+    }
+    return true;
+  }
+
+  private applyDurableWorkspace(workspace: DurableWorkspace) {
     this.snapshot.projects = workspace.projects;
     this.snapshot.meetings = workspace.meetings;
     this.snapshot.jobs = workspace.jobs;

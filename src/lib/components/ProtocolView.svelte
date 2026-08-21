@@ -1050,7 +1050,7 @@
     saveState = protocol.saveState;
   }
 
-  async function markReviewed() {
+  async function markProtocolReviewed() {
     await onMarkReviewed();
     markdown = protocol.markdown;
     saveState = protocol.saveState;
@@ -1556,7 +1556,7 @@
               >{/if}
             {#if protocol.reviewState !== 'reviewed'}<button
                 class="secondary-action full-width"
-                onclick={markReviewed}><Icon name="check" size={16} /> Mark reviewed</button
+                onclick={markProtocolReviewed}><Icon name="check" size={16} /> Mark reviewed</button
               >{/if}
           </div>
           <div class="inspector-section">

@@ -534,9 +534,9 @@ export interface WorkflowBridge {
   ): () => void;
   createProject(input: NewProjectInput): Promise<ProjectSummary>;
   createMeeting(input: NewMeetingInput): Promise<MeetingSummary>;
-  importRecording(meetingId: string): Promise<void>;
+  startImport(meetingId: string): Promise<void>;
   startTranscription(meetingId: string, speakers?: SpeakerRequest): Promise<void>;
-  generateProtocol(meetingId: string): Promise<void>;
+  startGeneration(meetingId: string): Promise<void>;
   cancelActiveJob(meetingId: string): Promise<void>;
   retryActiveJob(meetingId: string): Promise<void>;
   confirmDuplicateImport(meetingId: string): Promise<void>;
@@ -545,7 +545,7 @@ export interface WorkflowBridge {
   updateMeetingLanguage(meetingId: string, language: string): Promise<void>;
   updateTranscriptSegment(meetingId: string, segmentId: string, text: string): Promise<void>;
   deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<void>;
-  updateSpeaker(meetingId: string, speaker: string, replacement: string): Promise<void>;
+  renameTranscriptSpeaker(meetingId: string, speaker: string, replacement: string): Promise<void>;
   /** Files dropped onto the window. Returns an unsubscribe function. */
   subscribeFileDrops(handler: (event: FileDropEvent) => void): () => void;
   /**
@@ -611,9 +611,9 @@ export interface WorkflowBridge {
   applyCorrection(meetingId: string, correction: AppliedCorrection): Promise<number>;
   saveVocabularyEntry(entry: VocabularyDraft): Promise<void>;
   deleteVocabularyEntry(entryId: string): Promise<void>;
-  updateProtocol(meetingId: string, markdown: string): Promise<void>;
+  autosaveProtocol(meetingId: string, markdown: string): Promise<void>;
   createProtocolRevision(meetingId: string): Promise<void>;
-  markReviewed(meetingId: string): Promise<void>;
+  markProtocolReviewed(meetingId: string): Promise<void>;
   restoreProtocolRevision(meetingId: string, revisionId: string): Promise<void>;
   saveWorkspaceLocation(
     meetingId: string,
