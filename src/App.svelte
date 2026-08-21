@@ -806,6 +806,7 @@
           onExport={exportProtocol}
           onSetAppearance={(appearance) => bridge.setProjectAppearance(project.id, appearance)}
           onSetFurniture={(furniture) => bridge.setProjectFurniture(project.id, furniture)}
+          transcript={snapshot.transcripts[meeting.id] ?? null}
           onPreviewReplacement={(text: string, wrong: string, right: string) =>
             bridge.previewNameReplacement(text, wrong, right)}
           templates={exportTemplates}

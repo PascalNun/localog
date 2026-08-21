@@ -4353,3 +4353,55 @@ button.review-summary[aria-pressed='true'] {
     animation: none;
   }
 }
+
+/* Where a passage of the protocol appears in what was said. A search rather than a
+   provenance link, so it reads as evidence to check rather than as a citation. */
+.source-query {
+  margin-top: 12px;
+  color: var(--faint);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.source-query em {
+  color: var(--muted);
+  font-style: normal;
+}
+
+.source-hits {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.source-hits li {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 9px;
+  align-items: baseline;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.source-when {
+  color: var(--faint);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.source-said strong {
+  display: block;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.source-none {
+  margin-top: 10px;
+  max-width: 44ch;
+  color: var(--faint);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}

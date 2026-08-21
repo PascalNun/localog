@@ -24,6 +24,7 @@
     needsPageNumbers,
   } from '../protocol/furniture';
   import { diffWords, isUnchanged, type Change } from '../protocol/diff';
+  import { atMoment, findInSource } from '../protocol/source';
   import {
     appendSection,
     moveSection,
@@ -40,6 +41,7 @@
     NameReplacement,
     RefinedPassage,
     SetAsideSection,
+    TranscriptSegment,
   } from '../workflow/types';
 
   export let project: ProjectSummary;
@@ -63,6 +65,9 @@
   export let templates: ExportTemplate[] = [];
   export let onApplyTemplate: (templateId: string) => Promise<void> = async () => undefined;
   export let onSaveTemplate: (name: string) => Promise<void> = async () => undefined;
+  /// The transcript this protocol was written from, for checking a passage against
+  /// what was actually said.
+  export let transcript: { segments: TranscriptSegment[] } | null = null;
   export let onPreviewReplacement: (
     text: string,
     wrong: string,
@@ -583,6 +588,36 @@
     await onSaveTemplate(name);
     templateName = '';
     savingTemplate = false;
+  }
+
+  /// Where a passage of the protocol appears in the transcript.
+  ///
+  /// A search, not a provenance link, and the difference matters enough to say in
+  /// the panel: nothing records which segment produced which sentence, and a
+  /// protocol legitimately paraphrases, gathers one subject from four places, and
+  /// states things the transcript only implies. Looking for the words is honest and
+  /// is what somebody checking a draft against the recording actually wants.
+  let lookingUp = '';
+  $: sourceHits =
+    lookingUp.trim() === '' || !transcript ? [] : findInSource(lookingUp, transcript.segments);
+
+  /// Take whatever is selected in the document, or the block the caret is in.
+  function lookUpSelection() {
+    const selection = window.getSelection();
+    const chosen = selection?.toString().trim() ?? '';
+    if (chosen !== '') {
+      lookingUp = chosen;
+      inspectorTab = 'transcript';
+      return;
+    }
+    const node = selection?.anchorNode ?? null;
+    let block: Node | null = node;
+    while (block && block.parentNode !== documentSurface) block = block.parentNode;
+    const text = (block as HTMLElement | null)?.textContent?.trim() ?? '';
+    if (text !== '') {
+      lookingUp = text;
+      inspectorTab = 'transcript';
+    }
   }
 
   /// The parts the protocol is made of, read from its own headings.
@@ -1869,9 +1904,37 @@
             <p class="eyebrow">Source</p>
             <h3>{meeting.title}</h3>
             <p>
-              This protocol was written from the reviewed transcript of this meeting. Nothing in the
-              document is linked back to a passage yet; that is still to come.
+              Written from the reviewed transcript of this meeting. Nothing records which passage
+              produced which sentence, so what follows looks for the words rather than claiming to
+              know — a paraphrase will find nothing, which is the honest answer.
             </p>
+            <button class="inspector-control" onclick={lookUpSelection}>
+              <Icon name="search" size={16} />
+              <span>Find the selected passage</span>
+              <span></span>
+            </button>
+            {#if lookingUp.trim() !== ''}
+              <p class="source-query">Looking for: <em>{lookingUp.slice(0, 90)}</em></p>
+              {#if sourceHits.length === 0}
+                <p class="source-none">
+                  None of these words appear together in the transcript. That usually means the
+                  draft has put it in its own words, which it is entitled to do — the recording is
+                  the place to check it.
+                </p>
+              {:else}
+                <ul class="source-hits">
+                  {#each sourceHits as hit (hit.segmentId)}
+                    <li>
+                      <span class="source-when">{atMoment(hit.startMs)}</span>
+                      <span class="source-said"
+                        ><strong>{hit.speaker}</strong>
+                        {hit.text}</span
+                      >
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
+            {/if}
             <button
               class="text-action"
               onclick={() => onNavigate({ name: 'transcript', meetingId: meeting.id })}

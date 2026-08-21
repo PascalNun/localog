@@ -424,7 +424,27 @@ Ordered as the concept orders it, not by size.
    belongs — on generation, where the evidence panel counts which stated figures the
    draft kept.
 
-8. **The Transcript tab does not exist** (§9).
+8. ~~**The Transcript tab does not exist**~~ (§9). **Done, 21 August**, including
+   the part the concept scoped as "eventually": finding a passage of the protocol in
+   what was actually said.
+
+   It is a **search, not a provenance link**, and the panel says so. Nothing records
+   which segment produced which sentence, and a protocol legitimately paraphrases,
+   gathers one subject from four places, and states things the transcript only
+   implies — so a link would be a claim nobody established. Looking for the words is
+   honest, and it is what somebody checking a draft against the recording wants.
+
+   It works through paraphrase, which is the case that matters: "The lighter assembly
+   remains the preferred direction" found the segment at 0:31 saying "The lighter
+   assembly is preferable, provided the…". Figures are kept as search terms however
+   short, because "38" identifies a passage better than any adjective, and a segment
+   needs two distinctive words or one figure to count — a single shared adjective is
+   a coincidence, a shared measurement is not.
+
+   Where the words are genuinely not there, it **finds nothing and says so** rather
+   than offering the nearest segment, which would let a guess be read as a source. A
+   test requires exactly that.
+
 9. **A History timeline does not exist** (§11), though the revisions behind it do.
 10. **Zoom is not separate from body size** (§14).
 
