@@ -81,10 +81,27 @@
     editDensity = detail.density;
   }
 
-  async function saveStyle(styleId: string) {
+  /**
+   * Run one action on a style, with the busy flag and the error line all three
+   * share. Editing a style is the one thing here that reaches the desktop and
+   * can be refused, so all three need to say so and none may leave the panel
+   * disabled: a `finally` written out three times is a `finally` that can be
+   * forgotten once.
+   */
+  async function styleAction(run: () => Promise<void>) {
     styleBusy = true;
     styleError = '';
     try {
+      await run();
+    } catch (cause) {
+      styleError = errorMessage(cause);
+    } finally {
+      styleBusy = false;
+    }
+  }
+
+  const saveStyle = (styleId: string) =>
+    styleAction(async () => {
       await onUpdateStyle(styleId, {
         name: editName,
         description: editDescription,
@@ -93,38 +110,19 @@
       });
       editingStyle = false;
       openStyle = await onOpenStyle(styleId);
-    } catch (cause) {
-      styleError = errorMessage(cause);
-    } finally {
-      styleBusy = false;
-    }
-  }
+    });
 
-  async function duplicateStyle(detail: ProtocolStyleDetail) {
-    styleBusy = true;
-    styleError = '';
-    try {
+  const duplicateStyle = (detail: ProtocolStyleDetail) =>
+    styleAction(async () => {
       await onDuplicateStyle(detail.id, `${detail.name} (copy)`);
       openStyle = null;
-    } catch (cause) {
-      styleError = errorMessage(cause);
-    } finally {
-      styleBusy = false;
-    }
-  }
+    });
 
-  async function removeStyle(styleId: string) {
-    styleBusy = true;
-    styleError = '';
-    try {
+  const removeStyle = (styleId: string) =>
+    styleAction(async () => {
       await onDeleteStyle(styleId);
       openStyle = null;
-    } catch (cause) {
-      styleError = errorMessage(cause);
-    } finally {
-      styleBusy = false;
-    }
-  }
+    });
 
   const DENSITY_CHOICES: { value: ProtocolDensity; label: string }[] = [
     { value: 'comprehensive', label: 'Full prose' },
