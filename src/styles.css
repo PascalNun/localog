@@ -4077,11 +4077,22 @@ button.review-summary[aria-pressed='true'] {
 }
 
 .section-grip {
+  padding: 0;
   color: var(--line-strong);
+  background: transparent;
   font-size: 0.8rem;
   cursor: grab;
   text-align: center;
   user-select: none;
+}
+
+.section-grip:hover,
+.section-grip:focus-visible {
+  color: var(--muted);
+}
+
+.section-grip-spacer {
+  display: block;
 }
 
 .section-name {

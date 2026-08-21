@@ -642,6 +642,32 @@
     await commitSections(moveSection(markdown, from, onto), setAside);
   }
 
+  /// Reordering without a mouse.
+  ///
+  /// Dragging was the only way to move a section, which leaves anybody working from
+  /// the keyboard unable to do it at all. The grip takes focus and answers to the
+  /// arrow keys; focus follows the section so a run of presses moves it several
+  /// places, as it would in any list.
+  async function moveByKey(event: KeyboardEvent, index: number) {
+    const up = event.key === 'ArrowUp';
+    const down = event.key === 'ArrowDown';
+    if (!up && !down) return;
+    const to = up ? index - 1 : index + 1;
+    if (to < 0 || to >= sections.length) return;
+    event.preventDefault();
+    await commitSections(moveSection(markdown, index, to), setAside);
+    // The list is rebuilt from the document, so focus is put back on the row the
+    // section has moved to rather than left on the one it came from.
+    queueMicrotask(() => {
+      const grips = documentGrips();
+      grips[to]?.focus();
+    });
+  }
+
+  function documentGrips(): HTMLElement[] {
+    return Array.from(document.querySelectorAll<HTMLElement>('.section-grip'));
+  }
+
   /// Take a section out without throwing it away.
   ///
   /// It leaves the document, because the document must remain exactly what every
@@ -1628,7 +1654,12 @@
                     ondrop={() => void dropSection(index)}
                     ondragend={() => (draggingSection = null)}
                   >
-                    <span class="section-grip" aria-hidden="true">⠿</span>
+                    <button
+                      class="section-grip"
+                      aria-label={`Move ${section.title}. Use the arrow keys.`}
+                      title="Drag, or use the arrow keys"
+                      onkeydown={(event) => void moveByKey(event, index)}>⠿</button
+                    >
                     <button class="section-name" onclick={() => goToSection(index)}
                       >{section.title}</button
                     >
@@ -1648,7 +1679,7 @@
               <ul class="section-list stashed">
                 {#each setAside as held, index (held.title + index)}
                   <li>
-                    <span class="section-grip" aria-hidden="true"></span>
+                    <span class="section-grip-spacer" aria-hidden="true"></span>
                     <span class="section-name">{held.title}</span>
                     <button
                       class="icon-button compact"
