@@ -73,11 +73,15 @@
   /// only on the recording screen, so navigating away — to another project, to
   /// settings — left a live recorder with nothing anywhere saying so.
   ///
-  /// One poller for the whole application rather than one per screen. It costs
-  /// nothing on the other side: the command reads a number the reader thread has
-  /// already put down and asks the operating system nothing. It runs every second
-  /// while something is being recorded and every ten otherwise, which is often
-  /// enough to notice a recorder that has died on its own.
+  /// Asked only while there is something to ask about.
+  ///
+  /// It ran every ten seconds for the life of the application when nothing was being
+  /// recorded, which is a timer that can never learn anything: this application is
+  /// the only thing that starts a recording, so it knows when one begins because it
+  /// began it. One reading at startup catches a recorder left behind by a crash, and
+  /// after that the loop runs only while a recording is actually going — where the
+  /// second-by-second reading is genuinely needed, for the live level and the clock,
+  /// and where it also catches a recorder that has died on its own.
   let recording: RecordingStatus = {
     available: false,
     recording: false,
@@ -99,7 +103,11 @@
     } catch {
       // A status that cannot be read is not a reason to stop asking.
     }
-    recordingTimer = setTimeout(() => void pollRecording(), recording.recording ? 1000 : 10_000);
+    // Nothing is scheduled when nothing is being recorded; starting one calls this
+    // again, which is what restarts the loop.
+    if (recording.recording) {
+      recordingTimer = setTimeout(() => void pollRecording(), 1000);
+    }
   }
 
   onMount(() => {
