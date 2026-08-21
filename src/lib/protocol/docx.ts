@@ -16,17 +16,8 @@ import { readBlocks, readInline, type Block, type Run } from './markdown';
 import { resolveRow, rowIsEmpty } from './furniture';
 import type { DocumentAppearance, FurnitureRow, PageFurniture } from '../workflow/types';
 import type { DocumentFacts } from './furniture';
+import type { ProtocolDocument } from './document';
 import { writeZip, type ZipEntry } from './zip';
-
-export interface WordProtocol {
-  title: string;
-  subtitle: string;
-  markdown: string;
-  appearance: DocumentAppearance;
-  /** What repeats on every page; absent means nothing does. */
-  furniture?: PageFurniture;
-  facts?: DocumentFacts;
-}
 
 const NAMESPACE =
   'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ' +
@@ -109,7 +100,7 @@ function slotRuns(text: string): string {
     .join('');
 }
 
-export function buildDocx(protocol: WordProtocol): Uint8Array {
+export function buildDocx(protocol: ProtocolDocument): Uint8Array {
   const blocks = readBlocks(protocol.markdown);
   const hasHeader =
     !!protocol.furniture && !!protocol.facts && !rowIsEmpty(protocol.furniture.header);

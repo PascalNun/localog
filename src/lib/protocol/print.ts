@@ -14,22 +14,12 @@
 import { appearanceStyle } from './appearance';
 import { resolveRow, rowIsEmpty } from './furniture';
 import type { DocumentFacts } from './furniture';
+import type { ProtocolDocument } from './document';
 import { renderMarkdown } from './markdown';
 import type { DocumentAppearance, PageFurniture } from '../workflow/types';
 
 /** Where the print sheet is mounted, as a sibling of the application root. */
 const ROOT_ID = 'protocol-print-root';
-
-export interface PrintableProtocol {
-  title: string;
-  /** Shown under the title: the project, and the date the meeting happened. */
-  subtitle: string;
-  markdown: string;
-  /** How the project sets its protocols; the same values the editor shows. */
-  appearance: DocumentAppearance;
-  furniture?: PageFurniture;
-  facts?: DocumentFacts;
-}
 
 /**
  * Put the protocol on paper.
@@ -38,7 +28,7 @@ export interface PrintableProtocol {
  * report back, and claiming success would be a guess.
  */
 export async function printProtocol(
-  protocol: PrintableProtocol,
+  protocol: ProtocolDocument,
   /** How to reach the platform's own print panel, where there is one. */
   nativePrint?: () => Promise<void>,
 ): Promise<void> {
@@ -98,7 +88,7 @@ function escapeText(text: string): string {
  * only the thing paginating knows them, and a browser will not say. They are left
  * out rather than printed as "Page 1" on every sheet, and the editor says so.
  */
-function furnitureRow(protocol: PrintableProtocol, which: 'header' | 'footer'): string {
+function furnitureRow(protocol: ProtocolDocument, which: 'header' | 'footer'): string {
   const row = protocol.furniture?.[which];
   const facts = protocol.facts;
   if (!row || !facts || rowIsEmpty(row)) return '';
