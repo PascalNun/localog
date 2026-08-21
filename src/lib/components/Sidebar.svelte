@@ -2,6 +2,7 @@
   import type { ActiveJob, AppRoute, ProjectSummary } from '../workflow/types';
   import Icon from './Icon.svelte';
   import SidebarResizeHandle from './SidebarResizeHandle.svelte';
+  import { clock } from '../time';
 
   export let projects: ProjectSummary[];
   export let route: AppRoute;
@@ -18,13 +19,6 @@
   };
   export let recordingMeeting: string | null = null;
 
-  function elapsed(seconds: number) {
-    const minutes = Math.floor(seconds / 60);
-    const rest = seconds % 60;
-    const hours = Math.floor(minutes / 60);
-    const pad = (value: number) => String(value).padStart(2, '0');
-    return hours > 0 ? `${hours}:${pad(minutes % 60)}:${pad(rest)}` : `${minutes}:${pad(rest)}`;
-  }
   export let width: number;
   export let open = false;
   export let onNavigate: (route: AppRoute) => void;
@@ -202,7 +196,7 @@
         <span class="recording-dot"></span>
         <span
           ><strong>Recording</strong><small
-            >{recordingMeeting ? `${recordingMeeting} · ` : ''}{elapsed(recording.seconds)}</small
+            >{recordingMeeting ? `${recordingMeeting} · ` : ''}{clock(recording.seconds)}</small
           ></span
         >
       </button>

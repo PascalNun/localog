@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { AppRoute, MeetingSummary, RecordingStatus } from '../workflow/types';
   import { errorMessage } from '../errors';
+  import { clock } from '../time';
 
   export let meeting: MeetingSummary;
   export let onNavigate: (route: AppRoute) => void;
@@ -79,14 +80,6 @@
     } finally {
       working = false;
     }
-  }
-
-  function clock(seconds: number) {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const rest = seconds % 60;
-    const pad = (value: number) => String(value).padStart(2, '0');
-    return hours > 0 ? `${hours}:${pad(minutes)}:${pad(rest)}` : `${minutes}:${pad(rest)}`;
   }
 
   $: quietSystem =

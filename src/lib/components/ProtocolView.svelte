@@ -27,7 +27,8 @@
     needsPageNumbers,
   } from '../protocol/furniture';
   import { diffWords, isUnchanged, type Change } from '../protocol/diff';
-  import { atMoment, findInSource } from '../protocol/source';
+  import { findInSource } from '../protocol/source';
+  import { clockFromMillis } from '../time';
   import { errorMessage } from '../errors';
   import {
     appendSection,
@@ -1698,7 +1699,7 @@
                 <ul class="source-hits">
                   {#each sourceHits as hit (hit.segmentId)}
                     <li>
-                      <span class="source-when">{atMoment(hit.startMs)}</span>
+                      <span class="source-when">{clockFromMillis(hit.startMs)}</span>
                       <span class="source-said"
                         ><strong>{hit.speaker}</strong>
                         {hit.text}</span

@@ -145,13 +145,3 @@ export function findInSource(
 
   return hits.sort((a, b) => b.shared - a.shared || a.startMs - b.startMs).slice(0, most);
 }
-
-/** A timestamp as somebody reading a transcript would say it. */
-export function atMoment(startMs: number): string {
-  const total = Math.floor(startMs / 1000);
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  const seconds = total % 60;
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
-}

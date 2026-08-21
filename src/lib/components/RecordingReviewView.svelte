@@ -6,6 +6,7 @@
     RecordingReview,
   } from '../workflow/types';
   import Icon from './Icon.svelte';
+  import { clockFromMillis } from '../time';
 
   export let meeting: MeetingSummary;
   export let review: RecordingReview | null = null;
@@ -172,15 +173,6 @@
 
   $: anyEdits = startMs > 0 || (edits.endMs ?? null) !== null || removed.length > 0;
 
-  function clock(ms: number) {
-    const total = Math.max(0, Math.round(ms / 1000));
-    const hours = Math.floor(total / 3600);
-    const minutes = Math.floor((total % 3600) / 60);
-    const seconds = total % 60;
-    const pad = (value: number) => String(value).padStart(2, '0');
-    return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
-  }
-
   const percent = (ms: number) => (durationMs ? (ms / durationMs) * 100 : 0);
 </script>
 
@@ -209,9 +201,11 @@
     <section class="review-stage">
       <div class="review-timeline">
         <div class="review-times">
-          <span>{clock(0)}</span>
-          <span class="review-kept">{clock(keptMs)} of {clock(durationMs)} kept</span>
-          <span>{clock(durationMs)}</span>
+          <span>{clockFromMillis(0)}</span>
+          <span class="review-kept"
+            >{clockFromMillis(keptMs)} of {clockFromMillis(durationMs)} kept</span
+          >
+          <span>{clockFromMillis(durationMs)}</span>
         </div>
 
         <div
@@ -224,8 +218,8 @@
           aria-valuemax={Math.round(durationMs / 1000)}
           aria-valuenow={Math.round(caretMs / 1000)}
           aria-valuetext={selection
-            ? `Selected ${clock(selection.fromMs)} to ${clock(selection.toMs)}`
-            : clock(caretMs)}
+            ? `Selected ${clockFromMillis(selection.fromMs)} to ${clockFromMillis(selection.toMs)}`
+            : clockFromMillis(caretMs)}
           onpointerdown={beginSelection}
           onpointermove={extendSelection}
           onpointerup={endSelection}
@@ -267,7 +261,7 @@
 
         <p class="review-hint">
           {#if selection}
-            Selected {clock(selection.fromMs)} to {clock(selection.toMs)}.
+            Selected {clockFromMillis(selection.fromMs)} to {clockFromMillis(selection.toMs)}.
           {:else}
             Drag across the recording to select a stretch, or use the arrow keys and hold shift.
           {/if}
@@ -293,7 +287,7 @@
             <ul class="review-edits">
               {#if startMs > 0}
                 <li>
-                  <span>Starts at {clock(startMs)}</span>
+                  <span>Starts at {clockFromMillis(startMs)}</span>
                   <button
                     class="text-action"
                     onclick={() => commit({ ...edits, startMs: 0 })}
@@ -303,7 +297,7 @@
               {/if}
               {#if (edits.endMs ?? null) !== null}
                 <li>
-                  <span>Ends at {clock(endMs)}</span>
+                  <span>Ends at {clockFromMillis(endMs)}</span>
                   <button
                     class="text-action"
                     onclick={() => commit({ ...edits, endMs: null })}
@@ -314,7 +308,7 @@
               {#each removed as span, index (index)}
                 <li>
                   <span
-                    >Removed {clock(Math.min(span.fromMs, span.toMs))} to {clock(
+                    >Removed {clockFromMillis(Math.min(span.fromMs, span.toMs))} to {clockFromMillis(
                       Math.max(span.fromMs, span.toMs),
                     )}</span
                   >

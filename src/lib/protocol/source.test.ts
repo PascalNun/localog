@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atMoment, distinctiveWords, findInSource } from './source';
+import { distinctiveWords, findInSource } from './source';
 
 const segments = [
   { id: 's1', startMs: 0, speaker: 'Frau Bauleitung', text: 'Guten Morgen, wir fangen an.' },
@@ -57,13 +57,5 @@ describe('finding a passage in the transcript', () => {
 
   it('is empty for a passage with nothing distinctive in it', () => {
     expect(findInSource('und das ist so', segments)).toEqual([]);
-  });
-});
-
-describe('reading a timestamp', () => {
-  it('says it the way a transcript does', () => {
-    expect(atMoment(0)).toBe('0:00');
-    expect(atMoment(62_000)).toBe('1:02');
-    expect(atMoment(3_725_000)).toBe('1:02:05');
   });
 });
