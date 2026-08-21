@@ -27,8 +27,6 @@ export const COMMON_MEETING_LANGUAGES = [
   'Ukrainian',
 ] as const;
 
-export type CommonMeetingLanguage = (typeof COMMON_MEETING_LANGUAGES)[number];
-
 /**
  * What an unset meeting language means, and how to say it.
  *

@@ -1044,11 +1044,7 @@ fn execute_generation(
             transcript: transcript
                 .segments
                 .iter()
-                .map(|segment| provider::GenerationSegment {
-                    start_ms: segment.start_ms,
-                    speaker: segment.speaker.clone(),
-                    text: segment.text.clone(),
-                })
+                .map(provider::GenerationSegment::from)
                 .collect(),
             seed: config.seed,
             temperature_milli: config.temperature_milli,
@@ -2152,14 +2148,7 @@ pub(crate) fn autosave_transcript_segment(
     text: &str,
 ) -> StorageResult<WorkspaceSnapshot> {
     let repository = WorkspaceRepository::open(root)?;
-    let (path, checksum): (String, String) = repository.connection.query_row(
-        "SELECT artifact_path, checksum FROM transcript_working WHERE meeting_id = ?1",
-        [meeting_id],
-        |row| Ok((row.get(0)?, row.get(1)?)),
-    )?;
-    let bytes = read_verified(root, &path, &checksum).map_err(processing_to_storage)?;
-    let mut artifact: TranscriptArtifact = serde_json::from_slice(&bytes)
-        .map_err(|_| StorageError::InvalidData("The saved transcript is invalid."))?;
+    let (path, mut artifact) = working_transcript(root, &repository, meeting_id)?;
     let segment = artifact
         .segments
         .iter_mut()
@@ -2199,14 +2188,7 @@ pub(crate) fn delete_transcript_segment(
     segment_id: &str,
 ) -> StorageResult<WorkspaceSnapshot> {
     let repository = WorkspaceRepository::open(root)?;
-    let (path, checksum): (String, String) = repository.connection.query_row(
-        "SELECT artifact_path, checksum FROM transcript_working WHERE meeting_id = ?1",
-        [meeting_id],
-        |row| Ok((row.get(0)?, row.get(1)?)),
-    )?;
-    let bytes = read_verified(root, &path, &checksum).map_err(processing_to_storage)?;
-    let mut artifact: TranscriptArtifact = serde_json::from_slice(&bytes)
-        .map_err(|_| StorageError::InvalidData("The saved transcript is invalid."))?;
+    let (path, mut artifact) = working_transcript(root, &repository, meeting_id)?;
     if !artifact
         .segments
         .iter()
@@ -2237,14 +2219,7 @@ pub(crate) fn rename_speaker(
     if replacement.is_empty() || replacement.chars().count() > 200 {
         return Err(StorageError::InvalidData("Enter a valid speaker label."));
     }
-    let (path, checksum): (String, String) = repository.connection.query_row(
-        "SELECT artifact_path, checksum FROM transcript_working WHERE meeting_id = ?1",
-        [meeting_id],
-        |row| Ok((row.get(0)?, row.get(1)?)),
-    )?;
-    let bytes = read_verified(root, &path, &checksum).map_err(processing_to_storage)?;
-    let mut artifact: TranscriptArtifact = serde_json::from_slice(&bytes)
-        .map_err(|_| StorageError::InvalidData("The saved transcript is invalid."))?;
+    let (path, mut artifact) = working_transcript(root, &repository, meeting_id)?;
     for segment in &mut artifact.segments {
         if segment.speaker == speaker {
             segment.speaker = replacement.to_string();
@@ -3542,11 +3517,7 @@ pub(crate) fn find_introductions(
         transcript: artifact
             .segments
             .iter()
-            .map(|segment| provider::GenerationSegment {
-                start_ms: segment.start_ms,
-                speaker: segment.speaker.clone(),
-                text: segment.text.clone(),
-            })
+            .map(provider::GenerationSegment::from)
             .collect(),
         seed: 7,
         temperature_milli: 200,

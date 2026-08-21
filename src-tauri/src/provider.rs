@@ -178,6 +178,24 @@ pub struct GenerationSegment {
     pub text: String,
 }
 
+/// What the model is told about one segment, and what it is not.
+///
+/// Narrower than the transcript's own segment by intention: the id, the end, the
+/// review flag and the words the transcriber was unsure of are the editor's
+/// business, and sending them would only be text the model has to ignore.
+///
+/// Six places copied these three fields across by hand. A seventh field added to
+/// either type would have had to be remembered in all six.
+impl From<&crate::domain::TranscriptSegment> for GenerationSegment {
+    fn from(segment: &crate::domain::TranscriptSegment) -> Self {
+        Self {
+            start_ms: segment.start_ms,
+            speaker: segment.speaker.clone(),
+            text: segment.text.clone(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct GenerationRequest {
     pub model: String,

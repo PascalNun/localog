@@ -335,11 +335,7 @@ fn finds_the_topics_of_a_real_meeting() {
     let segments: Vec<GenerationSegment> = transcript
         .segments
         .iter()
-        .map(|segment| GenerationSegment {
-            start_ms: segment.start_ms,
-            speaker: segment.speaker.clone(),
-            text: segment.text.clone(),
-        })
+        .map(GenerationSegment::from)
         .collect();
 
     let provider = OllamaProvider::loopback();

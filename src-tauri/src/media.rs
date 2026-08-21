@@ -47,13 +47,34 @@ pub(crate) fn probe(
             "-show_streams",
         ])
         .arg(source);
-    let output = run_process(
-        command,
-        cancellation,
-        ProcessLimits::with_max_output(512 * 1024),
-    )
-    .map_err(|error| error.to_string())?;
+    let output =
+        run_process(command, cancellation, media_limits()).map_err(|error| error.to_string())?;
     parse_probe(&output.stdout)
+}
+
+/// What a media tool is allowed to say back before it is stopped.
+///
+/// ffmpeg and ffprobe are terse; this is far more than either uses, and far less
+/// than a tool stuck in a loop could fill a disk with.
+fn media_limits() -> ProcessLimits {
+    ProcessLimits::with_max_output(512 * 1024)
+}
+
+/// Run a media tool, taking the half-written file with it if it fails.
+///
+/// A temporary left behind by a failed encode is a file the next run can mistake
+/// for a finished one. All three encoders here want that same clean-up, and each
+/// wrote it out again.
+fn run_media_tool(
+    command: Command,
+    cancellation: &AtomicBool,
+    temporary: &Path,
+) -> Result<(), String> {
+    run_process(command, cancellation, media_limits()).map_err(|error| {
+        let _ = fs::remove_file(temporary);
+        error.to_string()
+    })?;
+    Ok(())
 }
 
 pub(crate) fn normalize(
@@ -86,14 +107,7 @@ pub(crate) fn normalize(
         ])
         .arg(&temporary);
     progress(10);
-    if let Err(error) = run_process(
-        command,
-        cancellation,
-        ProcessLimits::with_max_output(512 * 1024),
-    ) {
-        let _ = fs::remove_file(&temporary);
-        return Err(error.to_string());
-    }
+    run_media_tool(command, cancellation, &temporary)?;
     progress(90);
     if !temporary.is_file() {
         return Err("The media normalizer did not produce an audio file.".into());
@@ -298,14 +312,7 @@ pub(crate) fn encode_to_opus(
         // the file to say the same thing twice.
         .args(["-ac", "1", "-f", "opus"])
         .arg(&temporary);
-    if let Err(error) = run_process(
-        command,
-        cancellation,
-        ProcessLimits::with_max_output(512 * 1024),
-    ) {
-        let _ = fs::remove_file(&temporary);
-        return Err(error.to_string());
-    }
+    run_media_tool(command, cancellation, &temporary)?;
 
     // Check what was written against what was read. An encode that stops early
     // loses the end of a meeting and reports success, which is the failure nobody
@@ -653,14 +660,7 @@ pub(crate) fn combine_tracks(
         ])
         .arg(&temporary);
 
-    if let Err(error) = run_process(
-        command,
-        cancellation,
-        ProcessLimits::with_max_output(512 * 1024),
-    ) {
-        let _ = fs::remove_file(&temporary);
-        return Err(error.to_string());
-    }
+    run_media_tool(command, cancellation, &temporary)?;
     fs::rename(&temporary, destination).map_err(|error| {
         let _ = fs::remove_file(&temporary);
         error.to_string()

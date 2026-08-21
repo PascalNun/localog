@@ -52,14 +52,7 @@ fn does_the_model_follow_the_style() {
             .expect("json");
     let segments: Vec<crate::domain::TranscriptSegment> =
         serde_json::from_value(value["segments"].clone()).expect("segments");
-    let transcript: Vec<GenerationSegment> = segments
-        .iter()
-        .map(|segment| GenerationSegment {
-            start_ms: segment.start_ms,
-            speaker: segment.speaker.clone(),
-            text: segment.text.clone(),
-        })
-        .collect();
+    let transcript: Vec<GenerationSegment> = segments.iter().map(GenerationSegment::from).collect();
     let stated = crate::facts::quantities(&segments);
 
     let provider = OllamaProvider::loopback();
@@ -631,14 +624,7 @@ fn does_writing_by_topic_stay_in_proportion() {
     let segments: Vec<crate::domain::TranscriptSegment> =
         serde_json::from_value(value["segments"].clone()).expect("segments");
     let stated = crate::facts::quantities(&segments);
-    let transcript: Vec<GenerationSegment> = segments
-        .iter()
-        .map(|segment| GenerationSegment {
-            start_ms: segment.start_ms,
-            speaker: segment.speaker.clone(),
-            text: segment.text.clone(),
-        })
-        .collect();
+    let transcript: Vec<GenerationSegment> = segments.iter().map(GenerationSegment::from).collect();
 
     let provider = OllamaProvider::loopback();
     let runtime_version = provider.version().expect("ollama must be running");
@@ -719,14 +705,7 @@ fn who_introduced_themselves() {
         serde_json::from_str(&std::fs::read_to_string(&path).expect("readable")).expect("json");
     let segments: Vec<crate::domain::TranscriptSegment> =
         serde_json::from_value(value["segments"].clone()).expect("segments");
-    let transcript: Vec<GenerationSegment> = segments
-        .iter()
-        .map(|segment| GenerationSegment {
-            start_ms: segment.start_ms,
-            speaker: segment.speaker.clone(),
-            text: segment.text.clone(),
-        })
-        .collect();
+    let transcript: Vec<GenerationSegment> = segments.iter().map(GenerationSegment::from).collect();
 
     let provider = OllamaProvider::loopback();
     let runtime_version = provider.version().expect("ollama must be running");
