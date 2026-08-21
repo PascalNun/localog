@@ -32,6 +32,7 @@
     ProjectSummary,
     ProtocolDensity,
     ProtocolDraft,
+    RecordingStatus,
     ExportTemplate,
     SetAsideSection,
     NewMeetingInput,
@@ -63,6 +64,54 @@
   /// So "auto" is a real choice and the default, and following the system means
   /// listening rather than reading once.
   let themeChoice: 'auto' | 'light' | 'dark' = 'auto';
+
+  /// Whether anything is being recorded, known everywhere rather than only on the
+  /// screen that started it.
+  ///
+  /// The written direction is plain about this: a recording in progress must be
+  /// unmistakable at a glance, because hiding it would be dishonest. It was visible
+  /// only on the recording screen, so navigating away — to another project, to
+  /// settings — left a live recorder with nothing anywhere saying so.
+  ///
+  /// One poller for the whole application rather than one per screen. It costs
+  /// nothing on the other side: the command reads a number the reader thread has
+  /// already put down and asks the operating system nothing. It runs every second
+  /// while something is being recorded and every ten otherwise, which is often
+  /// enough to notice a recorder that has died on its own.
+  let recording: RecordingStatus = {
+    available: false,
+    recording: false,
+    meetingId: null,
+    seconds: 0,
+    systemPeak: 0,
+    microphonePeak: 0,
+    stoppedUnexpectedly: false,
+  };
+  let recordingTimer: ReturnType<typeof setTimeout> | null = null;
+
+  async function pollRecording() {
+    // Any pending tick is dropped first: this is called directly after starting and
+    // stopping as well as on its own schedule, and two timers would double the rate
+    // every time somebody pressed record.
+    if (recordingTimer) clearTimeout(recordingTimer);
+    try {
+      recording = await bridge.recordingStatus();
+    } catch {
+      // A status that cannot be read is not a reason to stop asking.
+    }
+    recordingTimer = setTimeout(() => void pollRecording(), recording.recording ? 1000 : 10_000);
+  }
+
+  onMount(() => {
+    void pollRecording();
+    return () => {
+      if (recordingTimer) clearTimeout(recordingTimer);
+    };
+  });
+
+  $: recordingMeeting = recording.recording
+    ? (snapshot?.meetings.find((meeting) => meeting.id === recording.meetingId) ?? null)
+    : null;
 
   /// Saved ways of presenting a protocol, read once and kept as they change.
   let exportTemplates: ExportTemplate[] = [];
@@ -583,6 +632,8 @@
       {currentProjectId}
       activeJob={snapshot.activeJob}
       {activeJobMeeting}
+      {recording}
+      recordingMeeting={recordingMeeting?.title ?? null}
       width={sidebarWidth}
       open={sidebarOpen}
       {themeChoice}
@@ -693,8 +744,16 @@
           {meeting}
           onNavigate={navigate}
           onStatus={() => bridge.recordingStatus()}
-          onStart={(meetingId: string) => bridge.startRecording(meetingId)}
-          onStop={() => bridge.stopRecording()}
+          onStart={async (meetingId: string) => {
+            await bridge.startRecording(meetingId);
+            // Asked for at once rather than at the next idle tick: a recording that
+            // takes ten seconds to admit it is running is its own small dishonesty.
+            await pollRecording();
+          }}
+          onStop={async () => {
+            await bridge.stopRecording();
+            await pollRecording();
+          }}
         />
       {:else if route.name === 'recording-review' && meeting}
         <RecordingReviewView

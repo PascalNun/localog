@@ -4307,3 +4307,49 @@ button.review-summary[aria-pressed='true'] {
   gap: 6px;
   align-items: start;
 }
+
+/* A recording that is running, said wherever the person happens to be.
+   The same quiet vocabulary as every other status here: no pulsing red, no filled
+   meter. A dot that breathes slowly is enough to be unmistakable at a glance
+   without behaving like an alarm. */
+.local-status.is-recording {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 9px;
+  color: var(--ink);
+  background: transparent;
+  border-radius: 5px;
+  text-align: left;
+}
+
+.local-status.is-recording:hover {
+  background: var(--subtle);
+}
+
+.recording-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  background: var(--recording-mark, #b3541e);
+  border-radius: 50%;
+  animation: recording-breath 2.4s ease-in-out infinite;
+}
+
+@keyframes recording-breath {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Somebody who has asked for less movement gets a steady dot instead. */
+@media (prefers-reduced-motion: reduce) {
+  .recording-dot {
+    animation: none;
+  }
+}

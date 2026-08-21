@@ -10,6 +10,21 @@
   /// Which meeting the work belongs to. The sidebar exists to answer that when the
   /// meeting is no longer on screen; the panel inside the meeting never needs to.
   export let activeJobMeeting: string | null = null;
+  /// A recording in progress, wherever somebody happens to be.
+  export let recording: { recording: boolean; seconds: number; meetingId: string | null } = {
+    recording: false,
+    seconds: 0,
+    meetingId: null,
+  };
+  export let recordingMeeting: string | null = null;
+
+  function elapsed(seconds: number) {
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds % 60;
+    const hours = Math.floor(minutes / 60);
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return hours > 0 ? `${hours}:${pad(minutes % 60)}:${pad(rest)}` : `${minutes}:${pad(rest)}`;
+  }
   export let width: number;
   export let open = false;
   export let onNavigate: (route: AppRoute) => void;
@@ -173,7 +188,25 @@
     </section>
   </nav>
 
-  <div class:has-status={operationalJob} class="sidebar-footer">
+  <div class:has-status={operationalJob || recording.recording} class="sidebar-footer">
+    {#if recording.recording}
+      <!-- Not a compliance device and not an alarm: a recording that is running is
+           simply said, in the same quiet vocabulary as everything else, wherever the
+           person happens to be. Hiding it would be the dishonest choice. -->
+      <button
+        class="local-status is-recording"
+        aria-live="polite"
+        onclick={() =>
+          recording.meetingId && navigate({ name: 'recording', meetingId: recording.meetingId })}
+      >
+        <span class="recording-dot"></span>
+        <span
+          ><strong>Recording</strong><small
+            >{recordingMeeting ? `${recordingMeeting} · ` : ''}{elapsed(recording.seconds)}</small
+          ></span
+        >
+      </button>
+    {/if}
     {#if operationalJob}
       <div class:attention={jobNeedsAttention} class="local-status" aria-live="polite">
         <span
