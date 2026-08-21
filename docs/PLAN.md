@@ -736,6 +736,22 @@ That suggests four axes rather than one, and they do not all belong to the autho
   part that most needs prose rather than structure, because "calm and factual" cannot be expressed
   as a field.
 
+**All four were carried out, 20–21 August, and the analysis held.**
+
+- **Fidelity** left every style and became seven rules in the code, added to each protocol as it is
+  written. Authoring cannot reach them because they are not in the object being edited.
+- **Structure** became structural expectations — one, because one can be checked. The actions-table
+  check had been asking whether the style was called `style-formal`, which duplication would have
+  broken silently.
+- **Density** stayed a separate setting and gained the instruction that had been sitting in the
+  formal style arguing with it.
+- **Voice** is what remains editable, alongside structure, which is what a person authoring a house
+  style is actually choosing.
+
+The one correction the analysis needs: it counts five fidelity instructions and there are seven,
+because "separate what was decided from what remains open" and "mark uncertainty in the words the
+meeting used" are also about whether the record is true rather than how it reads.
+
 The immediate consequence is that `required_sections` should be replaced rather than repaired.
 Structural expectations in a checkable form are what it was reaching for; English section names
 were the wrong shape for a document written in German.
