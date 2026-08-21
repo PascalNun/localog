@@ -13,13 +13,20 @@ use crate::storage::{
     validate_transcript_artifact,
 };
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
-use sha2::{Digest, Sha256};
-use std::fs::{self, File, OpenOptions};
-use std::io::{Read, Write};
+use std::fs;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
+
+mod durability;
+use durability::{
+    backup_path, cleanup_working_backup, finalize_staged, meeting_root, quarantine_final,
+    read_verified, remove_staged, replace_working_file, staged_path, streamed_checksum,
+    verify_streamed_checksum, write_durable_new,
+};
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// How much room to allow the model for the protocol itself.
@@ -2977,19 +2984,6 @@ fn record_staged(
     Ok(())
 }
 
-fn verify_streamed_checksum(
-    root: &Path,
-    relative: &str,
-    expected: &str,
-    cancellation: &AtomicBool,
-) -> Result<(), ProcessingError> {
-    let (checksum, _) = streamed_checksum(root, relative, cancellation)?;
-    if checksum != expected {
-        return Err(ProcessingError::InvalidOutput);
-    }
-    Ok(())
-}
-
 fn normalized_cache_matches(
     root: &Path,
     record: &NormalizedCacheRecord,
@@ -3014,152 +3008,6 @@ fn normalized_cache_matches(
     }
     let (checksum, byte_count) = streamed_checksum(root, &record.normalized_path, cancellation)?;
     Ok(checksum == record.normalized_checksum && byte_count == record.byte_count as u64)
-}
-
-fn streamed_checksum(
-    root: &Path,
-    relative: &str,
-    cancellation: &AtomicBool,
-) -> Result<(String, u64), ProcessingError> {
-    managed_relative_path(Path::new(relative))?;
-    let mut file = File::open(root.join(relative))?;
-    let mut hasher = Sha256::new();
-    let mut buffer = vec![0_u8; 256 * 1024];
-    let mut byte_count = 0_u64;
-    loop {
-        if cancellation.load(Ordering::Acquire) {
-            return Err(ProcessingError::Cancelled);
-        }
-        let read = file.read(&mut buffer)?;
-        if read == 0 {
-            break;
-        }
-        hasher.update(&buffer[..read]);
-        byte_count += read as u64;
-    }
-    Ok((format!("{:x}", hasher.finalize()), byte_count))
-}
-
-fn read_verified(root: &Path, relative: &str, expected: &str) -> Result<Vec<u8>, ProcessingError> {
-    managed_relative_path(Path::new(relative))?;
-    let bytes = fs::read(root.join(relative))?;
-    if checksum_bytes(&bytes) != expected {
-        return Err(ProcessingError::InvalidOutput);
-    }
-    Ok(bytes)
-}
-
-fn write_durable_new(path: &Path, bytes: &[u8]) -> Result<(), ProcessingError> {
-    fs::create_dir_all(
-        path.parent()
-            .ok_or_else(|| std::io::Error::other("missing parent"))?,
-    )?;
-    let mut file = OpenOptions::new().create_new(true).write(true).open(path)?;
-    file.write_all(bytes)?;
-    file.flush()?;
-    file.sync_all()?;
-    sync_directory(path.parent())?;
-    Ok(())
-}
-
-fn replace_working_file(
-    root: &Path,
-    relative: &Path,
-    bytes: &[u8],
-    _expected_previous: Option<&str>,
-) -> Result<(), ProcessingError> {
-    managed_relative_path(relative)?;
-    let path = root.join(relative);
-    fs::create_dir_all(
-        path.parent()
-            .ok_or_else(|| std::io::Error::other("missing parent"))?,
-    )?;
-    let next = next_path(&path);
-    let previous = backup_path(&path);
-    let _ = fs::remove_file(&next);
-    let _ = fs::remove_file(&previous);
-    write_durable_new(&next, bytes)?;
-    if path.exists() {
-        fs::rename(&path, &previous)?;
-    }
-    fs::rename(&next, &path)?;
-    sync_directory(path.parent())?;
-    Ok(())
-}
-
-fn cleanup_working_backup(root: &Path, relative: &Path) {
-    let path = root.join(relative);
-    let _ = fs::remove_file(backup_path(&path));
-    let _ = fs::remove_file(next_path(&path));
-}
-
-fn finalize_staged(staged: &Path, final_path: &Path) -> Result<(), ProcessingError> {
-    fs::create_dir_all(
-        final_path
-            .parent()
-            .ok_or_else(|| std::io::Error::other("missing parent"))?,
-    )?;
-    fs::rename(staged, final_path)?;
-    sync_directory(final_path.parent())?;
-    Ok(())
-}
-
-fn staged_path(root: &Path, job: &ProcessingJobRecord, extension: &str) -> PathBuf {
-    root.join(meeting_root(&job.project_id, &job.meeting_id))
-        .join("working/jobs")
-        .join(format!("{}.{}.part", job.id, extension))
-}
-
-fn remove_staged(root: &Path, job: &ProcessingJobRecord) {
-    for extension in ["json", "md"] {
-        let _ = fs::remove_file(staged_path(root, job, extension));
-    }
-}
-
-fn quarantine_final(root: &Path, job: &ProcessingJobRecord) {
-    let final_path = root.join(&job.final_relative_path);
-    let recovery = root
-        .join(meeting_root(&job.project_id, &job.meeting_id))
-        .join("working/recovery");
-    if fs::create_dir_all(&recovery).is_ok() {
-        let _ = fs::rename(final_path, recovery.join(format!("{}.orphan", job.id)));
-    }
-}
-
-fn meeting_root(project_id: &str, meeting_id: &str) -> PathBuf {
-    PathBuf::from("projects")
-        .join(project_id)
-        .join("meetings")
-        .join(meeting_id)
-}
-
-fn backup_path(path: &Path) -> PathBuf {
-    path.with_extension(format!(
-        "{}.previous",
-        path.extension()
-            .and_then(|value| value.to_str())
-            .unwrap_or("work")
-    ))
-}
-
-fn next_path(path: &Path) -> PathBuf {
-    path.with_extension(format!(
-        "{}.next",
-        path.extension()
-            .and_then(|value| value.to_str())
-            .unwrap_or("work")
-    ))
-}
-
-#[cfg(unix)]
-fn sync_directory(directory: Option<&Path>) -> Result<(), ProcessingError> {
-    File::open(directory.ok_or_else(|| std::io::Error::other("missing directory"))?)?.sync_all()?;
-    Ok(())
-}
-
-#[cfg(not(unix))]
-fn sync_directory(_directory: Option<&Path>) -> Result<(), ProcessingError> {
-    Ok(())
 }
 
 fn processing_to_storage(error: ProcessingError) -> StorageError {
