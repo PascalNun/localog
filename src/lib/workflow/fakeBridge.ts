@@ -627,12 +627,12 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       name: style.name,
       description: style.description,
       density: style.density,
-      instructions: SEEDED_INSTRUCTIONS[style.id] ?? [],
+      instructions: SHIPPED_STYLES[style.id]?.instructions ?? [],
       // What the real workspace returns for this style, so the preview shows what
       // is actually checked rather than an empty list that reads as "nothing is".
-      checks: SEEDED_CHECKS[style.id] ?? [],
+      checks: SHIPPED_STYLES[style.id]?.checks ?? [],
       asShipped: true,
-      fidelity: SEEDED_FIDELITY,
+      fidelity: FIDELITY_RULES,
       editable: false,
     };
   }
@@ -1423,37 +1423,40 @@ function errorMessage(error: unknown): string {
 }
 
 /**
- * What the shipped styles actually ask for, copied from the migration that set them.
+ * The shipped styles as the workspace actually holds them.
  *
- * Only used when there is no workspace behind the interface. Designing a screen
- * against invented instructions would make it look better than it is.
+ * Only read when there is no workspace behind the interface — the browser preview.
+ * Designing a screen against invented instructions would make it look better than it
+ * is, so this mirrors what is really stored.
+ *
+ * It was three separate constants, and the largest had gone stale: it still listed
+ * the fidelity rules and the length instruction that migrations 20 and 22 took out of
+ * every style, so the preview showed a style that no longer exists. One record per
+ * style, and the fidelity rules once, is harder to let drift.
  */
-const SEEDED_INSTRUCTIONS: Record<string, string[]> = {
-  'style-formal': [
-    "Write the entire protocol in the meeting's language.",
-    'Organise the protocol by topic, not in the order things were discussed. Gather everything said about one subject into a single numbered section, even if it came up several times.',
-    'Begin with the participants, grouped by the organisation they belong to, and give a role only where it was stated.',
-    'Use numbered sections with descriptive headings, and sub-numbered subsections where a topic has distinct parts.',
-    'Write discussion as calm, factual prose. Use lists only for options, criteria, and open questions.',
-    'Reproduce every number, measurement, area, date, and proper name exactly as stated. Never round or approximate them.',
-    'Separate what was decided from what remains open. Where no decision was reached, say so plainly rather than implying one.',
-    'Mark uncertainty in the words the meeting used, such as an intention, an estimate, or a matter still to be confirmed.',
-    'End with a table of agreed next steps with two columns, the task and the responsible party, followed by a short section for dates and appointments.',
-    'Never invent a decision, an action, an owner, or a date. If the source does not say who is responsible, leave it unattributed.',
-    'Cover every topic that was discussed. A protocol that silently omits a topic is incomplete, even if what remains reads well.',
-    'The table of next steps must list every action that was agreed, not a selection of the clearest ones.',
-    'Write at whatever length the material requires. Do not compress the meeting into a summary: this is a record, and a reader who was absent must be able to follow what was discussed and what follows from it.',
-    'Never leave a placeholder such as [Datum] or [Details]. If something is not in the source, omit the line instead.',
-  ],
+const SHIPPED_STYLES: Record<string, { instructions: string[]; checks: string[] }> = {
+  'style-formal': {
+    instructions: [
+      'Organise the protocol by topic, not in the order things were discussed. Gather everything said about one subject into a single numbered section, even if it came up several times.',
+      'Begin with the participants, grouped by the organisation they belong to, and give a role only where it was stated.',
+      'Use numbered sections with descriptive headings, and sub-numbered subsections where a topic has distinct parts.',
+      'Write discussion as calm, factual prose. Use lists only for options, criteria, and open questions.',
+      'End with a table of agreed next steps with two columns, the task and the responsible party, followed by a short section for dates and appointments.',
+      'The table of next steps must list every action that was agreed, not a selection of the clearest ones.',
+    ],
+    checks: [
+      'Ends with a table of agreed next steps. A table is a table in every language, so this is checked on the protocol itself and the draft is asked again if it is missing.',
+    ],
+  },
 };
 
 /**
- * The rules every style carries, copied from the code that owns them.
+ * The rules every style carries and none may change.
  *
- * Only used when there is no workspace behind the interface. The real list lives in
- * Rust and is added to every protocol as it is written.
+ * The list that owns this is in Rust, where it is added to every protocol as it is
+ * written; this is here only so the preview shows what the page really says.
  */
-const SEEDED_FIDELITY: string[] = [
+const FIDELITY_RULES: string[] = [
   "Write the entire protocol in the meeting's language.",
   'Reproduce every number, measurement, area, date, and proper name exactly as stated. Never round or approximate them.',
   'Never invent a decision, an action, an owner, or a date. If the source does not say who is responsible, leave it unattributed.',
@@ -1462,10 +1465,3 @@ const SEEDED_FIDELITY: string[] = [
   'Cover every topic that was discussed. A protocol that silently omits a topic is incomplete, even if what remains reads well.',
   'Never leave a placeholder such as [Datum] or [Details]. If something is not in the source, omit the line instead.',
 ];
-
-/** The checks the workspace reports, for the preview that has no workspace. */
-const SEEDED_CHECKS: Record<string, string[]> = {
-  'style-formal': [
-    'Ends with a table of agreed next steps. A table is a table in every language, so this is checked on the protocol itself and the draft is asked again if it is missing.',
-  ],
-};

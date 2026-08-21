@@ -2018,6 +2018,78 @@ fn answer_budget(context_tokens: u32, prompt_chars: usize, requested: u32) -> u3
 /// about whether a window can hold a protocol is answered by arithmetic rather than
 /// by inference from a failure. Used by the evaluation harness.
 #[cfg(test)]
+mod what_reaches_the_model {
+    use super::{FIDELITY_RULES, GenerationRequest, GenerationStyle, with_density};
+    use crate::domain::ProtocolDensity;
+
+    fn request(density: ProtocolDensity, instructions: Vec<String>) -> GenerationRequest {
+        GenerationRequest {
+            model: "test".into(),
+            model_digest: String::new(),
+            runtime_version: String::new(),
+            meeting_language: "German".into(),
+            style: GenerationStyle {
+                id: "any".into(),
+                revision: "1".into(),
+                density,
+                instructions,
+                expectations: Vec::new(),
+            },
+            vocabulary_revision: String::new(),
+            vocabulary: Vec::new(),
+            transcript: Vec::new(),
+            seed: 1,
+            temperature_milli: 200,
+            context_tokens: 8_192,
+            maximum_output_tokens: 2_048,
+        }
+    }
+
+    /// Every protocol carries the fidelity rules, whatever style wrote it — including
+    /// one somebody authored here, which is the case the whole arrangement exists for.
+    #[test]
+    fn a_style_that_carries_nothing_still_gets_the_fidelity_rules() {
+        let bare = with_density(&request(ProtocolDensity::Concise, Vec::new()));
+        for rule in FIDELITY_RULES {
+            assert!(
+                bare.iter().any(|line| line == rule),
+                "a protocol was written without: {rule}"
+            );
+        }
+    }
+
+    /// The order is deliberate: what to write, then what may never be done to it,
+    /// then how long. Fidelity last of the three would read as an afterthought.
+    #[test]
+    fn the_style_speaks_first_and_the_length_last() {
+        let full = with_density(&request(
+            ProtocolDensity::Terse,
+            vec!["Organise the protocol by topic.".into()],
+        ));
+        assert_eq!(full.first().map(String::as_str), Some("Organise the protocol by topic."));
+        assert_eq!(
+            full.last().map(String::as_str),
+            Some(ProtocolDensity::Terse.directive())
+        );
+        let fidelity_at = full
+            .iter()
+            .position(|line| line.starts_with("Never invent"))
+            .expect("the fidelity rules are in there");
+        assert!(fidelity_at > 0 && fidelity_at < full.len() - 1);
+    }
+
+    /// The instruction that moved: a terse protocol must not be told to write at
+    /// whatever length it likes, which is what carrying it in the style did.
+    #[test]
+    fn a_terse_protocol_is_never_told_to_take_its_time() {
+        let terse = with_density(&request(ProtocolDensity::Terse, Vec::new())).join(" ");
+        assert!(!terse.contains("whatever length the material requires"));
+        let full = with_density(&request(ProtocolDensity::Comprehensive, Vec::new())).join(" ");
+        assert!(full.contains("whatever length the material requires"));
+    }
+}
+
+#[cfg(test)]
 mod the_table_a_style_asks_for {
     use super::{GenerationStyle, validate_protocol};
     use crate::domain::{ProtocolDensity, StructuralExpectation};

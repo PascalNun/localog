@@ -9,6 +9,9 @@
   } from '../workflow/types';
   import Icon from './Icon.svelte';
   import StageRail from './StageRail.svelte';
+  import AppearanceFields from './AppearanceFields.svelte';
+  import FurnitureEditor from './FurnitureEditor.svelte';
+  import SectionList from './SectionList.svelte';
   import { fromElement, toMarkdown } from '../protocol/html';
   import { renderMarkdown } from '../protocol/markdown';
   import {
@@ -635,45 +638,10 @@
   /// with the first, and the first would win.
   $: sections = readSections(markdown);
 
-  let draggingSection: number | null = null;
-
   async function commitSections(next: string, stash: SetAsideSection[]) {
     remember();
     showAgain(next);
     await onSectionsChanged(next, stash);
-  }
-
-  async function dropSection(onto: number) {
-    const from = draggingSection;
-    draggingSection = null;
-    if (from === null || from === onto) return;
-    await commitSections(moveSection(markdown, from, onto), setAside);
-  }
-
-  /// Reordering without a mouse.
-  ///
-  /// Dragging was the only way to move a section, which leaves anybody working from
-  /// the keyboard unable to do it at all. The grip takes focus and answers to the
-  /// arrow keys; focus follows the section so a run of presses moves it several
-  /// places, as it would in any list.
-  async function moveByKey(event: KeyboardEvent, index: number) {
-    const up = event.key === 'ArrowUp';
-    const down = event.key === 'ArrowDown';
-    if (!up && !down) return;
-    const to = up ? index - 1 : index + 1;
-    if (to < 0 || to >= sections.length) return;
-    event.preventDefault();
-    await commitSections(moveSection(markdown, index, to), setAside);
-    // The list is rebuilt from the document, so focus is put back on the row the
-    // section has moved to rather than left on the one it came from.
-    queueMicrotask(() => {
-      const grips = documentGrips();
-      grips[to]?.focus();
-    });
-  }
-
-  function documentGrips(): HTMLElement[] {
-    return Array.from(document.querySelectorAll<HTMLElement>('.section-grip'));
   }
 
   /// Take a section out without throwing it away.
@@ -812,55 +780,6 @@
 
   function describeRow(row: FurnitureRow) {
     return [...row.left, ...row.centre, ...row.right].map(fieldLabel).join(', ');
-  }
-
-  async function addField(where: 'header' | 'footer', slot: keyof FurnitureRow, kind: string) {
-    if (!kind) return;
-    const field = (kind === 'text' ? { kind: 'text', value: '' } : { kind }) as FurnitureField;
-    await onSetFurniture({
-      ...furniture,
-      [where]: { ...furniture[where], [slot]: [...furniture[where][slot], field] },
-    });
-  }
-
-  async function removeField(where: 'header' | 'footer', slot: keyof FurnitureRow, at: number) {
-    await onSetFurniture({
-      ...furniture,
-      [where]: {
-        ...furniture[where],
-        [slot]: furniture[where][slot].filter((_, index) => index !== at),
-      },
-    });
-  }
-
-  async function setFieldText(
-    where: 'header' | 'footer',
-    slot: keyof FurnitureRow,
-    at: number,
-    value: string,
-  ) {
-    await onSetFurniture({
-      ...furniture,
-      [where]: {
-        ...furniture[where],
-        [slot]: furniture[where][slot].map((field, index) =>
-          index === at && field.kind === 'text' ? { kind: 'text', value } : field,
-        ),
-      },
-    });
-  }
-
-  const FURNITURE_SLOTS: { id: keyof FurnitureRow; label: string }[] = [
-    { id: 'left', label: 'Left' },
-    { id: 'centre', label: 'Centre' },
-    { id: 'right', label: 'Right' },
-  ];
-
-  async function changeAppearance<K extends keyof DocumentAppearance>(
-    key: K,
-    value: DocumentAppearance[K],
-  ) {
-    await onSetAppearance({ ...appearance, [key]: value });
   }
 
   const ZOOM_STEPS = [0.8, 0.9, 1, 1.1, 1.25, 1.5];
@@ -1647,68 +1566,17 @@
           </div>
           <div class="inspector-section">
             <p class="eyebrow">Sections</p>
-            {#if sections.length === 0}
-              <p class="section-none">
-                This protocol has no headings yet, so there is nothing to list.
-              </p>
-            {:else}
-              <ul class="section-list">
-                {#each sections as section, index (section.from)}
-                  <li
-                    class:dragging={draggingSection === index}
-                    draggable="true"
-                    ondragstart={() => (draggingSection = index)}
-                    ondragover={(event) => event.preventDefault()}
-                    ondrop={() => void dropSection(index)}
-                    ondragend={() => (draggingSection = null)}
-                  >
-                    <button
-                      class="section-grip"
-                      aria-label={`Move ${section.title}. Use the arrow keys.`}
-                      title="Drag, or use the arrow keys"
-                      onkeydown={(event) => void moveByKey(event, index)}>⠿</button
-                    >
-                    <button class="section-name" onclick={() => goToSection(index)}
-                      >{section.title}</button
-                    >
-                    <button
-                      class="icon-button compact"
-                      title="Set this section aside"
-                      aria-label={`Set aside ${section.title}`}
-                      onclick={() => void setSectionAside(index)}
-                      ><Icon name="close" size={14} /></button
-                    >
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-            {#if setAside.length > 0}
-              <p class="section-stash-label">Set aside</p>
-              <ul class="section-list stashed">
-                {#each setAside as held, index (held.title + index)}
-                  <li>
-                    <span class="section-grip-spacer" aria-hidden="true"></span>
-                    <span class="section-name">{held.title}</span>
-                    <button
-                      class="icon-button compact"
-                      title="Put this section back"
-                      aria-label={`Put back ${held.title}`}
-                      onclick={() => void bringSectionBack(index)}
-                      ><Icon name="plus" size={14} /></button
-                    >
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-            <button class="inspector-control" onclick={() => void addSection()}>
-              <Icon name="plus" size={16} />
-              <span>Add section</span>
-              <span></span>
-            </button>
-            <p class="section-note">
-              A section set aside leaves the document, so what you read is still exactly what is
-              exported. It is kept here and can be put back.
-            </p>
+            <SectionList
+              {sections}
+              {setAside}
+              onMove={async (from, to) => {
+                await commitSections(moveSection(markdown, from, to), setAside);
+              }}
+              onSetAside={setSectionAside}
+              onBringBack={bringSectionBack}
+              onAdd={addSection}
+              onGoTo={goToSection}
+            />
           </div>
           <div class="inspector-section">
             <p class="eyebrow">Appearance</p>
@@ -1726,84 +1594,11 @@
               <Icon name={appearanceOpen ? 'chevron-down' : 'chevron'} size={15} />
             </button>
             {#if appearanceOpen}
-              <div class="appearance-fields">
-                <label>
-                  <span>Font</span>
-                  <select
-                    value={appearance.font}
-                    onchange={(event) =>
-                      void changeAppearance(
-                        'font',
-                        event.currentTarget.value as DocumentAppearance['font'],
-                      )}
-                  >
-                    {#each APPEARANCE_CHOICES.font as choice (choice.value)}
-                      <option value={choice.value}>{choice.label}</option>
-                    {/each}
-                  </select>
-                </label>
-                <label>
-                  <span>Body size</span>
-                  <select
-                    value={appearance.bodySize}
-                    onchange={(event) =>
-                      void changeAppearance('bodySize', Number(event.currentTarget.value))}
-                  >
-                    {#each APPEARANCE_CHOICES.bodySize as choice (choice.value)}
-                      <option value={choice.value}>{choice.label}</option>
-                    {/each}
-                  </select>
-                </label>
-                <label>
-                  <span>Heading scale</span>
-                  <select
-                    value={appearance.headingScale}
-                    onchange={(event) =>
-                      void changeAppearance(
-                        'headingScale',
-                        event.currentTarget.value as DocumentAppearance['headingScale'],
-                      )}
-                  >
-                    {#each APPEARANCE_CHOICES.headingScale as choice (choice.value)}
-                      <option value={choice.value}>{choice.label}</option>
-                    {/each}
-                  </select>
-                </label>
-                <label>
-                  <span>Line spacing</span>
-                  <select
-                    value={appearance.lineSpacing}
-                    onchange={(event) =>
-                      void changeAppearance(
-                        'lineSpacing',
-                        event.currentTarget.value as DocumentAppearance['lineSpacing'],
-                      )}
-                  >
-                    {#each APPEARANCE_CHOICES.lineSpacing as choice (choice.value)}
-                      <option value={choice.value}>{choice.label}</option>
-                    {/each}
-                  </select>
-                </label>
-                <label>
-                  <span>Page width</span>
-                  <select
-                    value={appearance.pageWidth}
-                    onchange={(event) =>
-                      void changeAppearance(
-                        'pageWidth',
-                        event.currentTarget.value as DocumentAppearance['pageWidth'],
-                      )}
-                  >
-                    {#each APPEARANCE_CHOICES.pageWidth as choice (choice.value)}
-                      <option value={choice.value}>{choice.label}</option>
-                    {/each}
-                  </select>
-                </label>
-                <p class="appearance-note">
-                  Applies to every protocol in {project.name}, so a firm's documents look alike. It
-                  changes how the protocol is set, never what it says — that is the style above.
-                </p>
-              </div>
+              <AppearanceFields
+                {appearance}
+                projectName={project.name}
+                onChange={onSetAppearance}
+              />
             {/if}
           </div>
           <div class="inspector-section">
@@ -1819,69 +1614,7 @@
               <Icon name={furnitureOpen ? 'chevron-down' : 'chevron'} size={15} />
             </button>
             {#if furnitureOpen}
-              <div class="furniture-editor">
-                {#each [{ id: 'header', label: 'Header' }, { id: 'footer', label: 'Footer' }] as band (band.id)}
-                  {@const where = band.id as 'header' | 'footer'}
-                  <div class="furniture-band">
-                    <p class="eyebrow">{band.label}</p>
-                    {#each FURNITURE_SLOTS as slot (slot.id)}
-                      <div class="furniture-slot">
-                        <span class="furniture-slot-name">{slot.label}</span>
-                        <div class="furniture-chips">
-                          {#each furniture[where][slot.id] as field, at (at)}
-                            <span class="furniture-chip">
-                              {#if field.kind === 'text'}
-                                <input
-                                  value={field.value}
-                                  placeholder="Your text"
-                                  onchange={(event) =>
-                                    void setFieldText(
-                                      where,
-                                      slot.id,
-                                      at,
-                                      event.currentTarget.value,
-                                    )}
-                                />
-                              {:else}
-                                {fieldLabel(field)}
-                              {/if}
-                              <button
-                                class="furniture-remove"
-                                aria-label={`Remove ${fieldLabel(field)}`}
-                                onclick={() => void removeField(where, slot.id, at)}>×</button
-                              >
-                            </span>
-                          {/each}
-                          <select
-                            value=""
-                            aria-label={`Add to ${band.label} ${slot.label}`}
-                            onchange={(event) => {
-                              void addField(where, slot.id, event.currentTarget.value);
-                              event.currentTarget.value = '';
-                            }}
-                          >
-                            <option value="">Add…</option>
-                            {#each FURNITURE_FIELDS as choice (choice.kind)}
-                              <option value={choice.kind}>{choice.label}</option>
-                            {/each}
-                          </select>
-                        </div>
-                      </div>
-                    {/each}
-                  </div>
-                {/each}
-                {#if needsPageNumbers(furniture)}
-                  <p class="appearance-note">
-                    Word counts the pages itself, so the number is right there. The PDF is printed
-                    by the browser, which will not say what page it is on — the page number is left
-                    out of that one rather than printed wrongly on every sheet.
-                  </p>
-                {/if}
-                <p class="appearance-note">
-                  Applies to every protocol in {project.name}. It repeats on the printed page and is
-                  not part of the document you are editing.
-                </p>
-              </div>
+              <FurnitureEditor {furniture} projectName={project.name} onChange={onSetFurniture} />
             {/if}
           </div>
           <div class="inspector-section">
