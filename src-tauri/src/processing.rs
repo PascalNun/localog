@@ -3309,9 +3309,24 @@ pub(crate) fn finish_recording(
 
     repository.connection.execute(
         "UPDATE recordings
-            SET state = 'committed', managed_path = ?2, checksum = ?3, byte_count = ?4
+            SET state = 'committed', managed_path = ?2, checksum = ?3, byte_count = ?4,
+                media_type = 'audio/wav', original_name = ?5
           WHERE id = ?1",
-        rusqlite::params![recording_id, relative, checksum, bytes.len() as i64],
+        // The two tracks are combined into one WAV, so that is what this recording
+        // is — and its name is the file that exists, not the system track it was
+        // built from. A recorded meeting showed no media type at all where an
+        // imported one showed audio/wav, and named a file the workspace does not
+        // keep.
+        rusqlite::params![
+            recording_id,
+            relative,
+            checksum,
+            bytes.len() as i64,
+            combined
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("recording.wav")
+        ],
     )?;
     // The meeting has a source now, which is what every screen keys off.
     repository.connection.execute(

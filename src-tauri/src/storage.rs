@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 22;
+const CURRENT_SCHEMA_VERSION: i64 = 23;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -2515,6 +2515,27 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             )?;
         }
         connection.pragma_update(None, "user_version", 22)?;
+        version = 22;
+    }
+    if version == 22 {
+        // Recordings made inside LocaLog carried no media type and were named after
+        // the system track rather than the file that was kept. Found on a real
+        // workspace: an imported meeting read "audio/wav" and a recorded one read
+        // nothing, beside a name ending "-system.wav" for a file called something
+        // else.
+        connection.execute(
+            "UPDATE recordings
+                SET media_type = 'audio/wav',
+                    original_name = COALESCE(
+                        NULLIF(replace(managed_path, rtrim(managed_path, replace(managed_path, '/', '')), ''), ''),
+                        original_name
+                    )
+              WHERE kind = 'recorded'
+                AND state = 'committed'
+                AND (media_type IS NULL OR media_type = '')",
+            [],
+        )?;
+        connection.pragma_update(None, "user_version", 23)?;
     }
     Ok(())
 }
@@ -3955,4 +3976,5 @@ mod tests {
         assert_eq!(recovered.jobs[0].state, JobState::Queued);
     }
 }
+
 
