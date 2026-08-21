@@ -327,6 +327,21 @@ export const SPEAKER_SEPARATION_UNREADY: SpeakerSeparationStatus = {
   downloadBytes: 0,
 };
 
+/**
+ * The parts of a protocol style a person may change.
+ *
+ * One object rather than four positional arguments, because `name` and
+ * `description` are both strings and sit next to each other: swapping them at a
+ * call site compiles, and produces a style whose name is its description. The
+ * fidelity rules are deliberately absent — they are not the author's to edit.
+ */
+export interface StyleEdit {
+  name: string;
+  description: string;
+  instructions: string[];
+  density: ProtocolDensity;
+}
+
 export interface ProtocolStyle {
   id: string;
   name: string;
@@ -571,13 +586,7 @@ export interface WorkflowBridge {
   /** What a recording in progress is doing. Cheap; polled while the screen is open. */
   protocolStyleDetail(styleId: string): Promise<ProtocolStyleDetail>;
   duplicateProtocolStyle(styleId: string, name: string): Promise<void>;
-  updateProtocolStyle(
-    styleId: string,
-    name: string,
-    description: string,
-    instructions: string[],
-    density: ProtocolDensity,
-  ): Promise<void>;
+  updateProtocolStyle(styleId: string, edit: StyleEdit): Promise<void>;
   deleteProtocolStyle(styleId: string): Promise<void>;
   /** Delete a meeting, its recordings, its transcript and its protocols. */
   deleteMeeting(meetingId: string): Promise<void>;

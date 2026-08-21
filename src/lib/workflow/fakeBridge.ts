@@ -6,6 +6,7 @@ import type {
   ExportTemplate,
   NameReplacement,
   ProtocolDensity,
+  StyleEdit,
   SetAsideSection,
   ProtocolStyleDetail,
   ActiveJob,
@@ -579,19 +580,8 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     throw new Error('Editing styles needs the desktop application.');
   }
 
-  async updateProtocolStyle(
-    styleId: string,
-    name: string,
-    description: string,
-    instructions: string[],
-    density: ProtocolDensity,
-  ): Promise<void> {
-    if (
-      await this.durable((store) =>
-        store.updateProtocolStyle?.(styleId, name, description, instructions, density),
-      )
-    )
-      return;
+  async updateProtocolStyle(styleId: string, edit: StyleEdit): Promise<void> {
+    if (await this.durable((store) => store.updateProtocolStyle?.(styleId, edit))) return;
     throw new Error('Editing styles needs the desktop application.');
   }
 

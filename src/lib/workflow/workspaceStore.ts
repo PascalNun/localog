@@ -35,6 +35,7 @@ import type {
   NameReplacement,
   SetAsideSection,
   ProtocolDensity,
+  StyleEdit,
   ProtocolStyleDetail,
   RecordingStatus,
   CorrectionMatch,
@@ -84,13 +85,7 @@ export interface WorkspaceStore {
   deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<WorkspaceData>;
   protocolStyleDetail(styleId: string): Promise<ProtocolStyleDetail>;
   duplicateProtocolStyle?: (styleId: string, name: string) => Promise<WorkspaceData>;
-  updateProtocolStyle?: (
-    styleId: string,
-    name: string,
-    description: string,
-    instructions: string[],
-    density: ProtocolDensity,
-  ) => Promise<WorkspaceData>;
+  updateProtocolStyle?: (styleId: string, edit: StyleEdit) => Promise<WorkspaceData>;
   deleteProtocolStyle?: (styleId: string) => Promise<WorkspaceData>;
   deleteMeeting?: (meetingId: string) => Promise<WorkspaceData>;
   setProjectAppearance?: (
@@ -302,14 +297,8 @@ class TauriWorkspaceStore implements WorkspaceStore {
     return invoke('duplicate_protocol_style', { styleId, name });
   }
 
-  updateProtocolStyle(
-    styleId: string,
-    name: string,
-    description: string,
-    instructions: string[],
-    density: ProtocolDensity,
-  ): Promise<WorkspaceData> {
-    return invoke('update_protocol_style', { styleId, name, description, instructions, density });
+  updateProtocolStyle(styleId: string, edit: StyleEdit): Promise<WorkspaceData> {
+    return invoke('update_protocol_style', { styleId, ...edit });
   }
 
   deleteProtocolStyle(styleId: string): Promise<WorkspaceData> {

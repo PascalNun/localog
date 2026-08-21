@@ -15,7 +15,7 @@ import { appearanceStyle } from './appearance';
 import { resolveRow, rowIsEmpty } from './furniture';
 import type { DocumentFacts } from './furniture';
 import type { ProtocolDocument } from './document';
-import { renderMarkdown } from './markdown';
+import { escapeHtml, renderMarkdown } from './markdown';
 import type { DocumentAppearance, PageFurniture } from '../workflow/types';
 
 /** Where the print sheet is mounted, as a sibling of the application root. */
@@ -43,8 +43,8 @@ export async function printProtocol(
   root.setAttribute('style', appearanceStyle(protocol.appearance));
   root.innerHTML = [
     '<header class="print-masthead">',
-    `<h1>${escapeText(protocol.title)}</h1>`,
-    protocol.subtitle ? `<p>${escapeText(protocol.subtitle)}</p>` : '',
+    `<h1>${escapeHtml(protocol.title)}</h1>`,
+    protocol.subtitle ? `<p>${escapeHtml(protocol.subtitle)}</p>` : '',
     '</header>',
     furnitureRow(protocol, 'header'),
     `<div class="print-body">${renderMarkdown(protocol.markdown)}</div>`,
@@ -68,18 +68,6 @@ export async function printProtocol(
   window.print();
 }
 
-const ESCAPES: Record<string, string> = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;',
-};
-
-function escapeText(text: string): string {
-  return text.replace(/[&<>"']/g, (character) => ESCAPES[character] ?? character);
-}
-
 /**
  * The header or footer, repeated on every printed page.
  *
@@ -93,7 +81,7 @@ function furnitureRow(protocol: ProtocolDocument, which: 'header' | 'footer'): s
   const facts = protocol.facts;
   if (!row || !facts || rowIsEmpty(row)) return '';
   const slot = (fields: typeof row.left) =>
-    `<span>${escapeText(resolveRow(fields, facts, null))}</span>`;
+    `<span>${escapeHtml(resolveRow(fields, facts, null))}</span>`;
   return (
     `<div class="print-${which}">` +
     `${slot(row.left)}${slot(row.centre)}${slot(row.right)}` +

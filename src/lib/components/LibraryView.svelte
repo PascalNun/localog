@@ -4,6 +4,7 @@
     ExportTemplate,
     PageFurniture,
     ProtocolDensity,
+    StyleEdit,
     ProtocolStyle,
     ProtocolStyleDetail,
     VocabularyDraft,
@@ -25,13 +26,8 @@
   };
   export let onDuplicateStyle: (styleId: string, name: string) => Promise<void> = async () =>
     undefined;
-  export let onUpdateStyle: (
-    styleId: string,
-    name: string,
-    description: string,
-    instructions: string[],
-    density: ProtocolDensity,
-  ) => Promise<void> = async () => undefined;
+  export let onUpdateStyle: (styleId: string, edit: StyleEdit) => Promise<void> = async () =>
+    undefined;
   export let onDeleteStyle: (styleId: string) => Promise<void> = async () => undefined;
   export let onSaveTerm: (entry: VocabularyDraft) => Promise<void> = async () => undefined;
   export let onDeleteTerm: (entryId: string) => Promise<void> = async () => undefined;
@@ -89,13 +85,12 @@
     styleBusy = true;
     styleError = '';
     try {
-      await onUpdateStyle(
-        styleId,
-        editName,
-        editDescription,
-        editInstructions.filter((line) => line.trim() !== ''),
-        editDensity,
-      );
+      await onUpdateStyle(styleId, {
+        name: editName,
+        description: editDescription,
+        instructions: editInstructions.filter((line) => line.trim() !== ''),
+        density: editDensity,
+      });
       editingStyle = false;
       openStyle = await onOpenStyle(styleId);
     } catch (cause) {

@@ -36,6 +36,7 @@
     MeetingSummary,
     ProjectSummary,
     ProtocolDensity,
+    StyleEdit,
     ProtocolDraft,
     RecordingStatus,
     ExportTemplate,
@@ -844,13 +845,8 @@
           onOpenStyle={(styleId: string) => bridge.protocolStyleDetail(styleId)}
           onDuplicateStyle={(styleId: string, name: string) =>
             bridge.duplicateProtocolStyle(styleId, name)}
-          onUpdateStyle={(
-            styleId: string,
-            name: string,
-            description: string,
-            instructions: string[],
-            density: ProtocolDensity,
-          ) => bridge.updateProtocolStyle(styleId, name, description, instructions, density)}
+          onUpdateStyle={(styleId: string, edit: StyleEdit) =>
+            bridge.updateProtocolStyle(styleId, edit)}
           onDeleteStyle={(styleId: string) => bridge.deleteProtocolStyle(styleId)}
           templates={exportTemplates}
           onDeleteTemplate={async (templateId: string) => {
