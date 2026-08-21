@@ -669,10 +669,15 @@ body.sidebar-resizing * {
 /* Start and empty state */
 
 .start-workspace {
-  position: relative;
   display: grid;
-  place-items: center;
-  padding-bottom: 100px;
+  /* The hero takes the room going spare and the note sits under it, so the note
+     is at the foot of a tall window and simply follows the content on a short
+     one. Pinned to the bottom of the box instead, it landed on top of the import
+     card whenever the content was taller than the window. */
+  grid-template-rows: 1fr auto;
+  justify-items: center;
+  gap: 24px;
+  padding-bottom: 34px;
 }
 
 .start-hero {
@@ -756,15 +761,10 @@ body.sidebar-resizing * {
 }
 
 .local-promise {
-  position: absolute;
-  bottom: 34px;
-  left: 50%;
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  width: max-content;
   max-width: calc(100% - 64px);
-  transform: translateX(-50%);
   text-align: left;
 }
 
