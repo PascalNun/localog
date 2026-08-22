@@ -20,6 +20,7 @@
     SPEAKER_SEPARATION_UNREADY,
   } from './lib/workflow/types';
   import { buildDocx } from './lib/protocol/docx';
+  import { documentFacts } from './lib/protocol/document';
   import type { ProtocolDocument } from './lib/protocol/document';
   import { reviewStateLabel } from './lib/protocol/document';
   import { printProtocol } from './lib/protocol/print';
@@ -506,24 +507,6 @@
 
   function cancelNewMeeting(projectId: string | null) {
     navigate(projectId ? { name: 'project', projectId } : { name: 'start' });
-  }
-
-  /// What a header or footer field can be filled in from.
-  ///
-  /// Read at the moment of export rather than stored, because a protocol marked
-  /// reviewed after the header was set should say so on the page.
-  function documentFacts(
-    project: ProjectSummary | undefined,
-    forMeeting: MeetingSummary,
-    protocol: ProtocolDraft,
-  ) {
-    return {
-      projectName: project?.name ?? '',
-      meetingTitle: forMeeting.title,
-      meetingDate: forMeeting.occurredAt,
-      documentType: 'Protocol',
-      protocolStatus: reviewStateLabel(protocol.reviewState),
-    };
   }
 
   async function exportProtocol(format: 'pdf' | 'docx' | 'markdown' | 'text') {

@@ -7,7 +7,13 @@
  * been a difference nothing complained about.
  */
 
-import type { DocumentAppearance, PageFurniture, ProtocolDraft } from '../workflow/types';
+import type {
+  DocumentAppearance,
+  MeetingSummary,
+  PageFurniture,
+  ProjectSummary,
+  ProtocolDraft,
+} from '../workflow/types';
 import type { DocumentFacts } from './furniture';
 
 export interface ProtocolDocument {
@@ -33,4 +39,29 @@ export function reviewStateLabel(state: ProtocolDraft['reviewState']): string {
   if (state === 'reviewed') return 'Reviewed';
   if (state === 'changed_since_review') return 'Changed since review';
   return 'Draft';
+}
+
+/**
+ * What a header or footer field can be filled in from.
+ *
+ * Read at the moment it is wanted rather than stored, because a protocol marked
+ * reviewed after the header was set should say so on the page.
+ *
+ * Shared rather than built where it is needed: the editor shows the resolved band
+ * between the pages and the exporters print it, and a preview that assembled its
+ * own facts would be a second account of the document that could disagree with
+ * the first while looking authoritative.
+ */
+export function documentFacts(
+  project: ProjectSummary | undefined,
+  meeting: MeetingSummary,
+  protocol: ProtocolDraft,
+): DocumentFacts {
+  return {
+    projectName: project?.name ?? '',
+    meetingTitle: meeting.title,
+    meetingDate: meeting.occurredAt,
+    documentType: 'Protocol',
+    protocolStatus: reviewStateLabel(protocol.reviewState),
+  };
 }

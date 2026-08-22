@@ -20,8 +20,9 @@
     appearanceStyle,
     pageStarts,
   } from '../protocol/appearance';
-  import { fieldLabel, furnitureIsEmpty } from '../protocol/furniture';
+  import { fieldLabel, furnitureIsEmpty, resolveRow } from '../protocol/furniture';
   import { diffWords, isUnchanged, type Change } from '../protocol/diff';
+  import { documentFacts } from '../protocol/document';
   import { findInSource } from '../protocol/source';
   import { clockFromMillis } from '../time';
   import { reviewStateLabel } from '../protocol/document';
@@ -794,7 +795,27 @@
     queueMicrotask(measurePages);
   }
   $: if (!showPages) pageEdges = [];
-  $: pageGap = PAGE_GAP * textScale;
+  /// The band as it will print, from the same facts the exporters read.
+  ///
+  /// Shown in the gap between the pages rather than described in words above it.
+  /// Every tool surveyed either shows the header in place on the page or shows
+  /// nothing at all until export; this costs almost nothing, because the gap is
+  /// already drawn and was already carrying a list of field names.
+  $: facts = documentFacts(project, meeting, protocol);
+  $: pageCount = pageEdges.length + 1;
+  $: bandAt = (at: number, band: 'header' | 'footer') => {
+    const row = furniture[band];
+    const page = band === 'footer' ? at + 1 : at + 2;
+    const marker = { number: String(page), ofCount: `${page} / ${pageCount}` };
+    return {
+      left: resolveRow(row.left, facts, marker),
+      centre: resolveRow(row.centre, facts, marker),
+      right: resolveRow(row.right, facts, marker),
+    };
+  };
+
+  /// Two lines of furniture want more room between the sheets than a bare edge.
+  $: pageGap = (furnitureIsEmpty(furniture) ? PAGE_GAP : PAGE_GAP + 26) * textScale;
 
   /// Zoom, which is how large the document looks and not how large it prints.
   ///
@@ -1504,9 +1525,18 @@
               {#each pageEdges as edge, at (at)}
                 <div class="page-edge" style={`top: ${edge}px; height: ${pageGap}px`}>
                   {#if !furnitureIsEmpty(furniture)}
-                    <span class="page-edge-furniture">{furnitureSummary}</span>
+                    {@const foot = bandAt(at, 'footer')}
+                    <div class="page-edge-band">
+                      <span>{foot.left}</span><span>{foot.centre}</span><span>{foot.right}</span>
+                    </div>
                   {/if}
                   <span class="page-edge-label">Page {at + 2}</span>
+                  {#if !furnitureIsEmpty(furniture)}
+                    {@const head = bandAt(at, 'header')}
+                    <div class="page-edge-band">
+                      <span>{head.left}</span><span>{head.centre}</span><span>{head.right}</span>
+                    </div>
+                  {/if}
                 </div>
               {/each}
             </div>
