@@ -2864,11 +2864,21 @@ fn job_stage_label(kind: &str, stage: &str, state: JobState) -> String {
             Some(detail) => format!("Finding what was discussed — passage {detail}"),
             None => "Finding what was discussed".to_string(),
         },
-        ("writing_subject", _) => match detail {
+        ("writing_section", _) => match detail {
             Some(detail) => format!("Writing {detail}"),
-            None => "Writing the protocol subject by subject".to_string(),
+            None => "Writing the protocol section by section".to_string(),
         },
-        ("assembling_protocol", _) => "Putting the sections together".to_string(),
+        ("reading_introductions", _) => "Reading who introduced themselves".to_string(),
+        // Three notices the generator raises about its own result. They are brief —
+        // the run carries straight on, or stops — but "Working" told a person nothing
+        // at the two moments most worth seeing.
+        ("protocol_would_not_fit", _) => {
+            "This meeting is longer than one pass can hold".to_string()
+        }
+        ("segments_no_subject_claimed", _) => {
+            "Some of the meeting fell outside every subject".to_string()
+        }
+        ("sections_over_their_length", _) => "Some sections came out longer than asked".to_string(),
         ("joining_failed", _) => match detail {
             Some(detail) => format!("Subjects could not be joined — {detail}"),
             None => "Subjects could not be joined".to_string(),
@@ -2884,7 +2894,6 @@ fn job_stage_label(kind: &str, stage: &str, state: JobState) -> String {
         ("ready_to_import", _) => "Ready to bring the recording in".to_string(),
         ("copying", JobState::Cancelling) => "Stopping safely".to_string(),
         ("copying", _) => "Bringing the recording in".to_string(),
-        ("validating", _) => "Checking the copy is complete".to_string(),
         ("temporary_complete", _) => "Nearly there".to_string(),
         ("finalizing", _) => "Putting the recording away safely".to_string(),
         ("duplicate_confirmation", _) => "This recording may already be here".to_string(),
@@ -3178,6 +3187,73 @@ pub(crate) fn unix_time_millis() -> i64 {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    /// Every stage the pipeline reports has words for it.
+    ///
+    /// Nothing connects the string a step reports to the arm that turns it into a
+    /// sentence, and the two are in different files. `writing_subject` was renamed
+    /// to `writing_section` and the label was not, so the longest phase of writing
+    /// a protocol showed "Working" — the fallback — while three shorter notices
+    /// about the result showed nothing at all. Two more arms named stages that no
+    /// commit ever emitted.
+    ///
+    /// Read as text for the same reason the recording contract is: the ends are in
+    /// different files and there is no type between them.
+    #[test]
+    fn every_stage_the_pipeline_reports_has_words_for_it() {
+        fn reported(source: &str) -> Vec<String> {
+            let mut found = Vec::new();
+            for opening in ["progress(", "report("] {
+                let mut rest = source;
+                while let Some(at) = rest.find(opening) {
+                    rest = &rest[at + opening.len()..];
+                    let Some(head) = rest.get(..120) else {
+                        continue;
+                    };
+                    // The stage is the argument after the percentage, and the
+                    // percentage may be an expression rather than a number.
+                    let Some((_, tail)) = head.split_once(", \"") else {
+                        continue;
+                    };
+                    if let Some((code, _)) = tail.split_once('"') {
+                        if !code.is_empty()
+                            && code
+                                .chars()
+                                .all(|character| character.is_ascii_lowercase() || character == '_')
+                        {
+                            found.push(code.to_string());
+                        }
+                    }
+                }
+            }
+            found
+        }
+
+        let labels = include_str!("storage.rs");
+        let opening = labels
+            .find("fn job_stage_label")
+            .expect("the labels are in this file");
+        let arms = &labels[opening
+            ..labels[opening..]
+                .find("\nfn job_error_summary")
+                .map(|at| opening + at)
+                .expect("the label function ends")];
+
+        let mut missing = Vec::new();
+        for source in [include_str!("provider.rs"), include_str!("processing.rs")] {
+            for stage in reported(source) {
+                if !arms.contains(&format!("(\"{stage}\"")) {
+                    missing.push(stage);
+                }
+            }
+        }
+        missing.sort();
+        missing.dedup();
+        assert!(
+            missing.is_empty(),
+            "these stages are reported but have no words, so they read as \"Working\": {missing:?}"
+        );
+    }
 
     fn project_input() -> NewProjectInput {
         NewProjectInput {
