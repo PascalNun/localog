@@ -63,7 +63,7 @@ export interface WorkspaceStore {
   createProject(input: NewProjectInput): Promise<ProjectSummary>;
   createMeeting(input: NewMeetingInput): Promise<MeetingSummary>;
   updateMeetingTitle(meetingId: string, title: string): Promise<void>;
-  updateMeetingLanguage?: (meetingId: string, language: string) => Promise<void>;
+  updateMeetingLanguage: (meetingId: string, language: string) => Promise<void>;
   selectMediaSource(): Promise<SourceSelection | null>;
   startImport(meetingId: string): Promise<void>;
   cancelImport(meetingId: string): Promise<void>;
@@ -84,32 +84,32 @@ export interface WorkspaceStore {
   ): Promise<WorkspaceData>;
   deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<WorkspaceData>;
   protocolStyleDetail(styleId: string): Promise<ProtocolStyleDetail>;
-  duplicateProtocolStyle?: (styleId: string, name: string) => Promise<WorkspaceData>;
-  updateProtocolStyle?: (styleId: string, edit: StyleEdit) => Promise<WorkspaceData>;
-  deleteProtocolStyle?: (styleId: string) => Promise<WorkspaceData>;
-  deleteMeeting?: (meetingId: string) => Promise<WorkspaceData>;
-  setProjectAppearance?: (
+  duplicateProtocolStyle: (styleId: string, name: string) => Promise<WorkspaceData>;
+  updateProtocolStyle: (styleId: string, edit: StyleEdit) => Promise<WorkspaceData>;
+  deleteProtocolStyle: (styleId: string) => Promise<WorkspaceData>;
+  deleteMeeting: (meetingId: string) => Promise<WorkspaceData>;
+  setProjectAppearance: (
     projectId: string,
     appearance: DocumentAppearance,
   ) => Promise<WorkspaceData>;
-  setProjectFurniture?: (projectId: string, furniture: PageFurniture) => Promise<WorkspaceData>;
-  previewNameReplacement?: (text: string, wrong: string, right: string) => Promise<NameReplacement>;
-  exportTemplates?: () => Promise<ExportTemplate[]>;
-  saveExportTemplate?: (
+  setProjectFurniture: (projectId: string, furniture: PageFurniture) => Promise<WorkspaceData>;
+  previewNameReplacement: (text: string, wrong: string, right: string) => Promise<NameReplacement>;
+  exportTemplates: () => Promise<ExportTemplate[]>;
+  saveExportTemplate: (
     name: string,
     description: string,
     appearance: DocumentAppearance,
     furniture: PageFurniture,
   ) => Promise<ExportTemplate[]>;
-  deleteExportTemplate?: (templateId: string) => Promise<ExportTemplate[]>;
-  applyExportTemplate?: (projectId: string, templateId: string) => Promise<WorkspaceData>;
-  protocolSetAside?: (meetingId: string) => Promise<SetAsideSection[]>;
-  setProtocolSections?: (
+  deleteExportTemplate: (templateId: string) => Promise<ExportTemplate[]>;
+  applyExportTemplate: (projectId: string, templateId: string) => Promise<WorkspaceData>;
+  protocolSetAside: (meetingId: string) => Promise<SetAsideSection[]>;
+  setProtocolSections: (
     meetingId: string,
     markdown: string,
     setAside: SetAsideSection[],
   ) => Promise<WorkspaceData>;
-  refinePassage?: (
+  refinePassage: (
     meetingId: string,
     passage: string,
     instruction: string,
@@ -141,39 +141,39 @@ export interface WorkspaceStore {
     route: 'meeting' | 'transcript' | 'protocol',
   ): Promise<void>;
   subscribe(listener: (workspace: WorkspaceData) => void): Promise<UnlistenFn>;
-  getTranscriptionRuntimeStatus?: () => Promise<TranscriptionRuntimeStatus>;
-  configureTranscriptionRuntime?: (executablePath: string) => Promise<TranscriptionRuntimeStatus>;
-  getSpeakerSeparationStatus?: () => Promise<SpeakerSeparationStatus>;
-  configureSpeakerRuntime?: (executablePath: string) => Promise<SpeakerSeparationStatus>;
-  downloadSpeakerModels?: () => Promise<void>;
-  subscribeSpeakerEvents?: (handler: (status: SpeakerSeparationStatus) => void) => () => void;
-  getMeetingAudio?: (meetingId: string) => Promise<MeetingAudio | null>;
-  getTranscriptionCapability?: () => Promise<TranscriptionCapability>;
-  setTranscriptionPreset?: (preset: TranscriptionPreset) => Promise<TranscriptionCapability>;
-  downloadTranscriptionModel?: (modelId: string) => Promise<void>;
-  cancelTranscriptionDownload?: (modelId: string) => Promise<void>;
-  removeTranscriptionModel?: (modelId: string) => Promise<TranscriptionCapability>;
-  subscribeModelEvents?: (handlers: {
+  getTranscriptionRuntimeStatus: () => Promise<TranscriptionRuntimeStatus>;
+  configureTranscriptionRuntime: (executablePath: string) => Promise<TranscriptionRuntimeStatus>;
+  getSpeakerSeparationStatus: () => Promise<SpeakerSeparationStatus>;
+  configureSpeakerRuntime: (executablePath: string) => Promise<SpeakerSeparationStatus>;
+  downloadSpeakerModels: () => Promise<void>;
+  subscribeSpeakerEvents: (handler: (status: SpeakerSeparationStatus) => void) => () => void;
+  getMeetingAudio: (meetingId: string) => Promise<MeetingAudio | null>;
+  getTranscriptionCapability: () => Promise<TranscriptionCapability>;
+  setTranscriptionPreset: (preset: TranscriptionPreset) => Promise<TranscriptionCapability>;
+  downloadTranscriptionModel: (modelId: string) => Promise<void>;
+  cancelTranscriptionDownload: (modelId: string) => Promise<void>;
+  removeTranscriptionModel: (modelId: string) => Promise<TranscriptionCapability>;
+  subscribeModelEvents: (handlers: {
     onProgress: (progress: ModelDownloadProgress) => void;
     onChanged: (capability: TranscriptionCapability) => void;
     onError: (error: ModelDownloadError) => void;
   }) => () => void;
-  exportProtocol?: (
+  exportProtocol: (
     meetingId: string,
     format: 'markdown' | 'text',
     title: string,
   ) => Promise<boolean>;
   /** Ask the platform for its own print panel; the webview's own does nothing here. */
-  printWindow?: () => Promise<void>;
+  printWindow: () => Promise<void>;
   /** Save a document the interface built, choosing where through the file dialog. */
-  exportProtocolBytes?: (
+  exportProtocolBytes: (
     contents: Uint8Array,
     title: string,
     extension: string,
     formatName: string,
   ) => Promise<boolean>;
-  getProtocolProviderStatus?: () => Promise<ProtocolProviderStatus>;
-  configureProtocolProvider?: (model: string | null) => Promise<ProtocolProviderStatus>;
+  getProtocolProviderStatus: () => Promise<ProtocolProviderStatus>;
+  configureProtocolProvider: (model: string | null) => Promise<ProtocolProviderStatus>;
 }
 
 /** A title as a filename: legible, and without anything a filesystem argues with. */
@@ -311,6 +311,66 @@ class TauriWorkspaceStore implements WorkspaceStore {
 
   setProjectAppearance(projectId: string, appearance: DocumentAppearance): Promise<WorkspaceData> {
     return invoke('set_project_appearance', { projectId, appearance });
+  }
+
+  /**
+   * Nine calls the desktop application could not make.
+   *
+   * Each of these has a Tauri command, registered and backed by real storage, and
+   * an interface that asks for it — but the method was declared optional on
+   * `WorkspaceStore` and never written here. `FakeWorkflowBridge` asks
+   * `if (this.workspaceStore?.exportTemplates)`, found nothing, and answered from
+   * its own seeded data instead. So in the built application export templates,
+   * set-aside sections, page furniture and the section order lived in memory and
+   * were gone at the next start, and refining a passage ran the deterministic fake
+   * rather than the model.
+   *
+   * Nothing failed, which is why it lasted: a method that is missing from this
+   * class is indistinguishable from a feature nobody built.
+   */
+  setProjectFurniture(projectId: string, furniture: PageFurniture): Promise<WorkspaceData> {
+    return invoke('set_project_furniture', { projectId, furniture });
+  }
+
+  previewNameReplacement(text: string, wrong: string, right: string): Promise<NameReplacement> {
+    return invoke('preview_name_replacement', { text, wrong, right });
+  }
+
+  exportTemplates(): Promise<ExportTemplate[]> {
+    return invoke('export_templates');
+  }
+
+  saveExportTemplate(
+    name: string,
+    description: string,
+    appearance: DocumentAppearance,
+    furniture: PageFurniture,
+  ): Promise<ExportTemplate[]> {
+    return invoke('save_export_template', { name, description, appearance, furniture });
+  }
+
+  deleteExportTemplate(templateId: string): Promise<ExportTemplate[]> {
+    return invoke('delete_export_template', { templateId });
+  }
+
+  applyExportTemplate(projectId: string, templateId: string): Promise<WorkspaceData> {
+    return invoke('apply_export_template', { projectId, templateId });
+  }
+
+  protocolSetAside(meetingId: string): Promise<SetAsideSection[]> {
+    return invoke('protocol_set_aside', { meetingId });
+  }
+
+  setProtocolSections(
+    meetingId: string,
+    markdown: string,
+    setAside: SetAsideSection[],
+  ): Promise<WorkspaceData> {
+    return invoke('set_protocol_sections', { meetingId, markdown, setAside });
+  }
+
+  refinePassage(meetingId: string, passage: string, instruction: string): Promise<RefinedPassage> {
+    return invoke('refine_passage', { meetingId, passage, instruction });
   }
 
   recordingStatus(): Promise<RecordingStatus> {

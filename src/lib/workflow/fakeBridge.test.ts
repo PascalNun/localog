@@ -16,6 +16,15 @@ const emptyWorkspace = {
   activeRoute: null,
 };
 
+/**
+ * A stand-in for the real store, carrying only the methods a test asks about.
+ *
+ * Every method on WorkspaceStore is required, and deliberately so: a method left
+ * off the real store is not a compile error but a feature that quietly answers
+ * from the demo data instead of the database. Nine of them did, for a while. A
+ * test double is the one place a partial store is honest, so it says so with a
+ * cast here rather than by making the interface optional for everybody.
+ */
 function mockStore(overrides: Partial<WorkspaceStore> = {}): WorkspaceStore {
   return {
     loadWorkspace: vi.fn<WorkspaceStore['loadWorkspace']>().mockResolvedValue(emptyWorkspace),
@@ -64,7 +73,7 @@ function mockStore(overrides: Partial<WorkspaceStore> = {}): WorkspaceStore {
     saveWorkspaceLocation: vi.fn<WorkspaceStore['saveWorkspaceLocation']>(),
     subscribe: vi.fn<WorkspaceStore['subscribe']>().mockResolvedValue(() => undefined),
     ...overrides,
-  };
+  } as WorkspaceStore;
 }
 
 describe('FakeWorkflowBridge', () => {
