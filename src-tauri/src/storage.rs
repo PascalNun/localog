@@ -159,6 +159,23 @@ pub(crate) struct ResolvedProtocolStyle {
 /// The styles that came with the application, which are copied rather than edited.
 const SHIPPED_STYLES: &[&str] = &["style-formal", "style-working-note", "style-decision-log"];
 
+/// What `revision` each shipped style carries when only the application has written
+/// it.
+///
+/// `revision` rises on every write, and a migration that improves a shipped style
+/// is a write — so "revision is still 1" answered a different question from the one
+/// asked. Migration 8 rewrote style-formal's instructions, and from then on a fresh
+/// installation reported its own default style as no longer the one that shipped,
+/// on the first day, with nobody having touched it.
+///
+/// A migration that rewrites one of these must raise its number here. The test
+/// below opens a new workspace and checks that all three still say so.
+const SHIPPED_REVISIONS: &[(&str, i64)] = &[
+    ("style-formal", 2),
+    ("style-working-note", 1),
+    ("style-decision-log", 1),
+];
+
 /// A saved way of presenting a protocol.
 ///
 /// The typography and the running header and footer, named. Not the protocol style:
@@ -1281,9 +1298,12 @@ impl WorkspaceRepository {
                     }
                 })
                 .collect(),
-            // A style that has never been edited is the one that shipped. The
-            // distinction matters to somebody deciding whether they may change it.
-            as_shipped: edited == 1,
+            // Still the style that shipped: one of the three, at the revision the
+            // application last wrote. The distinction matters to somebody deciding
+            // whether they may change it.
+            as_shipped: SHIPPED_REVISIONS
+                .iter()
+                .any(|(id, revision)| *id == style_id && *revision == edited),
             fidelity: crate::provider::FIDELITY_RULES
                 .iter()
                 .map(|rule| (*rule).to_string())
@@ -3187,6 +3207,57 @@ pub(crate) fn unix_time_millis() -> i64 {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    /// A new workspace has not been edited by anybody, and should say so.
+    ///
+    /// This is the test that was missing. Migration 8 rewrote style-formal's
+    /// instructions and raised its revision, and because "as shipped" was written as
+    /// "revision is still 1", a fresh installation reported its own default style as
+    /// changed — losing the line that tells a reader these are the instructions
+    /// exactly as the style shipped.
+    ///
+    /// A migration that rewrites one of the three must raise its number in
+    /// SHIPPED_REVISIONS, and this fails until it does.
+    #[test]
+    fn a_new_workspace_reports_its_own_styles_as_shipped() {
+        let root = tempdir().unwrap();
+        let repository = WorkspaceRepository::open(root.path()).unwrap();
+        for id in SHIPPED_STYLES {
+            let detail = repository.protocol_style_detail(id).unwrap();
+            let revision: i64 = repository
+                .connection
+                .query_row(
+                    "SELECT revision FROM protocol_styles WHERE id = ?1",
+                    [id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert!(
+                detail.as_shipped,
+                "{id} is at revision {revision} in a workspace nobody has touched; \
+                 raise its number in SHIPPED_REVISIONS"
+            );
+        }
+    }
+
+    /// A style somebody made for themselves never shipped, whatever its revision.
+    #[test]
+    fn a_copied_style_does_not_claim_to_have_shipped() {
+        let root = tempdir().unwrap();
+        let repository = WorkspaceRepository::open(root.path()).unwrap();
+        let copy = repository
+            .duplicate_protocol_style("style-formal", "Ours")
+            .unwrap();
+        let detail = repository.protocol_style_detail(&copy).unwrap();
+        assert!(
+            !detail.as_shipped,
+            "a copy did not ship with the application"
+        );
+        assert!(
+            detail.editable,
+            "and a copy is the thing you are meant to edit"
+        );
+    }
 
     /// Every stage the pipeline reports has words for it.
     ///
