@@ -44,10 +44,46 @@ value }`). That is exactly a line with tokens inline. Three things hide it:
 tokens with no text between them renders the same as it does now, because the
 separator becomes something the person types rather than something imposed.
 
-## The design
+## The design: the band is a grid the person arranges
 
-**Storage** — unchanged. `PageFurniture { header, footer, skipFirstPage }`, each
-band with `left`, `centre`, `right`, each slot a `FurnitureField[]`.
+Three fixed slots is not enough. The requirement is that somebody lays the band
+out themselves — the logo here, the project number there, two lines on the right —
+to their own taste, because a firm's letterhead is a firm's letterhead and no
+fixed arrangement will match more than a few of them.
+
+A correction to an argument made earlier in this note: Word does **not** force
+three slots. What Word cannot consume is HTML. Arrangement it does natively, and
+real letterheads are built exactly that way — a table in the header band, or
+floating shapes. `<w:tbl>` inside `<w:hdr>` is legal OOXML, and `docx.ts` already
+writes tables with an explicit `w:gridCol` grid and cell widths in twips.
+
+**So the band is a grid.** The person chooses how many columns and may add a
+second row; each cell holds a line of text with tokens inline, or the logo. Column
+widths are adjustable and stored as **percentages of the text column**, which is
+what lets the two outputs agree: the text column is 9638 twips in Word and the
+`@page` width less its margins in CSS, both known, so one percentage resolves to
+the same place in both.
+
+- **Word** — a borderless `w:tbl` in `w:hdr`, `w:gridCol` widths being the
+  percentage of 9638. Word lays this out natively; nothing is being emulated.
+- **PDF** — `display: grid` with the same percentages.
+- The default is one row of three equal columns, which is exactly today's
+  left/centre/right, so nothing anybody has already set up changes.
+
+**Why a grid rather than free pixel placement.** Free placement is expressible —
+`wp:anchor` with offsets in EMU — but it lets somebody build a band that is right
+in one output and broken in the other, and it permits overlap and drift off the
+page. A grid gives real arrangement control while making disagreement between the
+two renderers structurally impossible, and it is the construction Word itself
+uses for letterheads. If free placement is wanted later it can be added inside a
+cell without changing this.
+
+## What is stored
+
+**Storage** — `PageFurniture { header, footer, skipFirstPage }`, each band now a
+grid of cells rather than three named slots, each cell a `FurnitureField[]`. The
+three-slot shape is the default grid, so existing furniture migrates by being
+read as one row of three columns.
 
 **Resolution** — `resolveRow` concatenates runs verbatim. Text runs keep their own
 spacing; the person types `Seite ` and `­ von ` themselves.
