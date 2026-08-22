@@ -60,8 +60,16 @@ fn does_the_model_follow_the_style() {
     let installed = provider.installed_models().unwrap();
 
     println!(
-        "{:>16} {:>8} {:>9} {:>7} {:>11} {:>8} {:>13}",
-        "model", "seconds", "headings", "tables", "table rows", "bullets", "figures kept"
+        "{:>16} {:>8} {:>6} {:>9} {:>9} {:>9} {:>7} {:>8} {:>13}",
+        "model",
+        "seconds",
+        "calls",
+        "sent kch",
+        "in model",
+        "headings",
+        "tables",
+        "bullets",
+        "figures kept"
     );
     let mut summary = String::from(
         "| model | seconds | characters | headings | tables | figures kept |\\n\
@@ -98,6 +106,9 @@ fn does_the_model_follow_the_style() {
                 .and_then(|value| value.parse().ok())
                 .unwrap_or(8_192),
         };
+        // What this model cost, as a difference: one provider serves every model in
+        // the list, so its counters run on across the whole table.
+        let before = provider.spend();
         let started = Instant::now();
         let markdown =
             match provider.generate(&request, &AtomicBool::new(false), &mut |_, _| Ok(())) {
@@ -108,6 +119,13 @@ fn does_the_model_follow_the_style() {
                 }
             };
         let seconds = started.elapsed().as_secs();
+        let after = provider.spend();
+        // Round trips, not wall-clock. Eighteen minutes across four calls and
+        // eighteen across forty are different problems, and the clock cannot tell
+        // them apart: retries are the part that shows up nowhere else.
+        let calls = after.calls.saturating_sub(before.calls);
+        let sent_kch = after.prompt_chars.saturating_sub(before.prompt_chars) / 1_000;
+        let in_model = after.model_millis.saturating_sub(before.model_millis) / 1_000;
 
         let lines: Vec<&str> = markdown.lines().collect();
         let headings = lines
@@ -145,8 +163,8 @@ fn does_the_model_follow_the_style() {
         )
         .expect("written");
         println!(
-            "{name:>16} {seconds:>8} {headings:>9} {dividers:>7} {:>11} {bullets:>8} {:>13}",
-            rows.len().saturating_sub(dividers * 2),
+            "{name:>16} {seconds:>8} {calls:>6} {sent_kch:>9} {in_model:>9} {headings:>9} \
+             {dividers:>7} {bullets:>8} {:>13}",
             format!("{kept}/{}", stated.len()),
         );
         summary.push_str(&format!(

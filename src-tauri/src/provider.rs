@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::io::{BufRead, BufReader};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 const DEFAULT_PORT: u16 = 11_434;
@@ -377,8 +377,37 @@ struct OllamaOptions {
     num_predict: u32,
 }
 
+/// What a run cost, counted while it happened.
+///
+/// A protocol is written in several passes and each pass may be tried up to
+/// ATTEMPTS_PER_STEP times, so the time a generation takes says little on its own:
+/// eighteen minutes across four calls and eighteen minutes across forty are
+/// different problems with the same clock reading, and nothing distinguished them.
+///
+/// Counted here rather than estimated afterwards, because the retries are the part
+/// that does not show up anywhere else.
+/// Measured, not shipped: the reader is the evaluation harness. Give it a reader
+/// in the application — a line in the job's own record, say — and this comes out
+/// of the test gate.
+#[cfg(test)]
+#[derive(Default)]
+pub struct Spend {
+    /// Round trips to the model, retries included.
+    pub calls: usize,
+    /// Characters sent, which is what the context window is spent on.
+    pub prompt_chars: usize,
+    /// Characters received.
+    pub answer_chars: usize,
+    /// Time inside the model, as distinct from time in this crate.
+    pub model_millis: u64,
+}
+
 pub struct OllamaProvider {
     base_url: String,
+    calls: AtomicUsize,
+    prompt_chars: AtomicUsize,
+    answer_chars: AtomicUsize,
+    model_millis: AtomicU64,
     /// Discovery must answer quickly or be treated as unavailable.
     agent: ureq::Agent,
     /// Generation legitimately takes minutes: a cold model load alone costs seconds,
@@ -439,6 +468,22 @@ impl OllamaProvider {
             base_url,
             generation_agent: generation_config.into(),
             agent: config.into(),
+            calls: AtomicUsize::new(0),
+            prompt_chars: AtomicUsize::new(0),
+            answer_chars: AtomicUsize::new(0),
+            model_millis: AtomicU64::new(0),
+        }
+    }
+
+    /// What this provider has spent so far. One instance serves one generation, so
+    /// this is the whole cost of writing a protocol, retries and all.
+    #[cfg(test)]
+    pub fn spend(&self) -> Spend {
+        Spend {
+            calls: self.calls.load(Ordering::Relaxed),
+            prompt_chars: self.prompt_chars.load(Ordering::Relaxed),
+            answer_chars: self.answer_chars.load(Ordering::Relaxed),
+            model_millis: self.model_millis.load(Ordering::Relaxed),
         }
     }
 
@@ -1428,6 +1473,8 @@ impl OllamaProvider {
         // Whether the answer is prose or a JSON document, asked before the format
         // is handed to the request body.
         let prose = call.format.is_null();
+        let call_prompt_chars = call.prompt.len() + call.system.len();
+        let started = Instant::now();
         let body = OllamaRequest {
             model: &request.model,
             system: call.system,
@@ -1522,6 +1569,14 @@ impl OllamaProvider {
         if !done {
             return Err(ProviderError::IncompleteResponse);
         }
+        self.calls.fetch_add(1, Ordering::Relaxed);
+        self.prompt_chars
+            .fetch_add(call_prompt_chars, Ordering::Relaxed);
+        self.answer_chars
+            .fetch_add(generated.len(), Ordering::Relaxed);
+        self.model_millis
+            .fetch_add(started.elapsed().as_millis() as u64, Ordering::Relaxed);
+
         // Repair prose only. A schema-shaped answer is a JSON document, and turning
         // its \n escapes into real newlines makes it invalid — measured: serde
         // answers "control character (\u0000-\u001F) found while parsing a string".
