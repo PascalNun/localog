@@ -20,12 +20,7 @@
     appearanceStyle,
     pageBreaks,
   } from '../protocol/appearance';
-  import {
-    FURNITURE_FIELDS,
-    fieldLabel,
-    furnitureIsEmpty,
-    needsPageNumbers,
-  } from '../protocol/furniture';
+  import { fieldLabel, furnitureIsEmpty } from '../protocol/furniture';
   import { diffWords, isUnchanged, type Change } from '../protocol/diff';
   import { findInSource } from '../protocol/source';
   import { clockFromMillis } from '../time';
@@ -40,7 +35,6 @@
   } from '../protocol/sections';
   import type {
     DocumentAppearance,
-    FurnitureField,
     FurnitureRow,
     PageFurniture,
     ExportTemplate,

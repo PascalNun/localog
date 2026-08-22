@@ -39,7 +39,6 @@
     FakeJobOutcome,
     MeetingSummary,
     ProjectSummary,
-    ProtocolDensity,
     StyleEdit,
     ProtocolDraft,
     RecordingStatus,
