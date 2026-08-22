@@ -1433,6 +1433,9 @@ impl OllamaProvider {
         cancelled: &AtomicBool,
         tick: &mut dyn FnMut(usize) -> Result<()>,
     ) -> Result<String> {
+        // Whether the answer is prose or a JSON document, asked before the format
+        // is handed to the request body.
+        let prose = call.format.is_null();
         let body = OllamaRequest {
             model: &request.model,
             system: call.system,
@@ -1527,7 +1530,21 @@ impl OllamaProvider {
         if !done {
             return Err(ProviderError::IncompleteResponse);
         }
-        Ok(repair_escaped_newlines(&generated))
+        // Repair prose only. A schema-shaped answer is a JSON document, and turning
+        // its \n escapes into real newlines makes it invalid — measured: serde
+        // answers "control character (\u0000-\u001F) found while parsing a string".
+        // parse_structured then put them back through escape_raw_controls, which
+        // exists for a different fault entirely, so every protocol with more than one
+        // line took the repair path and the straight parse never once succeeded.
+        //
+        // Nothing is lost. serde decodes the escapes that were written correctly, and
+        // tidy_protocol handles the ones a model wrote into the body by mistake, on
+        // the markdown rather than on the envelope around it.
+        if prose {
+            Ok(repair_escaped_newlines(&generated))
+        } else {
+            Ok(generated)
+        }
     }
 }
 
@@ -2981,6 +2998,30 @@ fn truncate(value: &str, max_chars: usize) -> String {
 
 #[cfg(test)]
 mod tests {
+
+    /// Why the escaped-newline repair is prose-only.
+    ///
+    /// It used to run on everything `complete()` returned, and most of what it
+    /// returns is a JSON document. Turning a `\n` escape inside a JSON string into
+    /// a real newline makes the document invalid, so `parse_structured` fell through
+    /// to `escape_raw_controls` — which exists for models that emit raw control
+    /// characters, not for damage done on the way in. Every protocol with more than
+    /// one line went that way, and the straight parse never once succeeded.
+    ///
+    /// If this assertion ever fails, the repair has become harmless and `complete()`
+    /// may stop asking whether the answer is prose.
+    #[test]
+    fn the_newline_repair_would_break_a_structured_answer() {
+        let envelope = r#"{"protocol_markdown":"First line\nSecond line"}"#;
+        serde_json::from_str::<serde_json::Value>(envelope)
+            .expect("what a model actually returns is valid JSON");
+
+        let repaired = repair_escaped_newlines(envelope);
+        assert!(
+            serde_json::from_str::<serde_json::Value>(&repaired).is_err(),
+            "repairing the envelope no longer breaks it"
+        );
+    }
     use super::*;
 
     /// Run the repair against an answer a model really produced.
