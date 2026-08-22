@@ -486,7 +486,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   async updateMeetingLanguage(meetingId: string, language: string): Promise<void> {
     const nextLanguage = language.trim();
     if (!nextLanguage) throw new Error('Choose a meeting language.');
-    if (await this.durable((store) => store.updateMeetingLanguage?.(meetingId, nextLanguage)))
+    if (await this.durable((store) => store.updateMeetingLanguage(meetingId, nextLanguage)))
       return;
     this.findMeeting(meetingId).language = nextLanguage;
     const transcript = this.snapshot.transcripts[meetingId];
@@ -557,7 +557,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
    * of them names worth keeping and some of them the transcriber simply fumbling.
    */
   async deleteMeeting(meetingId: string): Promise<void> {
-    if (await this.durable((store) => store.deleteMeeting?.(meetingId))) return;
+    if (await this.durable((store) => store.deleteMeeting(meetingId))) return;
     const { [meetingId]: _transcript, ...transcripts } = this.snapshot.transcripts;
     const { [meetingId]: _protocol, ...protocols } = this.snapshot.protocols;
     this.snapshot = {
@@ -576,17 +576,17 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async duplicateProtocolStyle(styleId: string, name: string): Promise<void> {
-    if (await this.durable((store) => store.duplicateProtocolStyle?.(styleId, name))) return;
+    if (await this.durable((store) => store.duplicateProtocolStyle(styleId, name))) return;
     throw new Error('Editing styles needs the desktop application.');
   }
 
   async updateProtocolStyle(styleId: string, edit: StyleEdit): Promise<void> {
-    if (await this.durable((store) => store.updateProtocolStyle?.(styleId, edit))) return;
+    if (await this.durable((store) => store.updateProtocolStyle(styleId, edit))) return;
     throw new Error('Editing styles needs the desktop application.');
   }
 
   async deleteProtocolStyle(styleId: string): Promise<void> {
-    if (await this.durable((store) => store.deleteProtocolStyle?.(styleId))) return;
+    if (await this.durable((store) => store.deleteProtocolStyle(styleId))) return;
     throw new Error('Editing styles needs the desktop application.');
   }
 
@@ -860,7 +860,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async getTranscriptionRuntimeStatus(): Promise<TranscriptionRuntimeStatus> {
-    if (this.workspaceStore?.getTranscriptionRuntimeStatus) {
+    if (this.workspaceStore) {
       return this.workspaceStore.getTranscriptionRuntimeStatus();
     }
     return {
@@ -875,32 +875,32 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async configureTranscriptionRuntime(executablePath: string): Promise<TranscriptionRuntimeStatus> {
-    if (this.workspaceStore?.configureTranscriptionRuntime) {
+    if (this.workspaceStore) {
       return this.workspaceStore.configureTranscriptionRuntime(executablePath);
     }
     return this.getTranscriptionRuntimeStatus();
   }
 
   async getSpeakerSeparationStatus(): Promise<SpeakerSeparationStatus> {
-    if (this.workspaceStore?.getSpeakerSeparationStatus) {
+    if (this.workspaceStore) {
       return this.workspaceStore.getSpeakerSeparationStatus();
     }
     return SPEAKER_SEPARATION_UNREADY;
   }
 
   async configureSpeakerRuntime(executablePath: string): Promise<SpeakerSeparationStatus> {
-    if (this.workspaceStore?.configureSpeakerRuntime) {
+    if (this.workspaceStore) {
       return this.workspaceStore.configureSpeakerRuntime(executablePath);
     }
     return this.getSpeakerSeparationStatus();
   }
 
   async downloadSpeakerModels(): Promise<void> {
-    await this.workspaceStore?.downloadSpeakerModels?.();
+    await this.workspaceStore?.downloadSpeakerModels();
   }
 
   subscribeSpeakerEvents(handler: (status: SpeakerSeparationStatus) => void): () => void {
-    return this.workspaceStore?.subscribeSpeakerEvents?.(handler) ?? (() => {});
+    return this.workspaceStore?.subscribeSpeakerEvents(handler) ?? (() => {});
   }
 
   // A recording's shape, invented for the preview: a quiet start, speech in the
@@ -931,11 +931,11 @@ export class FakeWorkflowBridge implements WorkflowBridge {
 
   async getMeetingAudio(meetingId: string): Promise<import('./types').MeetingAudio | null> {
     // The browser preview has no managed media, so no audio is offered.
-    return this.workspaceStore?.getMeetingAudio?.(meetingId) ?? null;
+    return this.workspaceStore?.getMeetingAudio(meetingId) ?? null;
   }
 
   async getTranscriptionCapability(): Promise<import('./types').TranscriptionCapability> {
-    if (this.workspaceStore?.getTranscriptionCapability) {
+    if (this.workspaceStore) {
       return this.workspaceStore.getTranscriptionCapability();
     }
     // The browser preview has no managed storage, so nothing is installed.
@@ -952,7 +952,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   async setTranscriptionPreset(
     preset: import('./types').TranscriptionPreset,
   ): Promise<import('./types').TranscriptionCapability> {
-    if (this.workspaceStore?.setTranscriptionPreset) {
+    if (this.workspaceStore) {
       return this.workspaceStore.setTranscriptionPreset(preset);
     }
     const capability = await this.getTranscriptionCapability();
@@ -960,17 +960,17 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async downloadTranscriptionModel(modelId: string): Promise<void> {
-    await this.workspaceStore?.downloadTranscriptionModel?.(modelId);
+    await this.workspaceStore?.downloadTranscriptionModel(modelId);
   }
 
   async cancelTranscriptionDownload(modelId: string): Promise<void> {
-    await this.workspaceStore?.cancelTranscriptionDownload?.(modelId);
+    await this.workspaceStore?.cancelTranscriptionDownload(modelId);
   }
 
   async removeTranscriptionModel(
     modelId: string,
   ): Promise<import('./types').TranscriptionCapability> {
-    if (this.workspaceStore?.removeTranscriptionModel) {
+    if (this.workspaceStore) {
       return this.workspaceStore.removeTranscriptionModel(modelId);
     }
     return this.getTranscriptionCapability();
@@ -981,7 +981,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     onChanged: (capability: import('./types').TranscriptionCapability) => void;
     onError: (error: import('./types').ModelDownloadError) => void;
   }): () => void {
-    return this.workspaceStore?.subscribeModelEvents?.(handlers) ?? (() => {});
+    return this.workspaceStore?.subscribeModelEvents(handlers) ?? (() => {});
   }
 
   async exportProtocol(
@@ -989,14 +989,14 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     format: 'markdown' | 'text',
     title: string,
   ): Promise<boolean> {
-    if (this.workspaceStore?.exportProtocol) {
+    if (this.workspaceStore) {
       return this.workspaceStore.exportProtocol(meetingId, format, title);
     }
     return false;
   }
 
   async setProjectAppearance(projectId: string, appearance: DocumentAppearance): Promise<void> {
-    if (this.workspaceStore?.setProjectAppearance) {
+    if (this.workspaceStore) {
       const workspace = await this.workspaceStore.setProjectAppearance(projectId, appearance);
       this.snapshot = { ...this.snapshot, ...workspace };
     } else {
@@ -1011,7 +1011,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async setProjectFurniture(projectId: string, furniture: PageFurniture): Promise<void> {
-    if (this.workspaceStore?.setProjectFurniture) {
+    if (this.workspaceStore) {
       const workspace = await this.workspaceStore.setProjectFurniture(projectId, furniture);
       this.snapshot = { ...this.snapshot, ...workspace };
     } else {
@@ -1069,7 +1069,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     wrong: string,
     right: string,
   ): Promise<NameReplacement> {
-    if (this.workspaceStore?.previewNameReplacement) {
+    if (this.workspaceStore) {
       return this.workspaceStore.previewNameReplacement(text, wrong, right);
     }
     // The rule lives in Rust and is not reimplemented here: a second copy would be a
@@ -1078,7 +1078,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async exportTemplates(): Promise<ExportTemplate[]> {
-    if (this.workspaceStore?.exportTemplates) return this.workspaceStore.exportTemplates();
+    if (this.workspaceStore) return this.workspaceStore.exportTemplates();
     return this.templates;
   }
 
@@ -1088,7 +1088,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     appearance: DocumentAppearance,
     furniture: PageFurniture,
   ): Promise<ExportTemplate[]> {
-    if (this.workspaceStore?.saveExportTemplate) {
+    if (this.workspaceStore) {
       return this.workspaceStore.saveExportTemplate(name, description, appearance, furniture);
     }
     this.templates = [
@@ -1106,7 +1106,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async deleteExportTemplate(templateId: string): Promise<ExportTemplate[]> {
-    if (this.workspaceStore?.deleteExportTemplate) {
+    if (this.workspaceStore) {
       return this.workspaceStore.deleteExportTemplate(templateId);
     }
     this.templates = this.templates.filter((template) => template.id !== templateId);
@@ -1114,7 +1114,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async applyExportTemplate(projectId: string, templateId: string): Promise<void> {
-    if (this.workspaceStore?.applyExportTemplate) {
+    if (this.workspaceStore) {
       const workspace = await this.workspaceStore.applyExportTemplate(projectId, templateId);
       this.snapshot = { ...this.snapshot, ...workspace };
       this.emit();
@@ -1134,7 +1134,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async protocolSetAside(meetingId: string): Promise<SetAsideSection[]> {
-    if (this.workspaceStore?.protocolSetAside) {
+    if (this.workspaceStore) {
       return this.workspaceStore.protocolSetAside(meetingId);
     }
     return this.stashed[meetingId] ?? [];
@@ -1145,7 +1145,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     markdown: string,
     setAside: SetAsideSection[],
   ): Promise<void> {
-    if (this.workspaceStore?.setProtocolSections) {
+    if (this.workspaceStore) {
       const workspace = await this.workspaceStore.setProtocolSections(
         meetingId,
         markdown,
@@ -1164,7 +1164,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     passage: string,
     instruction: string,
   ): Promise<RefinedPassage> {
-    if (this.workspaceStore?.refinePassage) {
+    if (this.workspaceStore) {
       return this.workspaceStore.refinePassage(meetingId, passage, instruction);
     }
     // No model behind the browser preview. Saying so is better than handing back
@@ -1178,7 +1178,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     extension: string,
     formatName: string,
   ): Promise<boolean> {
-    if (this.workspaceStore?.exportProtocolBytes) {
+    if (this.workspaceStore) {
       return this.workspaceStore.exportProtocolBytes(contents, title, extension, formatName);
     }
     return false;
@@ -1192,7 +1192,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async getProtocolProviderStatus(): Promise<import('./types').ProtocolProviderStatus> {
-    if (this.workspaceStore?.getProtocolProviderStatus) {
+    if (this.workspaceStore) {
       return this.workspaceStore.getProtocolProviderStatus();
     }
     return {
@@ -1211,7 +1211,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   async configureProtocolProvider(
     model: string | null,
   ): Promise<import('./types').ProtocolProviderStatus> {
-    if (this.workspaceStore?.configureProtocolProvider) {
+    if (this.workspaceStore) {
       return this.workspaceStore.configureProtocolProvider(model);
     }
     void model;
@@ -1257,7 +1257,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
    * place it cannot be half-written.
    *
    * `run` may return undefined, which is how a store that does not implement an
-   * optional method declines it: write `store.deleteMeeting?.(id)` and a store
+   * optional method declines it: write `store.deleteMeeting(id)` and a store
    * without one falls through to the demo exactly as a missing store does.
    */
   /**
