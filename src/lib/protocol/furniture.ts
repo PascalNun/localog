@@ -49,17 +49,35 @@ export function resolveRow(
   facts: DocumentFacts,
   pageMarker: { number: string; ofCount: string } | null,
 ): string {
-  return fields
-    .map((field) => resolveField(field, facts, pageMarker))
-    .filter((part) => part !== '')
-    .join(' · ');
+  const parts = fields.map((field) => resolveField(field, facts, pageMarker));
+
+  // A slot that mentions something this output cannot answer is left out whole.
+  //
+  // Dropping only the unanswerable part and keeping its neighbours is what
+  // produced the footer somebody would most naturally build: the word "Seite"
+  // beside a page number printed "Seite · 3" in Word and, on every page of the
+  // PDF, the bare word "Seite". Better to say nothing there than a fragment.
+  if (parts.some((part) => part === null)) return '';
+
+  // Joined by nothing, so that a slot is a line somebody writes rather than a
+  // list of atoms with a separator imposed between them. The spacing belongs to
+  // whoever typed it: "Seite " and " von " are theirs.
+  return parts.join('');
 }
 
+/**
+ * What a field says here, or `null` where this output cannot answer it at all.
+ *
+ * Empty and unanswerable are different. A meeting with no date resolves to an
+ * empty string and its neighbours stand; a page number in a PDF the browser
+ * cannot paginate resolves to nothing at all, and the line that mentions it
+ * cannot be printed honestly.
+ */
 function resolveField(
   field: FurnitureField,
   facts: DocumentFacts,
   pageMarker: { number: string; ofCount: string } | null,
-): string {
+): string | null {
   switch (field.kind) {
     case 'projectName':
       return facts.projectName;
@@ -72,11 +90,14 @@ function resolveField(
     case 'protocolStatus':
       return facts.protocolStatus;
     case 'pageNumber':
-      return pageMarker?.number ?? '';
+      return pageMarker?.number ?? null;
     case 'pageOfCount':
-      return pageMarker?.ofCount ?? '';
+      return pageMarker?.ofCount ?? null;
     case 'text':
-      return field.value.trim();
+      // Not trimmed: the spaces around a word are how it sits against the value
+      // beside it, and taking them away is what made a slot a list rather than a
+      // line.
+      return field.value;
   }
 }
 
