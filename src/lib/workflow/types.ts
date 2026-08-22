@@ -147,14 +147,6 @@ export interface ProtocolRevisionSummary {
 }
 
 /**
- * What the run that wrote a draft found out about its own result, established
- * without a model and without a reader.
- *
- * Shown as evidence to look at, never as a verdict. A machine judgement placed in
- * front of a person asks them to read less carefully, and reading carefully is the
- * only check in this product that reliably works.
- */
-/**
  * What somebody asked for about speakers. Three answers rather than a number that
  * might be missing: leaving them together is a choice, not an absence of one, and
  * the separation pass must not run because the models happen to be installed.
@@ -165,6 +157,14 @@ export interface ProtocolRevisionSummary {
  */
 export type SpeakerRequest = 'together' | 'estimate' | number;
 
+/**
+ * What the run that wrote a draft found out about its own result, established
+ * without a model and without a reader.
+ *
+ * Shown as evidence to look at, never as a verdict. A machine judgement placed in
+ * front of a person asks them to read less carefully, and reading carefully is the
+ * only check in this product that reliably works.
+ */
 export interface ProtocolEvidence {
   quantitiesStated: number;
   quantitiesAccounted: number;
@@ -579,11 +579,6 @@ export interface WorkflowBridge {
   renameTranscriptSpeaker(meetingId: string, speaker: string, replacement: string): Promise<void>;
   /** Files dropped onto the window. Returns an unsubscribe function. */
   subscribeFileDrops(handler: (event: FileDropEvent) => void): () => void;
-  /**
-   * Who introduced themselves at the start of a meeting. Model work of about a
-   * minute, so it runs when somebody asks for it.
-   */
-  /** What a recording in progress is doing. Cheap; polled while the screen is open. */
   protocolStyleDetail(styleId: string): Promise<ProtocolStyleDetail>;
   duplicateProtocolStyle(styleId: string, name: string): Promise<void>;
   updateProtocolStyle(styleId: string, edit: StyleEdit): Promise<void>;
@@ -619,9 +614,14 @@ export interface WorkflowBridge {
   ): Promise<void>;
   /** Rewrite one passage as asked, returning the new text without storing it. */
   refinePassage(meetingId: string, passage: string, instruction: string): Promise<RefinedPassage>;
+  /** What a recording in progress is doing. Cheap; polled while the screen is open. */
   recordingStatus(): Promise<RecordingStatus>;
   startRecording(meetingId: string): Promise<void>;
   stopRecording(): Promise<void>;
+  /**
+   * Who introduced themselves at the start of a meeting. Model work of about a
+   * minute, so it runs when somebody asks for it.
+   */
   findIntroductions(meetingId: string): Promise<Introduction[]>;
   /** Words the transcriber was never sure of, most likely first. */
   findNameCandidates(meetingId: string): Promise<NameCandidate[]>;

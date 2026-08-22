@@ -486,8 +486,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   async updateMeetingLanguage(meetingId: string, language: string): Promise<void> {
     const nextLanguage = language.trim();
     if (!nextLanguage) throw new Error('Choose a meeting language.');
-    if (await this.durable((store) => store.updateMeetingLanguage(meetingId, nextLanguage)))
-      return;
+    if (await this.durable((store) => store.updateMeetingLanguage(meetingId, nextLanguage))) return;
     this.findMeeting(meetingId).language = nextLanguage;
     const transcript = this.snapshot.transcripts[meetingId];
     if (transcript) transcript.language = nextLanguage;
@@ -1245,22 +1244,6 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   /**
-   * Hand a call to the real workspace and take the workspace it hands back as the
-   * new truth. Answers whether there was a real workspace to hand it to, so the
-   * caller can fall through to the demo simulation when there was not.
-   *
-   * Every durable method used to open with the same five lines, and the `return`
-   * ending them was load-bearing: forget it and the demo simulation runs on top of
-   * real data. `subscribeFileDrops` once forgot the preamble outright, and dropping
-   * a file onto the window did nothing at all — a method that does not pass the
-   * call through is indistinguishable from a feature nobody built. Written in one
-   * place it cannot be half-written.
-   *
-   * `run` may return undefined, which is how a store that does not implement an
-   * optional method declines it: write `store.deleteMeeting(id)` and a store
-   * without one falls through to the demo exactly as a missing store does.
-   */
-  /**
    * Whether the next job was asked to fail, spending the request as it reads it.
    *
    * Reading and clearing are one act: `setNextJobOutcome` arms a single job, and a
@@ -1272,8 +1255,24 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     return failRequested;
   }
 
+  /**
+   * Hand a call to the real workspace and take the workspace it hands back as the
+   * new truth. Answers whether there was a real workspace to hand it to, so the
+   * caller can fall through to the demo simulation when there was not.
+   *
+   * Every durable method used to open with the same five lines, and the `return`
+   * ending them was load-bearing: forget it and the demo simulation runs on top of
+   * real data. `subscribeFileDrops` once forgot the preamble outright, and dropping
+   * a file onto the window did nothing at all — a method that does not pass the
+   * call through is indistinguishable from a feature nobody built. Written in one
+   * place it cannot be half-written.
+   *
+   * Only the store as a whole is optional. Every method on it is required, because
+   * a store that implemented some of them answered the rest from this class's demo
+   * data, and looked from the outside exactly like a working application.
+   */
   private async durable(
-    run: (store: WorkspaceStore) => Promise<DurableWorkspace | void> | undefined,
+    run: (store: WorkspaceStore) => Promise<DurableWorkspace | void>,
   ): Promise<boolean> {
     const answered = this.workspaceStore && run(this.workspaceStore);
     if (!answered) return false;
