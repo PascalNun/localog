@@ -1168,6 +1168,30 @@
           <button class="text-action" aria-label="Zoom out" onclick={() => zoom(-1)}>−</button>
           <span class="zoom-reading">{zoomLabel}</span>
           <button class="text-action" aria-label="Zoom in" onclick={() => zoom(1)}>+</button>
+          <span class="format-divider" aria-hidden="true"></span>
+          <!-- Both of these lived behind the ⋯ menu, where the person who wrote the
+               application could not find them either. -->
+          <button
+            class="text-action"
+            title="Insert table"
+            disabled={view !== 'document'}
+            onclick={() => insertTable()}
+            ><Icon name="table" size={15} /><span class="sr-only">Insert table</span></button
+          >
+          <button
+            class="text-action"
+            class:chosen={showPages}
+            title={pagesCanBeShown
+              ? showPages
+                ? 'Hide page breaks'
+                : 'Show page breaks'
+              : 'Set the page width to the A4 text column to see where the pages end.'}
+            disabled={view !== 'document' || !pagesCanBeShown}
+            onclick={() => (showPages = !showPages)}
+            ><Icon name="rule" size={15} /><span class="sr-only"
+              >{showPages ? 'Hide page breaks' : 'Show page breaks'}</span
+            ></button
+          >
         </div>
         <div class="editor-trailing">
           <span
@@ -1200,28 +1224,6 @@
                   }}
                   ><Icon name="document" size={15} />
                   {view === 'document' ? 'Markdown view' : 'Document view'}</button
-                >
-                <button
-                  role="menuitem"
-                  onclick={() => {
-                    showPages = !showPages;
-                    moreOpen = false;
-                  }}
-                  disabled={view !== 'document' || !pagesCanBeShown}
-                  title={pagesCanBeShown
-                    ? ''
-                    : 'Set the page width to the A4 text column to see where the pages end.'}
-                  ><Icon name="rule" size={15} />
-                  {showPages ? 'Hide page breaks' : 'Show page breaks'}</button
-                >
-                <button
-                  role="menuitem"
-                  onclick={() => {
-                    insertTable();
-                    moreOpen = false;
-                  }}
-                  disabled={view !== 'document'}
-                  ><Icon name="table" size={15} /> Insert table</button
                 >
                 <button
                   role="menuitem"
