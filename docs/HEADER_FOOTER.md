@@ -104,6 +104,57 @@ size and colour. Above that floor, exactly one cheap step keeps them in step —
 bold or italic per run, and a hairline rule under the band. `docx.ts` already
 emits both shapes and each has an exact CSS twin.
 
+## The logo
+
+The survey's most useful sentence about this audience: most German consultancies
+never author a header at all — they inherit a `.dotx` letterhead with the firm's
+logo sitting in it, set up once by whoever was technical enough. So a logo is not
+an extra here. For a lot of firms it is the whole reason to touch the header, and
+everything else in the band is arranged around it.
+
+**It needs no new idea.** A logo is another run kind, `{ kind: 'logo' }`, dropped
+into a slot beside the text and the tokens. Which band and which slot _is_ its
+position, and that is exactly how Word does it — a letterhead logo lives in a
+header paragraph. Nothing new to learn: if somebody can put the date top-right,
+they can put the logo top-right.
+
+Two things a logo needs that a text run does not:
+
+- **The image itself**, stored per project, since it is the firm's mark rather
+  than the meeting's. It belongs in the workspace beside the other managed files,
+  referenced from the project row.
+- **A height.** A logo is sized by how tall it sits in the band — a letterhead
+  mark is typically 10–14 mm — and the width follows from the aspect ratio. One
+  control, not two, and never a free drag: a logo stretched out of proportion is
+  the failure this avoids by construction.
+
+**Setting it up should be: drop the file on the slot, pick a height, see it.**
+That last part matters most and is nearly free, because the editor already draws
+the gap between pages and already renders a summary of the furniture there. Put
+the resolved band in that gap and the person sees their letterhead where it will
+print, while they are editing. No other tool surveyed shows that without leaving
+the document.
+
+**What it costs, honestly.** This is the one place where keeping the two outputs
+in step costs real work, and the two paths are wildly unequal:
+
+- **PDF**: one `<img>` with a `data:` URI. Effectively free.
+- **Word**: not free. `word/media/logo.png` as a zip entry (free — `zip.ts`
+  already stores raw bytes); a `<Default Extension="png">` in
+  `[Content_Types].xml`; a brand-new `word/_rels/header1.xml.rels` part, because
+  a header's image relationship must live in the header's own rels file and today
+  only `document.xml.rels` exists; three namespaces `NAMESPACE` does not declare
+  (`wp`, `a`, `pic`); a `w:drawing`/`wp:inline` carrying `wp:extent` in EMUs, so
+  the image's pixel dimensions must be known when the file is built; and a route
+  for the bytes to reach `buildDocx`, which today receives only
+  `ProtocolDocument` and no binary at all. Call it 60–100 lines plus storage and
+  the import control.
+
+That is bounded and one-time, and it is worth paying for the audience described
+above. But it has a prerequisite: **a logo makes the band taller, which makes
+defect 2 worse.** The band already prints inside the text column, and a 12 mm
+logo collides that much harder. Reserve the space first, then add the logo.
+
 ## Rejected: a box the person types HTML into
 
 The owner raised it, and it deserves a straight answer.
