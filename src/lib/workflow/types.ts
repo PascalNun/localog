@@ -342,6 +342,19 @@ export interface StyleEdit {
   density: ProtocolDensity;
 }
 
+/**
+ * What each transcription preset is called, and what choosing it means.
+ *
+ * The three names were spelled out twice — on the settings screen where a preset
+ * is chosen, and on the meeting screen where the chosen one is reported — so
+ * renaming one left the other calling it by the old word.
+ */
+export const PRESET_LABELS: Record<TranscriptionPreset, { name: string; detail: string }> = {
+  fast: { name: 'Fast', detail: 'Quick drafts, lightest on memory' },
+  balanced: { name: 'Balanced', detail: 'Everyday meetings' },
+  accurate: { name: 'Accurate', detail: 'Best quality, slowest' },
+};
+
 export interface ProtocolStyle {
   id: string;
   name: string;

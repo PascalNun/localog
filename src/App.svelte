@@ -16,10 +16,12 @@
   import {
     DEFAULT_APPEARANCE,
     EMPTY_FURNITURE,
+    PRESET_LABELS,
     SPEAKER_SEPARATION_UNREADY,
   } from './lib/workflow/types';
   import { buildDocx } from './lib/protocol/docx';
   import type { ProtocolDocument } from './lib/protocol/document';
+  import { reviewStateLabel } from './lib/protocol/document';
   import { printProtocol } from './lib/protocol/print';
   import {
     DEFAULT_SIDEBAR_WIDTH,
@@ -186,14 +188,8 @@
   let modelError: string | null = null;
   let providerError: string | null = null;
 
-  const presetNames: Record<TranscriptionPreset, string> = {
-    fast: 'Fast',
-    balanced: 'Balanced',
-    accurate: 'Accurate',
-  };
-
   function presetDisplayName(preset: TranscriptionPreset) {
-    return presetNames[preset] ?? 'Not selected';
+    return PRESET_LABELS[preset]?.name ?? 'Not selected';
   }
 
   function withoutModel(entries: Record<string, number>, modelId: string) {
@@ -527,12 +523,7 @@
       meetingTitle: forMeeting.title,
       meetingDate: forMeeting.occurredAt,
       documentType: 'Protocol',
-      protocolStatus:
-        protocol.reviewState === 'reviewed'
-          ? 'Reviewed'
-          : protocol.reviewState === 'changed_since_review'
-            ? 'Changed since review'
-            : 'Draft',
+      protocolStatus: reviewStateLabel(protocol.reviewState),
     };
   }
 

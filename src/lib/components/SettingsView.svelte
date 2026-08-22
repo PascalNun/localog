@@ -8,7 +8,7 @@
     TranscriptionRuntimeStatus,
     SpeakerSeparationStatus,
   } from '../workflow/types';
-  import { SPEAKER_SEPARATION_UNREADY } from '../workflow/types';
+  import { PRESET_LABELS, SPEAKER_SEPARATION_UNREADY } from '../workflow/types';
   import {
     GENERATION_MODEL_CATALOG,
     browserMemoryGb,
@@ -78,11 +78,6 @@
     : 'Using the conservative 8 GB baseline';
 
   // Product language first: the user picks an outcome, not a model.
-  const presetLabels: Record<TranscriptionPreset, { name: string; detail: string }> = {
-    fast: { name: 'Fast', detail: 'Quick drafts, lightest on memory' },
-    balanced: { name: 'Balanced', detail: 'Everyday meetings' },
-    accurate: { name: 'Accurate', detail: 'Best quality, slowest' },
-  };
 
   function formatSize(bytes: number): string {
     if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
@@ -282,9 +277,9 @@
                 aria-checked={active}
                 onclick={() => onSelectPreset(preset.preset)}
               >
-                <span class="preset-name">{presetLabels[preset.preset].name}</span>
+                <span class="preset-name">{PRESET_LABELS[preset.preset].name}</span>
                 <span class="preset-detail">
-                  {presetLabels[preset.preset].detail}
+                  {PRESET_LABELS[preset.preset].detail}
                 </span>
               </button>
               <div class="preset-state">
@@ -296,7 +291,7 @@
                     aria-valuenow={downloading[preset.modelId]}
                     aria-valuemin="0"
                     aria-valuemax="100"
-                    aria-label="Downloading {presetLabels[preset.preset].name}"
+                    aria-label="Downloading {PRESET_LABELS[preset.preset].name}"
                   >
                     <span style="width:{downloading[preset.modelId]}%"></span>
                   </div>

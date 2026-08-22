@@ -29,6 +29,7 @@
   import { diffWords, isUnchanged, type Change } from '../protocol/diff';
   import { findInSource } from '../protocol/source';
   import { clockFromMillis } from '../time';
+  import { reviewStateLabel } from '../protocol/document';
   import { errorMessage } from '../errors';
   import {
     appendSection,
@@ -805,12 +806,7 @@
         : '')
     : '';
 
-  $: statusLabel =
-    protocol.reviewState === 'changed_since_review'
-      ? 'Changed since review'
-      : protocol.reviewState === 'reviewed'
-        ? 'Reviewed'
-        : 'Draft';
+  $: statusLabel = reviewStateLabel(protocol.reviewState);
 
   /// Let the document be as long as it is, and let the page do the scrolling.
   ///

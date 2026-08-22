@@ -7,7 +7,7 @@
  * been a difference nothing complained about.
  */
 
-import type { DocumentAppearance, PageFurniture } from '../workflow/types';
+import type { DocumentAppearance, PageFurniture, ProtocolDraft } from '../workflow/types';
 import type { DocumentFacts } from './furniture';
 
 export interface ProtocolDocument {
@@ -20,4 +20,17 @@ export interface ProtocolDocument {
   /** What repeats on every page; absent means nothing does. */
   furniture?: PageFurniture;
   facts?: DocumentFacts;
+}
+
+/**
+ * How a protocol's review state is said to a person.
+ *
+ * The editor's header and the printed document's own facts each spelled these
+ * three strings out, and in a different branch order — which is the tell that
+ * they were written separately rather than shared.
+ */
+export function reviewStateLabel(state: ProtocolDraft['reviewState']): string {
+  if (state === 'reviewed') return 'Reviewed';
+  if (state === 'changed_since_review') return 'Changed since review';
+  return 'Draft';
 }
