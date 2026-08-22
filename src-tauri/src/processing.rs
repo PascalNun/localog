@@ -2744,13 +2744,19 @@ pub(crate) fn finish_recording(
     )
     .map_err(|_| StorageError::InvalidData("The recording's tracks could not be combined."))?;
 
-    let bytes = std::fs::read(&combined).map_err(StorageError::Io)?;
-    let checksum = checksum_bytes(&bytes);
     let relative = combined
         .strip_prefix(root)
         .unwrap_or(&combined)
         .to_string_lossy()
         .to_string();
+    // Read in chunks rather than whole. The kept recording is uncompressed PCM and
+    // combine_tracks sets no sample rate, so it stays at whatever was captured —
+    // 48 kHz mono is about 345 MB an hour. Loading a two-hour meeting into memory
+    // to take its checksum asked for most of a gigabyte at the moment somebody
+    // pressed stop, on a machine whose baseline is eight.
+    let (checksum, byte_count) =
+        streamed_checksum(root, &relative, &std::sync::atomic::AtomicBool::new(false))
+            .map_err(processing_to_storage)?;
 
     repository.connection.execute(
         "UPDATE recordings
@@ -2766,7 +2772,7 @@ pub(crate) fn finish_recording(
             recording_id,
             relative,
             checksum,
-            bytes.len() as i64,
+            byte_count as i64,
             combined
                 .file_name()
                 .and_then(|name| name.to_str())
@@ -2928,6 +2934,34 @@ mod recording_contract {
 
 #[cfg(test)]
 mod tests {
+
+    /// Reading a file in chunks and reading it whole must agree.
+    ///
+    /// finish_recording used to load the entire combined recording to take its
+    /// checksum. That file is uncompressed PCM at whatever rate was captured —
+    /// roughly 345 MB an hour at 48 kHz mono — so a long meeting asked for most of
+    /// a gigabyte the moment somebody pressed stop. It streams now, and the digest
+    /// it produces is verified against the same file later by read_verified: if the
+    /// two ever disagreed, every recorded meeting would fail its integrity check
+    /// and nothing would say why.
+    ///
+    /// Larger than the 256 KB buffer on purpose, so the loop runs more than once.
+    #[test]
+    fn a_streamed_checksum_is_the_checksum_of_the_whole_file() {
+        let root = tempfile::tempdir().unwrap();
+        let bytes: Vec<u8> = (0..700_000).map(|at| (at % 251) as u8).collect();
+        std::fs::write(root.path().join("recording.wav"), &bytes).unwrap();
+
+        let (streamed, counted) = streamed_checksum(
+            root.path(),
+            "recording.wav",
+            &std::sync::atomic::AtomicBool::new(false),
+        )
+        .expect("the file is read");
+
+        assert_eq!(streamed, crate::storage::checksum_bytes(&bytes));
+        assert_eq!(counted, bytes.len() as u64);
+    }
 
     /// The failure this arithmetic exists to prevent, as numbers.
     ///

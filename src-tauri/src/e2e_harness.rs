@@ -24,6 +24,7 @@ use crate::domain::{NewMeetingInput, NewProjectInput, VocabularyDraft};
 use crate::imports;
 use crate::processing::{self, ProcessingOutcome};
 use crate::storage::WorkspaceRepository;
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -43,18 +44,57 @@ fn stage_model(root: &Path, source: &Path, file_name: &str) {
         .unwrap_or_else(|error| panic!("staging {file_name}: {error}"));
 }
 
-fn drive(root: &Path, job_id: &str, label: &str) {
+/// Run a job and say what each of its stages cost.
+///
+/// Timed from out here rather than from inside the pipeline: the job reports its
+/// stage on every progress tick and the snapshot carries it, so the breakdown
+/// needs nothing added to the code being measured — and it measures exactly what
+/// the interface is told, rather than a second account of it.
+///
+/// A total on its own does not say where the minutes went. Normalising audio,
+/// loading a model and transcribing are three very different costs to reduce, and
+/// three that respond to entirely different changes.
+fn drive(root: &Path, job_id: &str, label: &str) -> Vec<(String, f64)> {
     let started = Instant::now();
-    let outcome = processing::run_job(root, job_id, Arc::new(AtomicBool::new(false)), |_| {})
-        .unwrap_or_else(|error| panic!("{label} could not run: {error:?}"));
-    println!(
-        "  {label}: {outcome:?} in {:.1}s",
-        started.elapsed().as_secs_f64()
-    );
+    // Each stage with the moment it began. A stage may carry a live detail after a
+    // colon; the code before it is the stage.
+    let marks: RefCell<Vec<(String, f64)>> = RefCell::new(Vec::new());
+    let outcome = processing::run_job(root, job_id, Arc::new(AtomicBool::new(false)), |snapshot| {
+        let Some(job) = snapshot.jobs.iter().find(|job| job.id == job_id) else {
+            return;
+        };
+        let stage = job.stage.split(':').next().unwrap_or_default().to_string();
+        let mut marks = marks.borrow_mut();
+        if marks.last().map(|(seen, _)| seen != &stage).unwrap_or(true) {
+            marks.push((stage, started.elapsed().as_secs_f64()));
+        }
+    })
+    .unwrap_or_else(|error| panic!("{label} could not run: {error:?}"));
+
+    let total = started.elapsed().as_secs_f64();
+    println!("  {label}: {outcome:?} in {total:.1}s");
+
+    let marks = marks.into_inner();
+    let mut spent: Vec<(String, f64)> = Vec::new();
+    for (index, (stage, at)) in marks.iter().enumerate() {
+        let until = marks.get(index + 1).map(|(_, at)| *at).unwrap_or(total);
+        spent.push((stage.clone(), until - at));
+    }
+    for (stage, seconds) in &spent {
+        // Below a tenth of a second a stage is a transition, not a cost.
+        if *seconds >= 0.1 {
+            println!(
+                "      {stage:<28} {seconds:>7.1}s  {:>4.0}%",
+                seconds / total * 100.0
+            );
+        }
+    }
+
     assert!(
         matches!(outcome, ProcessingOutcome::Completed),
         "{label} did not complete"
     );
+    spent
 }
 
 #[test]
@@ -179,9 +219,46 @@ fn runs_the_whole_pipeline_on_a_real_meeting() {
     println!("stage 2 — transcription, vocabulary and speakers");
     let (transcription, _) =
         processing::queue_transcription_with_expected(root, &meeting.id, false, speakers).unwrap();
-    drive(root, &transcription.id, "transcription");
+    let transcription_spent = drive(root, &transcription.id, "transcription");
 
     let repository = WorkspaceRepository::open(root).unwrap();
+    // What transcription costs is not seconds but seconds per second of meeting:
+    // a number that can be compared between machines, models and recordings, which
+    // a wall-clock reading of one run cannot.
+    let audio_ms: Option<i64> = repository
+        .connection
+        .query_row(
+            "SELECT nm.duration_ms FROM normalized_media nm
+             JOIN recordings r ON r.id = nm.recording_id
+             WHERE r.meeting_id = ?1",
+            [&meeting.id],
+            |row| row.get(0),
+        )
+        .ok()
+        .flatten();
+    if let Some(audio_ms) = audio_ms {
+        let audio_seconds = audio_ms as f64 / 1000.0;
+        let spent: f64 = transcription_spent.iter().map(|(_, seconds)| seconds).sum();
+        println!(
+            "  {audio_seconds:.0}s of audio in {spent:.0}s — {:.2}x real time",
+            spent / audio_seconds.max(1.0)
+        );
+        // The two stages worth reducing, named separately: preparing the audio is
+        // ffmpeg's cost and transcribing is the model's, and they move for entirely
+        // different reasons.
+        for stage in [
+            "normalizing_audio",
+            "transcribing_audio",
+            "separating_speakers",
+        ] {
+            if let Some((_, seconds)) = transcription_spent.iter().find(|(name, _)| name == stage) {
+                println!(
+                    "      {stage:<28} {:.2}x real time",
+                    seconds / audio_seconds.max(1.0)
+                );
+            }
+        }
+    }
     let snapshot = repository.workspace_snapshot().unwrap();
     let transcript = snapshot
         .transcripts
