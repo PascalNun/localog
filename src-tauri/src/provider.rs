@@ -1951,6 +1951,18 @@ fn output_allowance(request: &GenerationRequest) -> u32 {
         .min(request.context_tokens / 2)
 }
 
+/// Characters of transcript a token of context carries.
+///
+/// Three functions declared this for themselves, and one of them wrote the safety
+/// ratio out as a bare 7 / 10 where the other named it — so moving the constant
+/// would have moved only one of the two budgets it governs.
+const CHARS_PER_TOKEN: usize = 3;
+
+/// How much of the window to actually fill. The rest is the margin between a
+/// tokeniser's estimate and its behaviour.
+const SAFETY_NUMERATOR: usize = 7;
+const SAFETY_DENOMINATOR: usize = 10;
+
 /// The tokens left over for everything the model has to read.
 fn reading_window(request: &GenerationRequest) -> usize {
     request
@@ -1961,26 +1973,14 @@ fn reading_window(request: &GenerationRequest) -> usize {
 fn plan_sections(request: &GenerationRequest) -> Vec<std::ops::Range<usize>> {
     // German tokenises to roughly three characters per token; the margin keeps a
     // long word or an unusual name from pushing a section over the edge.
-    const CHARS_PER_TOKEN: usize = 3;
-    const SAFETY_NUMERATOR: usize = 7;
-    const SAFETY_DENOMINATOR: usize = 10;
 
     let total = request.transcript.len();
     if total == 0 {
         return Vec::new();
     }
-    let window = reading_window(request);
-    let budget_chars = window * CHARS_PER_TOKEN * SAFETY_NUMERATOR / SAFETY_DENOMINATOR;
-    // Everything in the prompt that is not transcript still has to fit.
-    let overhead: usize = request
-        .style
-        .instructions
-        .iter()
-        .chain(request.vocabulary.iter())
-        .map(|value| value.len() + 8)
-        .sum::<usize>()
-        + 512;
-    let available = budget_chars.saturating_sub(overhead);
+    // The same sum synthesis_budget makes: the window's usable share, less
+    // everything in the prompt that is not transcript.
+    let available = synthesis_budget(request);
     if available == 0 {
         // Degenerate configuration: one segment per section is the safest fallback.
         return (0..total).map(|index| index..index + 1).collect();
@@ -2013,9 +2013,8 @@ fn plan_sections(request: &GenerationRequest) -> Vec<std::ops::Range<usize>> {
 /// room for the answer. Used both to divide the transcript and to decide whether the
 /// collected notes still need folding.
 fn synthesis_budget(request: &GenerationRequest) -> usize {
-    const CHARS_PER_TOKEN: usize = 3;
     let window = reading_window(request);
-    let budget_chars = window * CHARS_PER_TOKEN * 7 / 10;
+    let budget_chars = window * CHARS_PER_TOKEN * SAFETY_NUMERATOR / SAFETY_DENOMINATOR;
     let overhead: usize = request
         .style
         .instructions
@@ -2030,7 +2029,6 @@ fn synthesis_budget(request: &GenerationRequest) -> usize {
 /// How many tokens the model may write back, given what the prompt already occupies.
 /// Asking for more than the window allows is what cuts an answer off mid-JSON.
 fn answer_budget(context_tokens: u32, prompt_chars: usize, requested: u32) -> u32 {
-    const CHARS_PER_TOKEN: usize = 3;
     const RESERVED_FOR_SYSTEM: u32 = 256;
     let prompt_tokens = (prompt_chars / CHARS_PER_TOKEN) as u32;
     let room = context_tokens
