@@ -19,6 +19,7 @@
     SPEAKER_SEPARATION_UNREADY,
   } from './lib/workflow/types';
   import { buildDocx } from './lib/protocol/docx';
+  import type { ProtocolDocument } from './lib/protocol/document';
   import { printProtocol } from './lib/protocol/print';
   import {
     DEFAULT_SIDEBAR_WIDTH,
@@ -540,23 +541,25 @@
     const protocol = snapshot.protocols[meeting.id];
     if (!protocol) return;
 
+    // One document, handed to whichever exporter was asked for. print.ts and
+    // docx.ts already take the same type for the same reason: a field added for
+    // one of them and forgotten for the other is a difference nothing reports.
+    const project = snapshot.projects.find((candidate) => candidate.id === meeting.projectId);
+    const exported: ProtocolDocument = {
+      title: meeting.title,
+      subtitle: [project?.name, meeting.occurredAt].filter(Boolean).join(' · '),
+      markdown: protocol.markdown,
+      appearance: project?.appearance ?? DEFAULT_APPEARANCE,
+      furniture: project?.furniture ?? EMPTY_FURNITURE,
+      facts: documentFacts(project, meeting, protocol),
+    };
+
     // The PDF is the document printed, not a second rendering of it, so it needs
     // no file dialog of its own: the print dialog is where a page size and a
     // destination are chosen, and on macOS that includes saving as PDF.
     if (format === 'pdf') {
-      const project = snapshot.projects.find((candidate) => candidate.id === meeting.projectId);
       try {
-        await printProtocol(
-          {
-            title: meeting.title,
-            subtitle: [project?.name, meeting.occurredAt].filter(Boolean).join(' · '),
-            markdown: protocol.markdown,
-            appearance: project?.appearance ?? DEFAULT_APPEARANCE,
-            furniture: project?.furniture ?? EMPTY_FURNITURE,
-            facts: documentFacts(project, meeting, protocol),
-          },
-          bridge.nativePrint(),
-        );
+        await printProtocol(exported, bridge.nativePrint());
       } catch (cause) {
         announcement = `PDF export failed: ${errorMessage(cause)}`;
       }
@@ -565,17 +568,9 @@
     // Word is built here too, from the same blocks the screen and the PDF use,
     // and only the writing of it happens in Rust.
     if (format === 'docx') {
-      const project = snapshot.projects.find((candidate) => candidate.id === meeting.projectId);
       try {
         const saved = await bridge.exportProtocolBytes(
-          buildDocx({
-            title: meeting.title,
-            subtitle: [project?.name, meeting.occurredAt].filter(Boolean).join(' · '),
-            markdown: protocol.markdown,
-            appearance: project?.appearance ?? DEFAULT_APPEARANCE,
-            furniture: project?.furniture ?? EMPTY_FURNITURE,
-            facts: documentFacts(project, meeting, protocol),
-          }),
+          buildDocx(exported),
           meeting.title,
           'docx',
           'Word document',
