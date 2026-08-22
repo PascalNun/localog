@@ -12,13 +12,13 @@ they do. The measurements are marked as such.
 Every tool a professional office might already have converged on the same
 authoring unit, independently:
 
-| tool | what the person manipulates |
-| --- | --- |
-| Microsoft Word | a line typed into the header area; dynamic values inserted **into that line** from a menu of pictures, never as syntax |
-| Google Docs | the same, with a deliberately tiny dynamic vocabulary — page number and page count and little else |
-| LaTeX / fancyhdr | `\lhead{Seite \thepage}` — a line per slot, token inline |
-| wkhtmltopdf | `--header-left "Seite [page] von [topage]"` — a line per slot, token inline |
-| Chrome print | `headerTemplate`, an HTML fragment with five documented magic classes |
+| tool             | what the person manipulates                                                                                            |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Microsoft Word   | a line typed into the header area; dynamic values inserted **into that line** from a menu of pictures, never as syntax |
+| Google Docs      | the same, with a deliberately tiny dynamic vocabulary — page number and page count and little else                     |
+| LaTeX / fancyhdr | `\lhead{Seite \thepage}` — a line per slot, token inline                                                               |
+| wkhtmltopdf      | `--header-left "Seite [page] von [topage]"` — a line per slot, token inline                                            |
+| Chrome print     | `headerTemplate`, an HTML fragment with five documented magic classes                                                  |
 
 Nobody makes a person assemble a list of atoms. Everybody lets them write one
 line and put a token in the middle of it.
@@ -52,7 +52,7 @@ band with `left`, `centre`, `right`, each slot a `FurnitureField[]`.
 **Resolution** — `resolveRow` concatenates runs verbatim. Text runs keep their own
 spacing; the person types `Seite ` and `­ von ` themselves.
 
-**Unresolvable tokens.** A token that *cannot* be answered in a given output is
+**Unresolvable tokens.** A token that _cannot_ be answered in a given output is
 different from one that answers with nothing. Today both come out empty and the
 neighbours survive, so the natural footer — the word `Seite` beside a page
 number — prints `Seite · 3` in Word and the bare word `Seite` on every page of the
@@ -115,7 +115,7 @@ sheet with `innerHTML`, so the PDF side would be nearly free.
 It is rejected because **Word cannot consume it.** A `.docx` header is OOXML, not
 HTML; there is no path from one to the other short of a converter. Pandoc — the
 most code-forward tool surveyed — has no syntax for Word headers at all and tells
-you to open the reference `.docx` *in Word* and set it there. So an HTML box buys
+you to open the reference `.docx` _in Word_ and set it there. So an HTML box buys
 a rich PDF header and no Word header, which breaks the one property the whole
 design exists to hold: that the two outputs agree.
 
@@ -125,7 +125,7 @@ set it explicitly, images dropped unless base64, the band clipped away entirely 
 the page margins are not also set. That is a support burden this product's
 audience should never meet.
 
-What is actually wanted from HTML — *put a value in the middle of a sentence* — is
+What is actually wanted from HTML — _put a value in the middle of a sentence_ — is
 the design above, without the markup.
 
 ## Defects to fix first
@@ -160,7 +160,7 @@ feature feels unfinished. Verified in the code unless marked.
 
 CSS page margin boxes — `@page { @bottom-center { content: counter(page) } }` —
 **work in Chromium**, printing `1 von 2` correctly in the paper margin. That would
-give the PDF real page numbers *and* fix defect 2, because a margin box lives in
+give the PDF real page numbers _and_ fix defect 2, because a margin box lives in
 the margin rather than the text column, and it would change what the header may
 promise.
 
