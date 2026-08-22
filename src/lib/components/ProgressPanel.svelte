@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ActiveJob } from '../workflow/types';
   import Icon from './Icon.svelte';
+  import { formatBytes } from '../bytes';
 
   export let job: ActiveJob;
   export let onCancel: () => Promise<void>;
@@ -29,11 +30,6 @@
       : job.kind === 'transcription'
         ? 'Start transcription again'
         : 'Start generation again';
-
-  function formatBytes(bytes: number) {
-    if (bytes < 1_000_000) return `${Math.round(bytes / 1_000)} KB`;
-    return `${(bytes / 1_000_000).toFixed(bytes >= 10_000_000 ? 0 : 1)} MB`;
-  }
 </script>
 
 <section

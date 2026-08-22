@@ -13,6 +13,7 @@
   import ProgressPanel from './ProgressPanel.svelte';
   import StageRail from './StageRail.svelte';
   import { errorMessage } from '../errors';
+  import { formatBytes } from '../bytes';
 
   export let project: ProjectSummary;
   export let meeting: MeetingSummary;
@@ -78,12 +79,6 @@
     } catch (error) {
       languageError = errorMessage(error);
     }
-  }
-
-  function formatBytes(bytes: number | null) {
-    if (bytes === null) return 'In your workspace';
-    if (bytes < 1_000_000) return `${Math.round(bytes / 1_000)} KB`;
-    return `${(bytes / 1_000_000).toFixed(bytes >= 10_000_000 ? 0 : 1)} MB`;
   }
 </script>
 

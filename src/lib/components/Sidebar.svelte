@@ -3,6 +3,7 @@
   import Icon from './Icon.svelte';
   import SidebarResizeHandle from './SidebarResizeHandle.svelte';
   import { clock } from '../time';
+  import { formatBytes } from '../bytes';
 
   export let projects: ProjectSummary[];
   export let route: AppRoute;
@@ -89,11 +90,6 @@
 
   function progressLabel(job: ActiveJob) {
     return job.stage.toLowerCase().includes('speaker') ? 'Working…' : `${job.progress}%`;
-  }
-
-  function formatBytes(bytes: number) {
-    if (bytes < 1_000_000) return `${Math.round(bytes / 1_000)} KB`;
-    return `${(bytes / 1_000_000).toFixed(bytes >= 10_000_000 ? 0 : 1)} MB`;
   }
 
   function navigate(nextRoute: AppRoute) {

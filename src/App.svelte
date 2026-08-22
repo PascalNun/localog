@@ -30,6 +30,7 @@
   import { FakeWorkflowBridge } from './lib/workflow/fakeBridge';
   import { createNativeWorkspaceStore } from './lib/workflow/workspaceStore';
   import { errorMessage } from './lib/errors';
+  import { formatBytes } from './lib/bytes';
   import type {
     AppRoute,
     FakeJobOutcome,
@@ -374,11 +375,6 @@
       return `${formatBytes(job.progressBytes)} of ${formatBytes(job.totalBytes)} copied`;
     }
     return `${job.progress}%`;
-  }
-
-  function formatBytes(bytes: number) {
-    if (bytes < 1_000_000) return `${Math.round(bytes / 1_000)} KB`;
-    return `${(bytes / 1_000_000).toFixed(bytes >= 10_000_000 ? 0 : 1)} MB`;
   }
 
   // What the import stage reads. Named rather than complete: a person can check a
