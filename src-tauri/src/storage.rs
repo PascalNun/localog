@@ -296,9 +296,7 @@ impl WorkspaceRepository {
         let style = self
             .connection
             .query_row(
-                "SELECT id, name, description, language_scope, instructions_json,
-                        required_sections_json, revision, density, expectations_json
-                 FROM protocol_styles WHERE id = ?1 AND enabled = 1",
+                &format!("{PROTOCOL_STYLE_SELECT} WHERE id = ?1 AND enabled = 1"),
                 [&style_id],
                 protocol_style_from_row,
             )
@@ -629,9 +627,7 @@ impl WorkspaceRepository {
     fn protocol_inputs_style(&self, style_id: &str) -> ResolvedProtocolStyle {
         self.connection
             .query_row(
-                "SELECT id, name, description, language_scope, instructions_json,
-                        required_sections_json, revision, density, expectations_json
-                 FROM protocol_styles WHERE id = ?1",
+                &format!("{PROTOCOL_STYLE_SELECT} WHERE id = ?1"),
                 [style_id],
                 protocol_style_from_row,
             )
@@ -1265,9 +1261,7 @@ impl WorkspaceRepository {
         let style = self
             .connection
             .query_row(
-                "SELECT id, name, description, language_scope, instructions_json,
-                        required_sections_json, revision, density, expectations_json
-                 FROM protocol_styles WHERE id = ?1 AND enabled = 1",
+                &format!("{PROTOCOL_STYLE_SELECT} WHERE id = ?1 AND enabled = 1"),
                 [style_id],
                 protocol_style_from_row,
             )
@@ -1528,34 +1522,7 @@ impl WorkspaceRepository {
 
     fn list_meetings(&self) -> Result<Vec<MeetingSummary>> {
         let mut statement = self.connection.prepare(
-            "SELECT
-                m.id, m.project_id, m.title, m.occurred_at, m.duration_label,
-                m.lifecycle, m.language,
-                (
-                    SELECT r.original_name FROM recordings r
-                    WHERE r.meeting_id = m.id
-                    ORDER BY r.created_at_ms, r.id LIMIT 1
-                ),
-                (
-                    SELECT r.byte_count FROM recordings r
-                    WHERE r.meeting_id = m.id
-                    ORDER BY r.created_at_ms, r.id LIMIT 1
-                ),
-                (
-                    SELECT r.media_type FROM recordings r
-                    WHERE r.meeting_id = m.id
-                    ORDER BY r.created_at_ms, r.id LIMIT 1
-                ),
-                m.style_id,
-                (
-                    SELECT nm.duration_ms FROM normalized_media nm
-                    JOIN recordings r ON r.id = nm.recording_id
-                    WHERE r.meeting_id = m.id
-                    ORDER BY r.created_at_ms, r.id LIMIT 1
-                )
-             FROM meetings m
-             WHERE m.archived_at_ms IS NULL
-             ORDER BY m.occurred_at DESC, m.created_at_ms DESC, m.id",
+            &format!("{MEETING_SELECT} WHERE m.archived_at_ms IS NULL ORDER BY m.occurred_at DESC, m.created_at_ms DESC, m.id"),
         )?;
         let rows = statement.query_map([], meeting_from_row)?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
@@ -1616,33 +1583,7 @@ impl WorkspaceRepository {
         Ok(self
             .connection
             .query_row(
-                "SELECT
-                    m.id, m.project_id, m.title, m.occurred_at, m.duration_label,
-                    m.lifecycle, m.language,
-                    (
-                        SELECT r.original_name FROM recordings r
-                        WHERE r.meeting_id = m.id
-                        ORDER BY r.created_at_ms, r.id LIMIT 1
-                    ),
-                    (
-                        SELECT r.byte_count FROM recordings r
-                        WHERE r.meeting_id = m.id
-                        ORDER BY r.created_at_ms, r.id LIMIT 1
-                    ),
-                    (
-                        SELECT r.media_type FROM recordings r
-                        WHERE r.meeting_id = m.id
-                        ORDER BY r.created_at_ms, r.id LIMIT 1
-                    ),
-                    m.style_id,
-                    (
-                        SELECT nm.duration_ms FROM normalized_media nm
-                        JOIN recordings r ON r.id = nm.recording_id
-                        WHERE r.meeting_id = m.id
-                        ORDER BY r.created_at_ms, r.id LIMIT 1
-                    )
-                 FROM meetings m
-                 WHERE m.id = ?1 AND m.archived_at_ms IS NULL",
+                &format!("{MEETING_SELECT} WHERE m.id = ?1 AND m.archived_at_ms IS NULL"),
                 [id],
                 meeting_from_row,
             )
@@ -2808,6 +2749,51 @@ fn job_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<JobSummary> {
 /// kept in two places. Several of these columns are TEXT: swapping two would not
 /// fail, it would quietly file a checksum where a media type belongs. Three
 /// queries want exactly these columns and differ only in what follows.
+/// The columns `protocol_style_from_row` reads, in the order it reads them.
+///
+/// Three queries want exactly these and differ only in what follows. Positional,
+/// like every rusqlite read: name and description are adjacent TEXT columns, so
+/// exchanging them in one copy would not fail — it would put a style's
+/// description where its name belongs.
+const PROTOCOL_STYLE_SELECT: &str =
+    "SELECT id, name, description, language_scope, instructions_json,
+            required_sections_json, revision, density, expectations_json
+     FROM protocol_styles";
+
+/// The columns `meeting_from_row` reads, in the order it reads them.
+///
+/// Four of the twelve are correlated subqueries picking the meeting's first
+/// recording, and they must stay in step with each other as well as with the
+/// mapper: original_name, byte_count and media_type are read from the same row and
+/// would silently disagree if one of them ordered differently. Two queries want
+/// exactly this and differ only in what follows.
+const MEETING_SELECT: &str = "SELECT
+        m.id, m.project_id, m.title, m.occurred_at, m.duration_label,
+        m.lifecycle, m.language,
+        (
+            SELECT r.original_name FROM recordings r
+            WHERE r.meeting_id = m.id
+            ORDER BY r.created_at_ms, r.id LIMIT 1
+        ),
+        (
+            SELECT r.byte_count FROM recordings r
+            WHERE r.meeting_id = m.id
+            ORDER BY r.created_at_ms, r.id LIMIT 1
+        ),
+        (
+            SELECT r.media_type FROM recordings r
+            WHERE r.meeting_id = m.id
+            ORDER BY r.created_at_ms, r.id LIMIT 1
+        ),
+        m.style_id,
+        (
+            SELECT nm.duration_ms FROM normalized_media nm
+            JOIN recordings r ON r.id = nm.recording_id
+            WHERE r.meeting_id = m.id
+            ORDER BY r.created_at_ms, r.id LIMIT 1
+        )
+     FROM meetings m";
+
 const IMPORT_JOB_SELECT: &str = "SELECT
         j.id, j.meeting_id, m.project_id, j.recording_id, r.original_name,
         j.state, j.stage, j.source_path, j.duplicate_allowed,

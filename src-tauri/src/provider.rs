@@ -418,12 +418,6 @@ impl OllamaProvider {
         Self::at_port(DEFAULT_PORT)
     }
 
-    #[cfg(test)]
-    pub(crate) fn at_port(port: u16) -> Self {
-        Self::with_url(format!("http://127.0.0.1:{port}"))
-    }
-
-    #[cfg(not(test))]
     fn at_port(port: u16) -> Self {
         Self::with_url(format!("http://127.0.0.1:{port}"))
     }
@@ -467,7 +461,7 @@ impl OllamaProvider {
         let models = match self.installed_models() {
             Ok(models) => models,
             Err(error) => {
-                status.message = truncate(&error.to_string(), 280);
+                status.message = truncate(&error.to_string(), MESSAGE_LIMIT);
                 status.runtime_version = Some(version);
                 return status;
             }
@@ -499,10 +493,9 @@ impl OllamaProvider {
             .get(format!("{}/api/version", self.base_url))
             .call()
             .map_err(http_error)?;
-        let value: VersionResponse = response
-            .body_mut()
-            .read_json()
-            .map_err(|error| ProviderError::InvalidResponse(truncate(&error.to_string(), 280)))?;
+        let value: VersionResponse = response.body_mut().read_json().map_err(|error| {
+            ProviderError::InvalidResponse(truncate(&error.to_string(), MESSAGE_LIMIT))
+        })?;
         Ok(value.version)
     }
 
@@ -539,10 +532,9 @@ impl OllamaProvider {
             .get(format!("{}/api/tags", self.base_url))
             .call()
             .map_err(http_error)?;
-        let value: TagsResponse = response
-            .body_mut()
-            .read_json()
-            .map_err(|error| ProviderError::InvalidResponse(truncate(&error.to_string(), 280)))?;
+        let value: TagsResponse = response.body_mut().read_json().map_err(|error| {
+            ProviderError::InvalidResponse(truncate(&error.to_string(), MESSAGE_LIMIT))
+        })?;
         Ok(value.models)
     }
 
@@ -1491,9 +1483,9 @@ impl OllamaProvider {
                 return Err(ProviderError::Stalled);
             }
             line.clear();
-            let read = reader
-                .read_line(&mut line)
-                .map_err(|error| ProviderError::Unavailable(truncate(&error.to_string(), 280)))?;
+            let read = reader.read_line(&mut line).map_err(|error| {
+                ProviderError::Unavailable(truncate(&error.to_string(), MESSAGE_LIMIT))
+            })?;
             if read == 0 {
                 break;
             }
@@ -1504,7 +1496,7 @@ impl OllamaProvider {
             // model's own answer is the thing that needs repairing, and that is done
             // where it is parsed rather than here.
             let chunk: StreamChunk = serde_json::from_str(line.trim()).map_err(|error| {
-                ProviderError::InvalidResponse(truncate(&error.to_string(), 280))
+                ProviderError::InvalidResponse(truncate(&error.to_string(), MESSAGE_LIMIT))
             })?;
             last_chunk = Instant::now();
             generated.push_str(if chunk.response.is_empty() {
@@ -2989,8 +2981,15 @@ fn validate_markdown(markdown: &str, transcript_chars: usize) -> Result<()> {
 }
 
 fn http_error(error: ureq::Error) -> ProviderError {
-    ProviderError::Unavailable(truncate(&error.to_string(), 280))
+    ProviderError::Unavailable(truncate(&error.to_string(), MESSAGE_LIMIT))
 }
+
+/// How much of a failure's own words to keep.
+///
+/// Long enough for a sentence from ureq or serde to say what went wrong, short
+/// enough that it cannot carry a paragraph of a meeting into a status line. It was
+/// written out as a bare 280 at six places.
+const MESSAGE_LIMIT: usize = 280;
 
 fn truncate(value: &str, max_chars: usize) -> String {
     value.chars().take(max_chars).collect()
