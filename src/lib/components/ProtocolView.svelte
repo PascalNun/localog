@@ -7,7 +7,7 @@
     ProtocolDraft,
     ProtocolStyle,
   } from '../workflow/types';
-  import Icon from './Icon.svelte';
+  import Icon, { type IconName } from './Icon.svelte';
   import StageRail from './StageRail.svelte';
   import AppearanceFields from './AppearanceFields.svelte';
   import FurnitureEditor from './FurnitureEditor.svelte';
@@ -493,10 +493,30 @@
     selection?.addRange(range);
   }
 
-  function tableCommand(
-    command:
-      'row-above' | 'row-below' | 'row-delete' | 'column-left' | 'column-right' | 'column-delete',
-  ) {
+  type TableCommand =
+    'row-above' | 'row-below' | 'row-delete' | 'column-left' | 'column-right' | 'column-delete';
+
+  /**
+   * The table toolbar, as data.
+   *
+   * Six buttons that differed only in a command, an icon and a label, and each
+   * label was written twice — once as the tooltip and once for a screen reader —
+   * so twelve strings had to be kept saying the same thing by hand. Typed against
+   * TableCommand, so a button for a command that does not exist will not compile.
+   */
+  const TABLE_COMMANDS: { command: TableCommand; icon: IconName; label: string }[] = [
+    { command: 'row-above', icon: 'row-add-above', label: 'Add a row above' },
+    { command: 'row-below', icon: 'row-add-below', label: 'Add a row below' },
+    { command: 'row-delete', icon: 'row-remove', label: 'Delete this row' },
+    { command: 'column-left', icon: 'column-add-left', label: 'Add a column to the left' },
+    { command: 'column-right', icon: 'column-add-right', label: 'Add a column to the right' },
+    { command: 'column-delete', icon: 'column-remove', label: 'Delete this column' },
+  ];
+
+  /** Where the row buttons end and the column buttons begin. */
+  const TABLE_GROUP_BREAK = 3;
+
+  function tableCommand(command: TableCommand) {
     const cell = currentCell();
     const row = cell?.closest('tr');
     const table = cell?.closest('table');
@@ -1261,51 +1281,18 @@
           >
             <span class="table-toolbar-name">Table</span>
             <span class="format-divider" aria-hidden="true"></span>
-            <button
-              class="text-action"
-              title="Add a row above"
-              onclick={() => tableCommand('row-above')}
-              ><Icon name="row-add-above" size={15} /><span class="sr-only">Add a row above</span
-              ></button
-            >
-            <button
-              class="text-action"
-              title="Add a row below"
-              onclick={() => tableCommand('row-below')}
-              ><Icon name="row-add-below" size={15} /><span class="sr-only">Add a row below</span
-              ></button
-            >
-            <button
-              class="text-action"
-              title="Delete this row"
-              onclick={() => tableCommand('row-delete')}
-              ><Icon name="row-remove" size={15} /><span class="sr-only">Delete this row</span
-              ></button
-            >
-            <span class="format-divider" aria-hidden="true"></span>
-            <button
-              class="text-action"
-              title="Add a column to the left"
-              onclick={() => tableCommand('column-left')}
-              ><Icon name="column-add-left" size={15} /><span class="sr-only"
-                >Add a column to the left</span
-              ></button
-            >
-            <button
-              class="text-action"
-              title="Add a column to the right"
-              onclick={() => tableCommand('column-right')}
-              ><Icon name="column-add-right" size={15} /><span class="sr-only"
-                >Add a column to the right</span
-              ></button
-            >
-            <button
-              class="text-action"
-              title="Delete this column"
-              onclick={() => tableCommand('column-delete')}
-              ><Icon name="column-remove" size={15} /><span class="sr-only">Delete this column</span
-              ></button
-            >
+            {#each TABLE_COMMANDS as entry, at (entry.command)}
+              {#if at === TABLE_GROUP_BREAK}
+                <span class="format-divider" aria-hidden="true"></span>
+              {/if}
+              <button
+                class="text-action"
+                title={entry.label}
+                onclick={() => tableCommand(entry.command)}
+                ><Icon name={entry.icon} size={15} /><span class="sr-only">{entry.label}</span
+                ></button
+              >
+            {/each}
           </div>
         {/if}
         {#if selectionBox}
