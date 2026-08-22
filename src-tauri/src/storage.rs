@@ -1157,14 +1157,7 @@ impl WorkspaceRepository {
 
     fn list_projects(&self) -> Result<Vec<ProjectSummary>> {
         let mut statement = self.connection.prepare(
-            "SELECT
-                p.id, p.name, p.description, p.default_language, p.default_style_id,
-                COUNT(m.id), p.appearance_json, p.furniture_json
-             FROM projects p
-             LEFT JOIN meetings m ON m.project_id = p.id AND m.archived_at_ms IS NULL
-             WHERE p.archived_at_ms IS NULL
-             GROUP BY p.id
-             ORDER BY p.created_at_ms, p.id",
+            &format!("{PROJECT_SELECT} WHERE p.archived_at_ms IS NULL GROUP BY p.id ORDER BY p.created_at_ms, p.id"),
         )?;
         let rows = statement.query_map([], project_from_row)?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
@@ -1556,13 +1549,9 @@ impl WorkspaceRepository {
         Ok(self
             .connection
             .query_row(
-                "SELECT
-                    p.id, p.name, p.description, p.default_language, p.default_style_id,
-                    COUNT(m.id), p.appearance_json, p.furniture_json
-                 FROM projects p
-                 LEFT JOIN meetings m ON m.project_id = p.id AND m.archived_at_ms IS NULL
-                 WHERE p.id = ?1 AND p.archived_at_ms IS NULL
-                 GROUP BY p.id",
+                &format!(
+                    "{PROJECT_SELECT} WHERE p.id = ?1 AND p.archived_at_ms IS NULL GROUP BY p.id"
+                ),
                 [id],
                 project_from_row,
             )
@@ -2800,6 +2789,17 @@ const QUEUE_IMPORT_JOB: &str = "INSERT INTO jobs (
                     created_at_ms, updated_at_ms
                  ) VALUES (?1, ?2, ?3, 'import', 'queued', 'ready_to_import',
                            0, 1, ?4, 0, ?5, ?5)";
+
+/// The columns `project_from_row` reads, in the order it reads them.
+///
+/// Two queries want exactly these — the whole list and one project — and both feed
+/// the same positional mapper. The LEFT JOIN and the GROUP BY belong to the count:
+/// a project with no meetings must still appear, with nought against it.
+const PROJECT_SELECT: &str = "SELECT
+        p.id, p.name, p.description, p.default_language, p.default_style_id,
+        COUNT(m.id), p.appearance_json, p.furniture_json
+     FROM projects p
+     LEFT JOIN meetings m ON m.project_id = p.id AND m.archived_at_ms IS NULL";
 
 const IMPORT_JOB_SELECT: &str = "SELECT
         j.id, j.meeting_id, m.project_id, j.recording_id, r.original_name,
