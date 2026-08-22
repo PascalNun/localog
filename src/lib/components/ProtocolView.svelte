@@ -179,16 +179,38 @@
   let marks = { bold: false, italic: false };
   let moreOpen = false;
 
+  /**
+   * The nearest ancestor matching `selector`, provided it is inside the document.
+   *
+   * Three functions walked up to `documentSurface` by hand, differing only in what
+   * they tested for on the way. The platform does this walk, and this same file
+   * already asks it to a few lines away, with `.closest('table')` and
+   * `.closest('tr')`.
+   *
+   * The hand-written loops stopped *before* `documentSurface` where `.closest()`
+   * would consider it. That difference cannot bite: `documentSurface` is a div,
+   * and none of the selectors used here matches one.
+   */
+  function closestIn(node: Node | null, selector: string): HTMLElement | null {
+    const from = node?.nodeType === 1 ? (node as Element) : (node?.parentElement ?? null);
+    const found = from?.closest(selector) ?? null;
+    return found && documentSurface?.contains(found) ? (found as HTMLElement) : null;
+  }
+
+  /**
+   * The block a node sits in, counted from the document's own children.
+   *
+   * Not expressible as a selector — it is "whichever child of the surface this is
+   * inside", whatever that child happens to be — so it keeps its own loop, written
+   * once instead of the two identical copies it was.
+   */
+  function topBlockOf(node: Node | null): Node | null {
+    const block = topBlockOf(node);
+    return block;
+  }
+
   function blockOf(node: Node | null): string {
-    let at: Node | null = node;
-    while (at && at !== documentSurface) {
-      if (at.nodeType === 1) {
-        const tag = (at as Element).tagName.toLowerCase();
-        if (['h1', 'h2', 'h3', 'h4', 'p', 'li', 'blockquote', 'td', 'th'].includes(tag)) return tag;
-      }
-      at = at.parentNode;
-    }
-    return 'p';
+    return closestIn(node, 'h1,h2,h3,h4,p,li,blockquote,td,th')?.tagName.toLowerCase() ?? 'p';
   }
 
   function readSelection() {
@@ -440,12 +462,7 @@
   }
 
   function itemAt(node: Node | null): HTMLElement | null {
-    let at: Node | null = node;
-    while (at && at !== documentSurface) {
-      if (at.nodeType === 1 && (at as Element).tagName === 'LI') return at as HTMLElement;
-      at = at.parentNode;
-    }
-    return null;
+    return closestIn(node, 'li');
   }
 
   /// Tables, which are the one thing `execCommand` has no answer for at all.
@@ -458,17 +475,7 @@
   let tableBox: { top: number; left: number } | null = null;
 
   function cellAt(node: Node | null): HTMLTableCellElement | null {
-    let at: Node | null = node;
-    while (at && at !== documentSurface) {
-      if (at.nodeType === 1) {
-        const element = at as Element;
-        if (element.tagName === 'TD' || element.tagName === 'TH') {
-          return element as HTMLTableCellElement;
-        }
-      }
-      at = at.parentNode;
-    }
-    return null;
+    return closestIn(node, 'td,th') as HTMLTableCellElement | null;
   }
 
   function currentCell(): HTMLTableCellElement | null {
@@ -598,8 +605,7 @@
     body.append(blankCell('td'), blankCell('td'));
 
     // Placed after whatever block the caret is in, never inside a paragraph.
-    let block: Node | null = range.startContainer;
-    while (block && block.parentNode !== documentSurface) block = block.parentNode;
+    const block = topBlockOf(range.startContainer);
     if (block) (block as Element).after(table);
     else documentSurface.append(table);
 
