@@ -18,7 +18,7 @@
     APPEARANCE_CHOICES,
     PAGE_CONTENT_PIXELS,
     appearanceStyle,
-    pageBreaks,
+    pageStarts,
   } from '../protocol/appearance';
   import { fieldLabel, furnitureIsEmpty } from '../protocol/furniture';
   import { diffWords, isUnchanged, type Change } from '../protocol/diff';
@@ -725,25 +725,68 @@
   /// to say why than to draw a wrong one.
   $: pagesCanBeShown = appearance.pageWidth === 'a4';
 
+  /// How much room to open between the foot of one page and the head of the next.
+  const PAGE_GAP = 34;
+
+  function clearPageGaps() {
+    if (!documentSurface) return;
+    for (const child of Array.from(documentSurface.children)) {
+      const element = child as HTMLElement;
+      if (element.dataset.pageStart) {
+        delete element.dataset.pageStart;
+        element.style.paddingTop = '';
+      }
+    }
+  }
+
   function measurePages() {
     if (!documentSurface || !showPages || !pagesCanBeShown) {
+      clearPageGaps();
       pageEdges = [];
       return;
     }
     const style = getComputedStyle(documentSurface);
     const top = parseFloat(style.paddingTop) || 0;
-    const blocks = Array.from(documentSurface.children).map((child) => {
-      const element = child as HTMLElement;
-      return {
-        top: element.offsetTop - top,
-        height: element.offsetHeight,
+    const children = Array.from(documentSurface.children) as HTMLElement[];
+    // A page holds the same text however large the screen shows it, so the zoom
+    // stretches the picture rather than changing what fits.
+    const gap = PAGE_GAP * textScale;
+
+    // Measured on the paper rather than on the screen. The gaps opened below are a
+    // picture of where a page ends and occupy nothing on the page itself, so they
+    // come back out before anything is asked about what fits.
+    let opened = 0;
+    const blocks = children.map((element) => {
+      const own = element.dataset.pageStart === 'true' ? gap : 0;
+      const measured = {
+        top: element.offsetTop - top - opened,
+        height: element.offsetHeight - own,
         // The two the print stylesheet refuses to split.
         unbreakable: /^(H1|H2|H3|H4|TABLE)$/.test(element.tagName),
       };
+      opened += own;
+      return measured;
     });
-    // A page holds the same text however large the screen shows it, so the zoom
-    // stretches the picture rather than changing what fits.
-    pageEdges = pageBreaks(blocks, PAGE_CONTENT_PIXELS * textScale);
+
+    const starts = pageStarts(blocks, PAGE_CONTENT_PIXELS * textScale);
+    const beginsAPage = new Set(starts);
+    children.forEach((element, index) => {
+      if (beginsAPage.has(index)) {
+        element.dataset.pageStart = 'true';
+        // Padding rather than margin: a margin here would collapse into the one a
+        // heading already carries, and the gap would come out the size of whichever
+        // was larger instead of the size asked for.
+        element.style.paddingTop = `${gap}px`;
+      } else if (element.dataset.pageStart) {
+        delete element.dataset.pageStart;
+        element.style.paddingTop = '';
+      }
+    });
+
+    // Read after the room was opened, and in the stack's own coordinates — the same
+    // ones the overlay is positioned in — so the edge lands on the gap rather than
+    // a document padding's distance above it.
+    pageEdges = starts.map((index) => children[index]?.offsetTop ?? 0);
   }
 
   // Whenever the document, its setting or its scale changes the pagination moves.
@@ -751,6 +794,7 @@
     queueMicrotask(measurePages);
   }
   $: if (!showPages) pageEdges = [];
+  $: pageGap = PAGE_GAP * textScale;
 
   /// Zoom, which is how large the document looks and not how large it prints.
   ///
@@ -1456,7 +1500,7 @@
           {#if showPages && pageEdges.length > 0}
             <div class="page-edges" aria-hidden="true">
               {#each pageEdges as edge, at (at)}
-                <div class="page-edge" style={`top: ${edge}px`}>
+                <div class="page-edge" style={`top: ${edge}px; height: ${pageGap}px`}>
                   {#if !furnitureIsEmpty(furniture)}
                     <span class="page-edge-furniture">{furnitureSummary}</span>
                   {/if}

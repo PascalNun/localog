@@ -178,3 +178,33 @@ export function pageBreaks(blocks: MeasuredBlock[], pageHeight: number): number[
   }
   return breaks;
 }
+
+/**
+ * Which block begins each new page.
+ *
+ * `pageBreaks` answers where a page *ends*, part-way through a paragraph where
+ * print would divide one. That is the right answer for print and the wrong one for
+ * the editor, which cannot divide a paragraph without dividing the element: it drew
+ * a rule across the words instead and painted the page label on top of them, so a
+ * line of the meeting was hidden behind "PAGE 3".
+ *
+ * This never divides a block. A paragraph that would straddle the boundary is shown
+ * whole at the top of the next page, and the note under the document says the
+ * printer may split it. An estimate that hides nothing beats an exact one that does.
+ */
+export function pageStarts(blocks: MeasuredBlock[], pageHeight: number): number[] {
+  if (pageHeight <= 0) return [];
+  const starts: number[] = [];
+  let bottomOfPage = pageHeight;
+
+  blocks.forEach((block, index) => {
+    // The first block starts the first page, which needs no gap before it.
+    if (index === 0) return;
+    if (block.top + block.height <= bottomOfPage) return;
+    starts.push(index);
+    // The next page begins at this block, whatever was left of the last one.
+    bottomOfPage = block.top + pageHeight;
+  });
+
+  return starts;
+}
