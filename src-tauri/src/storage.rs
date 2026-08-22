@@ -3995,30 +3995,19 @@ mod tests {
         );
     }
 
+    /// The same ordering and the same exclusion, on rows that never went through
+    /// `save_vocabulary_entry`.
+    ///
+    /// Both claims are made by tests above — ordering by
+    /// `proper_nouns_reach_the_transcriber_before_field_terminology`, the switched-off
+    /// entry by `a_term_can_be_added_edited_switched_off_and_removed`. What this adds
+    /// is that the query holds for rows written straight into the table, which is how
+    /// a migration leaves them.
     #[test]
     fn transcription_vocabulary_puts_project_terms_before_global_ones() {
         let temporary = tempdir().unwrap();
         let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
-        let project = repository
-            .create_project(NewProjectInput {
-                name: "Beispielquartier".to_string(),
-                description: String::new(),
-                default_language: "German".to_string(),
-            })
-            .unwrap();
-        let source = temporary.path().join("synthetic.wav");
-        fs::write(&source, b"synthetic").unwrap();
-        let meeting = repository
-            .create_meeting(NewMeetingInput {
-                project_id: project.id.clone(),
-                title: "Jour fixe".to_string(),
-                occurred_at: "2026-08-06".to_string(),
-                language: "German".to_string(),
-                source_name: "synthetic.wav".to_string(),
-                source_path: Some(source.to_string_lossy().into_owned()),
-                style_id: "style-formal".to_string(),
-            })
-            .unwrap();
+        let (project_id, meeting_id) = project_with_meeting(&mut repository, temporary.path());
         repository
             .connection
             .execute(
@@ -4028,11 +4017,11 @@ mod tests {
                  VALUES ('v1','Zzz Global','Zzz Global','Term','Global',NULL,1,0),
                         ('v2','NORVEK','NORVEK','Organisation','Project',?1,1,0),
                         ('v3','Disabled','Disabled','Term','Project',?1,0,0)",
-                [&project.id],
+                [&project_id],
             )
             .unwrap();
 
-        let terms = repository.transcription_vocabulary(&meeting.id).unwrap();
+        let terms = repository.transcription_vocabulary(&meeting_id).unwrap();
         // The project's own name comes first despite sorting later alphabetically,
         // and a disabled entry never reaches the runtime.
         assert_eq!(terms, vec!["NORVEK".to_string(), "Zzz Global".to_string()]);
