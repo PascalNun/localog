@@ -3327,8 +3327,17 @@ button.review-summary[aria-pressed='true'] {
     display: block;
     color: #000;
     background: #fff;
-    font-size: 10.5pt;
-    line-height: 1.5;
+    /* The project's own appearance, which print.ts already sets on this element
+       and nothing here read: a project set to Georgia 13pt got Georgia 13pt in
+       the Word file and this stylesheet's own 10.5pt in the PDF, from the same
+       document, with the appearance panel saying it governed both.
+
+       The measure is deliberately not taken. On screen it is what makes the sheet
+       a page rather than a column of text against the frame; on paper the column
+       is the page margins, and applying both would set a measure inside a measure. */
+    font-family: var(--document-font, inherit);
+    font-size: var(--document-size, 10.5pt);
+    line-height: var(--document-leading, 1.5);
   }
 
   .print-masthead {
@@ -3361,14 +3370,17 @@ button.review-summary[aria-pressed='true'] {
     break-inside: avoid;
   }
 
+  /* The heading scale the project chose, in the same steps the editor shows. Fixed
+     points here meant that raising the body size left the headings where they were
+     and the hierarchy closed up. */
   .print-body h1 {
-    font-size: 14pt;
+    font-size: var(--heading-1, 14pt);
   }
   .print-body h2 {
-    font-size: 12pt;
+    font-size: var(--heading-2, 12pt);
   }
   .print-body h3 {
-    font-size: 11pt;
+    font-size: var(--heading-3, 11pt);
   }
   .print-body h4 {
     font-size: 10.5pt;
