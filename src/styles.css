@@ -303,6 +303,12 @@ small {
   flex-direction: column;
   gap: 38px;
   min-height: 0;
+  /* Said outright, because it cannot be left unsaid: `overflow-x: visible` is not
+     allowed beside a scrolling value on the other axis, so asking for vertical
+     scrolling alone silently makes this axis `auto` as well. A column of links has
+     nothing to scroll sideways to, and anything that overhangs by a pixel would
+     otherwise fetch a scrollbar the width of the sidebar. */
+  overflow-x: clip;
   overflow-y: auto;
 }
 
@@ -627,9 +633,13 @@ body.sidebar-resizing * {
 }
 
 /* The last pixel of the same alignment: the hit target stays 32px, and only the
-   glyph inside it is brought out to the column the counts are right-aligned on. */
-.nav-section-heading .icon-button {
-  margin-right: -1px;
+   glyph inside it is brought out to the column the counts are right-aligned on.
+   Moved rather than margined. A negative margin put the button one pixel past the
+   content edge, and .sidebar-nav scrolls — so that pixel drew a horizontal
+   scrollbar across the whole sidebar. A transform paints outside the box without
+   occupying any width. */
+.nav-section-heading .icon-button .icon {
+  transform: translateX(1px);
 }
 
 .primary-action {
