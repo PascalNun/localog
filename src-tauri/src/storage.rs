@@ -809,12 +809,7 @@ impl WorkspaceRepository {
                 params![recording_id, meeting_id, source_name, now],
             )?;
             transaction.execute(
-                "INSERT INTO jobs (
-                    id, meeting_id, recording_id, kind, state, stage,
-                    progress_bytes, attempt, source_path, duplicate_allowed,
-                    created_at_ms, updated_at_ms
-                 ) VALUES (?1, ?2, ?3, 'import', 'queued', 'ready_to_import',
-                           0, 1, ?4, 0, ?5, ?5)",
+                QUEUE_IMPORT_JOB,
                 params![job_id, meeting_id, recording_id, source_path, now],
             )?;
         }
@@ -1152,12 +1147,7 @@ impl WorkspaceRepository {
         )?;
         if updated == 0 {
             transaction.execute(
-                "INSERT INTO jobs (
-                    id, meeting_id, recording_id, kind, state, stage,
-                    progress_bytes, attempt, source_path, duplicate_allowed,
-                    created_at_ms, updated_at_ms
-                 ) VALUES (?1, ?2, ?3, 'import', 'queued', 'ready_to_import',
-                           0, 1, ?4, 0, ?5, ?5)",
+                QUEUE_IMPORT_JOB,
                 params![new_id("job"), meeting_id, recording_id, source_path, now],
             )?;
         }
@@ -2798,6 +2788,18 @@ const MEETING_SELECT: &str = "SELECT
             ORDER BY r.created_at_ms, r.id LIMIT 1
         )
      FROM meetings m";
+
+/// The job a meeting starts life with: an import, queued, waiting to be brought in.
+///
+/// Written by creating a meeting and by pointing an existing one at a different
+/// file, and the two must agree — a job whose kind or stage differed between the
+/// paths would be picked up by neither the importer nor the reconciler.
+const QUEUE_IMPORT_JOB: &str = "INSERT INTO jobs (
+                    id, meeting_id, recording_id, kind, state, stage,
+                    progress_bytes, attempt, source_path, duplicate_allowed,
+                    created_at_ms, updated_at_ms
+                 ) VALUES (?1, ?2, ?3, 'import', 'queued', 'ready_to_import',
+                           0, 1, ?4, 0, ?5, ?5)";
 
 const IMPORT_JOB_SELECT: &str = "SELECT
         j.id, j.meeting_id, m.project_id, j.recording_id, r.original_name,
