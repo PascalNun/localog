@@ -266,13 +266,24 @@
   /// The keys a writing tool is expected to answer to.
   ///
   /// Find is the one somebody reaches for without thinking, and it was only ever
-  /// reachable by finding the button first.
+  /// reachable by finding the button first. Print is the other: every document
+  /// application answers to it, and this one was leaving it to a webview that
+  /// cannot print.
   function handleShortcut(event: KeyboardEvent) {
     const held = event.metaKey || event.ctrlKey;
     if (held && event.key.toLowerCase() === 'f') {
       event.preventDefault();
       findOpen = true;
       queueMicrotask(() => findField?.focus());
+      return;
+    }
+    if (held && event.key.toLowerCase() === 'p') {
+      // The key everybody presses for a PDF, doing what the export menu does.
+      // Left to the webview it would print the application rather than the
+      // protocol — and on macOS window.print() does nothing at all here, so it
+      // would look broken rather than wrong.
+      event.preventDefault();
+      onExport('pdf');
       return;
     }
     if (event.key === 'Escape' && findOpen) {
