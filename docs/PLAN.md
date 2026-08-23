@@ -122,6 +122,71 @@ broken, then wrong, then missing.
   same place — a rendered document is what a PDF is printed from — so doing the
   editor first may make the exports nearly free, or may delay them by a week.
 
+## What to do next, in order — 23 August 2026
+
+Supersedes the 18 August ordering below, which is kept for its findings. Written
+after the owner printed a real protocol and found the running header absent, and
+after a cleanup pass that turned up why.
+
+The principle this time: **make the thing work before making it nice, and make it
+authorable before making it designable.** There is no point polishing how somebody
+arranges a header that does not print.
+
+### 1. Bind ⌘P to the export, not the browser's print
+
+Fifteen minutes, and it removes a daily friction: the shortcut every document
+application has, doing what the menu item already does. `Ctrl+P` elsewhere.
+
+### 2. Paginate the print sheet ourselves
+
+**The header does not repeat, and this is why.** The PDF path draws the bands with
+`position: fixed`, which repeats per page in Chromium and does not in WKWebView —
+which is what macOS prints through. Measured on the owner's own export: the header
+printed once on page 1, the footer once on page 3, and page 2 had neither. The
+mechanism the whole design rested on does not work on the target platform.
+
+The answer is to stop asking the browser to repeat anything and build the sheet as
+explicit page boxes, each holding its own header, its slice of the document, and
+its own footer. The editor already computes where the pages break — `pageStarts`,
+written for the visible separation between pages — and the same measurement drives
+this.
+
+Four things fall out of one change:
+
+- the header and the footer appear on every page, in any engine
+- **page numbers become possible in the PDF**, because we are the thing paginating
+  and therefore know both the number and the count
+- the band stops colliding with the first line, because it is inside its own page
+  box rather than fixed over the text column
+- `skipFirstPage`, which is stored and honoured by nothing, becomes trivial
+
+### 3. Make a header slot a line somebody writes
+
+Half done. The model already carries a line — text runs and value tokens in order —
+and resolution now concatenates them, so `Seite 3 von 12` is expressible. What
+remains is the interface: the panel still offers chips and an `Add…` select, which
+is a list-of-atoms interface over a line-of-text model, and the spaces somebody
+types are invisible inside a chip.
+
+### 4. Fold export templates into the appearance panel as presets
+
+A project already has an appearance and furniture. A template is only those two
+under a name, so that another project can use them — which is a preset, and does
+not earn a page in the sidebar beside Protocol styles and Names & terms. **Save as
+preset** and **Use preset**, where somebody is already looking at the settings.
+Deletes a concept and a page.
+
+### 5. The band as a grid, and the logo
+
+The design is written down in `HEADER_FOOTER.md`. It needs 2 first: a logo makes
+the band taller, and until the band has a page box of its own that is a collision.
+
+### Also, and needing a decision rather than an implementation
+
+The values are English and the date is ISO: a German protocol's header currently
+reads `Protocol · 2026-08-10 · Draft`. German and English with an English fallback
+is the cheap version; all twelve meeting languages is a different piece of work.
+
 ## What to do next, in order
 
 Rewritten 18 August 2026, after a day of using the application. The previous ordering
