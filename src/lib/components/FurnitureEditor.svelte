@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { FURNITURE_FIELDS, fieldLabel, needsPageNumbers } from '../protocol/furniture';
+  import { FURNITURE_FIELDS, fieldsFromLine, lineHtml } from '../protocol/furniture';
   import type { FurnitureField, FurnitureRow, PageFurniture } from '../workflow/types';
 
   export let furniture: PageFurniture;
@@ -10,8 +10,8 @@
   ///
   /// Adding, removing and retyping were three functions that each rebuilt the whole
   /// structure by hand, and each had its own chance to write `header` where it meant
-  /// `footer`. There is one now, and the three callers differ only in what they do
-  /// to the list they are handed.
+  /// `footer`. There is one now, and the callers differ only in what they do to the
+  /// list they are handed.
   async function editSlot(
     band: 'header' | 'footer',
     slot: keyof FurnitureRow,
@@ -21,6 +21,54 @@
       ...furniture,
       [band]: { ...furniture[band], [slot]: change(furniture[band][slot]) },
     });
+  }
+
+  /// A slot is a line, so it is edited as one.
+  ///
+  /// It used to be a row of chips with an `Add…` beside them, which is a list of
+  /// atoms standing in for a sentence: "Projekt: Neubau Halle 4" could not be
+  /// written, and the spaces that hold a value against the words beside it were
+  /// invisible inside a chip. Every tool a professional office already has — Word,
+  /// Google Docs, and the two Markdown-to-PDF paths — lets somebody write the line
+  /// and put the value into the middle of it.
+  ///
+  /// The content is set on the node rather than rendered by Svelte, because Svelte
+  /// re-rendering a contenteditable on every keystroke puts the caret back at the
+  /// start. It is refreshed only when the value changes from somewhere else, and
+  /// never while the caret is in it.
+  function line(node: HTMLElement, fields: FurnitureField[]) {
+    node.innerHTML = lineHtml(fields);
+    return {
+      update(next: FurnitureField[]) {
+        if (document.activeElement === node) return;
+        const wanted = lineHtml(next);
+        if (node.innerHTML !== wanted) node.innerHTML = wanted;
+      },
+    };
+  }
+
+  /// The line read back: a value is a node that says which one it is, and
+  /// everything else is the characters somebody typed.
+  function readLine(node: HTMLElement): FurnitureField[] {
+    return fieldsFromLine(
+      Array.from(node.childNodes).map((child) => {
+        const kind = child instanceof HTMLElement ? child.dataset.kind : undefined;
+        return kind ? { kind } : { text: child.textContent ?? '' };
+      }),
+    );
+  }
+
+  function insert(node: HTMLElement, kind: string) {
+    node.focus();
+    const choice = FURNITURE_FIELDS.find((each) => each.kind === kind);
+    if (!choice) return;
+    // At the caret, so a value lands where somebody is writing rather than at the
+    // end of the line.
+    document.execCommand(
+      'insertHTML',
+      false,
+      `<span class="furniture-value" contenteditable="false" data-kind="${kind}">${choice.label}</span>`,
+    );
   }
 
   const BANDS = [
@@ -42,52 +90,39 @@
       {#each SLOTS as slot (slot.id)}
         <div class="furniture-slot">
           <span class="furniture-slot-name">{slot.label}</span>
-          <div class="furniture-chips">
-            {#each furniture[band.id][slot.id] as field, at (at)}
-              <span class="furniture-chip">
-                {#if field.kind === 'text'}
-                  <input
-                    value={field.value}
-                    placeholder="Your text"
-                    onchange={(event) => {
-                      const typed = event.currentTarget.value;
-                      void editSlot(band.id, slot.id, (fields) =>
-                        fields.map((each, index) =>
-                          index === at && each.kind === 'text'
-                            ? { kind: 'text', value: typed }
-                            : each,
-                        ),
-                      );
-                    }}
-                  />
-                {:else}
-                  {fieldLabel(field)}
-                {/if}
-                <button
-                  class="furniture-remove"
-                  aria-label={`Remove ${fieldLabel(field)}`}
-                  onclick={() =>
-                    void editSlot(band.id, slot.id, (fields) =>
-                      fields.filter((_, index) => index !== at),
-                    )}>×</button
-                >
-              </span>
-            {/each}
+          <div class="furniture-line-row">
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div
+              class="furniture-line"
+              contenteditable="true"
+              role="textbox"
+              tabindex="0"
+              aria-label={`${band.label}, ${slot.label}`}
+              use:line={furniture[band.id][slot.id]}
+              oninput={(event) => {
+                const node = event.currentTarget;
+                void editSlot(band.id, slot.id, () => readLine(node));
+              }}
+              onkeydown={(event) => {
+                // One line, so a return would only make a second one nobody can see.
+                if (event.key === 'Enter') event.preventDefault();
+              }}
+            ></div>
             <select
+              class="furniture-insert"
               value=""
-              aria-label={`Add to ${band.label} ${slot.label}`}
+              aria-label={`Insert a value into ${band.label} ${slot.label}`}
               onchange={(event) => {
                 const kind = event.currentTarget.value;
                 event.currentTarget.value = '';
-                if (!kind) return;
-                const field = (
-                  kind === 'text' ? { kind: 'text', value: '' } : { kind }
-                ) as FurnitureField;
-                void editSlot(band.id, slot.id, (fields) => [...fields, field]);
+                const node = event.currentTarget.previousElementSibling;
+                if (!kind || !(node instanceof HTMLElement)) return;
+                insert(node, kind);
+                void editSlot(band.id, slot.id, () => readLine(node));
               }}
             >
-              <option value="">Add…</option>
-              {#each FURNITURE_FIELDS as choice (choice.kind)}
+              <option value="">Insert…</option>
+              {#each FURNITURE_FIELDS.filter((choice) => choice.kind !== 'text') as choice (choice.kind)}
                 <option value={choice.kind}>{choice.label}</option>
               {/each}
             </select>
@@ -97,13 +132,10 @@
     </div>
   {/each}
 
-  {#if needsPageNumbers(furniture)}
-    <p class="appearance-note">
-      Word counts the pages itself, so the number is right there. The PDF is printed by the browser,
-      which will not say what page it is on — the page number is left out of that one rather than
-      printed wrongly on every sheet.
-    </p>
-  {/if}
+  <p class="appearance-note">
+    Type the line as it should read, and put a value into it where you want one — “Seite ”, the page
+    number, “ von 12”. A value is one object: it selects and deletes whole.
+  </p>
   <p class="appearance-note">
     Applies to every protocol in {projectName}. It repeats on the printed page and is not part of
     the document you are editing.

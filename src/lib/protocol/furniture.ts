@@ -109,11 +109,62 @@ export function furnitureIsEmpty(furniture: PageFurniture): boolean {
   return rowIsEmpty(furniture.header) && rowIsEmpty(furniture.footer);
 }
 
-/** Whether anything in here needs a page count, which not every target can supply. */
-export function needsPageNumbers(furniture: PageFurniture): boolean {
-  const counted = (row: FurnitureRow) =>
-    [...row.left, ...row.centre, ...row.right].some(
-      (field) => field.kind === 'pageNumber' || field.kind === 'pageOfCount',
-    );
-  return counted(furniture.header) || counted(furniture.footer);
+/**
+ * A slot as editable HTML: the text somebody typed, with each value a single
+ * object sitting in the middle of it.
+ *
+ * The value carries `contenteditable="false"` so that it behaves the way the same
+ * thing does in Word — selected and deleted whole, never half-edited into a word
+ * nobody meant. What it reads as is its label, not a syntax: nobody should have to
+ * learn that `{{seite}}` means anything.
+ */
+export function lineHtml(fields: FurnitureField[]): string {
+  return fields
+    .map((field) =>
+      field.kind === 'text'
+        ? escapeForLine(field.value)
+        : `<span class="furniture-value" contenteditable="false" data-kind="${field.kind}">` +
+          `${escapeForLine(fieldLabel(field))}</span>`,
+    )
+    .join('');
+}
+
+/** One piece of an edited line: either a value, or the characters around it. */
+export interface LinePart {
+  /** The kind of value, where this part is one. */
+  kind?: string;
+  /** The characters, where it is not. */
+  text?: string;
+}
+
+/**
+ * The line read back, after somebody has typed in it.
+ *
+ * Takes parts rather than nodes so it can be tested without a browser, the way
+ * html.ts takes `DomLike`. Adjacent runs of text are joined, because a browser
+ * will happily split one into several as the caret moves through it, and an empty
+ * run is dropped — but a run of spaces is not, since the spaces around a value are
+ * how it sits against the words beside it.
+ */
+export function fieldsFromLine(parts: LinePart[]): FurnitureField[] {
+  const fields: FurnitureField[] = [];
+  for (const part of parts) {
+    if (part.kind) {
+      if (KNOWN_KINDS.has(part.kind)) fields.push({ kind: part.kind } as FurnitureField);
+      continue;
+    }
+    const text = part.text ?? '';
+    if (text === '') continue;
+    const last = fields[fields.length - 1];
+    if (last && last.kind === 'text') last.value += text;
+    else fields.push({ kind: 'text', value: text });
+  }
+  return fields;
+}
+
+const KNOWN_KINDS: Set<string> = new Set(FURNITURE_FIELDS.map((choice) => choice.kind));
+
+/** Only the three characters that would otherwise end the run of text. */
+function escapeForLine(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

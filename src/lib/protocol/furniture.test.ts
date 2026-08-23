@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveRow } from './furniture';
+import { fieldsFromLine, lineHtml, resolveRow } from './furniture';
 import type { FurnitureField } from '../workflow/types';
 
 const facts = {
@@ -48,5 +48,44 @@ describe('what an output cannot answer', () => {
     // A meeting with no date is not the same as an output that cannot count pages.
     const line: FurnitureField[] = [text('Datum: '), { kind: 'meetingDate' }];
     expect(resolveRow(line, { ...facts, meetingDate: '' }, null)).toBe('Datum: ');
+  });
+});
+
+describe('editing a slot as a line', () => {
+  it('writes the values as objects and the rest as characters', () => {
+    const html = lineHtml([text('Seite '), { kind: 'pageNumber' }, text(' von 12')]);
+    expect(html).toBe(
+      'Seite <span class="furniture-value" contenteditable="false" data-kind="pageNumber">' +
+        'Page number</span> von 12',
+    );
+  });
+
+  it('reads back what it wrote', () => {
+    const fields: FurnitureField[] = [text('Seite '), { kind: 'pageNumber' }, text(' von 12')];
+    const parts = [{ text: 'Seite ' }, { kind: 'pageNumber' }, { text: ' von 12' }];
+    expect(fieldsFromLine(parts)).toEqual(fields);
+  });
+
+  it('joins the runs a browser split while the caret moved through them', () => {
+    expect(fieldsFromLine([{ text: 'Pro' }, { text: 'jekt: ' }])).toEqual([text('Projekt: ')]);
+  });
+
+  it('keeps the spaces beside a value, which are how it sits in the sentence', () => {
+    const parts = [{ text: ' ' }, { kind: 'meetingDate' }, { text: ' ' }];
+    expect(fieldsFromLine(parts)).toEqual([text(' '), { kind: 'meetingDate' }, text(' ')]);
+  });
+
+  it('drops an empty run rather than storing nothing', () => {
+    expect(fieldsFromLine([{ text: '' }, { kind: 'projectName' }, { text: '' }])).toEqual([
+      { kind: 'projectName' },
+    ]);
+  });
+
+  it('ignores a value it does not know, rather than storing a broken one', () => {
+    expect(fieldsFromLine([{ kind: 'somethingElse' }, { text: 'x' }])).toEqual([text('x')]);
+  });
+
+  it('escapes what would otherwise end the run of text', () => {
+    expect(lineHtml([text('a < b & c')])).toBe('a &lt; b &amp; c');
   });
 });

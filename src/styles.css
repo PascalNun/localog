@@ -3646,7 +3646,7 @@ button.review-summary[aria-pressed='true'] {
    the template chooser. They were three copies of the same declarations down to the
    inlined chevron. */
 .appearance-fields select,
-.furniture-chips select,
+.furniture-insert,
 .template-apply select {
   appearance: none;
   min-width: 136px;
@@ -3668,14 +3668,14 @@ button.review-summary[aria-pressed='true'] {
 }
 
 .appearance-fields select:hover,
-.furniture-chips select:hover,
+.furniture-insert:hover,
 .template-apply select:hover {
   background-color: var(--subtle);
   border-color: var(--line);
 }
 
 .appearance-fields select:focus-visible,
-.furniture-chips select:focus-visible,
+.furniture-insert:focus-visible,
 .template-apply select:focus-visible {
   border-color: var(--line-strong);
 }
@@ -3812,47 +3812,46 @@ button.review-summary[aria-pressed='true'] {
   font-size: 0.78rem;
 }
 
-.furniture-chips {
+.furniture-line-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  align-items: center;
+  gap: 6px;
+  align-items: flex-start;
 }
 
-.furniture-chip {
-  display: inline-flex;
-  gap: 4px;
-  align-items: center;
-  padding: 3px 4px 3px 8px;
-  background: var(--subtle);
-  border-radius: 4px;
-  font-size: 0.78rem;
-}
-
-.furniture-chip input {
-  width: 92px;
-  padding: 1px 4px;
+/* A line somebody writes, with the values sitting in it. It was a row of chips,
+   which is a list of atoms standing in for a sentence: the spaces that hold a value
+   against the words beside it were invisible inside a chip, and "Projekt: Neubau
+   Halle 4" could not be written at all. */
+.furniture-line {
+  flex: 1 1 auto;
+  min-height: 32px;
+  padding: 5px 8px;
   color: var(--ink);
   background: var(--raised);
   border: 1px solid var(--line);
+  border-radius: 5px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.furniture-line:focus-visible {
+  border-color: var(--line-strong);
+  outline: none;
+}
+
+/* One object, the way the same thing is in Word: selected and deleted whole, never
+   half-edited into a word nobody meant. */
+.furniture-line :global(.furniture-value) {
+  padding: 1px 5px;
+  background: var(--subtle);
   border-radius: 3px;
-  font-size: 0.78rem;
-  font-family: inherit;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
-.furniture-remove {
-  padding: 0 3px;
-  color: var(--faint);
-  background: transparent;
-  font-size: 0.95rem;
-  line-height: 1;
-}
-
-.furniture-remove:hover {
-  color: var(--ink);
-}
-
-.furniture-chips select {
+.furniture-insert {
   min-width: 0;
   min-height: 26px;
   padding: 2px 22px 2px 7px;
