@@ -154,7 +154,19 @@ function splitRow(line: string): string[] {
 
 /** Render a whole document. */
 export function renderMarkdown(markdown: string): string {
-  return readBlocks(markdown).map(renderBlock).join('\n');
+  return renderBlocks(markdown).join('\n');
+}
+
+/**
+ * The document as its top-level blocks, each rendered on its own.
+ *
+ * The same list, in the same order, that the editor lays out as the children of
+ * the document surface — so an index into this is an index into what somebody is
+ * looking at. That is what lets the editor measure where the pages break and the
+ * print sheet cut them in the same places.
+ */
+export function renderBlocks(markdown: string): string[] {
+  return readBlocks(markdown).map(renderBlock);
 }
 
 function renderBlock(block: Block): string {

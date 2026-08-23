@@ -54,7 +54,13 @@
   export let onCreateRevision: () => Promise<void>;
   export let onMarkReviewed: () => Promise<void>;
   export let onRestoreRevision: (revisionId: string) => Promise<void>;
-  export let onExport: (format: 'pdf' | 'docx' | 'markdown' | 'text') => void;
+  /// The page starts go with a PDF: print.ts cuts the sheet at them rather than
+  /// asking the browser to paginate, because the browser it would ask does not
+  /// repeat a running header across pages at all.
+  export let onExport: (
+    format: 'pdf' | 'docx' | 'markdown' | 'text',
+    pageStarts?: number[],
+  ) => void;
   export let onSetAppearance: (appearance: DocumentAppearance) => Promise<void> = async () =>
     undefined;
   export let onSetFurniture: (furniture: PageFurniture) => Promise<void> = async () => undefined;
@@ -283,7 +289,7 @@
       // protocol — and on macOS window.print() does nothing at all here, so it
       // would look broken rather than wrong.
       event.preventDefault();
-      onExport('pdf');
+      onExport('pdf', pageStartsNow());
       return;
     }
     if (event.key === 'Escape' && findOpen) {
@@ -730,12 +736,17 @@
   let showPages = false;
   let pageEdges: number[] = [];
 
-  /// Only where the measure is the printed one.
+  /// Every page width now, because the paper follows the measure.
   ///
-  /// Any other page width sets the text to a different column from the paper, so the
-  /// lines fall differently and a break drawn here would be a break nowhere. Better
-  /// to say why than to draw a wrong one.
-  $: pagesCanBeShown = appearance.pageWidth === 'a4';
+  /// This was A4 only, and for a good reason at the time: any other width set the
+  /// text to a different column from the paper, so the lines fell differently and a
+  /// break drawn here was a break nowhere. print.ts now derives the paper's side
+  /// margin from the document's own measure, so the two columns are the same width
+  /// and a break measured here is the break the printer makes.
+  ///
+  /// It stays an estimate at the widest settings, where the margin is clamped off
+  /// the unprintable edge of the paper and the columns part company again — which
+  /// is what the note under the document says either way.
 
   /// How much room to open between the foot of one page and the head of the next.
   const PAGE_GAP = 34;
@@ -751,12 +762,19 @@
     }
   }
 
-  function measurePages() {
-    if (!documentSurface || !showPages || !pagesCanBeShown) {
-      clearPageGaps();
-      pageEdges = [];
-      return;
-    }
+  /**
+   * Where the pages begin, on the document as it is laid out now.
+   *
+   * Measured whether or not the breaks are being shown, because the export wants
+   * them too: print.ts cuts the sheet at these indices rather than asking the
+   * browser to paginate, and the browser it would be asking does not repeat a
+   * running header at all.
+   *
+   * Indices into the document's own blocks, which are the blocks renderBlocks
+   * produces — so an index here is the same block there.
+   */
+  function pageStartsNow(): number[] {
+    if (!documentSurface) return [];
     const style = getComputedStyle(documentSurface);
     const top = parseFloat(style.paddingTop) || 0;
     const children = Array.from(documentSurface.children) as HTMLElement[];
@@ -764,9 +782,9 @@
     // stretches the picture rather than changing what fits.
     const gap = PAGE_GAP * textScale;
 
-    // Measured on the paper rather than on the screen. The gaps opened below are a
-    // picture of where a page ends and occupy nothing on the page itself, so they
-    // come back out before anything is asked about what fits.
+    // Measured on the paper rather than on the screen. The gaps measurePages opens
+    // between the pages are a picture of where one ends and occupy nothing on the
+    // page itself, so they come back out before anything is asked about what fits.
     let opened = 0;
     const blocks = children.map((element) => {
       const own = element.dataset.pageStart === 'true' ? gap : 0;
@@ -780,7 +798,19 @@
       return measured;
     });
 
-    const starts = pageStarts(blocks, PAGE_CONTENT_PIXELS * textScale);
+    return pageStarts(blocks, PAGE_CONTENT_PIXELS * textScale);
+  }
+
+  function measurePages() {
+    if (!documentSurface || !showPages) {
+      clearPageGaps();
+      pageEdges = [];
+      return;
+    }
+    const gap = PAGE_GAP * textScale;
+    const children = Array.from(documentSurface.children) as HTMLElement[];
+    const top = parseFloat(getComputedStyle(documentSurface).paddingTop) || 0;
+    const starts = pageStartsNow();
     const beginsAPage = new Set(starts);
     children.forEach((element, index) => {
       if (beginsAPage.has(index)) {
@@ -1214,12 +1244,8 @@
             class="text-action"
             class:chosen={showPages}
             aria-pressed={showPages}
-            title={pagesCanBeShown
-              ? showPages
-                ? 'Hide page breaks'
-                : 'Show page breaks'
-              : 'Set the page width to the A4 text column to see where the pages end.'}
-            disabled={view !== 'document' || !pagesCanBeShown}
+            title={showPages ? 'Hide page breaks' : 'Show page breaks'}
+            disabled={view !== 'document'}
             onclick={() => (showPages = !showPages)}
             ><Icon name="rule" size={15} /><span class="sr-only"
               >{showPages ? 'Hide page breaks' : 'Show page breaks'}</span
@@ -1693,7 +1719,9 @@
           <div class="inspector-section">
             <p class="eyebrow">Export</p>
             <div class="export-actions">
-              <button class="primary-action full-width" onclick={() => onExport('pdf')}
+              <button
+                class="primary-action full-width"
+                onclick={() => onExport('pdf', pageStartsNow())}
                 ><Icon name="download" size={16} /> Export PDF</button
               ><button class="secondary-action full-width" onclick={() => onExport('docx')}
                 >Export Word</button

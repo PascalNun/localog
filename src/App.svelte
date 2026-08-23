@@ -509,7 +509,10 @@
     navigate(projectId ? { name: 'project', projectId } : { name: 'start' });
   }
 
-  async function exportProtocol(format: 'pdf' | 'docx' | 'markdown' | 'text') {
+  async function exportProtocol(
+    format: 'pdf' | 'docx' | 'markdown' | 'text',
+    pageStarts: number[] = [],
+  ) {
     if (!meeting || !snapshot) return;
     const protocol = snapshot.protocols[meeting.id];
     if (!protocol) return;
@@ -532,7 +535,7 @@
     // destination are chosen, and on macOS that includes saving as PDF.
     if (format === 'pdf') {
       try {
-        await printProtocol(exported, bridge.nativePrint());
+        await printProtocol(exported, bridge.nativePrint(), pageStarts);
       } catch (cause) {
         announcement = `PDF export failed: ${errorMessage(cause)}`;
       }

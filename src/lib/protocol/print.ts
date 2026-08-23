@@ -9,14 +9,29 @@
  *
  * The page is built beside the application rather than in place of it, and taken
  * down afterwards, so nothing about the editor's own layout leaks into the sheet.
+ *
+ * ## Why this paginates itself
+ *
+ * It used to hand the browser one long document with the header and footer marked
+ * `position: fixed`, which is how a browser is asked to repeat something on every
+ * printed page. Chromium does. WebKit does not — and macOS prints through
+ * WKWebView. Measured on a real three-page export: the header printed once at the
+ * top of page one, the footer once at the foot of page three, and page two had
+ * neither.
+ *
+ * So nothing is left to the browser to repeat. The document is cut into page
+ * boxes here, each holding its own header, its slice of the document and its own
+ * footer, and the printer is asked only to start a new sheet between them. Three
+ * things that were impossible follow from doing the pagination rather than asking
+ * for it: the bands appear on every page in any engine, the page number is known
+ * because we are the thing counting, and the band cannot land on the first line
+ * because it is a sibling of the text rather than fixed above it.
  */
 
-import { appearanceStyle } from './appearance';
+import { appearanceStyle, printSideMarginMm } from './appearance';
 import { resolveRow, rowIsEmpty } from './furniture';
-import type { DocumentFacts } from './furniture';
 import type { ProtocolDocument } from './document';
-import { escapeHtml, renderMarkdown } from './markdown';
-import type { DocumentAppearance, PageFurniture } from '../workflow/types';
+import { escapeHtml, renderBlocks } from './markdown';
 
 /** Where the print sheet is mounted, as a sibling of the application root. */
 const ROOT_ID = 'protocol-print-root';
@@ -31,6 +46,13 @@ export async function printProtocol(
   protocol: ProtocolDocument,
   /** How to reach the platform's own print panel, where there is one. */
   nativePrint?: () => Promise<void>,
+  /**
+   * Which rendered block begins each page after the first, as the editor measured
+   * it. Empty means nobody measured, and the whole document goes on one page box —
+   * the printer then breaks it wherever it likes, which is what happened before
+   * and is still better than a header that appears once.
+   */
+  pageStarts: number[] = [],
 ): Promise<void> {
   const existing = document.getElementById(ROOT_ID);
   if (existing) existing.remove();
@@ -41,15 +63,14 @@ export async function printProtocol(
   // The page is set the way the screen is set. They read the same values, so a
   // protocol cannot print in a typeface nobody chose.
   root.setAttribute('style', appearanceStyle(protocol.appearance));
-  root.innerHTML = [
-    '<header class="print-masthead">',
-    `<h1>${escapeHtml(protocol.title)}</h1>`,
-    protocol.subtitle ? `<p>${escapeHtml(protocol.subtitle)}</p>` : '',
-    '</header>',
-    furnitureRow(protocol, 'header'),
-    `<div class="print-body">${renderMarkdown(protocol.markdown)}</div>`,
-    furnitureRow(protocol, 'footer'),
-  ].join('');
+  // The paper's margins, so that the printed column is the width the document is
+  // set to. Emitted here rather than written into the stylesheet because @page
+  // cannot read the document's own custom properties, and because the number
+  // depends on the project's measure. It goes with the sheet when the sheet goes.
+  const side = printSideMarginMm(protocol.appearance);
+  root.innerHTML =
+    `<style>@page { size: A4; margin: 25mm ${side}mm 22mm; }</style>` +
+    pagesOf(protocol, pageStarts);
   document.body.append(root);
 
   // The sheet is left in place rather than taken down when this returns. The
@@ -69,19 +90,83 @@ export async function printProtocol(
 }
 
 /**
- * The header or footer, repeated on every printed page.
+ * The document cut into page boxes, each carrying its own furniture.
  *
- * Fixed rather than flowed, which is how a browser repeats an element across a
- * printed document. Page numbers are the one field that cannot be honoured here —
- * only the thing paginating knows them, and a browser will not say. They are left
- * out rather than printed as "Page 1" on every sheet, and the editor says so.
+ * Exported for the tests, which is the only way to look at what will print
+ * without a printer.
  */
-function furnitureRow(protocol: ProtocolDocument, which: 'header' | 'footer'): string {
+export function pagesOf(protocol: ProtocolDocument, pageStarts: number[]): string {
+  const blocks = renderBlocks(protocol.markdown);
+  const slices = sliceAt(blocks, pageStarts);
+  const total = slices.length;
+
+  return slices
+    .map((slice, index) => {
+      const page = index + 1;
+      // A title page carries its own heading and usually wants nothing repeated
+      // on it. Stored since the furniture was first written and honoured by
+      // nothing until the pages became ours to draw.
+      const bare = page === 1 && protocol.furniture?.skipFirstPage === true;
+      const masthead =
+        page === 1
+          ? '<header class="print-masthead">' +
+            `<h1>${escapeHtml(protocol.title)}</h1>` +
+            (protocol.subtitle ? `<p>${escapeHtml(protocol.subtitle)}</p>` : '') +
+            '</header>'
+          : '';
+      return (
+        '<section class="print-page">' +
+        (bare ? '' : band(protocol, 'header', page, total)) +
+        `<div class="print-body">${masthead}${slice}</div>` +
+        (bare ? '' : band(protocol, 'footer', page, total)) +
+        '</section>'
+      );
+    })
+    .join('');
+}
+
+/**
+ * The blocks grouped into pages.
+ *
+ * `pageStarts` holds the index of the block that begins each page after the
+ * first, which is what the editor computes to draw the gap between its pages. A
+ * start outside the document is ignored rather than producing an empty sheet.
+ */
+function sliceAt(blocks: string[], pageStarts: number[]): string[] {
+  const starts = [...new Set(pageStarts)]
+    .filter((at) => at > 0 && at < blocks.length)
+    .sort((a, b) => a - b);
+  if (starts.length === 0) return [blocks.join('')];
+
+  const pages: string[] = [];
+  let from = 0;
+  for (const at of starts) {
+    pages.push(blocks.slice(from, at).join(''));
+    from = at;
+  }
+  pages.push(blocks.slice(from).join(''));
+  return pages;
+}
+
+/**
+ * The header or footer of one page.
+ *
+ * The page number is answered here rather than left out. It was omitted for as
+ * long as the browser did the paginating — only the thing breaking the pages can
+ * know which one this is, and a browser will not say. Now this is that thing.
+ */
+function band(
+  protocol: ProtocolDocument,
+  which: 'header' | 'footer',
+  page: number,
+  total: number,
+): string {
   const row = protocol.furniture?.[which];
   const facts = protocol.facts;
   if (!row || !facts || rowIsEmpty(row)) return '';
+  const marker = { number: String(page), ofCount: `${page} / ${total}` };
   const slot = (fields: typeof row.left) =>
-    `<span>${escapeHtml(resolveRow(fields, facts, null))}</span>`;
+    `<span>${escapeHtml(resolveRow(fields, facts, marker))}</span>`;
   return (
     `<div class="print-${which}">` +
     `${slot(row.left)}${slot(row.centre)}${slot(row.right)}` +

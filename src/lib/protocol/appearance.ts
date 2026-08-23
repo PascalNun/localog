@@ -208,3 +208,27 @@ export function pageStarts(blocks: MeasuredBlock[], pageHeight: number): number[
 
   return starts;
 }
+
+/** A4 is 210mm across, which at 96dpi is this many CSS pixels. */
+const A4_WIDTH_PIXELS = (210 * 96) / 25.4;
+
+/**
+ * The paper's side margin, in millimetres, so that the printed text column is the
+ * width the document is set to.
+ *
+ * The editor measures where the pages break by laying the document out at its own
+ * measure. Those breaks are only the printer's breaks if the printed column is the
+ * same width — otherwise the lines wrap differently, the blocks are different
+ * heights, and a break computed on one is a break nowhere on the other.
+ *
+ * Clamped, because the arithmetic does not know about printers: a wide measure at
+ * a large body size would ask for a three-millimetre margin, which is inside the
+ * unprintable edge of most machines. Where the clamp bites, the printed column is
+ * narrower than the editor's and the pagination becomes an estimate again — which
+ * is what the note under the document already says it is.
+ */
+export function printSideMarginMm(appearance: DocumentAppearance): number {
+  const measure = PAGE_WIDTH[appearance.pageWidth] * appearance.bodySize * PIXELS_PER_POINT;
+  const side = ((A4_WIDTH_PIXELS - measure) / 2) * (25.4 / 96);
+  return Math.max(12, Math.round(side * 10) / 10);
+}

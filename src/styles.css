@@ -3312,8 +3312,14 @@ button.review-summary[aria-pressed='true'] {
 }
 
 @media print {
-  /* A4 because the readers are German. The margins are the ones a printed
-     protocol uses: a little more at the top for the masthead to breathe. */
+  /* A4 because the readers are German, and a little more at the top for the
+     masthead to breathe.
+
+     The side margin here is only a fallback. print.ts emits its own @page with a
+     side margin derived from the project's measure, so that the printed column is
+     the width the document is set to — which is what lets the breaks the editor
+     measured be the breaks the printer makes. That rule comes later in the
+     document and wins. */
   @page {
     size: A4;
     margin: 25mm 20mm 22mm;
@@ -3717,14 +3723,36 @@ button.review-summary[aria-pressed='true'] {
   font-size: 0.78rem;
 }
 
-/* Repeated on every printed page. A browser repeats a fixed element across a
-   printed document, which is the only way to get running furniture out of the
-   print path; page numbers are the one field it cannot supply. */
+/* On every printed page, because print.ts cuts the document into page boxes and
+   puts a band in each one.
+
+   These were `position: fixed`, which is how a browser is asked to repeat an
+   element across a printed document. Chromium does it; WebKit does not, and macOS
+   prints through WKWebView — measured on a real three-page export, the header
+   printed once at the top of page one, the footer once at the foot of page three,
+   and page two had neither. Nothing is asked of the browser now but to start a new
+   sheet between the boxes. */
 @media print {
+  .print-page {
+    display: flex;
+    flex-direction: column;
+    /* The last page must not ask for a sheet after it, or every document ends on
+       a blank one. */
+    min-height: 100%;
+  }
+
+  .print-page + .print-page {
+    break-before: page;
+  }
+
+  /* The document's share of the page: the bands take what they need at the top and
+     the foot, and this takes the rest, so a band cannot land on the first line. */
+  .print-body {
+    flex: 1 1 auto;
+  }
+
   .print-header,
   .print-footer {
-    position: fixed;
-    left: 0;
     display: flex;
     justify-content: space-between;
     width: 100%;
@@ -3733,11 +3761,11 @@ button.review-summary[aria-pressed='true'] {
   }
 
   .print-header {
-    top: 0;
+    padding-bottom: 4mm;
   }
 
   .print-footer {
-    bottom: 0;
+    padding-top: 4mm;
   }
 
   .print-header > span,
