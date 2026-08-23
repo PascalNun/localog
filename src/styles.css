@@ -3486,9 +3486,17 @@ button.review-summary[aria-pressed='true'] {
   justify-content: center;
 }
 
-.selection-toolbar .text-action.chosen {
+/* A control that is on says so, wherever it sits. This was scoped to the selection
+   toolbar, so the page-break toggle in the editor toolbar carried the class and
+   showed nothing at all: pressing it changed the document and not the button, and
+   there was no way to tell whether it was on without looking for the page edges. */
+.text-action.chosen {
   color: var(--ink);
   background: var(--subtle);
+}
+
+.text-action.chosen:hover {
+  background: var(--hover);
 }
 
 .block-choice select {

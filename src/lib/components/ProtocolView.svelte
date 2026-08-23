@@ -1202,6 +1202,7 @@
           <button
             class="text-action"
             class:chosen={showPages}
+            aria-pressed={showPages}
             title={pagesCanBeShown
               ? showPages
                 ? 'Hide page breaks'
