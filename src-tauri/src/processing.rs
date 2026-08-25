@@ -52,6 +52,14 @@ const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// 2,048 could not have produced one at any quality, on any model. The value is
 /// generous rather than tight because it is a ceiling, not an allocation: what is
 /// actually requested is this or whatever the window still has room for,
+/// What every generation is asked for, so that two runs of the same meeting differ
+/// only where the model does.
+///
+/// Named because they were written twice — once into the record of a run and once
+/// into the run itself — and the pair could disagree without anything noticing.
+const GENERATION_SEED: u64 = 42;
+const GENERATION_TEMPERATURE_MILLI: u16 = 200;
+
 /// whichever is smaller, so a wide answer budget never costs a narrow one.
 const PROTOCOL_OUTPUT_TOKENS: u32 = 8_192;
 
@@ -783,15 +791,33 @@ fn generation_metadata(
     inputs: &storage::ResolvedProtocolInputs,
     use_fake: bool,
 ) -> StorageResult<(&'static str, String, String, String, Option<String>)> {
-    let settings_json = serde_json::json!({
-        "seed": 42,
-        "temperature": 0.2,
-        "contextTokens": 8192,
-        "maximumOutputTokens": 2048,
-        "meetingLanguage": inputs.meeting_language,
-    })
-    .to_string();
+    /// What the run was actually asked for, as the record of it.
+    ///
+    /// These were four literals, and two of them were wrong for every protocol
+    /// ever generated: the record said 8,192 context tokens and 2,048 output
+    /// tokens while the run resolved affordable_context (floor 16,384) and
+    /// output_tokens_for(density). 8,192 is specifically the width this project
+    /// measured as failing at every seed, so every stored protocol claimed to have
+    /// been written at a setting known not to work.
+    ///
+    /// Built from the values the run uses now, in each branch, rather than typed
+    /// out beside them.
+    fn settings(context_tokens: u32, output_tokens: u32, language: &str) -> String {
+        serde_json::json!({
+            "seed": GENERATION_SEED,
+            "temperature": f64::from(GENERATION_TEMPERATURE_MILLI) / 1000.0,
+            "contextTokens": context_tokens,
+            "maximumOutputTokens": output_tokens,
+            "meetingLanguage": language,
+        })
+        .to_string()
+    }
+
+    let output_tokens = output_tokens_for(inputs.style.density);
     if use_fake {
+        // The deterministic adapter answers without a window at all, so the record
+        // says so rather than quoting a number nothing consulted.
+        let settings_json = settings(0, output_tokens, &inputs.meeting_language);
         return Ok((
             FAKE_PROVIDER,
             FAKE_RUNTIME_VERSION.to_string(),
@@ -846,16 +872,21 @@ fn generation_metadata(
             .iter()
             .map(|entry| entry.preferred_spelling.clone())
             .collect(),
-        seed: 42,
-        temperature_milli: 200,
+        seed: GENERATION_SEED,
+        temperature_milli: GENERATION_TEMPERATURE_MILLI,
         context_tokens: affordable_context(
             &provider::OllamaProvider::loopback(),
             &model,
             model_bytes,
             machine_memory_bytes(),
         ),
-        maximum_output_tokens: output_tokens_for(inputs.style.density),
+        maximum_output_tokens: output_tokens,
     };
+    let settings_json = settings(
+        config.context_tokens,
+        config.maximum_output_tokens,
+        &inputs.meeting_language,
+    );
     let runtime_config_json = serde_json::to_string(&config).map_err(|_| {
         StorageError::InvalidData("The protocol provider configuration could not be saved.")
     })?;
@@ -2934,6 +2965,42 @@ mod recording_contract {
 
 #[cfg(test)]
 mod tests {
+
+    /// What a protocol says it was generated with must be what it was generated
+    /// with.
+    ///
+    /// The record carried four literals, and two were wrong for every protocol ever
+    /// written: 8,192 context tokens and 2,048 output tokens, beside a run that
+    /// resolved affordable_context — floored at 16,384 — and output_tokens_for. The
+    /// project measured 8,192 as failing at every seed, so the stored provenance
+    /// claimed a setting known not to work, for every document.
+    ///
+    /// Read as text because the honest check needs a live Ollama and a repository:
+    /// what can be checked without one is that the number is not typed in beside
+    /// the code that resolves it.
+    #[test]
+    fn the_recorded_settings_are_not_typed_in_beside_the_run() {
+        let source = include_str!("processing.rs");
+        let at = source
+            .find("fn generation_metadata")
+            .expect("the metadata is built in this file");
+        let body = &source[at..at + source[at..].find("\nfn ").expect("the function ends")];
+
+        for field in ["contextTokens", "maximumOutputTokens"] {
+            let Some(found) = body.find(&format!("\"{field}\":")) else {
+                panic!("{field} is no longer recorded at all");
+            };
+            let value = body[found + field.len() + 3..]
+                .trim_start()
+                .chars()
+                .next()
+                .unwrap_or(' ');
+            assert!(
+                !value.is_ascii_digit(),
+                "{field} is recorded as a literal again; record what the run resolves"
+            );
+        }
+    }
 
     /// Reading a file in chunks and reading it whole must agree.
     ///
