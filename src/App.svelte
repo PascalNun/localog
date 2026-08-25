@@ -197,6 +197,29 @@
     delete next[modelId];
     return next;
   }
+
+  /// Fetch a transcription model, from wherever it was asked for.
+  ///
+  /// Settings has always been able to do this. The start screen now asks for the
+  /// same thing on a new installation, and two copies of it would be two chances
+  /// to forget the optimistic zero below.
+  /// Stop a download, from wherever it was started.
+  async function cancelModelDownload(modelId: string) {
+    await bridge.cancelTranscriptionDownload(modelId);
+    downloading = withoutModel(downloading, modelId);
+  }
+
+  async function downloadModel(modelId: string) {
+    modelError = null;
+    // Show the download as started before the first progress event arrives.
+    downloading = { ...downloading, [modelId]: 0 };
+    try {
+      await bridge.downloadTranscriptionModel(modelId);
+    } catch (error) {
+      downloading = withoutModel(downloading, modelId);
+      modelError = errorMessage(error);
+    }
+  }
   let providerStatus: ProtocolProviderStatus = {
     endpoint: 'http://127.0.0.1:11434',
     serverReachable: false,
@@ -654,7 +677,14 @@
       {/if}
 
       {#if route.name === 'start'}
-        <StartView onNavigate={navigate} />
+        <StartView
+          onNavigate={navigate}
+          {capability}
+          {downloading}
+          {modelError}
+          onDownloadModel={downloadModel}
+          onCancelDownload={cancelModelDownload}
+        />
       {:else if route.name === 'new-project'}
         <NewProjectView
           returnToImport={route.returnToImport}
@@ -847,21 +877,8 @@
               modelError = errorMessage(error);
             }
           }}
-          onDownloadModel={async (modelId: string) => {
-            modelError = null;
-            // Show the download as started before the first progress event arrives.
-            downloading = { ...downloading, [modelId]: 0 };
-            try {
-              await bridge.downloadTranscriptionModel(modelId);
-            } catch (error) {
-              downloading = withoutModel(downloading, modelId);
-              modelError = errorMessage(error);
-            }
-          }}
-          onCancelDownload={async (modelId: string) => {
-            await bridge.cancelTranscriptionDownload(modelId);
-            downloading = withoutModel(downloading, modelId);
-          }}
+          onDownloadModel={downloadModel}
+          onCancelDownload={cancelModelDownload}
           onRemoveModel={async (modelId: string) => {
             try {
               capability = await bridge.removeTranscriptionModel(modelId);
@@ -928,7 +945,14 @@
           }}
         />
       {:else}
-        <StartView onNavigate={navigate} />
+        <StartView
+          onNavigate={navigate}
+          {capability}
+          {downloading}
+          {modelError}
+          onDownloadModel={downloadModel}
+          onCancelDownload={cancelModelDownload}
+        />
       {/if}
     </div>
   {:else if startupError}

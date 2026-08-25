@@ -770,6 +770,102 @@ body.sidebar-resizing * {
   border-radius: 50%;
 }
 
+/* What a new installation is missing, said above the two actions.
+
+   Sized to the action cards below so the column stays one column, and quieter
+   than they are: this explains, they act. It appears only when no transcription
+   model is installed, so somebody who has used LocaLog before never sees it. */
+.start-setup {
+  width: min(100%, 500px);
+  margin-bottom: 20px;
+  padding: 18px 22px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.start-setup-title {
+  margin-bottom: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.start-setup-copy {
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.start-setup-action {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 16px;
+  color: var(--action-ink);
+  background: var(--action);
+  border: 1px solid var(--action);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.start-setup-action:hover {
+  background: var(--ink);
+}
+
+.start-setup-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.start-setup-track {
+  flex: 1;
+  height: 6px;
+  background: var(--subtle);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.start-setup-fill {
+  height: 100%;
+  background: var(--action);
+  border-radius: 3px;
+  transition: width 200ms ease;
+}
+
+.start-setup-percent {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.start-setup-cancel {
+  padding: 4px 10px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font-size: 0.8rem;
+}
+
+.start-setup-cancel:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.start-setup-error {
+  margin-top: 10px;
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.start-setup-aside {
+  margin-top: 12px;
+  color: var(--faint);
+  font-size: 0.8rem;
+}
+
 .local-promise {
   display: flex;
   align-items: flex-start;

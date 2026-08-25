@@ -16,6 +16,7 @@
     modelStatusLabel,
     recommendationFor,
   } from '../models/modelCatalog';
+  import { formatModelSize } from '../models/modelSize';
   import Icon from './Icon.svelte';
   import type { IconName } from './Icon.svelte';
 
@@ -79,10 +80,6 @@
 
   // Product language first: the user picks an outcome, not a model.
 
-  function formatSize(bytes: number): string {
-    if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
-    return `${Math.round(bytes / 1024 ** 2)} MB`;
-  }
   $: executablePath = runtimeStatus?.executablePath ?? executablePath;
   $: selectedProviderModel = providerStatus?.selectedModel ?? selectedProviderModel;
   $: modelRecommendation = recommendationFor(providerStatus?.models ?? [], memoryGb);
@@ -305,7 +302,7 @@
                   >
                 {:else}
                   <button class="secondary-action" onclick={() => onDownloadModel(preset.modelId)}
-                    >Download ({formatSize(preset.byteCount)})</button
+                    >Download ({formatModelSize(preset.byteCount)})</button
                   >
                 {/if}
               </div>
@@ -370,7 +367,7 @@
             {:else if !speakerStatus.modelsInstalled}
               <button class="secondary-action" onclick={onDownloadSpeaker}>
                 Prepare speaker separation
-                {#if speakerStatus.downloadBytes > 0}({formatSize(
+                {#if speakerStatus.downloadBytes > 0}({formatModelSize(
                     speakerStatus.downloadBytes,
                   )}){/if}
               </button>

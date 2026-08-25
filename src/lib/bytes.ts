@@ -5,7 +5,7 @@
  * 40 MB import should say 40 MB, not 38. One decimal place under 10 MB and none
  * above, so the number stops moving once it is large enough not to matter.
  *
- * SettingsView keeps a separate formatSize for model downloads, and that one is
+ * `models/modelSize` is the separate one for model downloads, and that one is
  * binary and says GB — which is the convention the model files themselves are
  * published under. The two are not the same fact and are deliberately not shared.
  */

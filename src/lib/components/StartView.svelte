@@ -1,8 +1,37 @@
 <script lang="ts">
-  import type { AppRoute } from '../workflow/types';
+  import type { AppRoute, TranscriptionCapability } from '../workflow/types';
+  import { PRESET_LABELS } from '../workflow/types';
+  import { formatModelSize } from '../models/modelSize';
   import Icon from './Icon.svelte';
 
   export let onNavigate: (route: AppRoute) => void;
+  export let capability: TranscriptionCapability;
+  export let downloading: Record<string, number>;
+  export let modelError: string | null;
+  export let onDownloadModel: (modelId: string) => Promise<void>;
+  export let onCancelDownload: (modelId: string) => Promise<void>;
+
+  /// The one thing a new installation is missing, said before it is hit.
+  ///
+  /// LocaLog transcribes on this device, so the model has to be on this device.
+  /// Reaching transcription without one is already handled and handled well —
+  /// `missing_runtime_message` names only what is absent and gives one next
+  /// action — but it says so *after* somebody has chosen a project, chosen a
+  /// file, and waited for it to be probed. Everything needed to say it at the
+  /// start was already there and nothing said it: readiness is computed per
+  /// preset, the download works, and the start screen mentioned neither.
+  ///
+  /// So this is not a repair of a bad error. It moves a good one earlier, and
+  /// offers the download rather than directions to it. It is deliberately not a
+  /// gate: creating a project and importing a recording both work without a
+  /// model, and somebody who would rather get on with it should be able to.
+  $: chosen = capability.presets.find((preset) => preset.preset === capability.selectedPreset);
+  // Any installed model means the application can transcribe. The chosen one is
+  // what the download offers, but a person who fetched a different quality in
+  // Settings is ready and should not be told otherwise.
+  $: ready = capability.presets.some((preset) => preset.installed);
+  $: percent = chosen ? downloading[chosen.modelId] : undefined;
+  $: fetching = percent !== undefined;
 </script>
 
 <main class="workspace start-workspace" id="main-content">
@@ -21,6 +50,39 @@
     <p class="hero-copy">
       Import an audio or video file. Review every step before it becomes a protocol.
     </p>
+
+    {#if !ready && chosen}
+      <div class="start-setup" aria-live="polite">
+        <p class="start-setup-title">One download before the first transcription</p>
+        <p class="start-setup-copy">
+          LocaLog transcribes on this device, so the model has to be on it. {PRESET_LABELS[
+            capability.selectedPreset
+          ].name}
+          quality is {formatModelSize(chosen.byteCount)}, downloaded once. You can import a
+          recording first — this is needed when transcription starts, not before.
+        </p>
+        {#if fetching}
+          <div class="start-setup-progress">
+            <div class="start-setup-track">
+              <div class="start-setup-fill" style={`width: ${percent}%`}></div>
+            </div>
+            <span class="start-setup-percent">{percent}%</span>
+            <!-- 141 MB started from here should be stoppable from here. -->
+            <button class="start-setup-cancel" onclick={() => onCancelDownload(chosen.modelId)}>
+              Cancel
+            </button>
+          </div>
+        {:else}
+          <button class="start-setup-action" onclick={() => onDownloadModel(chosen.modelId)}>
+            Download it now ({formatModelSize(chosen.byteCount)})
+          </button>
+        {/if}
+        {#if modelError}
+          <p class="start-setup-error">{modelError}</p>
+        {/if}
+        <p class="start-setup-aside">Other qualities, and speaker separation, are in Settings.</p>
+      </div>
+    {/if}
 
     <button
       class="import-hero-action"
