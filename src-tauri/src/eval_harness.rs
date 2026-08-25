@@ -60,11 +60,13 @@ fn does_the_model_follow_the_style() {
     let installed = provider.installed_models().unwrap();
 
     println!(
-        "{:>16} {:>8} {:>6} {:>9} {:>9} {:>9} {:>7} {:>8} {:>13}",
+        "{:>16} {:>5} {:>8} {:>6} {:>9} {:>9} {:>9} {:>9} {:>7} {:>8} {:>13}",
         "model",
+        "seed",
         "seconds",
         "calls",
         "sent kch",
+        "answ kch",
         "in model",
         "headings",
         "tables",
@@ -72,10 +74,33 @@ fn does_the_model_follow_the_style() {
         "figures kept"
     );
     let mut summary = String::from(
-        "| model | seconds | characters | headings | tables | figures kept |\\n\
-         | --- | ---: | ---: | ---: | ---: | ---: |\\n",
+        "| model | seed | seconds | characters | headings | tables | figures kept |\n\
+         | --- | ---: | ---: | ---: | ---: | ---: | ---: |\n",
     );
-    for name in &wanted {
+    // Every model is run at each seed, and the table says which one each row is.
+    //
+    // It used to run once, at whichever seed the environment held, and overwrite
+    // adherence.md — so the rule this project learned at the cost of four withdrawn
+    // claims ("three seeds before any comparison is written down") could not be
+    // followed with the tool provided, and the single row it produced looked as
+    // authoritative as any other. Figures kept range 23 to 31 across seeds at a
+    // fixed setting, which is wider than any difference ever measured between
+    // settings.
+    let seeds: Vec<u64> = std::env::var("LOCALOG_ADHERENCE_SEEDS")
+        .map(|value| {
+            value
+                .split(',')
+                .filter_map(|each| each.trim().parse().ok())
+                .collect()
+        })
+        .unwrap_or_else(|_| vec![7, 8, 9]);
+    let mut kept_by_model: std::collections::BTreeMap<String, Vec<usize>> =
+        std::collections::BTreeMap::new();
+
+    for (name, seed) in wanted
+        .iter()
+        .flat_map(|name| seeds.iter().map(move |seed| (name, *seed)))
+    {
         let Some(model) = installed.iter().find(|candidate| candidate.name == *name) else {
             println!("{name:>16}  not installed, skipped");
             continue;
@@ -89,13 +114,7 @@ fn does_the_model_follow_the_style() {
             vocabulary_revision: "adherence".into(),
             vocabulary: Vec::new(),
             transcript: transcript.clone(),
-            // Variable, because a fixed seed makes a repeat reproduce the same run
-            // rather than test it. A comparison between models is only worth acting
-            // on if it survives the sampling.
-            seed: std::env::var("LOCALOG_ADHERENCE_SEED")
-                .ok()
-                .and_then(|value| value.parse().ok())
-                .unwrap_or(7),
+            seed,
             temperature_milli: 200,
             context_tokens: std::env::var("LOCALOG_EVAL_CONTEXT")
                 .ok()
@@ -126,6 +145,9 @@ fn does_the_model_follow_the_style() {
         let calls = after.calls.saturating_sub(before.calls);
         let sent_kch = after.prompt_chars.saturating_sub(before.prompt_chars) / 1_000;
         let in_model = after.model_millis.saturating_sub(before.model_millis) / 1_000;
+        // What the model wrote across every attempt, against what survived into the
+        // protocol. Much larger means answers were produced and thrown away.
+        let answered_kch = after.answer_chars.saturating_sub(before.answer_chars) / 1_000;
 
         let lines: Vec<&str> = markdown.lines().collect();
         let headings = lines
@@ -156,25 +178,57 @@ fn does_the_model_follow_the_style() {
             .filter(|fact| crate::facts::is_accounted_for(fact, &markdown))
             .count();
         let safe = name.replace([':', '/', '.'], "-");
-        let seed = request.seed;
         std::fs::write(
             out.join(format!("protocol-{safe}-seed{seed}.md")),
             &markdown,
         )
         .expect("written");
         println!(
-            "{name:>16} {seconds:>8} {calls:>6} {sent_kch:>9} {in_model:>9} {headings:>9} \
-             {dividers:>7} {bullets:>8} {:>13}",
+            "{name:>16} {seed:>5} {seconds:>8} {calls:>6} {sent_kch:>9} {answered_kch:>9} \
+             {in_model:>9} {headings:>9} {dividers:>7} {bullets:>8} {:>13}",
             format!("{kept}/{}", stated.len()),
         );
         summary.push_str(&format!(
-            "| {name} | {seconds} | {} | {headings} | {dividers} | {kept}/{} |\\n",
+            "| {name} | {seed} | {seconds} | {} | {headings} | {dividers} | {kept}/{} |\n",
             markdown.len(),
             stated.len()
         ));
+        kept_by_model.entry(name.clone()).or_default().push(kept);
     }
+
+    // The spread, beside every figure, so that a number cannot be read without the
+    // sample it came from. A range wider than the difference between two models is
+    // the answer "these are not distinguishable at this many runs", and it is the
+    // answer this project has drawn wrongly four times.
+    summary.push_str("\n| model | runs | figures kept, lowest to highest | range |\n");
+    summary.push_str("| --- | ---: | --- | ---: |\n");
+    println!(
+        "\n{:>16} {:>6} {:>26} {:>7}",
+        "model", "runs", "figures kept", "range"
+    );
+    for (name, mut figures) in kept_by_model {
+        figures.sort_unstable();
+        let low = figures.first().copied().unwrap_or(0);
+        let high = figures.last().copied().unwrap_or(0);
+        let listed = figures
+            .iter()
+            .map(|value| value.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        println!(
+            "{name:>16} {:>6} {listed:>26} {:>7}",
+            figures.len(),
+            high - low
+        );
+        summary.push_str(&format!(
+            "| {name} | {} | {listed} | {} |\n",
+            figures.len(),
+            high - low
+        ));
+    }
+
     std::fs::write(out.join("adherence.md"), &summary).expect("written");
-    println!("\\ndrafts written to {}", out.display());
+    println!("\ndrafts written to {}", out.display());
 }
 
 /// Does attributing speech to speakers make the protocol better?
@@ -290,8 +344,8 @@ fn does_attribution_improve_the_protocol() {
     );
 
     let mut summary = String::from(
-        "| labels | distinct | seconds | characters | figures kept | invented | unowned tasks |\\n\
-         | --- | ---: | ---: | ---: | ---: | ---: | ---: |\\n",
+        "| labels | distinct | seconds | characters | figures kept | invented | unowned tasks |\n\
+         | --- | ---: | ---: | ---: | ---: | ---: | ---: |\n",
     );
     for (name, transcript) in runs {
         let distinct = {
@@ -345,14 +399,14 @@ fn does_attribution_improve_the_protocol() {
             unowned.len(),
         );
         summary.push_str(&format!(
-            "| {name} | {distinct} | {seconds} | {} | {kept}/{} | {} | {} |\\n",
+            "| {name} | {distinct} | {seconds} | {} | {kept}/{} | {} | {} |\n",
             markdown.len(),
             stated.len(),
             invented.len(),
             unowned.len()
         ));
     }
-    println!("\\n{spoken} characters spoken\\n\\n{summary}");
+    println!("\n{spoken} characters spoken\n\n{summary}");
     std::fs::write(out.join("summary.md"), &summary).expect("written");
     println!("drafts written to {}", out.display());
 }
