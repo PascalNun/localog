@@ -2877,6 +2877,9 @@ fn job_stage_label(kind: &str, stage: &str, state: JobState) -> String {
             Some(detail) => format!("Finding what was discussed — passage {detail}"),
             None => "Finding what was discussed".to_string(),
         },
+        // The next three belong to write_by_topic, which is written and tested but
+        // #[cfg(test)] — no shipped path emits them, so nobody has seen these words
+        // yet. Kept so that wiring that path in does not leave it saying "Working".
         ("writing_section", _) => match detail {
             Some(detail) => format!("Writing {detail}"),
             None => "Writing the protocol section by section".to_string(),
@@ -3302,6 +3305,45 @@ mod tests {
     /// different files and there is no type between them.
     #[test]
     fn every_stage_the_pipeline_reports_has_words_for_it() {
+        /// The source with its test-gated items removed.
+        ///
+        /// Without this the scan reads stages only the evaluation harness emits and
+        /// demands words for steps a person can never see. It did: three of the five
+        /// labels added when this test was written — writing_section,
+        /// segments_no_subject_claimed, sections_over_their_length — belong to
+        /// write_by_topic, which is #[cfg(test)] and does not ship. The commit that
+        /// added them said the longest phase of writing a protocol showed "Working";
+        /// nobody ever saw it, because that phase is not wired into the application.
+        fn shipped(source: &str) -> String {
+            let mut kept = String::with_capacity(source.len());
+            let mut rest = source;
+            while let Some(at) = rest.find("#[cfg(test)]") {
+                kept.push_str(&rest[..at]);
+                let after = &rest[at..];
+                // Skip to the end of the gated item, by matching its braces.
+                let Some(open) = after.find('{') else { break };
+                let mut depth = 0usize;
+                let mut end = None;
+                for (offset, character) in after[open..].char_indices() {
+                    if character == '{' {
+                        depth += 1;
+                    } else if character == '}' {
+                        depth -= 1;
+                        if depth == 0 {
+                            end = Some(open + offset + 1);
+                            break;
+                        }
+                    }
+                }
+                match end {
+                    Some(stop) => rest = &after[stop..],
+                    None => break,
+                }
+            }
+            kept.push_str(rest);
+            kept
+        }
+
         fn reported(source: &str) -> Vec<String> {
             let mut found = Vec::new();
             for opening in ["progress(", "report("] {
@@ -3342,7 +3384,7 @@ mod tests {
 
         let mut missing = Vec::new();
         for source in [include_str!("provider.rs"), include_str!("processing.rs")] {
-            for stage in reported(source) {
+            for stage in reported(&shipped(source)) {
                 if !arms.contains(&format!("(\"{stage}\"")) {
                     missing.push(stage);
                 }
