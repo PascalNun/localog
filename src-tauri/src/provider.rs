@@ -728,6 +728,7 @@ impl OllamaProvider {
                     // segments spread over four subjects is three hundred numbers,
                     // and a ceiling sized for the titles alone truncates the JSON.
                     num_predict: 3_072,
+                    attempt: 0,
                 },
                 cancelled,
                 &mut |_| Ok(()),
@@ -857,6 +858,7 @@ impl OllamaProvider {
                 prompt: &listing,
                 format: groups_schema(),
                 num_predict: 2_048,
+                attempt: 0,
             },
             cancelled,
             &mut |_| Ok(()),
@@ -908,6 +910,7 @@ impl OllamaProvider {
                 prompt: &encode_prompt(&payload)?,
                 format: protocol_schema(),
                 num_predict: output_allowance(request),
+                attempt: 0,
             },
             cancelled,
             &mut |written| {
@@ -989,7 +992,7 @@ impl OllamaProvider {
             let budget = (target * topic.segments.len() / claimed.max(1)).max(400);
 
             let (section, within) = with_correction_or_keep(
-                |correction| {
+                |correction, attempt| {
                     let payload = TopicSectionPayload {
                         meeting_language: &request.meeting_language,
                         topic: &topic.title,
@@ -1019,6 +1022,7 @@ impl OllamaProvider {
                             prompt: &prompt,
                             format: protocol_schema(),
                             num_predict,
+                            attempt,
                         },
                         cancelled,
                         &mut |_| progress(start, "writing_section"),
@@ -1101,6 +1105,7 @@ impl OllamaProvider {
                 prompt: &prompt,
                 format: introductions_schema(),
                 num_predict: answer_budget(request.context_tokens, prompt.len(), 2_048),
+                attempt: 0,
             },
             cancelled,
             &mut |_| progress(10, "reading_introductions"),
@@ -1144,7 +1149,7 @@ impl OllamaProvider {
             // the meeting. The sections either side of a bad draw were fine, and
             // discarding them costs a quarter of an hour for one request's fault.
             let section_notes = with_correction(
-                |correction| {
+                |correction, attempt| {
                     let payload = SectionPayload {
                         meeting_language: &request.meeting_language,
                         section_index: index + 1,
@@ -1168,6 +1173,7 @@ impl OllamaProvider {
                             prompt: &prompt,
                             format: notes_schema(),
                             num_predict,
+                            attempt,
                         },
                         cancelled,
                         &mut |_| progress(start, "condensing_transcript"),
@@ -1251,7 +1257,7 @@ impl OllamaProvider {
         // The last step, and the most expensive to lose: every section has already
         // been condensed by the time it runs.
         let (markdown, complete) = with_correction_or_keep(
-            |correction| {
+            |correction, attempt| {
                 let payload = SynthesisPayload {
                     meeting_language: &request.meeting_language,
                     style_id: &request.style.id,
@@ -1275,6 +1281,7 @@ impl OllamaProvider {
                         prompt: &prompt,
                         format: protocol_schema(),
                         num_predict,
+                        attempt,
                     },
                     cancelled,
                     &mut |written| {
@@ -1331,7 +1338,7 @@ impl OllamaProvider {
         }
         let held: usize = group.iter().map(String::len).sum();
         with_correction(
-            |correction| {
+            |correction, attempt| {
                 let payload = MergePayload {
                     meeting_language: &request.meeting_language,
                     notes: group,
@@ -1348,6 +1355,7 @@ impl OllamaProvider {
                         prompt: &prompt,
                         format: notes_schema(),
                         num_predict,
+                        attempt,
                     },
                     cancelled,
                     &mut |_| progress(60, "condensing_transcript"),
@@ -1395,6 +1403,7 @@ impl OllamaProvider {
                 // Prose, not a schema: this returns the passage and nothing round it.
                 format: serde_json::Value::Null,
                 num_predict: budget,
+                attempt: 0,
             },
             cancelled,
             &mut |_| Ok(()),
@@ -1437,6 +1446,7 @@ impl OllamaProvider {
                 prompt: &prompt,
                 format: serde_json::Value::Null,
                 num_predict: 320,
+                attempt: 0,
             },
             cancelled,
             &mut |_| Ok(()),
@@ -1483,7 +1493,7 @@ impl OllamaProvider {
             think: false,
             format: call.format,
             options: OllamaOptions {
-                seed: request.seed,
+                seed: request.seed.wrapping_add(u64::from(call.attempt)),
                 temperature: f64::from(request.temperature_milli) / 1000.0,
                 num_ctx: request.context_tokens,
                 num_predict: call.num_predict,
@@ -1724,6 +1734,17 @@ struct Completion<'a> {
     prompt: &'a str,
     format: serde_json::Value,
     num_predict: u32,
+    /// Which try this is, counted from nought.
+    ///
+    /// It moves the seed, because otherwise a retry is not a second draw. A check
+    /// that fails reports the same words every time — the three validate_protocol
+    /// messages are fixed literals — so the correction folded into the next prompt
+    /// is the same correction, and with the seed pinned at 42 the third attempt
+    /// asks byte-for-byte what the second asked and can only differ by whatever the
+    /// backend does not hold steady. Three attempts, one of them free at best.
+    ///
+    /// Nought for the first try, so an ordinary run is unchanged.
+    attempt: u32,
 }
 
 const PROTOCOL_SYSTEM: &str = "Create a reviewable professional meeting protocol using only the supplied transcript. Never invent decisions, actions, owners, or dates. State uncertainty explicitly. Follow the controlled style and return only schema-valid JSON. If the payload carries a correction, your previous answer was rejected for the reason it gives; fix exactly that and return the whole answer again.";
@@ -2637,13 +2658,13 @@ const ATTEMPTS_PER_STEP: usize = 3;
 /// Returns whether the answer ended up acceptable, so a caller can say what happened
 /// rather than pretending it did not.
 fn with_correction_or_keep<T>(
-    mut attempt: impl FnMut(Option<&str>) -> Result<T>,
+    mut attempt: impl FnMut(Option<&str>, u32) -> Result<T>,
     mut check: impl FnMut(&T) -> Result<()>,
 ) -> Result<(T, bool)> {
     let mut correction: Option<String> = None;
     let mut last: Option<T> = None;
-    for _ in 0..ATTEMPTS_PER_STEP {
-        let answer = attempt(correction.as_deref())?;
+    for attempt_number in 0..ATTEMPTS_PER_STEP {
+        let answer = attempt(correction.as_deref(), attempt_number as u32)?;
         match check(&answer) {
             Ok(()) => return Ok((answer, true)),
             Err(problem) => {
@@ -2661,13 +2682,13 @@ fn with_correction_or_keep<T>(
 }
 
 fn with_correction<T>(
-    mut attempt: impl FnMut(Option<&str>) -> Result<T>,
+    mut attempt: impl FnMut(Option<&str>, u32) -> Result<T>,
     mut check: impl FnMut(&T) -> Result<()>,
 ) -> Result<T> {
     let mut correction: Option<String> = None;
     let mut last: Option<ProviderError> = None;
-    for _ in 0..ATTEMPTS_PER_STEP {
-        let answer = attempt(correction.as_deref())?;
+    for attempt_number in 0..ATTEMPTS_PER_STEP {
+        let answer = attempt(correction.as_deref(), attempt_number as u32)?;
         match check(&answer) {
             Ok(()) => return Ok(answer),
             Err(problem) => {
@@ -3108,7 +3129,7 @@ mod tests {
         let corrections: RefCell<Vec<Option<String>>> = RefCell::new(Vec::new());
         let attempts = RefCell::new(0);
         let answer = with_correction(
-            |correction| {
+            |correction, attempt| {
                 corrections
                     .borrow_mut()
                     .push(correction.map(str::to_string));
@@ -3137,11 +3158,33 @@ mod tests {
 
     /// A model failing three times is not having bad luck, and spending somebody's
     /// afternoon proving it is worse than telling them.
+    /// A retry has to be a second draw, not the same one again.
+    ///
+    /// The three checks report fixed sentences, so the correction folded into the
+    /// next prompt is the same correction; with the seed pinned, attempt three asked
+    /// byte-for-byte what attempt two asked and could differ only by whatever the
+    /// backend does not hold steady. The attempt number moves the seed, so each try
+    /// is a genuinely different draw — and the first is nought, so an ordinary run
+    /// that passes its check the first time is unchanged.
+    #[test]
+    fn each_try_is_a_different_draw_and_the_first_is_unchanged() {
+        let seen = std::cell::RefCell::new(Vec::new());
+        let outcome = with_correction(
+            |_, attempt| {
+                seen.borrow_mut().push(attempt);
+                Ok(String::new())
+            },
+            |markdown: &String| validate_markdown(markdown, 0),
+        );
+        assert!(outcome.is_err());
+        assert_eq!(*seen.borrow(), vec![0, 1, 2]);
+    }
+
     #[test]
     fn asking_forever_is_not_the_alternative() {
         let attempts = std::cell::RefCell::new(0);
         let outcome = with_correction(
-            |_| {
+            |_, _| {
                 *attempts.borrow_mut() += 1;
                 Ok(String::new())
             },
@@ -3529,7 +3572,7 @@ mod tests {
     fn a_section_that_will_not_shorten_is_kept_rather_than_lost() {
         let mut tries = 0;
         let (answer, within) = with_correction_or_keep(
-            |_correction| {
+            |_correction, attempt| {
                 tries += 1;
                 Ok("x".repeat(1_922))
             },
@@ -3549,7 +3592,7 @@ mod tests {
     fn a_section_that_shortens_when_asked_reports_success() {
         let mut tries = 0;
         let (answer, within) = with_correction_or_keep(
-            |_correction| {
+            |_correction, attempt| {
                 tries += 1;
                 Ok("x".repeat(if tries == 1 { 9_000 } else { 900 }))
             },
