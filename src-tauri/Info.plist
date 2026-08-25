@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!--
+    Why the application says this and not only the recorder.
+
+    The recording is done by the localog-record-meeting sidecar, and that binary
+    carries these same two strings linked into its own __info_plist. That is not
+    enough. macOS attributes a request for the microphone or for system audio to
+    the *responsible* process, and for a sidecar the application that spawned it
+    is responsible. Without the strings here, the application asking on the
+    sidecar's behalf has given no reason, and macOS answers a request with no
+    reason by killing the process that made it.
+
+    Tauri merges this file into the generated Info.plist when it bundles for
+    macOS. Everything else in that file — identifier, version, minimum system —
+    stays where it is, in tauri.conf.json.
+  -->
+  <key>NSMicrophoneUsageDescription</key>
+  <string>LocaLog records the microphone so the people in the room can be transcribed. The recording and the transcription stay on this device.</string>
+  <key>NSAudioCaptureUsageDescription</key>
+  <string>LocaLog records what the meeting is playing so the people joining remotely can be transcribed too. The recording and the transcription stay on this device.</string>
+</dict>
+</plist>
