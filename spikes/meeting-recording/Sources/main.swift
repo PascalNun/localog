@@ -381,6 +381,37 @@ func option(_ name: String) -> String? {
     return arguments[at + 1]
 }
 
+// Answer what this machine will allow, without creating anything.
+//
+// The recording screen has always been able to tell that nothing is arriving, and
+// says so after twelve seconds of silence. That is the right thing to do while a
+// meeting is running and the wrong time to learn it: the permission cannot be
+// granted without leaving the application, and by then somebody is in a meeting.
+//
+// Asked here rather than in Rust because this file is where the platform knowledge
+// already lives, and because the answer for system audio is the same preflight the
+// recorder itself makes before it builds a tap. Two ways of asking could disagree.
+//
+// The microphone has three answers and not two. "Undetermined" means macOS will put
+// up its own dialog the first time it is asked, which is a normal first run and not
+// a problem to report; "denied" means somebody has to go and change it.
+if arguments.contains("--check") {
+    let microphone: String
+    switch AVCaptureDevice.authorizationStatus(for: .audio) {
+    case .authorized: microphone = "granted"
+    case .denied: microphone = "denied"
+    case .restricted: microphone = "restricted"
+    case .notDetermined: microphone = "undetermined"
+    @unknown default: microphone = "unknown"
+    }
+    // CGPreflightScreenCaptureAccess cannot separate "never asked" from "refused",
+    // so this says only what it knows.
+    let systemAudio = CGPreflightScreenCaptureAccess() ? "granted" : "not-granted"
+    let answer = "{\"systemAudio\":\"\(systemAudio)\",\"microphone\":\"\(microphone)\"}\n"
+    FileHandle.standardOutput.write(Data(answer.utf8))
+    exit(0)
+}
+
 guard let systemPath = option("--system"), let microphonePath = option("--microphone") else {
     FileHandle.standardError.write(
         Data("usage: record-meeting --system <path.wav> --microphone <path.wav>\n".utf8))

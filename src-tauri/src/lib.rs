@@ -902,6 +902,55 @@ fn recording_status(state: State<'_, RecordingState>) -> RecordingStatus {
     }
 }
 
+/// Open the System Settings pane where a recording permission is granted.
+///
+/// A named pane rather than a URL from the interface. The opener and shell plugins
+/// would both do this, and both would hand the front end the ability to open
+/// anything at all — a capability this application otherwise does not grant, bought
+/// for two fixed destinations. So the destinations are named here and the argument
+/// selects between them.
+///
+/// Telling somebody a permission is missing without a way to reach it is only half
+/// an answer: the pane is four levels down in System Settings and is not where most
+/// people would look for something called Screen & System Audio Recording.
+#[tauri::command]
+async fn open_privacy_settings(pane: String) -> Result<(), String> {
+    let anchor = match pane.as_str() {
+        "screen" => "Privacy_ScreenCapture",
+        "microphone" => "Privacy_Microphone",
+        _ => return Err("There is no such settings pane.".into()),
+    };
+    #[cfg(target_os = "macos")]
+    {
+        let url = format!("x-apple.systempreferences:com.apple.preference.security?{anchor}");
+        std::process::Command::new("open")
+            .arg(url)
+            .spawn()
+            .map(|_| ())
+            .map_err(|_| "System Settings could not be opened.".to_string())
+    }
+    // Windows and Linux name and place these differently, and guessing at a path
+    // that does not exist is worse than the interface simply not offering the door.
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = anchor;
+        Err("Opening the privacy settings is only wired up on macOS.".into())
+    }
+}
+
+/// What this machine will let the recorder capture.
+///
+/// Asked when the record screen opens, so that a permission somebody has not
+/// granted is something they read before a meeting rather than something they
+/// infer from a flat waveform during one.
+#[tauri::command]
+async fn recording_permissions() -> Result<recording::Permissions, String> {
+    // Spawns a process, so it is kept off the interface thread.
+    tauri::async_runtime::spawn_blocking(recording::permissions)
+        .await
+        .map_err(|_| "The recorder could not be asked about permissions.".to_string())
+}
+
 /// Begin recording a meeting.
 #[tauri::command]
 async fn start_recording(
@@ -1690,6 +1739,8 @@ pub fn run() {
             update_protocol_style,
             delete_protocol_style,
             recording_status,
+            open_privacy_settings,
+            recording_permissions,
             start_recording,
             stop_recording,
             find_introductions,

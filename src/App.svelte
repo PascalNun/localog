@@ -755,6 +755,8 @@
             // takes ten seconds to admit it is running is its own small dishonesty.
             await pollRecording();
           }}
+          onCheckPermissions={() => bridge.recordingPermissions()}
+          onOpenSettings={(pane) => bridge.openPrivacySettings(pane)}
           onStop={async () => {
             await bridge.stopRecording();
             await pollRecording();

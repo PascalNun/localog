@@ -80,6 +80,23 @@ export interface Introduction {
   context: string;
 }
 
+/**
+ * What this machine will let the recorder capture, asked before a meeting.
+ *
+ * The values are the recorder's own words rather than a union defined here. Two
+ * more recorders have to be written, for Linux and for Windows, and a closed set
+ * on this side would have to be widened for each by somebody who cannot see what
+ * the new recorder answers.
+ */
+export interface RecordingPermissions {
+  /** "granted", or "not-granted" — never-asked and refused look the same. */
+  systemAudio: string;
+  /** "granted", "denied", "restricted", or "undetermined". */
+  microphone: string;
+  /** Set when the question could not be put at all, which is not a refusal. */
+  unavailable?: string | null;
+}
+
 /** What a recording in progress is doing. */
 export interface RecordingStatus {
   /** Whether this machine has a recorder at all. */
@@ -627,6 +644,10 @@ export interface WorkflowBridge {
   ): Promise<void>;
   /** Rewrite one passage as asked, returning the new text without storing it. */
   refinePassage(meetingId: string, passage: string, instruction: string): Promise<RefinedPassage>;
+  /** What the machine will allow, asked when the record screen opens. */
+  recordingPermissions(): Promise<RecordingPermissions>;
+  /** Open the System Settings pane where a recording permission is granted. */
+  openPrivacySettings(pane: 'screen' | 'microphone'): Promise<void>;
   /** What a recording in progress is doing. Cheap; polled while the screen is open. */
   recordingStatus(): Promise<RecordingStatus>;
   startRecording(meetingId: string): Promise<void>;

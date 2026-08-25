@@ -775,6 +775,32 @@ body.sidebar-resizing * {
    Sized to the action cards below so the column stays one column, and quieter
    than they are: this explains, they act. It appears only when no transcription
    model is installed, so somebody who has used LocaLog before never sees it. */
+/* What the machine will not let the recorder capture, said before the button.
+   Warmer than an error, because nothing has gone wrong yet: it is a setting
+   somebody has not granted, and it is still granted before the meeting. */
+.recording-permission {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 16px 20px;
+  background: var(--raised);
+  border: 1px solid var(--warning);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.recording-permission p {
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.recording-permission-aside {
+  color: var(--faint);
+  font-size: 0.8rem;
+}
+
 .start-setup {
   width: min(100%, 500px);
   margin-bottom: 20px;

@@ -57,6 +57,55 @@ pub(crate) fn recorder_path() -> Option<PathBuf> {
     crate::runtime::discover_executable(RECORDER_NAMES)
 }
 
+/// What this machine will allow, asked before a meeting rather than during one.
+///
+/// Every value is a string the recorder chose, passed through rather than parsed
+/// into an enum here. There are two platforms still to write recorders for, and a
+/// closed set defined on this side would have to be widened for each of them by
+/// somebody who cannot see what the new recorder actually answers.
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Permissions {
+    /// "granted", or "not-granted" — the preflight cannot tell never-asked from
+    /// refused, and says so rather than guessing.
+    pub system_audio: String,
+    /// "granted", "denied", "restricted", or "undetermined". Undetermined is a
+    /// normal first run: macOS asks the first time, and nothing is wrong.
+    pub microphone: String,
+    /// Set when the question could not be put at all, which is not the same as an
+    /// answer of no. A missing recorder is a broken installation, not a refused
+    /// permission, and telling somebody to visit System Settings would send them
+    /// to fix something that is not broken.
+    pub unavailable: Option<String>,
+}
+
+/// Ask the recorder what it will be allowed to capture.
+///
+/// Cheap enough to call whenever the record screen opens: the recorder answers and
+/// exits without creating a tap, a file, or a device.
+pub(crate) fn permissions() -> Permissions {
+    let Some(recorder) = recorder_path() else {
+        return Permissions {
+            unavailable: Some("No recorder is installed. LocaLog ships one; this build cannot find it.".into()),
+            ..Permissions::default()
+        };
+    };
+    let output = Command::new(&recorder).arg("--check").output();
+    match output {
+        Ok(output) if output.status.success() => serde_json::from_slice(&output.stdout)
+            .unwrap_or_else(|_| Permissions {
+                unavailable: Some("The recorder did not say what it is allowed to do.".into()),
+                ..Permissions::default()
+            }),
+        // An older recorder predating --check exits non-zero on the usage guard.
+        // Saying nothing is known is honest; claiming a refusal would not be.
+        _ => Permissions {
+            unavailable: Some("This recorder cannot report what it is allowed to do.".into()),
+            ..Permissions::default()
+        },
+    }
+}
+
 /// Kill any recorder a previous run left behind.
 ///
 /// Called at startup, before anything else touches audio. A recorder that survived a

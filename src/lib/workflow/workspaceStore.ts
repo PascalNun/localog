@@ -37,6 +37,7 @@ import type {
   ProtocolDensity,
   StyleEdit,
   ProtocolStyleDetail,
+  RecordingPermissions,
   RecordingStatus,
   CorrectionMatch,
   AppliedCorrection,
@@ -115,6 +116,8 @@ export interface WorkspaceStore {
     instruction: string,
   ) => Promise<RefinedPassage>;
   recordingStatus(): Promise<RecordingStatus>;
+  recordingPermissions(): Promise<RecordingPermissions>;
+  openPrivacySettings(pane: 'screen' | 'microphone'): Promise<void>;
   startRecording(meetingId: string): Promise<void>;
   stopRecording(): Promise<WorkspaceData>;
   findIntroductions(meetingId: string): Promise<Introduction[]>;
@@ -375,6 +378,14 @@ class TauriWorkspaceStore implements WorkspaceStore {
 
   recordingStatus(): Promise<RecordingStatus> {
     return invoke('recording_status');
+  }
+
+  recordingPermissions(): Promise<RecordingPermissions> {
+    return invoke('recording_permissions');
+  }
+
+  openPrivacySettings(pane: 'screen' | 'microphone'): Promise<void> {
+    return invoke('open_privacy_settings', { pane });
   }
 
   startRecording(meetingId: string): Promise<void> {

@@ -1,5 +1,11 @@
 <script lang="ts">
-  import type { AppRoute, MeetingSummary, RecordingStatus } from '../workflow/types';
+  import { onMount } from 'svelte';
+  import type {
+    AppRoute,
+    MeetingSummary,
+    RecordingPermissions,
+    RecordingStatus,
+  } from '../workflow/types';
   import { errorMessage } from '../errors';
   import { clock } from '../time';
 
@@ -11,9 +17,54 @@
   export let status: RecordingStatus;
   export let onStart: (meetingId: string) => Promise<void>;
   export let onStop: () => Promise<void>;
+  export let onCheckPermissions: () => Promise<RecordingPermissions>;
+  export let onOpenSettings: (pane: 'screen' | 'microphone') => Promise<void>;
 
   let error = '';
   let working = false;
+
+  /// What the machine will allow, before anything is recorded.
+  ///
+  /// The warnings further down are the same hazard caught the other way round: they
+  /// watch a track that stays silent and conclude something is wrong. That reading
+  /// is right and it comes twelve seconds into a meeting, which is twelve seconds
+  /// too late — the permission is granted in System Settings, and nobody wants to
+  /// go there while people are waiting. This asks first instead.
+  ///
+  /// Both remain. A granted permission can still produce silence for reasons this
+  /// cannot foresee — the wrong input selected, another application holding the
+  /// device — and only the live reading catches those.
+  let permissions: RecordingPermissions | null = null;
+
+  async function check() {
+    try {
+      permissions = await onCheckPermissions();
+    } catch {
+      // A question that could not be put is not a refusal, and the screen says
+      // nothing rather than sending somebody to fix what may not be broken.
+      permissions = null;
+    }
+  }
+
+  onMount(() => {
+    void check();
+    // Returning from System Settings is a window focus, and it is exactly when the
+    // answer may have changed. Cheaper than polling, and it lands at the only
+    // moment somebody could have changed their mind.
+    const again = () => void check();
+    window.addEventListener('focus', again);
+    return () => window.removeEventListener('focus', again);
+  });
+
+  /// Only what is known. `unavailable` means the recorder could not be asked, which
+  /// is a broken installation rather than a permission somebody has withheld.
+  $: answered = permissions !== null && !permissions.unavailable;
+  $: systemBlocked = answered && permissions?.systemAudio !== 'granted';
+  // "Undetermined" is a normal first run: macOS puts up its own dialog the first
+  // time the microphone is opened. Warning about it would be warning about the
+  // permission system working.
+  $: microphoneBlocked =
+    answered && (permissions?.microphone === 'denied' || permissions?.microphone === 'restricted');
 
   /// The sound mark, drawn from what is actually being recorded.
   ///
@@ -144,6 +195,35 @@
           is selected and that nothing else is holding it.
         </p>
       {/if}
+    {/if}
+
+    <!-- Before the button, because after it is a meeting. -->
+    {#if !status.recording && status.available && (systemBlocked || microphoneBlocked)}
+      <div class="recording-permission" role="status">
+        {#if systemBlocked}
+          <p>
+            <strong>The call would not be recorded.</strong> macOS has not granted LocaLog
+            <strong>Screen &amp; System Audio Recording</strong>, and without it a recording of the
+            call is silence rather than an error — so this is worth granting now rather than
+            discovering afterwards. The microphone in the room would still be captured.
+          </p>
+          <button class="secondary-action" onclick={() => onOpenSettings('screen')}>
+            Open the setting
+          </button>
+        {/if}
+        {#if microphoneBlocked}
+          <p>
+            <strong>The room would not be recorded.</strong> LocaLog has been refused the microphone.
+            The call would still be captured if the setting above allows it.
+          </p>
+          <button class="secondary-action" onclick={() => onOpenSettings('microphone')}>
+            Open the setting
+          </button>
+        {/if}
+        <p class="recording-permission-aside">
+          Granted in System Settings, and picked up here as soon as you come back.
+        </p>
+      </div>
     {/if}
 
     {#if status.stoppedUnexpectedly}

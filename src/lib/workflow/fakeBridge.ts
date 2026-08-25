@@ -616,6 +616,22 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   /** A recording nothing is actually capturing, so the screen can be looked at. */
   private fakeRecording: { meetingId: string; startedAt: number } | null = null;
 
+  async recordingPermissions(): Promise<import('./types').RecordingPermissions> {
+    if (this.workspaceStore) return this.workspaceStore.recordingPermissions();
+    // The browser preview has no recorder to ask, and no permission to report.
+    // Saying nothing is known is the same answer the desktop gives when the
+    // recorder is missing, so the screen has one case to handle rather than two.
+    return {
+      systemAudio: 'granted',
+      microphone: 'granted',
+      unavailable: 'The browser preview cannot record, so nothing was asked.',
+    };
+  }
+
+  async openPrivacySettings(pane: 'screen' | 'microphone'): Promise<void> {
+    await this.workspaceStore?.openPrivacySettings(pane);
+  }
+
   async recordingStatus(): Promise<RecordingStatus> {
     if (this.workspaceStore) return this.workspaceStore.recordingStatus();
     if (!this.fakeRecording) {
