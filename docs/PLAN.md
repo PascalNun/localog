@@ -122,6 +122,53 @@ broken, then wrong, then missing.
   same place — a rendered document is what a PDF is printed from — so doing the
   editor first may make the exports nearly free, or may delay them by a week.
 
+## Read against another harness, 24 August 2026
+
+turnstonelabs/turnstone was read to see whether its approach had anything for this
+one. It is an orchestration platform for tool-using agents, with a formal
+definition of "harness" and numbered falsifiable claims. Most of it prices risks
+this application does not run — adversarial tool output, prompt injection through
+retrieved pages, cluster dispatch — and its own vocabulary would be a loss here,
+where every object already has a plainer name.
+
+**In its terms this application already is a harness**, and in one place ahead of
+it: `beyond_one_answer` refuses before the first model call, which is the
+closed-form halt condition the document says you generally cannot have. Its rule
+that a learned judge may never be the verifier is one `check_rewrite` already
+states better — "Never a gate."
+
+One habit was worth taking, and four defects came out of taking its determinism
+rule seriously. All four are fixed:
+
+- Every protocol's stored provenance named two settings it was not generated with:
+  8,192 context and 2,048 output tokens against a run resolving
+  `affordable_context` (floor 16,384) and `output_tokens_for`. This project
+  measured 8,192 as failing at every seed.
+- Retries two and three asked byte-for-byte the same question — fixed correction
+  text, pinned seed — so one of three attempts was free at best. The attempt
+  number moves the seed now.
+- `adherence.md` has never been a table: ten literals wrote a backslash and an n.
+- The harness ran one seed and overwrote its own output, so the three-seed rule
+  could not be followed with the tool provided. It runs every seed and prints the
+  spread.
+
+### Still open, found in the same pass
+
+1. **A short meeting gets no retry at all.** `plan_sections` returning one section
+   routes to `generate_in_one_pass`, which is one call, one parse, one validation,
+   and `?` — no fold-back, no fail-open. `generate_from_sections` has all three,
+   and commit 479d1f5 added them there with the measurement in its message: about
+   one draw in five arrives without a table. The same fault is still live on the
+   path short meetings take.
+2. **The retry budget does not cover a bad draw.** `attempt(...)?` sends a model
+   error straight out, so `ATTEMPTS_PER_STEP` protects only against a failed check,
+   not against the malformed answer `parse_structured` exists for.
+3. **`with_correction_or_keep` can lose the answer it exists to keep** — an error
+   on a later attempt discards a complete protocol that arrived on an earlier one,
+   at the step whose own comment calls it the most expensive to lose.
+4. **The evaluation harness hand-types the fourteen style instructions** that
+   migration 9 writes into every workspace. Byte-identical today; nothing checks it.
+
 ## What to do next, in order — 23 August 2026
 
 Supersedes the 18 August ordering below, which is kept for its findings. Written
