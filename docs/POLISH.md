@@ -28,7 +28,7 @@ Before starting expensive work, LocaLog should eventually:
 - keep one heavy local job active at a time;
 - prefer a smaller model that finishes to a larger model that swaps indefinitely.
 
-The current single heavy-work lane is a useful safety boundary. Memory recommendations are partly there — the machine's memory reaches the settings view and shapes what is recommended, on macOS. **There is no first-run setup at all**, which is the largest single gap between this document and the application: somebody opening LocaLog for the first time is not walked through choosing a quality, granting the recording permission, or fetching a model.
+The current single heavy-work lane is a useful safety boundary. Memory recommendations are partly there — the machine's memory reaches the settings view and shapes what is recommended, on macOS. First-run setup is **half built as of 25 August 2026**. The start screen now says that a new installation has no transcription model, what it costs, and offers the download where the first decision is made rather than leaving it in Settings; it appears only when nothing is installed, and it is not a gate. What is still missing is the other half: nobody is walked through granting the recording permission, which macOS answers with silence rather than a refusal, and choosing a quality other than the default still means going to Settings and knowing to.
 
 ## One place says what is happening
 
