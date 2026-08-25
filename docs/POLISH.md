@@ -12,7 +12,7 @@ Model choice is a persistent Settings preference, not a per-protocol interruptio
 
 Nothing is downloaded without consent. A model or runtime is never fetched as a hidden side effect of importing a meeting.
 
-Until runtimes are bundled, the current development build still exposes configuration controls. Those controls are scaffolding, not the desired public experience.
+The runtimes are bundled as of 25 August 2026: all six sidecars ship inside the application and every one of them runs from inside it. The configuration controls that were scaffolding for the state before that are therefore scaffolding for a state that no longer exists, and taking them out of the ordinary path is now a polish task rather than a thing to wait for. They should remain reachable under Advanced, because a contributor with their own checkout still needs them.
 
 ## The machine should not be allowed to surprise the user
 
@@ -20,13 +20,15 @@ Before starting expensive work, LocaLog should eventually:
 
 - avoid offering models that cannot fit the available memory;
 - use the model’s real context limit rather than assuming one;
-- check disk space before downloading;
+- check disk space before downloading — **done**, `models.rs` reads the free space and
+  refuses rather than filling the disk, though `statvfs` is Unix-only and Windows is
+  told nothing;
 - give a rough expectation of time and storage cost;
 - report pathological slowness instead of looking frozen;
 - keep one heavy local job active at a time;
 - prefer a smaller model that finishes to a larger model that swaps indefinitely.
 
-The current single heavy-work lane is a useful safety boundary. Memory recommendations and first-run setup are still planned.
+The current single heavy-work lane is a useful safety boundary. Memory recommendations are partly there — the machine's memory reaches the settings view and shapes what is recommended, on macOS. **There is no first-run setup at all**, which is the largest single gap between this document and the application: somebody opening LocaLog for the first time is not walked through choosing a quality, granting the recording permission, or fetching a model.
 
 ## One place says what is happening
 

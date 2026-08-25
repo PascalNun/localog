@@ -36,9 +36,19 @@ This is not a disposable demo. The interface, privacy behaviour, storage, and re
 
 ## Explicitly outside v0.1
 
-- microphone or system-audio recording;
+Three of these were built anyway, and saying so is more useful than quietly editing
+the list. Microphone and system-audio recording, and DOCX and PDF export, are all in
+the application as of 25 August 2026. They were held back here because permissions
+and platform behaviour are substantial work and the protocol workflow had to prove
+itself first — which it did, and then the work was done. The rest of this list still
+stands, and the reasoning behind it is unchanged.
+
+- ~~microphone or system-audio recording~~ — **built**; the recorder is a sidecar and
+  the record screen exists. macOS only so far;
 - collaboration, sharing, accounts, cloud sync, calendars, live bots, or mobile applications;
-- DOCX/PDF export or a template designer;
+- ~~DOCX/PDF export~~ — **built**, both from the same blocks the screen uses. A
+  template _designer_ is still outside, and export templates as a separate concept
+  are due to be folded into the appearance panel as presets;
 - semantic search across projects;
 - automatic finalisation of a protocol;
 - a public provider or plugin SDK;
@@ -60,9 +70,22 @@ The workflow is ready for v0.1 evaluation when:
 6. cancellation and failure leave the last stable work intact and explain how to continue;
 7. the interface remains usable while heavy work runs and feels immediate for ordinary interactions;
 8. representative German and English checks are recorded, with quality limits stated plainly;
-9. the M1/8 GB baseline has been measured before performance is called acceptable;
+9. the M1/8 GB baseline has been measured before performance is called acceptable —
+   **open, and not a task**: there is no such machine to run it on, so performance is
+   simply not called acceptable rather than being called acceptable on no evidence;
 10. the remaining runtime, packaging, accessibility, privacy, and backup risks are named rather than hidden.
 
 ## Current status
 
-The shell, storage, import path, revision model, editing surface, and most job boundaries are present. Real local runtime work and long-meeting protocol quality are still being validated. See [PLAN.md](PLAN.md) for the current status rather than treating this document as a claim that every item already exists.
+The whole path runs: import or record, transcribe, review, generate, edit, export.
+The runtimes are bundled — all six sidecars ship inside the application — and models
+are fetched on demand against pinned checksums. Long-meeting protocol quality is
+still being validated.
+
+Of the ten criteria above, two are open: English end-to-end evidence (8) and the
+M1/8 GB baseline (9), the second of which cannot be closed without the hardware.
+Beyond the criteria, the application is not yet signed, so it runs on the machine
+that built it and nowhere else.
+
+See [PLAN.md](PLAN.md) for the current status rather than treating this document as
+a claim that every item already exists.

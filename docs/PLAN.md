@@ -179,6 +179,13 @@ The principle this time: **make the thing work before making it nice, and make i
 authorable before making it designable.** There is no point polishing how somebody
 arranges a header that does not print.
 
+**Where this list stands, 25 August 2026.** 1, 2 and 3 were carried out and the
+reasoning held: the header now prints on every page because we cut the pages, and
+the page number came with it. 4 has not been done — `export_templates` and
+`save_export_template` are still commands and templates still hold their own page.
+5 is deferred by the owner, and the header/footer grid and the letterhead logo wait
+with it. The language decision below is still a decision.
+
 ### 1. Bind ⌘P to the export, not the browser's print
 
 Fifteen minutes, and it removes a daily friction: the shortcut every document
@@ -797,24 +804,59 @@ multilingual quality evidence exist.
 
 ## What is not yet true
 
-- Recording from the microphone or system audio is not wired into the application, but every part of
-  it now works in the study in `spikes/meeting-recording/`: the microphone, system audio, surviving
-  a kill without losing audio, and storing the result as Opus. System audio took five attempts and
-  failed all five for one reason — macOS gates it behind Screen & System Audio Recording and hands
-  an unauthorised tap silence rather than an error. Once granted, it captures. **A tap that is not
-  permitted is indistinguishable from one that is broken**, which is why a recorder must show that
-  sound is arriving before a meeting starts rather than after it ends.
-
-  What remains is the interface — the record screen — and answering whether the two tracks drift
-  apart over a long meeting, which a short run cannot separate from a fixed start offset.
+Checked against the code on 25 August 2026. Three entries that stood here were no
+longer true and have been replaced by what is; the rest were confirmed by reading
+the thing they describe rather than by remembering it.
 
 - Project and meeting archive actions are not exposed in the interface.
-- Basic backup and restore are not implemented.
-- The release config bundles the whisper.cpp and diariser sidecars once the target-specific artifacts have been built. Neither has been produced by the release command and run end to end yet, and FFmpeg still needs the same treatment.
-- The final public protocol-generation runtime is undecided; Ollama is for development and early technical previews.
-- Windows and Linux have architectural support, but no packaged release or complete runtime validation.
-- Performance and accessibility have not been accepted on the M1/8 GB target.
-- Real English end-to-end quality evidence is still missing.
+- Basic backup and restore are not implemented. `restore_protocol_revision` restores
+  one revision of one protocol, which is a different thing and not a substitute.
+- The final public protocol-generation runtime is undecided; Ollama is for development
+  and early technical previews.
+- Real English end-to-end quality evidence is still missing. This is criterion 8 in
+  `MVP.md` and the only one of the ten that is open and actionable.
+- The application is not signed. It is ad-hoc signed, which runs here and is refused
+  on anybody else's Mac, and there is no Developer ID on this machine. This is the
+  whole of what stands between the current bundle and handing it to somebody. The
+  owner intends to enrol; it is deliberately last, because it is the one remaining
+  task that buys nothing for Windows or Linux.
+- Whether the two recorded tracks drift apart over a long meeting is unanswered. A
+  short run cannot separate drift from a fixed start offset, so it needs a long one.
+- Windows and Linux have no packaged release. What the code costs them is now
+  measured rather than assumed, and it is small — see below.
+- The M1/8 GB baseline has not been measured and will not be until such a machine is
+  available. It is not a task while there is no hardware to run it on; MVP.md
+  criterion 9 stands unmet and openly so.
+
+### What the other platforms actually cost, measured 25 August 2026
+
+Three files in the Rust side carry a platform branch, and every one degrades
+honestly rather than failing:
+
+| what                                              | macOS                                             | elsewhere                                                             |
+| ------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------- |
+| memory detection (`provider.rs`, `processing.rs`) | `sysctl hw.memsize`                               | returns nothing, and a conservative constant is used                  |
+| diarisation accelerator (`media.rs`)              | Core ML                                           | CPU: slower, correct                                                  |
+| free disk before a download (`models.rs`)         | `statvfs`                                         | `#[cfg(not(unix))]` returns nothing, so Windows alone loses the check |
+| the print dialog (`lib.rs`)                       | Tauri's `window.print()`, which is cross-platform | the same call                                                         |
+
+Four of the five sidecar scripts are portable, and the whisper one selects Metal on
+the target triple, which is correct rather than a special case. Sidecar discovery
+assumes no platform. Model download is Rust and checksums. Cutting the print sheet
+into page boxes ourselves _removed_ a WebKit dependency rather than adding one.
+
+**One thing is genuinely macOS-only: the recorder.** Core Audio process taps and
+AVFoundation in one Swift file, and `build-recorder-sidecar.sh` refuses to run off
+Darwin. Linux needs a PipeWire recorder and Windows a WASAPI-loopback one. The
+contract they have to meet is already the right shape and already written down —
+`--system <path.wav> --microphone <path.wav>`, two files out — and nothing above
+the recorder knows how the bytes were captured.
+
+An iPad is a different question from a port. This architecture spawns sidecars, and
+iOS does not permit a sandboxed application to execute another binary. Whisper and
+the diariser would have to be linked in and called as libraries. That is a second
+build of the engine, not a port of this one, and it should not sit on a list beside
+Windows and Linux as though it were the same size of job.
 
 ## Next milestones
 

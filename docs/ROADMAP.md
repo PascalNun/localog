@@ -4,9 +4,11 @@ The roadmap keeps useful ideas visible without turning them into promises for v0
 
 ## After the first reliable workflow
 
-### Recording
+### Recording — arrived, on macOS
 
-Microphone recording, system-audio capture, interruption recovery, and multiple synchronised sources may follow the imported-audio path. Recording is deliberately later because permissions and platform behaviour are substantial work, and the product must first prove the protocol workflow.
+Microphone and system-audio recording are in the application, and surviving a kill without losing audio was proved in the study before it was built. The reasoning for holding it back was right about the cost: system audio took five attempts and failed all five for the same reason, because macOS hands an unauthorised tap silence rather than an error.
+
+What is still ahead here: a Linux and a Windows recorder, whether two tracks drift apart over a long meeting, and multiple synchronised sources.
 
 ### Better speaker review
 
@@ -18,11 +20,15 @@ Participants, project documents, and previous protocols could suggest vocabulary
 
 ### Portability and distribution
 
-Windows and Linux packaged builds, signed sidecars, installer updates, backup/restore, and a portable project bundle are future work. They must preserve the same local-first workflow rather than introduce a second product shape.
+Windows and Linux packaged builds, installer updates, backup/restore, and a portable project bundle are future work. They must preserve the same local-first workflow rather than introduce a second product shape.
+
+The sidecars themselves are no longer future work: six of them ship inside the macOS application. Signing them with a real identity is, and it is the last thing between the current bundle and giving it to somebody. `PLAN.md` records what the other two platforms actually cost, which is less than this section assumed when it was written.
 
 ### Export and retrieval
 
-DOCX/PDF export, basic templates, search across local projects, and structured views for decisions and actions may become useful after Markdown editing and review are stable.
+DOCX and PDF export are built, both written from the same blocks the screen renders, so there is one document rather than one per destination. Basic templates exist as a separate concept and are due to become presets in the appearance panel instead.
+
+Still ahead: search across local projects, and structured views for decisions and actions.
 
 ## Deliberately later
 
@@ -33,6 +39,8 @@ DOCX/PDF export, basic templates, search across local projects, and structured v
 - semantic search as a broad knowledge layer;
 - a public provider/plugin ecosystem;
 - hosted processing or organisation-controlled remote processing.
+
+A mobile or iPad application is a larger job than it looks, and larger than a Windows or Linux port. This architecture spawns sidecars, and iOS does not let a sandboxed application execute another binary. Whisper and the diariser would have to be linked in and called as libraries rather than run as commands, which is a second build of the engine rather than a port of this one. Worth knowing before it is counted alongside the desktop platforms.
 
 Remote processing is not automatically incompatible with local-first, but it changes the promise from “the content stays on this device” to something weaker. It would require explicit consent, clear destination language, and a separate product decision.
 
