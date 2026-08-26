@@ -72,6 +72,7 @@
   export let templates: ExportTemplate[] = [];
   export let onApplyTemplate: (templateId: string) => Promise<void> = async () => undefined;
   export let onSaveTemplate: (name: string) => Promise<void> = async () => undefined;
+  export let onDeleteTemplate: (templateId: string) => Promise<void> = async () => undefined;
   /// The transcript this protocol was written from, for checking a passage against
   /// what was actually said.
   export let transcript: { segments: TranscriptSegment[] } | null = null;
@@ -643,6 +644,8 @@
   /// template nobody could trust.
   let savingTemplate = false;
   let templateName = '';
+  let presetsOpen = false;
+  $: presetSummary = templates.length === 0 ? 'None saved yet' : `${templates.length} saved`;
 
   async function saveTemplate() {
     const name = templateName.trim();
@@ -1732,6 +1735,88 @@
               <FurnitureEditor {furniture} projectName={project.name} onChange={onSetFurniture} />
             {/if}
           </div>
+          <!--
+            Presets: the appearance above and the header and footer above that, kept
+            under a name so another project can be set the same way.
+
+            This used to be "export templates", with a page in the sidebar beside
+            Protocol styles and Names & terms, and its controls down in Export where
+            they were nowhere near the settings they capture. A template held an
+            appearance and a furniture and nothing else, which is those two panels
+            under a name — a preset, and not a concept that earns a page of its own.
+            Folding it in here removes the page, the nav entry and the word, and puts
+            using and saving next to the thing being saved.
+          -->
+          <div class="inspector-section">
+            <p class="eyebrow">Presets</p>
+            <h3>{presetSummary}</h3>
+            <button
+              class="inspector-control"
+              aria-expanded={presetsOpen}
+              onclick={() => (presetsOpen = !presetsOpen)}
+            >
+              <Icon name="folder" size={16} />
+              <span>Use or save a preset</span>
+              <Icon name={presetsOpen ? 'chevron-down' : 'chevron'} size={15} />
+            </button>
+            {#if presetsOpen}
+              {#if templates.length > 0}
+                <ul class="preset-list">
+                  {#each templates as preset (preset.id)}
+                    <li>
+                      <div class="preset-name">
+                        <strong>{preset.name}</strong>
+                        <!-- What applying it will actually do. The page this replaced
+                             showed the same line, and a name alone would have been less
+                             than the page it replaced. -->
+                        <small
+                          >{APPEARANCE_CHOICES.font.find(
+                            (choice) => choice.value === preset.appearance.font,
+                          )?.label} · {preset.appearance.bodySize} pt · {APPEARANCE_CHOICES.pageWidth.find(
+                            (choice) => choice.value === preset.appearance.pageWidth,
+                          )?.label}</small
+                        >
+                      </div>
+                      <button class="text-action" onclick={() => void onApplyTemplate(preset.id)}>
+                        Use
+                      </button>
+                      <!-- A shipped preset can be used and copied, never removed. -->
+                      {#if !preset.builtIn}
+                        <button
+                          class="text-action is-danger"
+                          onclick={() => void onDeleteTemplate(preset.id)}
+                        >
+                          Remove
+                        </button>
+                      {/if}
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
+              {#if savingTemplate}
+                <div class="template-save">
+                  <label>
+                    <span class="sr-only">Name for this preset</span>
+                    <input
+                      bind:value={templateName}
+                      placeholder="Name this preset"
+                      onkeydown={(event) => event.key === 'Enter' && void saveTemplate()}
+                    />
+                  </label>
+                  <button class="secondary-action" onclick={() => void saveTemplate()}>Save</button>
+                  <button class="text-action" onclick={() => (savingTemplate = false)}
+                    >Cancel</button
+                  >
+                </div>
+              {:else}
+                <button
+                  class="text-action template-save-open"
+                  onclick={() => (savingTemplate = true)}
+                  >Save this appearance and header as a preset</button
+                >
+              {/if}
+            {/if}
+          </div>
           <div class="inspector-section">
             <p class="eyebrow">Export</p>
             <div class="export-actions">
@@ -1751,42 +1836,6 @@
               The PDF is printed from the document you are reading, set the way this project sets
               its protocols — choose "Save as PDF" in the print dialog.
             </p>
-            {#if templates.length > 0}
-              <label class="template-apply">
-                <span>Use a template</span>
-                <select
-                  value=""
-                  onchange={(event) => {
-                    const chosen = event.currentTarget.value;
-                    event.currentTarget.value = '';
-                    if (chosen) void onApplyTemplate(chosen);
-                  }}
-                >
-                  <option value="">Choose…</option>
-                  {#each templates as template (template.id)}
-                    <option value={template.id}>{template.name}</option>
-                  {/each}
-                </select>
-              </label>
-            {/if}
-            {#if savingTemplate}
-              <div class="template-save">
-                <label>
-                  <span class="sr-only">Name for this template</span>
-                  <input
-                    bind:value={templateName}
-                    placeholder="Name this template"
-                    onkeydown={(event) => event.key === 'Enter' && void saveTemplate()}
-                  />
-                </label>
-                <button class="secondary-action" onclick={() => void saveTemplate()}>Save</button>
-                <button class="text-action" onclick={() => (savingTemplate = false)}>Cancel</button>
-              </div>
-            {:else}
-              <button class="text-action template-save-open" onclick={() => (savingTemplate = true)}
-                >Save these settings as a template</button
-              >
-            {/if}
           </div>
         {:else if inspectorTab === 'transcript'}
           <div class="inspector-section">

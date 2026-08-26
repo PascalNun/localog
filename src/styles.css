@@ -3764,12 +3764,12 @@ button.review-summary[aria-pressed='true'] {
    because five of these stacked in a column should read as a description of the
    document rather than as a form to fill in.
 
-   One rule, three places: the appearance settings, the header and footer fields, and
-   the template chooser. They were three copies of the same declarations down to the
-   inlined chevron. */
+   One rule, two places: the appearance settings and the header and footer fields.
+   They were separate copies of the same declarations down to the inlined chevron.
+   There was a third, the template chooser, until presets replaced that select with
+   a list. */
 .appearance-fields select,
-.furniture-insert,
-.template-apply select {
+.furniture-insert {
   appearance: none;
   min-width: 136px;
   min-height: 32px;
@@ -3790,15 +3790,13 @@ button.review-summary[aria-pressed='true'] {
 }
 
 .appearance-fields select:hover,
-.furniture-insert:hover,
-.template-apply select:hover {
+.furniture-insert:hover {
   background-color: var(--subtle);
   border-color: var(--line);
 }
 
 .appearance-fields select:focus-visible,
-.furniture-insert:focus-visible,
-.template-apply select:focus-visible {
+.furniture-insert:focus-visible {
   border-color: var(--line-strong);
 }
 
@@ -4371,22 +4369,49 @@ button.review-summary[aria-pressed='true'] {
   font-size: 0.78rem;
 }
 
-.template-apply {
+/* Saved appearance-and-header pairs, listed where they are applied. A list rather
+   than the select this replaced, because a select can offer one and cannot show
+   what exists or let a person remove their own. */
+.preset-list {
+  display: grid;
+  gap: 2px;
+  margin-top: 10px;
+}
+
+.preset-list li {
   display: flex;
-  gap: 10px;
   align-items: center;
-  justify-content: space-between;
-  margin-top: 12px;
-  font-size: 0.83rem;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
 }
 
-.template-apply > span {
-  color: var(--muted);
+.preset-list li:last-child {
+  border-bottom: 0;
 }
 
-.template-apply select {
-  min-width: 128px;
-  border-color: var(--line);
+.preset-name {
+  display: grid;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.preset-name strong {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.preset-name small {
+  color: var(--faint);
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-action.is-danger:hover {
+  color: var(--danger);
 }
 
 .template-save {

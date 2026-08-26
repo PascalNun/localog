@@ -20,7 +20,6 @@ export type AppRoute =
   | { name: 'protocol'; meetingId: string }
   | { name: 'styles' }
   | { name: 'vocabulary' }
-  | { name: 'export-templates' }
   | { name: 'settings' };
 
 export interface ProjectSummary {

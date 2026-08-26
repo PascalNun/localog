@@ -134,7 +134,7 @@
      A run-once guard, which neither rule can model. `templatesRead` is written so the
      *next* evaluation skips the block, and the assignments inside the callbacks are to
      `exportTemplates`, which the guard does not depend on. There is no loop to run. */
-  $: if (!templatesRead && (route.name === 'export-templates' || route.name === 'protocol')) {
+  $: if (!templatesRead && route.name === 'protocol') {
     templatesRead = true;
     void bridge
       .exportTemplates()
@@ -823,6 +823,9 @@
           templates={exportTemplates}
           onApplyTemplate={(templateId: string) =>
             bridge.applyExportTemplate(project.id, templateId)}
+          onDeleteTemplate={async (templateId: string) => {
+            exportTemplates = await bridge.deleteExportTemplate(templateId);
+          }}
           onSaveTemplate={async (name: string) => {
             exportTemplates = await bridge.saveExportTemplate(
               name,
@@ -839,7 +842,7 @@
           onRefine={(passage: string, instruction: string) =>
             bridge.refinePassage(meeting.id, passage, instruction)}
         />
-      {:else if route.name === 'styles' || route.name === 'vocabulary' || route.name === 'export-templates'}
+      {:else if route.name === 'styles' || route.name === 'vocabulary'}
         <LibraryView
           kind={route.name}
           styles={snapshot.styles}
@@ -851,10 +854,6 @@
           onUpdateStyle={(styleId: string, edit: StyleEdit) =>
             bridge.updateProtocolStyle(styleId, edit)}
           onDeleteStyle={(styleId: string) => bridge.deleteProtocolStyle(styleId)}
-          templates={exportTemplates}
-          onDeleteTemplate={async (templateId: string) => {
-            exportTemplates = await bridge.deleteExportTemplate(templateId);
-          }}
           onSaveTerm={(entry) => bridge.saveVocabularyEntry(entry)}
           onDeleteTerm={(entryId) => bridge.deleteVocabularyEntry(entryId)}
         />

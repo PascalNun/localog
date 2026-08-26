@@ -1,8 +1,6 @@
 <script lang="ts">
   import type {
     ProjectSummary,
-    ExportTemplate,
-    PageFurniture,
     ProtocolDensity,
     StyleEdit,
     ProtocolStyle,
@@ -11,13 +9,9 @@
     VocabularyEntry,
   } from '../workflow/types';
   import Icon from './Icon.svelte';
-  import { APPEARANCE_CHOICES } from '../protocol/appearance';
-  import { fieldLabel, furnitureIsEmpty } from '../protocol/furniture';
   import { errorMessage } from '../errors';
 
-  export let kind: 'styles' | 'vocabulary' | 'export-templates';
-  export let templates: ExportTemplate[] = [];
-  export let onDeleteTemplate: (templateId: string) => Promise<void> = async () => undefined;
+  export let kind: 'styles' | 'vocabulary';
   export let styles: ProtocolStyle[];
   export let vocabulary: VocabularyEntry[];
   export let projects: ProjectSummary[];
@@ -156,13 +150,6 @@
     terse: 'A line per point. The record, and nothing around it.',
   };
 
-  function describeFurniture(furniture: PageFurniture) {
-    const rows = [furniture.header, furniture.footer]
-      .map((row) => [...row.left, ...row.centre, ...row.right].map(fieldLabel).join(', '))
-      .filter((part) => part !== '');
-    return rows.join(' / ');
-  }
-
   let draft: VocabularyDraft | null = null;
   let error = '';
   let busy = false;
@@ -256,18 +243,12 @@
     <div>
       <p class="eyebrow">Library</p>
       <h1 tabindex="-1">
-        {kind === 'styles'
-          ? 'Protocol styles'
-          : kind === 'export-templates'
-            ? 'Export templates'
-            : 'Names & terms'}
+        {kind === 'styles' ? 'Protocol styles' : 'Names & terms'}
       </h1>
       <p>
         {kind === 'styles'
-          ? 'What a protocol says, and in what order. Not how it is set — that is an export template.'
-          : kind === 'export-templates'
-            ? 'How a protocol is set: the typeface and sizes, and what repeats at the top and bottom of every page. Applied to a project from its protocol editor.'
-            : 'The names transcription cannot guess: your project, the firms, the people. Measured on a real meeting, these are worth more than any other setting here.'}
+          ? 'What a protocol says, and in what order. Not how it is set — that is the appearance, and it lives in the protocol editor beside the document it describes.'
+          : 'The names transcription cannot guess: your project, the firms, the people. Measured on a real meeting, these are worth more than any other setting here.'}
       </p>
     </div>
     {#if kind === 'vocabulary' && !draft}
@@ -275,48 +256,7 @@
     {/if}
   </header>
 
-  {#if kind === 'export-templates'}
-    <section class="library-list" aria-label="Export templates">
-      {#each templates as template (template.id)}
-        <article>
-          <div class="library-icon"><Icon name="download" /></div>
-          <div>
-            <h2>{template.name}</h2>
-            <p>{template.description}</p>
-            <p class="template-detail">
-              {APPEARANCE_CHOICES.font.find((choice) => choice.value === template.appearance.font)
-                ?.label}
-              · {template.appearance.bodySize} pt ·
-              {APPEARANCE_CHOICES.pageWidth.find(
-                (choice) => choice.value === template.appearance.pageWidth,
-              )?.label}
-              ·
-              {furnitureIsEmpty(template.furniture)
-                ? 'nothing repeated on the page'
-                : describeFurniture(template.furniture)}
-            </p>
-          </div>
-          {#if template.builtIn}
-            <span class="meta">Shipped</span>
-          {:else}
-            <button class="text-action" onclick={() => void onDeleteTemplate(template.id)}
-              >Remove</button
-            >
-          {/if}
-        </article>
-      {/each}
-      {#if templates.length === 0}
-        <article>
-          <div>
-            <p>
-              No export templates yet. Save one from a protocol's Export section once its appearance
-              and its header and footer are how you want them.
-            </p>
-          </div>
-        </article>
-      {/if}
-    </section>
-  {:else if kind === 'styles'}
+  {#if kind === 'styles'}
     {#if styleError}<p class="setting-error" role="alert">{styleError}</p>{/if}
     <section class="library-list" aria-label="Protocol styles">
       {#each styles as style (style.id)}
