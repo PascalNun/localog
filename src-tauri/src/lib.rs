@@ -1307,53 +1307,53 @@ struct NameReplacement {
 
 /// Every saved way of presenting a protocol.
 #[tauri::command]
-async fn export_templates(
+async fn appearance_presets(
     state: State<'_, StorageState>,
-) -> Result<Vec<storage::ExportTemplate>, String> {
+) -> Result<Vec<storage::AppearancePreset>, String> {
     with_repository(state.root.clone(), |repository| {
-        repository.list_export_templates()
+        repository.list_appearance_presets()
     })
     .await
 }
 
 /// Save how this project sets its protocols, under a name.
 #[tauri::command]
-async fn save_export_template(
+async fn save_appearance_preset(
     state: State<'_, StorageState>,
     name: String,
     description: String,
     appearance: domain::DocumentAppearance,
     furniture: domain::PageFurniture,
-) -> Result<Vec<storage::ExportTemplate>, String> {
+) -> Result<Vec<storage::AppearancePreset>, String> {
     with_repository(state.root.clone(), move |repository| {
-        repository.save_export_template(&name, &description, &appearance, &furniture)?;
-        repository.list_export_templates()
+        repository.save_appearance_preset(&name, &description, &appearance, &furniture)?;
+        repository.list_appearance_presets()
     })
     .await
 }
 
 #[tauri::command]
-async fn delete_export_template(
+async fn delete_appearance_preset(
     state: State<'_, StorageState>,
     template_id: String,
-) -> Result<Vec<storage::ExportTemplate>, String> {
+) -> Result<Vec<storage::AppearancePreset>, String> {
     with_repository(state.root.clone(), move |repository| {
-        repository.delete_export_template(&template_id)?;
-        repository.list_export_templates()
+        repository.delete_appearance_preset(&template_id)?;
+        repository.list_appearance_presets()
     })
     .await
 }
 
 /// Put a saved presentation on a project — both halves of it, in one change.
 #[tauri::command]
-async fn apply_export_template(
+async fn apply_appearance_preset(
     state: State<'_, StorageState>,
     project_id: String,
     template_id: String,
 ) -> Result<WorkspaceSnapshot, String> {
     with_repository(state.root.clone(), move |repository| {
         let template = repository
-            .list_export_templates()?
+            .list_appearance_presets()?
             .into_iter()
             .find(|candidate| candidate.id == template_id)
             .ok_or(storage::StorageError::InvalidData(
@@ -1763,10 +1763,10 @@ pub fn run() {
             refine_passage,
             protocol_set_aside,
             preview_name_replacement,
-            export_templates,
-            save_export_template,
-            delete_export_template,
-            apply_export_template,
+            appearance_presets,
+            save_appearance_preset,
+            delete_appearance_preset,
+            apply_appearance_preset,
             set_protocol_sections,
             set_project_appearance,
             set_project_furniture,

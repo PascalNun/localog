@@ -181,9 +181,17 @@ const SHIPPED_REVISIONS: &[(&str, i64)] = &[
 /// The typography and the running header and footer, named. Not the protocol style:
 /// that decides what the document says, this decides how it is set, and the two are
 /// kept apart on purpose.
+///
+/// **The table is still called `export_templates`.** This was an export template with
+/// a page in the sidebar until it became what it always was — an appearance and a
+/// furniture under a name, which is a preset and belongs beside the two panels that
+/// hold them. The name changed everywhere a person or a programmer reads it; the
+/// table did not, because renaming it means migrating everybody's saved rows to
+/// improve a string nobody sees. It is the one place the old word survives, and it
+/// survives on purpose.
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ExportTemplate {
+pub struct AppearancePreset {
     pub id: String,
     pub name: String,
     pub description: String,
@@ -501,7 +509,7 @@ impl WorkspaceRepository {
     }
 
     /// Every saved way of presenting a protocol, shipped ones first.
-    pub fn list_export_templates(&self) -> Result<Vec<ExportTemplate>> {
+    pub fn list_appearance_presets(&self) -> Result<Vec<AppearancePreset>> {
         let mut statement = self.connection.prepare(
             "SELECT id, name, description, appearance_json, furniture_json, built_in
              FROM export_templates ORDER BY built_in DESC, name COLLATE NOCASE, id",
@@ -510,7 +518,7 @@ impl WorkspaceRepository {
             let appearance: String = row.get(3)?;
             let furniture: String = row.get(4)?;
             let built_in: i64 = row.get(5)?;
-            Ok(ExportTemplate {
+            Ok(AppearancePreset {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 description: row.get(2)?,
@@ -525,7 +533,7 @@ impl WorkspaceRepository {
     }
 
     /// Save how a project sets its protocols, under a name.
-    pub fn save_export_template(
+    pub fn save_appearance_preset(
         &self,
         name: &str,
         description: &str,
@@ -557,7 +565,7 @@ impl WorkspaceRepository {
     }
 
     /// Remove one that was made here. The shipped ones stay.
-    pub fn delete_export_template(&self, template_id: &str) -> Result<()> {
+    pub fn delete_appearance_preset(&self, template_id: &str) -> Result<()> {
         let changed = self.connection.execute(
             "DELETE FROM export_templates WHERE id = ?1 AND built_in = 0",
             [template_id],
@@ -2374,7 +2382,7 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             COMMIT;
             "#,
         )?;
-        seed_export_templates(connection)?;
+        seed_appearance_presets(connection)?;
         connection.pragma_update(None, "user_version", 19)?;
         version = 19;
     }
@@ -2506,7 +2514,7 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
 ///
 /// Written only when the table is empty, so a workspace that has had them deleted
 /// does not grow them back every time it opens.
-fn seed_export_templates(connection: &Connection) -> Result<()> {
+fn seed_appearance_presets(connection: &Connection) -> Result<()> {
     let existing: i64 =
         connection.query_row("SELECT COUNT(*) FROM export_templates", [], |row| {
             row.get(0)

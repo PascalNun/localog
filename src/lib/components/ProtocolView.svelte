@@ -38,7 +38,7 @@
     DocumentAppearance,
     FurnitureRow,
     PageFurniture,
-    ExportTemplate,
+    AppearancePreset,
     NameReplacement,
     RefinedPassage,
     SetAsideSection,
@@ -69,10 +69,10 @@
     setAside: SetAsideSection[],
   ) => Promise<void> = async () => undefined;
   export let setAside: SetAsideSection[] = [];
-  export let templates: ExportTemplate[] = [];
-  export let onApplyTemplate: (templateId: string) => Promise<void> = async () => undefined;
-  export let onSaveTemplate: (name: string) => Promise<void> = async () => undefined;
-  export let onDeleteTemplate: (templateId: string) => Promise<void> = async () => undefined;
+  export let presets: AppearancePreset[] = [];
+  export let onApplyPreset: (presetId: string) => Promise<void> = async () => undefined;
+  export let onSavePreset: (name: string) => Promise<void> = async () => undefined;
+  export let onDeletePreset: (presetId: string) => Promise<void> = async () => undefined;
   /// The transcript this protocol was written from, for checking a passage against
   /// what was actually said.
   export let transcript: { segments: TranscriptSegment[] } | null = null;
@@ -626,8 +626,8 @@
     // Placed after whatever block the caret is in, never inside a paragraph.
     const block = topBlockOf(range.startContainer);
     // The document surface is a contenteditable and Svelte does not own its contents.
-    // Inserting the node is the whole mechanism; going through the template would
-    // re-render the surface and move the caret.
+    // Inserting the node is the whole mechanism; going through Svelte's template
+    // would re-render the surface and move the caret.
     if (block) (block as Element).after(table);
     // eslint-disable-next-line svelte/no-dom-manipulating
     else documentSurface.append(table);
@@ -640,19 +640,19 @@
   /// Saved ways of presenting a protocol.
   ///
   /// Applying one sets the appearance and the header and footer together, because
-  /// they are two halves of one look and a template that set only half would be a
-  /// template nobody could trust.
-  let savingTemplate = false;
-  let templateName = '';
+  /// they are two halves of one look and a preset that set only half would be a
+  /// preset nobody could trust.
+  let savingPreset = false;
+  let presetName = '';
   let presetsOpen = false;
-  $: presetSummary = templates.length === 0 ? 'None saved yet' : `${templates.length} saved`;
+  $: presetSummary = presets.length === 0 ? 'None saved yet' : `${presets.length} saved`;
 
-  async function saveTemplate() {
-    const name = templateName.trim();
+  async function savePreset() {
+    const name = presetName.trim();
     if (name === '') return;
-    await onSaveTemplate(name);
-    templateName = '';
-    savingTemplate = false;
+    await onSavePreset(name);
+    presetName = '';
+    savingPreset = false;
   }
 
   /// Where a passage of the protocol appears in the transcript.
@@ -1760,9 +1760,9 @@
               <Icon name={presetsOpen ? 'chevron-down' : 'chevron'} size={15} />
             </button>
             {#if presetsOpen}
-              {#if templates.length > 0}
+              {#if presets.length > 0}
                 <ul class="preset-list">
-                  {#each templates as preset (preset.id)}
+                  {#each presets as preset (preset.id)}
                     <li>
                       <div class="preset-name">
                         <strong>{preset.name}</strong>
@@ -1777,14 +1777,14 @@
                           )?.label}</small
                         >
                       </div>
-                      <button class="text-action" onclick={() => void onApplyTemplate(preset.id)}>
+                      <button class="text-action" onclick={() => void onApplyPreset(preset.id)}>
                         Use
                       </button>
                       <!-- A shipped preset can be used and copied, never removed. -->
                       {#if !preset.builtIn}
                         <button
                           class="text-action is-danger"
-                          onclick={() => void onDeleteTemplate(preset.id)}
+                          onclick={() => void onDeletePreset(preset.id)}
                         >
                           Remove
                         </button>
@@ -1793,25 +1793,21 @@
                   {/each}
                 </ul>
               {/if}
-              {#if savingTemplate}
-                <div class="template-save">
+              {#if savingPreset}
+                <div class="preset-save">
                   <label>
                     <span class="sr-only">Name for this preset</span>
                     <input
-                      bind:value={templateName}
+                      bind:value={presetName}
                       placeholder="Name this preset"
-                      onkeydown={(event) => event.key === 'Enter' && void saveTemplate()}
+                      onkeydown={(event) => event.key === 'Enter' && void savePreset()}
                     />
                   </label>
-                  <button class="secondary-action" onclick={() => void saveTemplate()}>Save</button>
-                  <button class="text-action" onclick={() => (savingTemplate = false)}
-                    >Cancel</button
-                  >
+                  <button class="secondary-action" onclick={() => void savePreset()}>Save</button>
+                  <button class="text-action" onclick={() => (savingPreset = false)}>Cancel</button>
                 </div>
               {:else}
-                <button
-                  class="text-action template-save-open"
-                  onclick={() => (savingTemplate = true)}
+                <button class="text-action preset-save-open" onclick={() => (savingPreset = true)}
                   >Save this appearance and header as a preset</button
                 >
               {/if}

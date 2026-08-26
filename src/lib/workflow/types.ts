@@ -284,7 +284,7 @@ export interface RefinedPassage {
  * The typography and the running header and footer, named. Not the protocol style:
  * that decides what the document says, this decides how it is set.
  */
-export interface ExportTemplate {
+export interface AppearancePreset {
   id: string;
   name: string;
   description: string;
@@ -624,15 +624,15 @@ export interface WorkflowBridge {
    * case, and a literal replace walks past it.
    */
   previewNameReplacement(text: string, wrong: string, right: string): Promise<NameReplacement>;
-  exportTemplates(): Promise<ExportTemplate[]>;
-  saveExportTemplate(
+  appearancePresets(): Promise<AppearancePreset[]>;
+  saveAppearancePreset(
     name: string,
     description: string,
     appearance: DocumentAppearance,
     furniture: PageFurniture,
-  ): Promise<ExportTemplate[]>;
-  deleteExportTemplate(templateId: string): Promise<ExportTemplate[]>;
-  applyExportTemplate(projectId: string, templateId: string): Promise<void>;
+  ): Promise<AppearancePreset[]>;
+  deleteAppearancePreset(presetId: string): Promise<AppearancePreset[]>;
+  applyAppearancePreset(projectId: string, presetId: string): Promise<void>;
   /** Sections taken out of a protocol and kept in case they are wanted back. */
   protocolSetAside(meetingId: string): Promise<SetAsideSection[]>;
   /** The document and the stash together, because they are one change. */

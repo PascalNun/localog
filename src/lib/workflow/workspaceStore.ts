@@ -31,7 +31,7 @@ import type {
   DocumentAppearance,
   PageFurniture,
   RefinedPassage,
-  ExportTemplate,
+  AppearancePreset,
   NameReplacement,
   SetAsideSection,
   StyleEdit,
@@ -94,15 +94,15 @@ export interface WorkspaceStore {
   ) => Promise<WorkspaceData>;
   setProjectFurniture: (projectId: string, furniture: PageFurniture) => Promise<WorkspaceData>;
   previewNameReplacement: (text: string, wrong: string, right: string) => Promise<NameReplacement>;
-  exportTemplates: () => Promise<ExportTemplate[]>;
-  saveExportTemplate: (
+  appearancePresets: () => Promise<AppearancePreset[]>;
+  saveAppearancePreset: (
     name: string,
     description: string,
     appearance: DocumentAppearance,
     furniture: PageFurniture,
-  ) => Promise<ExportTemplate[]>;
-  deleteExportTemplate: (templateId: string) => Promise<ExportTemplate[]>;
-  applyExportTemplate: (projectId: string, templateId: string) => Promise<WorkspaceData>;
+  ) => Promise<AppearancePreset[]>;
+  deleteAppearancePreset: (presetId: string) => Promise<AppearancePreset[]>;
+  applyAppearancePreset: (projectId: string, presetId: string) => Promise<WorkspaceData>;
   protocolSetAside: (meetingId: string) => Promise<SetAsideSection[]>;
   setProtocolSections: (
     meetingId: string,
@@ -321,8 +321,8 @@ class TauriWorkspaceStore implements WorkspaceStore {
    * Each of these has a Tauri command, registered and backed by real storage, and
    * an interface that asks for it — but the method was declared optional on
    * `WorkspaceStore` and never written here. `FakeWorkflowBridge` asks
-   * `if (this.workspaceStore?.exportTemplates)`, found nothing, and answered from
-   * its own seeded data instead. So in the built application export templates,
+   * `if (this.workspaceStore?.appearancePresets)`, found nothing, and answered from
+   * its own seeded data instead. So in the built application appearance presets,
    * set-aside sections, page furniture and the section order lived in memory and
    * were gone at the next start, and refining a passage ran the deterministic fake
    * rather than the model.
@@ -338,25 +338,25 @@ class TauriWorkspaceStore implements WorkspaceStore {
     return invoke('preview_name_replacement', { text, wrong, right });
   }
 
-  exportTemplates(): Promise<ExportTemplate[]> {
-    return invoke('export_templates');
+  appearancePresets(): Promise<AppearancePreset[]> {
+    return invoke('appearance_presets');
   }
 
-  saveExportTemplate(
+  saveAppearancePreset(
     name: string,
     description: string,
     appearance: DocumentAppearance,
     furniture: PageFurniture,
-  ): Promise<ExportTemplate[]> {
-    return invoke('save_export_template', { name, description, appearance, furniture });
+  ): Promise<AppearancePreset[]> {
+    return invoke('save_appearance_preset', { name, description, appearance, furniture });
   }
 
-  deleteExportTemplate(templateId: string): Promise<ExportTemplate[]> {
-    return invoke('delete_export_template', { templateId });
+  deleteAppearancePreset(presetId: string): Promise<AppearancePreset[]> {
+    return invoke('delete_appearance_preset', { presetId });
   }
 
-  applyExportTemplate(projectId: string, templateId: string): Promise<WorkspaceData> {
-    return invoke('apply_export_template', { projectId, templateId });
+  applyAppearancePreset(projectId: string, presetId: string): Promise<WorkspaceData> {
+    return invoke('apply_appearance_preset', { projectId, presetId });
   }
 
   protocolSetAside(meetingId: string): Promise<SetAsideSection[]> {

@@ -279,4 +279,60 @@ describe('FakeWorkflowBridge', () => {
       path: '/synthetic/reselected.wav',
     });
   });
+
+  /**
+   * Presets, which nothing covered until the concept was renamed.
+   *
+   * The rename touched a struct, four Tauri commands, four bridge methods, four
+   * component props and a table that deliberately kept its old name, and the
+   * suite went green throughout because none of it was exercised. Both compilers
+   * agree the names line up; only a test says the behaviour does.
+   */
+  describe('appearance presets', () => {
+    it('lists what shipped, saves a new one, and applies it to a project', async () => {
+      const bridge = new FakeWorkflowBridge({});
+
+      const shipped = await bridge.appearancePresets();
+      expect(shipped.length).toBeGreaterThan(0);
+      // Everything seeded is built in, and a built-in cannot be removed.
+      expect(shipped.every((preset) => preset.builtIn)).toBe(true);
+
+      const saved = await bridge.saveAppearancePreset(
+        'House style',
+        'What this office uses',
+        { ...DEFAULT_APPEARANCE, bodySize: 12 },
+        EMPTY_FURNITURE,
+      );
+      const mine = saved.find((preset) => preset.name === 'House style');
+      expect(mine).toBeDefined();
+      expect(mine?.builtIn).toBe(false);
+      expect(mine?.appearance.bodySize).toBe(12);
+
+      // Applying sets the project, because a preset belongs to the project rather
+      // than to the protocol somebody happened to have open when they saved it.
+      const before = await bridge.getSnapshot();
+      const project = before.projects[0];
+      expect(project).toBeDefined();
+      await bridge.applyAppearancePreset(project!.id, mine!.id);
+
+      const after = await bridge.getSnapshot();
+      expect(after.projects.find((each) => each.id === project!.id)?.appearance.bodySize).toBe(12);
+    });
+
+    it('removes one that was saved and leaves the shipped ones alone', async () => {
+      const bridge = new FakeWorkflowBridge({});
+      const saved = await bridge.saveAppearancePreset(
+        'Throwaway',
+        '',
+        DEFAULT_APPEARANCE,
+        EMPTY_FURNITURE,
+      );
+      const mine = saved.find((preset) => preset.name === 'Throwaway');
+      expect(mine).toBeDefined();
+
+      const after = await bridge.deleteAppearancePreset(mine!.id);
+      expect(after.find((preset) => preset.id === mine!.id)).toBeUndefined();
+      expect(after.some((preset) => preset.builtIn)).toBe(true);
+    });
+  });
 });

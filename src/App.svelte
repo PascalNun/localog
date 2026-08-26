@@ -39,7 +39,7 @@
     FakeJobOutcome,
     StyleEdit,
     RecordingStatus,
-    ExportTemplate,
+    AppearancePreset,
     SetAsideSection,
     NewMeetingInput,
     NewProjectInput,
@@ -128,21 +128,21 @@
     : null;
 
   /// Saved ways of presenting a protocol, read once and kept as they change.
-  let exportTemplates: ExportTemplate[] = [];
-  let templatesRead = false;
+  let appearancePresets: AppearancePreset[] = [];
+  let presetsRead = false;
   /* eslint-disable no-useless-assignment, svelte/infinite-reactive-loop --
-     A run-once guard, which neither rule can model. `templatesRead` is written so the
+     A run-once guard, which neither rule can model. `presetsRead` is written so the
      *next* evaluation skips the block, and the assignments inside the callbacks are to
-     `exportTemplates`, which the guard does not depend on. There is no loop to run. */
-  $: if (!templatesRead && route.name === 'protocol') {
-    templatesRead = true;
+     `appearancePresets`, which the guard does not depend on. There is no loop to run. */
+  $: if (!presetsRead && route.name === 'protocol') {
+    presetsRead = true;
     void bridge
-      .exportTemplates()
+      .appearancePresets()
       .then((found) => {
-        exportTemplates = found;
+        appearancePresets = found;
       })
       .catch(() => {
-        exportTemplates = [];
+        appearancePresets = [];
       });
   }
   /* eslint-enable no-useless-assignment, svelte/infinite-reactive-loop */
@@ -820,14 +820,13 @@
           transcript={snapshot.transcripts[meeting.id] ?? null}
           onPreviewReplacement={(text: string, wrong: string, right: string) =>
             bridge.previewNameReplacement(text, wrong, right)}
-          templates={exportTemplates}
-          onApplyTemplate={(templateId: string) =>
-            bridge.applyExportTemplate(project.id, templateId)}
-          onDeleteTemplate={async (templateId: string) => {
-            exportTemplates = await bridge.deleteExportTemplate(templateId);
+          presets={appearancePresets}
+          onApplyPreset={(presetId: string) => bridge.applyAppearancePreset(project.id, presetId)}
+          onDeletePreset={async (presetId: string) => {
+            appearancePresets = await bridge.deleteAppearancePreset(presetId);
           }}
-          onSaveTemplate={async (name: string) => {
-            exportTemplates = await bridge.saveExportTemplate(
+          onSavePreset={async (name: string) => {
+            appearancePresets = await bridge.saveAppearancePreset(
               name,
               `Saved from ${project.name}.`,
               project.appearance,

@@ -3,7 +3,7 @@ import type {
   DocumentAppearance,
   PageFurniture,
   RefinedPassage,
-  ExportTemplate,
+  AppearancePreset,
   NameReplacement,
   StyleEdit,
   SetAsideSection,
@@ -1045,7 +1045,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
 
   /// Stand-ins matching what the workspace seeds, so the library can be looked at
   /// in the browser preview without a backend behind it.
-  private templates: ExportTemplate[] = [
+  private presets: AppearancePreset[] = [
     {
       id: 'template-client',
       name: 'Client protocol',
@@ -1091,24 +1091,24 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     throw new Error('Replacing a name needs the desktop application.');
   }
 
-  async exportTemplates(): Promise<ExportTemplate[]> {
-    if (this.workspaceStore) return this.workspaceStore.exportTemplates();
-    return this.templates;
+  async appearancePresets(): Promise<AppearancePreset[]> {
+    if (this.workspaceStore) return this.workspaceStore.appearancePresets();
+    return this.presets;
   }
 
-  async saveExportTemplate(
+  async saveAppearancePreset(
     name: string,
     description: string,
     appearance: DocumentAppearance,
     furniture: PageFurniture,
-  ): Promise<ExportTemplate[]> {
+  ): Promise<AppearancePreset[]> {
     if (this.workspaceStore) {
-      return this.workspaceStore.saveExportTemplate(name, description, appearance, furniture);
+      return this.workspaceStore.saveAppearancePreset(name, description, appearance, furniture);
     }
-    this.templates = [
-      ...this.templates,
+    this.presets = [
+      ...this.presets,
       {
-        id: `template-demo-${this.templates.length}`,
+        id: `template-demo-${this.presets.length}`,
         name,
         description,
         appearance,
@@ -1116,31 +1116,31 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         builtIn: false,
       },
     ];
-    return this.templates;
+    return this.presets;
   }
 
-  async deleteExportTemplate(templateId: string): Promise<ExportTemplate[]> {
+  async deleteAppearancePreset(presetId: string): Promise<AppearancePreset[]> {
     if (this.workspaceStore) {
-      return this.workspaceStore.deleteExportTemplate(templateId);
+      return this.workspaceStore.deleteAppearancePreset(presetId);
     }
-    this.templates = this.templates.filter((template) => template.id !== templateId);
-    return this.templates;
+    this.presets = this.presets.filter((preset) => preset.id !== presetId);
+    return this.presets;
   }
 
-  async applyExportTemplate(projectId: string, templateId: string): Promise<void> {
+  async applyAppearancePreset(projectId: string, presetId: string): Promise<void> {
     if (this.workspaceStore) {
-      const workspace = await this.workspaceStore.applyExportTemplate(projectId, templateId);
+      const workspace = await this.workspaceStore.applyAppearancePreset(projectId, presetId);
       this.snapshot = { ...this.snapshot, ...workspace };
       this.emit();
       return;
     }
-    const template = this.templates.find((candidate) => candidate.id === templateId);
-    if (!template) return;
+    const preset = this.presets.find((candidate) => candidate.id === presetId);
+    if (!preset) return;
     this.snapshot = {
       ...this.snapshot,
       projects: this.snapshot.projects.map((project) =>
         project.id === projectId
-          ? { ...project, appearance: template.appearance, furniture: template.furniture }
+          ? { ...project, appearance: preset.appearance, furniture: preset.furniture }
           : project,
       ),
     };

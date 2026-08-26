@@ -4414,7 +4414,7 @@ button.review-summary[aria-pressed='true'] {
   color: var(--danger);
 }
 
-.template-save {
+.preset-save {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
@@ -4422,7 +4422,7 @@ button.review-summary[aria-pressed='true'] {
   margin-top: 10px;
 }
 
-.template-save input {
+.preset-save input {
   flex: 1 1 120px;
   min-width: 0;
   min-height: 32px;
@@ -4435,7 +4435,7 @@ button.review-summary[aria-pressed='true'] {
   font-family: inherit;
 }
 
-.template-save-open {
+.preset-save-open {
   margin-top: 8px;
   padding: 6px 0;
 }
