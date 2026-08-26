@@ -14,6 +14,12 @@
   import StageRail from './StageRail.svelte';
   import { errorMessage } from '../errors';
   import { formatBytes } from '../bytes';
+  // Both, and they are not interchangeable: an imported recording's size is decimal
+  // because that is what the file manager showing it says, and a model's size is
+  // binary because that is how the model files are published. This screen shows one
+  // of each, and showed the model in the recording's units until it was noticed that
+  // the same two files read 46 MB here and 43 MB in Settings.
+  import { formatModelSize } from '../models/modelSize';
 
   export let project: ProjectSummary;
   export let meeting: MeetingSummary;
@@ -232,7 +238,7 @@
               disabled={speakerPreparing}
               >{speakerPreparing
                 ? `Preparing ${speakerDownloadPercent}%`
-                : `Prepare${speakerStatus.downloadBytes > 0 ? ` (${formatBytes(speakerStatus.downloadBytes)})` : ''}`}</button
+                : `Prepare${speakerStatus.downloadBytes > 0 ? ` (${formatModelSize(speakerStatus.downloadBytes)})` : ''}`}</button
             >
           </div>
         {:else if speakerChoice && !speakerStatus.runtimeHealthy}
