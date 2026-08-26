@@ -5,7 +5,6 @@ import type {
   RefinedPassage,
   ExportTemplate,
   NameReplacement,
-  ProtocolDensity,
   StyleEdit,
   SetAsideSection,
   ProtocolStyleDetail,

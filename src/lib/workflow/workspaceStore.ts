@@ -34,7 +34,6 @@ import type {
   ExportTemplate,
   NameReplacement,
   SetAsideSection,
-  ProtocolDensity,
   StyleEdit,
   ProtocolStyleDetail,
   RecordingPermissions,

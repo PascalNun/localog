@@ -22,7 +22,6 @@
   import { buildDocx } from './lib/protocol/docx';
   import { documentFacts } from './lib/protocol/document';
   import type { ProtocolDocument } from './lib/protocol/document';
-  import { reviewStateLabel } from './lib/protocol/document';
   import { printProtocol } from './lib/protocol/print';
   import {
     DEFAULT_SIDEBAR_WIDTH,
@@ -38,10 +37,7 @@
   import type {
     AppRoute,
     FakeJobOutcome,
-    MeetingSummary,
-    ProjectSummary,
     StyleEdit,
-    ProtocolDraft,
     RecordingStatus,
     ExportTemplate,
     SetAsideSection,
@@ -134,6 +130,10 @@
   /// Saved ways of presenting a protocol, read once and kept as they change.
   let exportTemplates: ExportTemplate[] = [];
   let templatesRead = false;
+  /* eslint-disable no-useless-assignment, svelte/infinite-reactive-loop --
+     A run-once guard, which neither rule can model. `templatesRead` is written so the
+     *next* evaluation skips the block, and the assignments inside the callbacks are to
+     `exportTemplates`, which the guard does not depend on. There is no loop to run. */
   $: if (!templatesRead && (route.name === 'export-templates' || route.name === 'protocol')) {
     templatesRead = true;
     void bridge
@@ -145,12 +145,15 @@
         exportTemplates = [];
       });
   }
+  /* eslint-enable no-useless-assignment, svelte/infinite-reactive-loop */
 
   /// Sections taken out of the open protocol and kept in case they are wanted back.
   /// Read when a protocol is opened rather than held in the workspace snapshot,
   /// because it belongs to one meeting's working draft and nothing else reads it.
   let protocolSetAside: SetAsideSection[] = [];
   let setAsideFor = '';
+  /* eslint-disable no-useless-assignment, svelte/infinite-reactive-loop --
+     The same guard, keyed on which meeting is open rather than on a flag. */
   $: if (route.name === 'protocol' && route.meetingId !== setAsideFor) {
     setAsideFor = route.meetingId;
     protocolSetAside = [];
@@ -163,6 +166,7 @@
         protocolSetAside = [];
       });
   }
+  /* eslint-enable no-useless-assignment, svelte/infinite-reactive-loop */
   let theme: 'light' | 'dark' = 'light';
   let sidebarOpen = false;
   let sidebarWidth = DEFAULT_SIDEBAR_WIDTH;

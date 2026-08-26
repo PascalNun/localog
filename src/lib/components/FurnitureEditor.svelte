@@ -91,7 +91,6 @@
         <div class="furniture-slot">
           <span class="furniture-slot-name">{slot.label}</span>
           <div class="furniture-line-row">
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
               class="furniture-line"
               contenteditable="true"

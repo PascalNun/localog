@@ -42,7 +42,9 @@ describe('cutting the document into pages', () => {
   it('puts the masthead on the first page only', () => {
     const html = pagesOf(doc(), [2, 4]);
     expect(html.split('print-masthead').length - 1).toBe(1);
-    expect(html.indexOf('print-masthead')).toBeLessThan(html.indexOf('<section class="print-page">', 1));
+    expect(html.indexOf('print-masthead')).toBeLessThan(
+      html.indexOf('<section class="print-page">', 1),
+    );
   });
 
   it('keeps every block, in order, across the pages', () => {

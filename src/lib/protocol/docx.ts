@@ -257,6 +257,7 @@ export function escapeXml(text: string): string {
       .replace(/[&<>"']/g, (character) => XML_ESCAPES[character] ?? character)
       // Control characters are not representable in XML 1.0 and Word refuses a
       // document containing them outright rather than skipping them.
+      // eslint-disable-next-line no-control-regex -- matching control characters is the job.
       .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
   );
 }

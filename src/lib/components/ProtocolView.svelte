@@ -123,8 +123,11 @@
   let typingInDocument = false;
   let renderedFrom = '';
   let rendered = '';
+  // A change guard: `renderedFrom` is written so the *next* evaluation can compare
+  // against it. The rule sees a write nothing reads in this block and cannot model that.
   $: if (markdown !== renderedFrom && !typingInDocument) {
     rendered = renderMarkdown(markdown);
+    // eslint-disable-next-line no-useless-assignment
     renderedFrom = markdown;
   }
 
@@ -316,8 +319,11 @@
     if (moved !== pageMoved) pageMoved = moved;
   }
 
+  // Clearing state on the way out of the document view. Nothing reads these
+  // afterwards, which is what "cleared" means rather than a wasted write.
   $: if (view !== 'document') {
     selectionBox = null;
+    // eslint-disable-next-line no-useless-assignment
     tableBox = null;
     moreOpen = false;
   }
@@ -618,7 +624,11 @@
 
     // Placed after whatever block the caret is in, never inside a paragraph.
     const block = topBlockOf(range.startContainer);
+    // The document surface is a contenteditable and Svelte does not own its contents.
+    // Inserting the node is the whole mechanism; going through the template would
+    // re-render the surface and move the caret.
     if (block) (block as Element).after(table);
+    // eslint-disable-next-line svelte/no-dom-manipulating
     else documentSurface.append(table);
 
     putCaretIn(head.cells[0] ?? table);
@@ -809,7 +819,6 @@
     }
     const gap = PAGE_GAP * textScale;
     const children = Array.from(documentSurface.children) as HTMLElement[];
-    const top = parseFloat(getComputedStyle(documentSurface).paddingTop) || 0;
     const starts = pageStartsNow();
     const beginsAPage = new Set(starts);
     children.forEach((element, index) => {
@@ -1028,6 +1037,9 @@
     markdown = text;
     rendered = renderMarkdown(text);
     renderedFrom = text;
+    // The same contenteditable. Svelte will not re-render a surface it does not
+    // control, which is why restoring a revision once appeared to do nothing at all.
+    // eslint-disable-next-line svelte/no-dom-manipulating
     if (documentSurface) documentSurface.innerHTML = rendered;
     scheduleSave();
   }
@@ -1593,6 +1605,10 @@
             onpaste={handlePaste}
             onkeydown={handleKeydown}
           >
+            <!-- renderMarkdown escapes every run through escapeHtml, and safeLink allowlists
+                 https, http and mailto, so a javascript: destination never reaches an href.
+                 Checked rather than assumed. -->
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             {@html rendered}
           </div>
           {#if showPages}
