@@ -719,6 +719,17 @@
             .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))}
           onNavigate={navigate}
           onDeleteMeeting={(meetingId: string) => bridge.deleteMeeting(meetingId)}
+          onArchiveMeeting={async (meetingId: string) => {
+            await bridge.setMeetingArchived(meetingId, true);
+            announcement = 'Meeting archived. It is in Settings under Storage.';
+          }}
+          onArchiveProject={async (projectId: string) => {
+            await bridge.setProjectArchived(projectId, true);
+            // The project it was showing is gone from the list, so the view goes
+            // with it rather than sitting on a project nothing can reach.
+            navigate({ name: 'start' });
+            announcement = 'Project archived. It is in Settings under Storage.';
+          }}
         />
       {:else if route.name === 'meeting' && project && meeting}
         <MeetingView
@@ -892,6 +903,9 @@
               modelError = errorMessage(error);
             }
           }}
+          onArchivedWork={() => bridge.archivedWork()}
+          onUnarchiveProject={(projectId) => bridge.setProjectArchived(projectId, false)}
+          onUnarchiveMeeting={(meetingId) => bridge.setMeetingArchived(meetingId, false)}
           onCreateBackup={(parent, folderName) => bridge.createBackup(parent, folderName)}
           onInspectBackup={(folder) => bridge.inspectBackup(folder)}
           onRestoreBackup={(folder) => bridge.restoreBackup(folder)}

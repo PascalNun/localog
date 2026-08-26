@@ -12,6 +12,8 @@
   export let meetings: MeetingSummary[];
   export let onNavigate: (route: AppRoute) => void;
   export let onDeleteMeeting: (meetingId: string) => Promise<void> = async () => undefined;
+  export let onArchiveProject: (projectId: string) => Promise<void> = async () => undefined;
+  export let onArchiveMeeting: (meetingId: string) => Promise<void> = async () => undefined;
 
   /// Deleting is asked twice, in the row itself.
   ///
@@ -25,6 +27,17 @@
     deleteError = '';
     try {
       await onDeleteMeeting(meeting.id);
+    } catch (cause) {
+      deleteError = errorMessage(cause);
+    } finally {
+      confirming = '';
+    }
+  }
+
+  async function archive(meeting: MeetingSummary) {
+    deleteError = '';
+    try {
+      await onArchiveMeeting(meeting.id);
     } catch (cause) {
       deleteError = errorMessage(cause);
     } finally {
@@ -62,12 +75,20 @@
       <h1 tabindex="-1">{project.name}</h1>
       <p>{project.description}</p>
     </div>
-    <button
-      class="primary-action"
-      onclick={() => onNavigate({ name: 'new-meeting', projectId: project.id })}
-    >
-      New meeting <Icon name="plus" size={16} />
-    </button>
+    <div class="project-header-actions">
+      <!-- Archiving is not deleting: everything under the project stays, and it
+           comes back from Settings whenever somebody wants it. So it is a quiet
+           action beside the loud one rather than behind a confirmation. -->
+      <button class="quiet-action" onclick={() => void onArchiveProject(project.id)}>
+        Archive project
+      </button>
+      <button
+        class="primary-action"
+        onclick={() => onNavigate({ name: 'new-meeting', projectId: project.id })}
+      >
+        New meeting <Icon name="plus" size={16} />
+      </button>
+    </div>
   </header>
 
   <section class="document-section" aria-labelledby="meetings-heading">
@@ -97,6 +118,10 @@
             </button>
             {#if confirming === meeting.id}
               <span class="meeting-confirm">
+                <!-- Archiving offered beside deleting, because most of what somebody
+                     reaches for the cross to do is get it out of the list, and that
+                     does not have to be permanent. -->
+                <button class="text-action" onclick={() => void archive(meeting)}>Archive</button>
                 <button class="text-action" onclick={() => void remove(meeting)}>Delete</button>
                 <button class="text-action" onclick={() => (confirming = '')}>Keep</button>
               </span>

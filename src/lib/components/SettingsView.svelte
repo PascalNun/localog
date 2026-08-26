@@ -1,6 +1,7 @@
 <script lang="ts">
   import { open } from '@tauri-apps/plugin-dialog';
   import type {
+    ArchivedWork,
     BackupManifest,
     RestoreOutcome,
     FakeJobOutcome,
@@ -47,6 +48,9 @@
   export let onCancelDownload: (modelId: string) => Promise<void>;
   export let onRemoveModel: (modelId: string) => Promise<void>;
   export let onConfigureRuntime: (executablePath: string) => Promise<void>;
+  export let onArchivedWork: () => Promise<ArchivedWork>;
+  export let onUnarchiveProject: (projectId: string) => Promise<void>;
+  export let onUnarchiveMeeting: (meetingId: string) => Promise<void>;
   export let onCreateBackup: (parent: string, folderName: string) => Promise<BackupManifest>;
   export let onInspectBackup: (folder: string) => Promise<BackupManifest>;
   export let onRestoreBackup: (folder: string) => Promise<RestoreOutcome>;
@@ -97,6 +101,48 @@
   async function chooseProviderModel(model: string) {
     selectedProviderModel = model;
     await onConfigureProvider(model);
+  }
+
+  /// What has been put away, and the way back.
+  ///
+  /// Read when somebody opens the disclosure rather than with the rest of
+  /// settings: archiving exists so a workspace can hold years of work without
+  /// showing all of it, and loading all of it to render a heading nobody expanded
+  /// would undo the point.
+  let archivedOpen = false;
+  let archived: ArchivedWork = { projects: [], meetings: [] };
+  let archivedError = '';
+
+  async function loadArchived() {
+    archivedError = '';
+    try {
+      archived = await onArchivedWork();
+    } catch (cause) {
+      archivedError = errorMessage(cause);
+    }
+  }
+
+  async function toggleArchived() {
+    archivedOpen = !archivedOpen;
+    if (archivedOpen) await loadArchived();
+  }
+
+  async function unarchiveProject(projectId: string) {
+    try {
+      await onUnarchiveProject(projectId);
+      await loadArchived();
+    } catch (cause) {
+      archivedError = errorMessage(cause);
+    }
+  }
+
+  async function unarchiveMeeting(meetingId: string) {
+    try {
+      await onUnarchiveMeeting(meetingId);
+      await loadArchived();
+    } catch (cause) {
+      archivedError = errorMessage(cause);
+    }
   }
 
   /// Backing up, and putting one back.
@@ -562,6 +608,46 @@
               <button class="text-action" onclick={() => (pendingRestore = null)}>Cancel</button>
             </div>
           </div>
+        {/if}
+        <div class="setting-row">
+          <div>
+            <h3>Archived</h3>
+            <p>
+              Projects and meetings put out of the way. Nothing was deleted: every meeting,
+              transcript and protocol under them is still here, and still in every backup.
+            </p>
+          </div>
+          <button class="quiet-action" aria-expanded={archivedOpen} onclick={toggleArchived}>
+            {archivedOpen ? 'Hide' : 'Show'}
+          </button>
+        </div>
+        {#if archivedOpen}
+          {#if archived.projects.length === 0 && archived.meetings.length === 0}
+            <p class="setting-hint">Nothing has been archived.</p>
+          {:else}
+            <ul class="archived-list">
+              {#each archived.projects as project (project.id)}
+                <li>
+                  <span><strong>{project.name}</strong><small>Project</small></span>
+                  <button class="text-action" onclick={() => void unarchiveProject(project.id)}>
+                    Bring back
+                  </button>
+                </li>
+              {/each}
+              {#each archived.meetings as meeting (meeting.id)}
+                <li>
+                  <span
+                    ><strong>{meeting.title}</strong><small>Meeting · {meeting.occurredAt}</small
+                    ></span
+                  >
+                  <button class="text-action" onclick={() => void unarchiveMeeting(meeting.id)}>
+                    Bring back
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+          {#if archivedError}<p class="setting-error" role="alert">{archivedError}</p>{/if}
         {/if}
         {#if backupNote}<p class="safe-note" role="status">{backupNote}</p>{/if}
         {#if backupError}<p class="setting-error" role="alert">{backupError}</p>{/if}

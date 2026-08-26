@@ -1459,6 +1459,43 @@ async fn refine_passage(
     .await
 }
 
+/// Put a project out of the way, or bring it back.
+#[tauri::command]
+async fn set_project_archived(
+    state: State<'_, StorageState>,
+    project_id: String,
+    archived: bool,
+) -> Result<WorkspaceSnapshot, String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.set_project_archived(&project_id, archived)?;
+        repository.workspace_snapshot()
+    })
+    .await
+}
+
+/// The same for one meeting.
+#[tauri::command]
+async fn set_meeting_archived(
+    state: State<'_, StorageState>,
+    meeting_id: String,
+    archived: bool,
+) -> Result<WorkspaceSnapshot, String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.set_meeting_archived(&meeting_id, archived)?;
+        repository.workspace_snapshot()
+    })
+    .await
+}
+
+/// What has been put away, read only when somebody asks to see it.
+#[tauri::command]
+async fn archived_work(state: State<'_, StorageState>) -> Result<storage::ArchivedWork, String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.archived_work()
+    })
+    .await
+}
+
 /// Set what repeats at the top and bottom of a project's printed pages.
 #[tauri::command]
 async fn set_project_furniture(
@@ -1780,6 +1817,9 @@ pub fn run() {
             update_protocol_style,
             delete_protocol_style,
             recording_status,
+            set_project_archived,
+            set_meeting_archived,
+            archived_work,
             create_backup,
             inspect_backup,
             restore_backup,

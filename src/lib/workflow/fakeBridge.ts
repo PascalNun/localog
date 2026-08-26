@@ -615,6 +615,69 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   /** A recording nothing is actually capturing, so the screen can be looked at. */
   private fakeRecording: { meetingId: string; startedAt: number } | null = null;
 
+  async setProjectArchived(projectId: string, archived: boolean): Promise<void> {
+    if (this.workspaceStore) {
+      this.snapshot = {
+        ...this.snapshot,
+        ...(await this.workspaceStore.setProjectArchived(projectId, archived)),
+      };
+      this.emit();
+      return;
+    }
+    // The preview keeps its projects in memory, so archiving one hides it the
+    // same way the database does: by taking it out of the list that is shown.
+    this.archived = {
+      ...this.archived,
+      projects: archived
+        ? [...this.archived.projects, ...this.snapshot.projects.filter((p) => p.id === projectId)]
+        : this.archived.projects.filter((p) => p.id !== projectId),
+    };
+    this.snapshot = archived
+      ? { ...this.snapshot, projects: this.snapshot.projects.filter((p) => p.id !== projectId) }
+      : {
+          ...this.snapshot,
+          projects: [
+            ...this.snapshot.projects,
+            ...this.archived.projects.filter((p) => p.id === projectId),
+          ],
+        };
+    this.emit();
+  }
+
+  async setMeetingArchived(meetingId: string, archived: boolean): Promise<void> {
+    if (this.workspaceStore) {
+      this.snapshot = {
+        ...this.snapshot,
+        ...(await this.workspaceStore.setMeetingArchived(meetingId, archived)),
+      };
+      this.emit();
+      return;
+    }
+    this.archived = {
+      ...this.archived,
+      meetings: archived
+        ? [...this.archived.meetings, ...this.snapshot.meetings.filter((m) => m.id === meetingId)]
+        : this.archived.meetings.filter((m) => m.id !== meetingId),
+    };
+    this.snapshot = archived
+      ? { ...this.snapshot, meetings: this.snapshot.meetings.filter((m) => m.id !== meetingId) }
+      : {
+          ...this.snapshot,
+          meetings: [
+            ...this.snapshot.meetings,
+            ...this.archived.meetings.filter((m) => m.id === meetingId),
+          ],
+        };
+    this.emit();
+  }
+
+  private archived: import('./types').ArchivedWork = { projects: [], meetings: [] };
+
+  async archivedWork(): Promise<import('./types').ArchivedWork> {
+    if (this.workspaceStore) return this.workspaceStore.archivedWork();
+    return this.archived;
+  }
+
   async createBackup(
     parent: string,
     folderName: string,

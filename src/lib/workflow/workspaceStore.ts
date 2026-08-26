@@ -36,6 +36,7 @@ import type {
   SetAsideSection,
   StyleEdit,
   ProtocolStyleDetail,
+  ArchivedWork,
   BackupManifest,
   RecordingPermissions,
   RestoreOutcome,
@@ -117,6 +118,9 @@ export interface WorkspaceStore {
     instruction: string,
   ) => Promise<RefinedPassage>;
   recordingStatus(): Promise<RecordingStatus>;
+  setProjectArchived(projectId: string, archived: boolean): Promise<WorkspaceData>;
+  setMeetingArchived(meetingId: string, archived: boolean): Promise<WorkspaceData>;
+  archivedWork(): Promise<ArchivedWork>;
   createBackup(parent: string, folderName: string): Promise<BackupManifest>;
   inspectBackup(folder: string): Promise<BackupManifest>;
   restoreBackup(folder: string): Promise<RestoreOutcome>;
@@ -382,6 +386,18 @@ class TauriWorkspaceStore implements WorkspaceStore {
 
   recordingStatus(): Promise<RecordingStatus> {
     return invoke('recording_status');
+  }
+
+  setProjectArchived(projectId: string, archived: boolean): Promise<WorkspaceData> {
+    return invoke('set_project_archived', { projectId, archived });
+  }
+
+  setMeetingArchived(meetingId: string, archived: boolean): Promise<WorkspaceData> {
+    return invoke('set_meeting_archived', { meetingId, archived });
+  }
+
+  archivedWork(): Promise<ArchivedWork> {
+    return invoke('archived_work');
   }
 
   createBackup(parent: string, folderName: string): Promise<BackupManifest> {

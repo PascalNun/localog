@@ -79,6 +79,18 @@ export interface Introduction {
   context: string;
 }
 
+/**
+ * What has been put away.
+ *
+ * Read only when somebody asks to see it, rather than carried in the workspace
+ * snapshot: archived work is by definition what nobody is looking at, and every
+ * project ever archived would otherwise be a cost paid on every change.
+ */
+export interface ArchivedWork {
+  projects: ProjectSummary[];
+  meetings: MeetingSummary[];
+}
+
 /** One file inside a backup, with what it should be when it comes back. */
 export interface BackupFile {
   path: string;
@@ -678,6 +690,12 @@ export interface WorkflowBridge {
   ): Promise<void>;
   /** Rewrite one passage as asked, returning the new text without storing it. */
   refinePassage(meetingId: string, passage: string, instruction: string): Promise<RefinedPassage>;
+  /** Put a project out of the way, or bring it back. */
+  setProjectArchived(projectId: string, archived: boolean): Promise<void>;
+  /** The same for one meeting. */
+  setMeetingArchived(meetingId: string, archived: boolean): Promise<void>;
+  /** What has been put away. */
+  archivedWork(): Promise<ArchivedWork>;
   /** Copy the workspace into a folder. Returns what was written. */
   createBackup(parent: string, folderName: string): Promise<BackupManifest>;
   /** What a folder claims to be, without reading its files. */

@@ -201,6 +201,18 @@ pub struct AppearancePreset {
     pub built_in: bool,
 }
 
+/// What has been put away.
+///
+/// Both lists together, because the one place that shows them shows both and a
+/// second round trip to ask about meetings would be a second chance to disagree
+/// about what "archived" meant at that instant.
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArchivedWork {
+    pub projects: Vec<ProjectSummary>,
+    pub meetings: Vec<MeetingSummary>,
+}
+
 /// A section taken out of a protocol and kept in case it is wanted back.
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1517,6 +1529,75 @@ impl WorkspaceRepository {
         )?;
         let rows = statement.query_map([], meeting_from_row)?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
+    /// Put a project out of the way, or bring it back.
+    ///
+    /// Archiving is not deleting and is not meant to feel like it: the row keeps
+    /// every meeting, transcript and protocol under it, and the only thing that
+    /// changes is that the ordinary lists stop showing it. Every one of those
+    /// lists already filtered on this column — the schema has carried
+    /// `archived_at_ms` and the queries have honoured it since the beginning —
+    /// and nothing has ever been able to write it, so the filter was doing
+    /// nothing and there was no way out of a workspace filling up.
+    ///
+    /// Archiving a project does not archive its meetings. They vanish from the
+    /// ordinary lists with it, because those are reached through the project, and
+    /// bringing the project back brings them back as they were rather than as a
+    /// set of rows somebody now has to un-archive one by one.
+    pub fn set_project_archived(&self, project_id: &str, archived: bool) -> Result<()> {
+        let changed = self.connection.execute(
+            "UPDATE projects SET archived_at_ms = ?1, updated_at_ms = ?2 WHERE id = ?3",
+            params![
+                archived.then(unix_time_millis),
+                unix_time_millis(),
+                project_id
+            ],
+        )?;
+        if changed == 0 {
+            return Err(StorageError::MissingProject);
+        }
+        Ok(())
+    }
+
+    /// The same for one meeting.
+    pub fn set_meeting_archived(&self, meeting_id: &str, archived: bool) -> Result<()> {
+        let changed = self.connection.execute(
+            "UPDATE meetings SET archived_at_ms = ?1, updated_at_ms = ?2 WHERE id = ?3",
+            params![
+                archived.then(unix_time_millis),
+                unix_time_millis(),
+                meeting_id
+            ],
+        )?;
+        if changed == 0 {
+            return Err(StorageError::MissingMeeting);
+        }
+        Ok(())
+    }
+
+    /// What has been put away, read only when somebody asks to see it.
+    ///
+    /// Deliberately not part of the workspace snapshot. The snapshot is read on
+    /// every change and carries what the interface is showing; archived work is
+    /// by definition what nobody is looking at, and putting it there would make
+    /// every project anybody ever archived a cost paid on every keystroke.
+    pub fn archived_work(&self) -> Result<ArchivedWork> {
+        let mut projects = self.connection.prepare(&format!(
+            "{PROJECT_SELECT} WHERE p.archived_at_ms IS NOT NULL GROUP BY p.id \
+             ORDER BY p.archived_at_ms DESC, p.id"
+        ))?;
+        let projects = projects
+            .query_map([], project_from_row)?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        let mut meetings = self.connection.prepare(&format!(
+            "{MEETING_SELECT} WHERE m.archived_at_ms IS NOT NULL \
+             ORDER BY m.archived_at_ms DESC, m.id"
+        ))?;
+        let meetings = meetings
+            .query_map([], meeting_from_row)?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(ArchivedWork { projects, meetings })
     }
 
     /// Set what repeats at the top and bottom of this project's printed pages.
@@ -3699,6 +3780,76 @@ mod tests {
             })
             .unwrap();
         (project.id, meeting.id)
+    }
+
+    #[test]
+    fn archiving_hides_work_without_losing_it_and_it_comes_back() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        let mut repository = WorkspaceRepository::open(root).unwrap();
+        let (project, meeting) = project_with_meeting(&mut repository, root);
+
+        // The ordinary lists have always filtered on this column. Nothing could
+        // write it until now, so the filter was doing nothing.
+        repository.set_project_archived(&project, true).unwrap();
+        let snapshot = repository.workspace_snapshot().unwrap();
+        assert!(snapshot.projects.is_empty());
+
+        let put_away = repository.archived_work().unwrap();
+        assert_eq!(put_away.projects.len(), 1);
+        assert_eq!(put_away.projects[0].id, project);
+
+        // Archiving the project did not archive the meeting under it: bringing the
+        // project back brings its work back as it was, not as rows to restore one
+        // by one.
+        assert!(put_away.meetings.is_empty());
+
+        repository.set_project_archived(&project, false).unwrap();
+        let snapshot = repository.workspace_snapshot().unwrap();
+        assert_eq!(snapshot.projects.len(), 1);
+        assert!(snapshot.meetings.iter().any(|each| each.id == meeting));
+        assert!(repository.archived_work().unwrap().projects.is_empty());
+    }
+
+    #[test]
+    fn a_meeting_can_be_put_away_on_its_own() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        let mut repository = WorkspaceRepository::open(root).unwrap();
+        let (project, meeting) = project_with_meeting(&mut repository, root);
+
+        repository.set_meeting_archived(&meeting, true).unwrap();
+        let snapshot = repository.workspace_snapshot().unwrap();
+        // The project stays; only the meeting leaves the list.
+        assert_eq!(snapshot.projects.len(), 1);
+        assert!(!snapshot.meetings.iter().any(|each| each.id == meeting));
+        assert_eq!(repository.archived_work().unwrap().meetings.len(), 1);
+
+        repository.set_meeting_archived(&meeting, false).unwrap();
+        assert!(
+            repository
+                .workspace_snapshot()
+                .unwrap()
+                .meetings
+                .iter()
+                .any(|each| each.id == meeting)
+        );
+        let _ = project;
+    }
+
+    #[test]
+    fn archiving_something_that_is_not_there_says_so() {
+        let temporary = tempdir().unwrap();
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        assert!(matches!(
+            repository.set_project_archived("no-such-project", true),
+            Err(StorageError::MissingProject)
+        ));
+        assert!(matches!(
+            repository.set_meeting_archived("no-such-meeting", true),
+            Err(StorageError::MissingMeeting)
+        ));
+        let _ = &mut repository;
     }
 
     /// A completed generation job with an outcome recorded against it, using the
