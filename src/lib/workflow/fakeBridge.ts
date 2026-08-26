@@ -615,6 +615,26 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   /** A recording nothing is actually capturing, so the screen can be looked at. */
   private fakeRecording: { meetingId: string; startedAt: number } | null = null;
 
+  async createBackup(
+    parent: string,
+    folderName: string,
+  ): Promise<import('./types').BackupManifest> {
+    if (this.workspaceStore) return this.workspaceStore.createBackup(parent, folderName);
+    // The browser preview has no workspace on disk to copy. Refusing is honest;
+    // answering with a manifest would let somebody believe they had a backup.
+    throw new Error('Backing up needs the desktop application.');
+  }
+
+  async inspectBackup(folder: string): Promise<import('./types').BackupManifest> {
+    if (this.workspaceStore) return this.workspaceStore.inspectBackup(folder);
+    throw new Error('Reading a backup needs the desktop application.');
+  }
+
+  async restoreBackup(folder: string): Promise<import('./types').RestoreOutcome> {
+    if (this.workspaceStore) return this.workspaceStore.restoreBackup(folder);
+    throw new Error('Restoring needs the desktop application.');
+  }
+
   async recordingPermissions(): Promise<import('./types').RecordingPermissions> {
     if (this.workspaceStore) return this.workspaceStore.recordingPermissions();
     // The browser preview has no recorder to ask, and no permission to report.

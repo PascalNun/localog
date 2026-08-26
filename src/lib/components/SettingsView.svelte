@@ -1,6 +1,8 @@
 <script lang="ts">
   import { open } from '@tauri-apps/plugin-dialog';
   import type {
+    BackupManifest,
+    RestoreOutcome,
     FakeJobOutcome,
     ProtocolProviderStatus,
     TranscriptionCapability,
@@ -9,6 +11,7 @@
     SpeakerSeparationStatus,
   } from '../workflow/types';
   import { PRESET_LABELS, SPEAKER_SEPARATION_UNREADY } from '../workflow/types';
+  import { errorMessage } from '../errors';
   import {
     GENERATION_MODEL_CATALOG,
     browserMemoryGb,
@@ -44,6 +47,9 @@
   export let onCancelDownload: (modelId: string) => Promise<void>;
   export let onRemoveModel: (modelId: string) => Promise<void>;
   export let onConfigureRuntime: (executablePath: string) => Promise<void>;
+  export let onCreateBackup: (parent: string, folderName: string) => Promise<BackupManifest>;
+  export let onInspectBackup: (folder: string) => Promise<BackupManifest>;
+  export let onRestoreBackup: (folder: string) => Promise<RestoreOutcome>;
   export let onRefreshProvider: () => Promise<void>;
   export let onConfigureProvider: (model: string | null) => Promise<void>;
   export let providerError: string | null = null;
@@ -91,6 +97,98 @@
   async function chooseProviderModel(model: string) {
     selectedProviderModel = model;
     await onConfigureProvider(model);
+  }
+
+  /// Backing up, and putting one back.
+  ///
+  /// The application says the work stays on this device, which also means it
+  /// leaves with the device. This is where somebody does something about that.
+  ///
+  /// Restoring is deliberately two steps. The first reads what a folder claims to
+  /// be and shows it; only then is there a button that replaces the workspace.
+  /// Nobody should be able to replace a year of minutes with one click on a
+  /// folder they picked by accident.
+  let backupBusy = false;
+  let backupNote = '';
+  let backupError = '';
+  let pendingRestore: { folder: string; manifest: BackupManifest } | null = null;
+
+  /// A name somebody can read in a file manager a year from now, and which sorts.
+  function backupFolderName(): string {
+    const now = new Date();
+    const day = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-');
+    const time = [
+      String(now.getHours()).padStart(2, '0'),
+      String(now.getMinutes()).padStart(2, '0'),
+    ].join('');
+    return `LocaLog backup ${day} ${time}`;
+  }
+
+  async function backUpNow() {
+    if (!('__TAURI_INTERNALS__' in window)) return;
+    const parent = await open({
+      directory: true,
+      multiple: false,
+      title: 'Where to keep the backup',
+    });
+    if (typeof parent !== 'string') return;
+    backupBusy = true;
+    backupError = '';
+    backupNote = '';
+    try {
+      const manifest = await onCreateBackup(parent, backupFolderName());
+      backupNote = `Backed up ${manifest.projectCount} ${
+        manifest.projectCount === 1 ? 'project' : 'projects'
+      } and ${manifest.meetingCount} ${
+        manifest.meetingCount === 1 ? 'meeting' : 'meetings'
+      } to ${manifest.folderName}.`;
+    } catch (cause) {
+      backupError = errorMessage(cause);
+    } finally {
+      backupBusy = false;
+    }
+  }
+
+  async function chooseBackupToRestore() {
+    if (!('__TAURI_INTERNALS__' in window)) return;
+    const folder = await open({
+      directory: true,
+      multiple: false,
+      title: 'Choose a LocaLog backup',
+    });
+    if (typeof folder !== 'string') return;
+    backupBusy = true;
+    backupError = '';
+    backupNote = '';
+    try {
+      pendingRestore = { folder, manifest: await onInspectBackup(folder) };
+    } catch (cause) {
+      backupError = errorMessage(cause);
+    } finally {
+      backupBusy = false;
+    }
+  }
+
+  async function confirmRestore() {
+    if (!pendingRestore) return;
+    backupBusy = true;
+    backupError = '';
+    try {
+      const outcome = await onRestoreBackup(pendingRestore.folder);
+      pendingRestore = null;
+      backupNote =
+        `Restored ${outcome.projectCount} projects and ${outcome.meetingCount} meetings. ` +
+        `What was here was moved to ${outcome.previousWorkspace} rather than deleted. ` +
+        `Quit and open LocaLog again to work with the restored workspace.`;
+    } catch (cause) {
+      backupError = errorMessage(cause);
+    } finally {
+      backupBusy = false;
+    }
   }
 
   async function chooseExecutable() {
@@ -413,6 +511,60 @@
           protocols and downloaded models in its application-data folder. Exports are written only
           to the location you choose.
         </div>
+        <div class="setting-row">
+          <div>
+            <h3>Backup</h3>
+            <p>
+              Everything stays on this device, which also means it leaves with the device. A backup
+              is an ordinary folder you can put on a drive or wherever you keep things safe.
+            </p>
+          </div>
+          <button class="secondary-action" onclick={backUpNow} disabled={backupBusy}>
+            {backupBusy ? 'Working…' : 'Back up now'}
+          </button>
+        </div>
+        <p class="setting-hint">
+          Holds every project, meeting, transcript and protocol, and the recordings themselves.
+          Downloaded models are left out on purpose: they can be fetched again for nothing, and
+          including them would make a backup of your work several gigabytes of files that are not
+          your work.
+        </p>
+        <div class="setting-row">
+          <div>
+            <h3>Restore</h3>
+            <p>
+              Puts a backup back. It is checked in full first, and what is here now is moved aside
+              rather than deleted.
+            </p>
+          </div>
+          <button class="quiet-action" onclick={chooseBackupToRestore} disabled={backupBusy}>
+            Choose a backup…
+          </button>
+        </div>
+        {#if pendingRestore}
+          <!-- Shown before the button that replaces a workspace, never after. -->
+          <div class="restore-confirm">
+            <p>
+              <strong>{pendingRestore.manifest.folderName}</strong> holds
+              {pendingRestore.manifest.projectCount} projects and
+              {pendingRestore.manifest.meetingCount} meetings, backed up from LocaLog
+              {pendingRestore.manifest.applicationVersion}.
+            </p>
+            <p class="setting-hint">
+              Restoring replaces the projects and meetings in this workspace with those. Nothing is
+              deleted — what is here is kept in a folder beside it — but LocaLog will be showing the
+              restored work, and you will need to quit and open it again.
+            </p>
+            <div class="restore-actions">
+              <button class="secondary-action" onclick={confirmRestore} disabled={backupBusy}>
+                {backupBusy ? 'Restoring…' : 'Replace this workspace'}
+              </button>
+              <button class="text-action" onclick={() => (pendingRestore = null)}>Cancel</button>
+            </div>
+          </div>
+        {/if}
+        {#if backupNote}<p class="safe-note" role="status">{backupNote}</p>{/if}
+        {#if backupError}<p class="setting-error" role="alert">{backupError}</p>{/if}
       {:else if section === 'Privacy'}
         <div class="setting-row">
           <div>

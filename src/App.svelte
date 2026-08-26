@@ -892,6 +892,9 @@
               modelError = errorMessage(error);
             }
           }}
+          onCreateBackup={(parent, folderName) => bridge.createBackup(parent, folderName)}
+          onInspectBackup={(folder) => bridge.inspectBackup(folder)}
+          onRestoreBackup={(folder) => bridge.restoreBackup(folder)}
           onConfigureRuntime={async (executablePath) => {
             try {
               runtimeStatus = await bridge.configureTranscriptionRuntime(executablePath);

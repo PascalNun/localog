@@ -36,7 +36,9 @@ import type {
   SetAsideSection,
   StyleEdit,
   ProtocolStyleDetail,
+  BackupManifest,
   RecordingPermissions,
+  RestoreOutcome,
   RecordingStatus,
   CorrectionMatch,
   AppliedCorrection,
@@ -115,6 +117,9 @@ export interface WorkspaceStore {
     instruction: string,
   ) => Promise<RefinedPassage>;
   recordingStatus(): Promise<RecordingStatus>;
+  createBackup(parent: string, folderName: string): Promise<BackupManifest>;
+  inspectBackup(folder: string): Promise<BackupManifest>;
+  restoreBackup(folder: string): Promise<RestoreOutcome>;
   recordingPermissions(): Promise<RecordingPermissions>;
   openPrivacySettings(pane: 'screen' | 'microphone'): Promise<void>;
   startRecording(meetingId: string): Promise<void>;
@@ -377,6 +382,18 @@ class TauriWorkspaceStore implements WorkspaceStore {
 
   recordingStatus(): Promise<RecordingStatus> {
     return invoke('recording_status');
+  }
+
+  createBackup(parent: string, folderName: string): Promise<BackupManifest> {
+    return invoke('create_backup', { parent, folderName });
+  }
+
+  inspectBackup(folder: string): Promise<BackupManifest> {
+    return invoke('inspect_backup', { folder });
+  }
+
+  restoreBackup(folder: string): Promise<RestoreOutcome> {
+    return invoke('restore_backup', { folder });
   }
 
   recordingPermissions(): Promise<RecordingPermissions> {

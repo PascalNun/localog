@@ -79,6 +79,41 @@ export interface Introduction {
   context: string;
 }
 
+/** One file inside a backup, with what it should be when it comes back. */
+export interface BackupFile {
+  path: string;
+  byteCount: number;
+  sha256: string;
+}
+
+/**
+ * What a backup says about itself.
+ *
+ * Read before restoring so somebody can be shown what they are about to replace
+ * their work with. The counts are of what the backup holds, not of what is here
+ * now — the whole point is that those differ.
+ */
+export interface BackupManifest {
+  format: number;
+  createdAtMs: number;
+  applicationVersion: string;
+  database: BackupFile;
+  files: BackupFile[];
+  projectCount: number;
+  meetingCount: number;
+  /** Always true today. Said in the manifest so it can be shown, not assumed. */
+  excludesModels: boolean;
+  folderName: string;
+}
+
+/** What a restore did. */
+export interface RestoreOutcome {
+  projectCount: number;
+  meetingCount: number;
+  /** Where the replaced workspace was kept. Nothing is deleted. */
+  previousWorkspace: string;
+}
+
 /**
  * What this machine will let the recorder capture, asked before a meeting.
  *
@@ -643,6 +678,12 @@ export interface WorkflowBridge {
   ): Promise<void>;
   /** Rewrite one passage as asked, returning the new text without storing it. */
   refinePassage(meetingId: string, passage: string, instruction: string): Promise<RefinedPassage>;
+  /** Copy the workspace into a folder. Returns what was written. */
+  createBackup(parent: string, folderName: string): Promise<BackupManifest>;
+  /** What a folder claims to be, without reading its files. */
+  inspectBackup(folder: string): Promise<BackupManifest>;
+  /** Put a verified backup back, keeping what it replaced. */
+  restoreBackup(folder: string): Promise<RestoreOutcome>;
   /** What the machine will allow, asked when the record screen opens. */
   recordingPermissions(): Promise<RecordingPermissions>;
   /** Open the System Settings pane where a recording permission is granted. */

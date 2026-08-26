@@ -775,6 +775,23 @@ body.sidebar-resizing * {
    Sized to the action cards below so the column stays one column, and quieter
    than they are: this explains, they act. It appears only when no transcription
    model is installed, so somebody who has used LocaLog before never sees it. */
+/* What is about to be replaced, shown before the button that replaces it. */
+.restore-confirm {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 16px 18px;
+  background: var(--raised);
+  border: 1px solid var(--warning);
+  border-radius: 8px;
+}
+
+.restore-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 /* What the machine will not let the recorder capture, said before the button.
    Warmer than an error, because nothing has gone wrong yet: it is a setting
    somebody has not granted, and it is still granted before the meeting. */

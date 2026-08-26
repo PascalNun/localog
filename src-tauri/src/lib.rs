@@ -5,6 +5,7 @@ mod e2e_harness;
 #[cfg(test)]
 mod eval_harness;
 
+mod backup;
 mod clustering;
 mod corrections;
 mod diarisation;
@@ -902,6 +903,46 @@ fn recording_status(state: State<'_, RecordingState>) -> RecordingStatus {
     }
 }
 
+/// Copy the whole workspace into a folder somebody chose.
+///
+/// The folder name is built by the interface, where a readable date already
+/// exists, and validated in `backup` before it is used as a path.
+#[tauri::command]
+async fn create_backup(
+    state: State<'_, StorageState>,
+    parent: String,
+    folder_name: String,
+) -> Result<backup::Manifest, String> {
+    let root = state.root.clone();
+    // Hashing and copying gigabytes of audio, so nowhere near the interface thread.
+    off_thread(move || backup::create(&root, std::path::Path::new(&parent), &folder_name))
+        .await?
+        .map_err(|error| error.user_message())
+}
+
+/// What a folder claims to be, without checking a single file.
+///
+/// Separate from restoring so somebody can be shown what they are about to
+/// replace their work with, and change their mind, before anything is read.
+#[tauri::command]
+async fn inspect_backup(folder: String) -> Result<backup::Manifest, String> {
+    off_thread(move || backup::inspect(std::path::Path::new(&folder)))
+        .await?
+        .map_err(|error| error.user_message())
+}
+
+/// Put a backup back, after checking all of it.
+#[tauri::command]
+async fn restore_backup(
+    state: State<'_, StorageState>,
+    folder: String,
+) -> Result<backup::RestoreOutcome, String> {
+    let root = state.root.clone();
+    off_thread(move || backup::restore(&root, std::path::Path::new(&folder)))
+        .await?
+        .map_err(|error| error.user_message())
+}
+
 /// Open the System Settings pane where a recording permission is granted.
 ///
 /// A named pane rather than a URL from the interface. The opener and shell plugins
@@ -1739,6 +1780,9 @@ pub fn run() {
             update_protocol_style,
             delete_protocol_style,
             recording_status,
+            create_backup,
+            inspect_backup,
+            restore_backup,
             open_privacy_settings,
             recording_permissions,
             start_recording,
