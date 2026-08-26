@@ -13,6 +13,7 @@ mod domain;
 mod edits;
 mod facts;
 mod imports;
+mod machine;
 mod media;
 mod models;
 mod processing;
@@ -82,6 +83,12 @@ struct RecordingStatus {
     microphone_peak: f32,
     /// Set when the recorder stopped without being asked to.
     stopped_unexpectedly: bool,
+    /// What the recorder said it could not do, in its own words.
+    ///
+    /// It has always written these and nothing has ever read them. A recording
+    /// that captured one track of two because Core Audio refused the other said
+    /// so on its error output, into a pipe nobody was holding.
+    notes: Vec<String>,
 }
 
 #[derive(Clone)]
@@ -885,6 +892,7 @@ fn recording_status(state: State<'_, RecordingState>) -> RecordingStatus {
             system_peak: 0.0,
             microphone_peak: 0.0,
             stopped_unexpectedly: false,
+            notes: Vec::new(),
         };
     };
     let level = recorder.level();
@@ -900,6 +908,7 @@ fn recording_status(state: State<'_, RecordingState>) -> RecordingStatus {
         system_peak: level.system_peak,
         microphone_peak: level.microphone_peak,
         stopped_unexpectedly: !running,
+        notes: recorder.notes(),
     }
 }
 

@@ -226,6 +226,21 @@
       </div>
     {/if}
 
+    <!-- The recorder's own words, which it has always written and nothing read.
+         Shown verbatim: this is the one thing that can distinguish "a permission
+         is missing" from "Core Audio refused for a reason we did not foresee",
+         and paraphrasing it would throw away the only detail that separates them. -->
+    {#if status.notes.length > 0}
+      <div class="recording-permission" role="status">
+        <p><strong>The recorder could not do everything it was asked.</strong></p>
+        <ul class="recorder-notes">
+          {#each status.notes as note (note)}
+            <li>{note}</li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
+
     {#if status.stoppedUnexpectedly}
       <p class="setting-error" role="alert">
         The recorder stopped on its own. Whatever it captured up to that point has been kept.

@@ -422,24 +422,7 @@ pub struct OllamaProvider {
 /// because `navigator.deviceMemory` is not implemented in WebKit. Nothing was then
 /// read as the weakest supported machine and the model picker recommended for one.
 fn machine_memory_gb() -> Option<u32> {
-    #[cfg(target_os = "macos")]
-    {
-        let bytes: u64 = std::process::Command::new("sysctl")
-            .args(["-n", "hw.memsize"])
-            .output()
-            .ok()
-            .and_then(|out| String::from_utf8(out.stdout).ok())
-            .and_then(|text| text.trim().parse().ok())?;
-        u32::try_from(bytes / (1024 * 1024 * 1024))
-            .ok()
-            .filter(|gb| *gb > 0)
-    }
-    // Windows and Linux report this differently. Until each is read properly, saying
-    // nothing is honest and the interface treats it conservatively.
-    #[cfg(not(target_os = "macos"))]
-    {
-        None
-    }
+    crate::machine::memory_gb()
 }
 
 impl OllamaProvider {

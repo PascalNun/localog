@@ -46,6 +46,15 @@ pub(crate) struct Recording {
     child: Child,
     /// The latest second the recorder reported, shared with the thread reading it.
     latest: Arc<Mutex<Level>>,
+    /// What the recorder said went wrong, in its own words.
+    ///
+    /// The recorder writes a line to its error output when it cannot capture one
+    /// of the two sources and carries on with the other — an unpermitted tap, a
+    /// Core Audio status nobody expected, a microphone another application is
+    /// holding. That output was piped and never read, so every one of those
+    /// explanations was written into a pipe and dropped. The permission case is
+    /// now caught before a meeting starts; the rest are only knowable from here.
+    notes: Arc<Mutex<Vec<String>>>,
     stopping: Arc<AtomicBool>,
     pub system_path: PathBuf,
     pub microphone_path: PathBuf,
@@ -186,7 +195,26 @@ impl Recording {
         let _ = std::fs::write(&marker, child.id().to_string());
 
         let latest = Arc::new(Mutex::new(Level::default()));
+        let notes = Arc::new(Mutex::new(Vec::new()));
         let stopping = Arc::new(AtomicBool::new(false));
+        if let Some(errors) = child.stderr.take() {
+            let notes = Arc::clone(&notes);
+            std::thread::spawn(move || {
+                for line in BufReader::new(errors).lines().map_while(Result::ok) {
+                    let line = line.trim().to_string();
+                    if line.is_empty() {
+                        continue;
+                    }
+                    if let Ok(mut held) = notes.lock() {
+                        // A recorder that somehow produced output without end must
+                        // not grow this without end either.
+                        if held.len() < 20 && !held.contains(&line) {
+                            held.push(line);
+                        }
+                    }
+                }
+            });
+        }
         if let Some(output) = child.stdout.take() {
             let latest = Arc::clone(&latest);
             let stopping = Arc::clone(&stopping);
@@ -207,6 +235,7 @@ impl Recording {
         Ok(Self {
             child,
             latest,
+            notes,
             stopping,
             system_path,
             microphone_path,
@@ -217,6 +246,11 @@ impl Recording {
     /// The most recent second the recorder reported.
     pub(crate) fn level(&self) -> Level {
         self.latest.lock().map(|held| *held).unwrap_or_default()
+    }
+
+    /// What the recorder has said went wrong, in its own words.
+    pub(crate) fn notes(&self) -> Vec<String> {
+        self.notes.lock().map(|held| held.clone()).unwrap_or_default()
     }
 
     /// Whether the recorder is still running, which is not the same as having been

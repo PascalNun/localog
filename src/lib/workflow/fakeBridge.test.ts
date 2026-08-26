@@ -43,6 +43,7 @@ function mockStore(overrides: Partial<WorkspaceStore> = {}): WorkspaceStore {
       systemPeak: 0,
       microphonePeak: 0,
       stoppedUnexpectedly: false,
+      notes: [],
     }),
     startRecording: vi.fn<WorkspaceStore['startRecording']>(),
     stopRecording: vi.fn<WorkspaceStore['stopRecording']>().mockResolvedValue(emptyWorkspace),

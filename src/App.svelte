@@ -96,6 +96,7 @@
     systemPeak: 0,
     microphonePeak: 0,
     stoppedUnexpectedly: false,
+    notes: [],
   };
   let recordingTimer: ReturnType<typeof setTimeout> | null = null;
 

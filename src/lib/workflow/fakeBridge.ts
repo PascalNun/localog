@@ -725,6 +725,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         systemPeak: 0,
         microphonePeak: 0,
         stoppedUnexpectedly: false,
+        notes: [],
       };
     }
     const seconds = Math.floor((Date.now() - this.fakeRecording.startedAt) / 1000);
@@ -739,6 +740,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       systemPeak: shape(1.2),
       microphonePeak: shape(0),
       stoppedUnexpectedly: false,
+      notes: [],
     };
   }
 

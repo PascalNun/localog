@@ -155,6 +155,15 @@ export interface RecordingStatus {
   microphonePeak: number;
   /** The recorder stopped without being asked to. */
   stoppedUnexpectedly: boolean;
+  /**
+   * What the recorder said it could not do, in its own words.
+   *
+   * Empty almost always. Non-empty means one of the two tracks is not being
+   * captured for a reason the recorder knows and the interface cannot work out
+   * from a flat waveform — a Core Audio status, a device another application is
+   * holding. It has always written these; nothing read them until now.
+   */
+  notes: string[];
 }
 
 /** One place a correction would apply. */

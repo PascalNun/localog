@@ -159,22 +159,9 @@ fn affordable_context(
 /// How much memory this machine has, or zero where that cannot be established —
 /// in which case nothing is inferred from it.
 fn machine_memory_bytes() -> u64 {
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("sysctl")
-            .args(["-n", "hw.memsize"])
-            .output()
-            .ok()
-            .and_then(|out| String::from_utf8(out.stdout).ok())
-            .and_then(|text| text.trim().parse().ok())
-            .unwrap_or(0)
-    }
-    // Windows and Linux report this differently; until each is read properly the
-    // context falls back to the conservative constant rather than to a guess.
-    #[cfg(not(target_os = "macos"))]
-    {
-        0
-    }
+    // Zero rather than an Option, because this caller's whole use of the number
+    // is a comparison that a zero already loses.
+    crate::machine::memory_bytes().unwrap_or(0)
 }
 
 /// Whether this build should use the deterministic adapters instead of the real
