@@ -289,6 +289,56 @@ describe('FakeWorkflowBridge', () => {
    * suite went green throughout because none of it was exercised. Both compilers
    * agree the names line up; only a test says the behaviour does.
    */
+  /**
+   * Archiving in the preview, which is where a real bug lived.
+   *
+   * The first version removed the project from the archived list and then, in
+   * the next statement, looked in that same list for the project it was meant to
+   * be putting back. It type-checked, it read correctly, and it silently lost the
+   * project: archiving worked, bringing it back did nothing at all. Only using it
+   * showed that, so this is here to keep it shown.
+   */
+  describe('archiving', () => {
+    it('takes a project out of the list and puts the same one back', async () => {
+      const bridge = new FakeWorkflowBridge({});
+      const before = await bridge.getSnapshot();
+      const project = before.projects[0];
+      expect(project).toBeDefined();
+
+      await bridge.setProjectArchived(project!.id, true);
+      const hidden = await bridge.getSnapshot();
+      expect(hidden.projects.some((each) => each.id === project!.id)).toBe(false);
+      expect(hidden.projects.length).toBe(before.projects.length - 1);
+
+      const away = await bridge.archivedWork();
+      expect(away.projects.map((each) => each.id)).toEqual([project!.id]);
+
+      await bridge.setProjectArchived(project!.id, false);
+      const back = await bridge.getSnapshot();
+      expect(back.projects.some((each) => each.id === project!.id)).toBe(true);
+      expect(back.projects.length).toBe(before.projects.length);
+      expect((await bridge.archivedWork()).projects).toHaveLength(0);
+    });
+
+    it('does the same for one meeting without touching its project', async () => {
+      const bridge = new FakeWorkflowBridge({});
+      const before = await bridge.getSnapshot();
+      const meeting = before.meetings[0];
+      expect(meeting).toBeDefined();
+
+      await bridge.setMeetingArchived(meeting!.id, true);
+      const hidden = await bridge.getSnapshot();
+      expect(hidden.meetings.some((each) => each.id === meeting!.id)).toBe(false);
+      // The project it belongs to is untouched.
+      expect(hidden.projects.length).toBe(before.projects.length);
+
+      await bridge.setMeetingArchived(meeting!.id, false);
+      const back = await bridge.getSnapshot();
+      expect(back.meetings.some((each) => each.id === meeting!.id)).toBe(true);
+      expect(back.meetings.length).toBe(before.meetings.length);
+    });
+  });
+
   describe('appearance presets', () => {
     it('lists what shipped, saves a new one, and applies it to a project', async () => {
       const bridge = new FakeWorkflowBridge({});

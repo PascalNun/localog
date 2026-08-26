@@ -626,21 +626,27 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     }
     // The preview keeps its projects in memory, so archiving one hides it the
     // same way the database does: by taking it out of the list that is shown.
+    //
+    // The row is taken out of whichever list holds it *before* either list is
+    // rebuilt. Written the other way round it read fine and did nothing: the
+    // first assignment removed the project from `archived`, and the second then
+    // looked in `archived` for the project it was supposed to be putting back.
+    const [moving, staying] = archived
+      ? [
+          this.snapshot.projects.filter((each) => each.id === projectId),
+          this.snapshot.projects.filter((each) => each.id !== projectId),
+        ]
+      : [this.archived.projects.filter((each) => each.id === projectId), this.snapshot.projects];
     this.archived = {
       ...this.archived,
       projects: archived
-        ? [...this.archived.projects, ...this.snapshot.projects.filter((p) => p.id === projectId)]
-        : this.archived.projects.filter((p) => p.id !== projectId),
+        ? [...this.archived.projects, ...moving]
+        : this.archived.projects.filter((each) => each.id !== projectId),
     };
-    this.snapshot = archived
-      ? { ...this.snapshot, projects: this.snapshot.projects.filter((p) => p.id !== projectId) }
-      : {
-          ...this.snapshot,
-          projects: [
-            ...this.snapshot.projects,
-            ...this.archived.projects.filter((p) => p.id === projectId),
-          ],
-        };
+    this.snapshot = {
+      ...this.snapshot,
+      projects: archived ? staying : [...staying, ...moving],
+    };
     this.emit();
   }
 
@@ -653,21 +659,23 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       this.emit();
       return;
     }
+    // Taken out before either list is rebuilt, for the reason above.
+    const [moving, staying] = archived
+      ? [
+          this.snapshot.meetings.filter((each) => each.id === meetingId),
+          this.snapshot.meetings.filter((each) => each.id !== meetingId),
+        ]
+      : [this.archived.meetings.filter((each) => each.id === meetingId), this.snapshot.meetings];
     this.archived = {
       ...this.archived,
       meetings: archived
-        ? [...this.archived.meetings, ...this.snapshot.meetings.filter((m) => m.id === meetingId)]
-        : this.archived.meetings.filter((m) => m.id !== meetingId),
+        ? [...this.archived.meetings, ...moving]
+        : this.archived.meetings.filter((each) => each.id !== meetingId),
     };
-    this.snapshot = archived
-      ? { ...this.snapshot, meetings: this.snapshot.meetings.filter((m) => m.id !== meetingId) }
-      : {
-          ...this.snapshot,
-          meetings: [
-            ...this.snapshot.meetings,
-            ...this.archived.meetings.filter((m) => m.id === meetingId),
-          ],
-        };
+    this.snapshot = {
+      ...this.snapshot,
+      meetings: archived ? staying : [...staying, ...moving],
+    };
     this.emit();
   }
 
