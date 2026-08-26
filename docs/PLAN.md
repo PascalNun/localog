@@ -808,9 +808,19 @@ Checked against the code on 25 August 2026. Three entries that stood here were n
 longer true and have been replaced by what is; the rest were confirmed by reading
 the thing they describe rather than by remembering it.
 
-- Project and meeting archive actions are not exposed in the interface.
-- Basic backup and restore are not implemented. `restore_protocol_revision` restores
-  one revision of one protocol, which is a different thing and not a substitute.
+- ~~Project and meeting archive actions are not exposed in the interface.~~ Done on
+  26 August 2026, and worth recording why it was mis-sized here: both tables had
+  carried `archived_at_ms` since the beginning and every list already filtered on it,
+  but nothing could ever write one, so the filter was doing nothing. What was missing
+  was the write side, somewhere to see what had been put away, and the way back — not
+  only the buttons.
+- ~~Basic backup and restore are not implemented.~~ Done on 26 August 2026. A backup
+  is a folder holding the database and the managed audio, with a checksum for every
+  file. The database is copied by SQLite's `VACUUM INTO` rather than by the
+  filesystem, because the newest writes live in the write-ahead log and copying the
+  one file yields a backup silently missing them. Models are excluded and the
+  manifest says so. Restoring verifies everything before it moves anything, and moves
+  the current workspace aside rather than deleting it.
 - The final public protocol-generation runtime is undecided; Ollama is for development
   and early technical previews.
 - Real English end-to-end quality evidence is still missing. This is criterion 8 in
@@ -833,12 +843,12 @@ the thing they describe rather than by remembering it.
 Three files in the Rust side carry a platform branch, and every one degrades
 honestly rather than failing:
 
-| what                                              | macOS                                             | elsewhere                                                             |
-| ------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------- |
-| memory detection (`provider.rs`, `processing.rs`) | `sysctl hw.memsize`                               | returns nothing, and a conservative constant is used                  |
-| diarisation accelerator (`media.rs`)              | Core ML                                           | CPU: slower, correct                                                  |
-| free disk before a download (`models.rs`)         | `statvfs`                                         | `#[cfg(not(unix))]` returns nothing, so Windows alone loses the check |
-| the print dialog (`lib.rs`)                       | Tauri's `window.print()`, which is cross-platform | the same call                                                         |
+| what                                      | macOS                                             | elsewhere                                                                                 |
+| ----------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| memory detection (`machine.rs`)           | `sysctl hw.memsize`                               | Linux reads `/proc/meminfo`; Windows returns nothing, and a conservative constant is used |
+| diarisation accelerator (`media.rs`)      | Core ML                                           | CPU: slower, correct                                                                      |
+| free disk before a download (`models.rs`) | `statvfs`                                         | `#[cfg(not(unix))]` returns nothing, so Windows alone loses the check                     |
+| the print dialog (`lib.rs`)               | Tauri's `window.print()`, which is cross-platform | the same call                                                                             |
 
 Four of the five sidecar scripts are portable, and the whisper one selects Metal on
 the target triple, which is correct rather than a special case. Sidecar discovery
