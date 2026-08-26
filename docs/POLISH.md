@@ -12,7 +12,7 @@ Model choice is a persistent Settings preference, not a per-protocol interruptio
 
 Nothing is downloaded without consent. A model or runtime is never fetched as a hidden side effect of importing a meeting.
 
-The runtimes are bundled as of 25 August 2026: all six sidecars ship inside the application and every one of them runs from inside it. The configuration controls that were scaffolding for the state before that are therefore scaffolding for a state that no longer exists, and taking them out of the ordinary path is now a polish task rather than a thing to wait for. They should remain reachable under Advanced, because a contributor with their own checkout still needs them.
+The runtimes are bundled as of 25 August 2026: all six sidecars ship inside the application and every one of them runs from inside it. The paragraph above described the configuration controls as scaffolding still sitting in the ordinary path, and that was checked on 25 August and found to be no longer true. Every field that names an executable or a model is already inside a collapsed **Advanced details** disclosure, and the ordinary path holds only outcomes: interface language, default export, transcription quality, speaker differentiation, working storage, telemetry, content logging, theme, typeface. The one development control, the next fake job, is gated to non-desktop builds and a person running LocaLog never sees it. Nothing to do here; it is recorded so the next reader does not go looking either.
 
 ## The machine should not be allowed to surprise the user
 
