@@ -80,6 +80,14 @@ export interface Introduction {
 }
 
 /**
+ * A way a protocol can leave the application.
+ *
+ * Written out in two components and a settings list before it was a type, which
+ * is three places to add a fifth format to and two of them easy to forget.
+ */
+export type ExportFormat = 'pdf' | 'docx' | 'markdown' | 'text';
+
+/**
  * What has been put away.
  *
  * Read only when somebody asks to see it, rather than carried in the workspace
@@ -699,6 +707,10 @@ export interface WorkflowBridge {
   ): Promise<void>;
   /** Rewrite one passage as asked, returning the new text without storing it. */
   refinePassage(meetingId: string, passage: string, instruction: string): Promise<RefinedPassage>;
+  /** Where this workspace actually is, so somebody can go and look at it. */
+  workspaceLocation(): Promise<string | null>;
+  /** Show the workspace in the file manager. */
+  revealWorkspace(): Promise<void>;
   /** Put a project out of the way, or bring it back. */
   setProjectArchived(projectId: string, archived: boolean): Promise<void>;
   /** The same for one meeting. */

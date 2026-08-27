@@ -615,6 +615,17 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   /** A recording nothing is actually capturing, so the screen can be looked at. */
   private fakeRecording: { meetingId: string; startedAt: number } | null = null;
 
+  async workspaceLocation(): Promise<string | null> {
+    if (this.workspaceStore) return this.workspaceStore.workspaceLocation();
+    // The browser preview has no workspace on disk, and says so by saying nothing
+    // rather than by naming a folder that does not exist.
+    return null;
+  }
+
+  async revealWorkspace(): Promise<void> {
+    await this.workspaceStore?.revealWorkspace();
+  }
+
   async setProjectArchived(projectId: string, archived: boolean): Promise<void> {
     if (this.workspaceStore) {
       this.snapshot = {

@@ -952,6 +952,42 @@ async fn restore_backup(
         .map_err(|error| error.user_message())
 }
 
+/// Where this workspace actually is.
+///
+/// The settings row said "Application data" for a long time, which is true and
+/// useless: it is the answer to "is it managed?" given to somebody asking "where
+/// are my files?". Local-first means the files are theirs, and a person cannot
+/// believe that about a location they cannot name.
+#[tauri::command]
+fn workspace_location(state: State<'_, StorageState>) -> String {
+    state.root.to_string_lossy().to_string()
+}
+
+/// Show the workspace in the file manager.
+///
+/// A path somebody can read is better than a category; a path they can open is
+/// better than a path. Same shape as `open_privacy_settings`: the destination is
+/// this application's own folder, chosen here, never a path from the interface.
+#[tauri::command]
+async fn reveal_workspace(state: State<'_, StorageState>) -> Result<(), String> {
+    let root = state.root.clone();
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&root)
+            .spawn()
+            .map(|_| ())
+            .map_err(|_| "The workspace folder could not be opened.".to_string())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        // xdg-open on Linux and explorer on Windows, once either has a build to
+        // try it in. Naming the folder still works everywhere.
+        let _ = root;
+        Err("Opening the folder is only wired up on macOS. The path above is correct.".into())
+    }
+}
+
 /// Open the System Settings pane where a recording permission is granted.
 ///
 /// A named pane rather than a URL from the interface. The opener and shell plugins
@@ -1829,6 +1865,8 @@ pub fn run() {
             set_project_archived,
             set_meeting_archived,
             archived_work,
+            workspace_location,
+            reveal_workspace,
             create_backup,
             inspect_backup,
             restore_backup,

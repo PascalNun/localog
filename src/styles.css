@@ -784,6 +784,32 @@ body.sidebar-resizing * {
   line-height: 1.5;
 }
 
+.transcript-header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.transcript-export {
+  min-height: 34px;
+  padding: 6px 10px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+
+/* The real path, in something a path looks right in and can be selected from. */
+.workspace-path {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  user-select: text;
+}
+
 /* What was put away, and the way back. */
 .archived-list {
   display: grid;

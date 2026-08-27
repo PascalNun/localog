@@ -30,6 +30,14 @@
   export let onCancel: () => Promise<void>;
   export let onRetry: () => Promise<void>;
   export let onRerunTranscription: () => Promise<void>;
+  /// Take the transcript out of the application as a file.
+  ///
+  /// The protocol has left four ways since it existed and the transcript could
+  /// not leave at all — though it is the thing somebody spent an hour correcting,
+  /// and the record closest to what was actually said. Somebody sending it to a
+  /// participant to check had to copy it out of the screen by hand.
+  export let onExportTranscript: (format: 'markdown' | 'text') => Promise<void> = async () =>
+    undefined;
   export let onUpdateLanguage: (language: string) => Promise<void>;
   export let onUpdateSegment: (segmentId: string, text: string) => Promise<void>;
   export let onDeleteSegment: (segmentId: string) => Promise<void>;
@@ -60,6 +68,17 @@
   /// application runs one heavy task at a time.
   export let projectHasNames = false;
   export let onFindIntroductions: (meetingId: string) => Promise<Introduction[]> = async () => [];
+
+  let exportError = '';
+
+  async function exportTranscript(format: 'markdown' | 'text') {
+    exportError = '';
+    try {
+      await onExportTranscript(format);
+    } catch (cause) {
+      exportError = errorMessage(cause);
+    }
+  }
 
   let introductions: Introduction[] | null = null;
   let spellings: Record<string, string> = {};
@@ -403,11 +422,29 @@
       <h1 tabindex="-1">Transcript review</h1>
       <p>{meeting.occurredAt} · {meeting.durationLabel ?? 'Duration pending'}</p>
     </div>
-    <button
-      class="secondary-action inspector-toggle"
-      onclick={() => (inspectorOpen = !inspectorOpen)}>Review details</button
-    >
+    <div class="transcript-header-actions">
+      <select
+        class="transcript-export"
+        value=""
+        aria-label="Export this transcript"
+        disabled={!transcript || transcript.segments.length === 0}
+        onchange={(event) => {
+          const chosen = event.currentTarget.value;
+          event.currentTarget.value = '';
+          if (chosen === 'markdown' || chosen === 'text') void exportTranscript(chosen);
+        }}
+      >
+        <option value="">Export transcript…</option>
+        <option value="markdown">As Markdown</option>
+        <option value="text">As plain text</option>
+      </select>
+      <button
+        class="secondary-action inspector-toggle"
+        onclick={() => (inspectorOpen = !inspectorOpen)}>Review details</button
+      >
+    </div>
   </header>
+  {#if exportError}<p class="setting-error" role="alert">{exportError}</p>{/if}
 
   <StageRail meetingId={meeting.id} lifecycle={meeting.lifecycle} {onNavigate} />
   {#if relevantJob && relevantJob.state !== 'completed'}<ProgressPanel

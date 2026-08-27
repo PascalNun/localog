@@ -39,6 +39,7 @@
     FurnitureRow,
     PageFurniture,
     AppearancePreset,
+    ExportFormat,
     NameReplacement,
     RefinedPassage,
     SetAsideSection,
@@ -57,10 +58,7 @@
   /// The page starts go with a PDF: print.ts cuts the sheet at them rather than
   /// asking the browser to paginate, because the browser it would ask does not
   /// repeat a running header across pages at all.
-  export let onExport: (
-    format: 'pdf' | 'docx' | 'markdown' | 'text',
-    pageStarts?: number[],
-  ) => void;
+  export let onExport: (format: ExportFormat, pageStarts?: number[]) => void;
   export let onSetAppearance: (appearance: DocumentAppearance) => Promise<void> = async () =>
     undefined;
   export let onSetFurniture: (furniture: PageFurniture) => Promise<void> = async () => undefined;
@@ -73,6 +71,12 @@
   export let onApplyPreset: (presetId: string) => Promise<void> = async () => undefined;
   export let onSavePreset: (name: string) => Promise<void> = async () => undefined;
   export let onDeletePreset: (presetId: string) => Promise<void> = async () => undefined;
+  /// Which export this person reaches for, chosen once in Settings.
+  ///
+  /// It decides which button is the loud one and which comes first, and nothing
+  /// else: every format stays one click away, because a default that hid the
+  /// others would be a worse setting than none.
+  export let defaultExport: ExportFormat = 'pdf';
   /// The transcript this protocol was written from, for checking a passage against
   /// what was actually said.
   export let transcript: { segments: TranscriptSegment[] } | null = null;
@@ -646,6 +650,16 @@
   let presetName = '';
   let presetsOpen = false;
   $: presetSummary = presets.length === 0 ? 'None saved yet' : `${presets.length} saved`;
+
+  const EXPORT_LABELS: Record<ExportFormat, string> = {
+    pdf: 'Export PDF',
+    docx: 'Export Word',
+    markdown: 'Export Markdown',
+    text: 'Export plain text',
+  };
+  /// The chosen one first, the rest in their usual order behind it.
+  const EXPORT_ORDER: ExportFormat[] = ['pdf', 'docx', 'markdown', 'text'];
+  $: exportOrder = [defaultExport, ...EXPORT_ORDER.filter((each) => each !== defaultExport)];
 
   async function savePreset() {
     const name = presetName.trim();
@@ -1816,17 +1830,18 @@
           <div class="inspector-section">
             <p class="eyebrow">Export</p>
             <div class="export-actions">
-              <button
-                class="primary-action full-width"
-                onclick={() => onExport('pdf', pageStartsNow())}
-                ><Icon name="download" size={16} /> Export PDF</button
-              ><button class="secondary-action full-width" onclick={() => onExport('docx')}
-                >Export Word</button
-              ><button class="secondary-action full-width" onclick={() => onExport('markdown')}
-                >Export Markdown</button
-              ><button class="secondary-action full-width" onclick={() => onExport('text')}
-                >Export plain text</button
-              >
+              {#each exportOrder as format (format)}
+                <button
+                  class:primary-action={format === defaultExport}
+                  class:secondary-action={format !== defaultExport}
+                  class="full-width"
+                  onclick={() =>
+                    format === 'pdf' ? onExport('pdf', pageStartsNow()) : onExport(format)}
+                >
+                  {#if format === defaultExport}<Icon name="download" size={16} />{/if}
+                  {EXPORT_LABELS[format]}
+                </button>
+              {/each}
             </div>
             <p class="export-note">
               The PDF is printed from the document you are reading, set the way this project sets

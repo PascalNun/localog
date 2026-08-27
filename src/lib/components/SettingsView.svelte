@@ -2,6 +2,7 @@
   import { open } from '@tauri-apps/plugin-dialog';
   import type {
     ArchivedWork,
+    ExportFormat,
     BackupManifest,
     RestoreOutcome,
     FakeJobOutcome,
@@ -48,6 +49,10 @@
   export let onCancelDownload: (modelId: string) => Promise<void>;
   export let onRemoveModel: (modelId: string) => Promise<void>;
   export let onConfigureRuntime: (executablePath: string) => Promise<void>;
+  export let defaultExport: ExportFormat;
+  export let onChooseDefaultExport: (format: ExportFormat) => void;
+  export let workspacePath: string | null;
+  export let onRevealWorkspace: () => Promise<void>;
   export let onArchivedWork: () => Promise<ArchivedWork>;
   export let onUnarchiveProject: (projectId: string) => Promise<void>;
   export let onUnarchiveMeeting: (meetingId: string) => Promise<void>;
@@ -62,19 +67,40 @@
   export let onRefreshSpeaker: () => Promise<void>;
   export let onDownloadSpeaker: () => Promise<void>;
 
+  /// The formats the protocol editor already exports, named as somebody would
+  /// say them rather than as the code spells them.
+  const EXPORT_CHOICES: { id: ExportFormat; label: string }[] = [
+    { id: 'pdf', label: 'PDF' },
+    { id: 'docx', label: 'Word' },
+    { id: 'markdown', label: 'Markdown' },
+    { id: 'text', label: 'Plain text' },
+  ];
+
   let section = 'General';
+  /// Privacy is gone from here, and Advanced only exists where it has anything in
+  /// it.
+  ///
+  /// Privacy held two rows that were never settings: "LocaLog does not include
+  /// analytics" and "content stays out of ordinary logs" are claims about the
+  /// product, and a claim wearing a value on the right of a settings row reads as
+  /// a switch somebody cannot move. The claims belong to the product and are made
+  /// on the start screen, where the first thing anybody reads is that their work
+  /// stays on this device.
+  ///
+  /// Advanced was worse: it was listed here and had no branch of its own, so the
+  /// final `{:else}` caught it — which meant a development-only control in the
+  /// browser and, in the built application, a tab that opened an empty page.
+  // The synthetic-failure control only affects the browser preview's fake adapter.
+  const isNative = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
   const sections = [
     'General',
     'Models',
     'Transcription',
     'Storage',
-    'Privacy',
     'Appearance',
-    'Advanced',
+    ...(isNative ? [] : ['Advanced']),
   ];
   let executablePath = '';
-  // The synthetic-failure control only affects the browser preview's fake adapter.
-  const isNative = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
   let selectedProviderModel = '';
   /// What the backend measured, and only then what the browser guessed.
   ///
@@ -267,19 +293,28 @@
       <p class="eyebrow">{section}</p>
       <h2>{section}</h2>
       {#if section === 'General'}
-        <div class="setting-row">
-          <div>
-            <h3>Interface language</h3>
-            <p>Independent from each meeting’s transcription and protocol language.</p>
-          </div>
-          <span class="setting-value">English</span>
-        </div>
+        <!--
+          The interface language row stood here saying "English" with no way to
+          change it, which in an application written for German offices is worse
+          than saying nothing. The answer is not a menu, it is translating every
+          string in the product, and that is its own piece of work rather than a
+          control to be wired up. It comes back when there is a second language.
+        -->
         <div class="setting-row">
           <div>
             <h3>Default export</h3>
-            <p>Both formats are offered in the protocol editor.</p>
+            <p>Which format the protocol editor offers first. The others stay one click away.</p>
           </div>
-          <span class="setting-value">Markdown and plain text</span>
+          <div class="choice-row" role="group" aria-label="Default export format">
+            {#each EXPORT_CHOICES as option (option.id)}
+              <button
+                class="choice"
+                class:chosen={defaultExport === option.id}
+                aria-pressed={defaultExport === option.id}
+                onclick={() => onChooseDefaultExport(option.id)}>{option.label}</button
+              >
+            {/each}
+          </div>
         </div>
       {:else if section === 'Models'}
         <div class="model-setting-intro">
@@ -545,13 +580,33 @@
           </details>
         </div>
       {:else if section === 'Storage'}
+        <!--
+          The path, not the category.
+
+          This said "Application data", which answers "is it managed?" for
+          somebody asking "where are my files?". Local-first means the files are
+          theirs, and nobody believes that about a folder they cannot name or
+          reach. The location stays app-managed — a workspace somebody can put in
+          a synced folder is a SQLite database in a synced folder, which is a
+          known way to lose one — but it is no longer a secret.
+        -->
         <div class="setting-row">
           <div>
-            <h3>Working storage</h3>
-            <p>App-managed for v0.1, with explicit exports and a documented location.</p>
+            <h3>Where your work is kept</h3>
+            <p>
+              LocaLog manages this folder so that paths inside it stay valid, but it is yours and
+              you can look in it whenever you like.
+            </p>
           </div>
-          <span class="setting-value">Application data</span>
+          {#if workspacePath}
+            <button class="quiet-action" onclick={() => void onRevealWorkspace()}>
+              Show in Finder
+            </button>
+          {/if}
         </div>
+        {#if workspacePath}
+          <p class="setting-hint workspace-path">{workspacePath}</p>
+        {/if}
         <div class="notice-inline">
           LocaLog keeps managed copies of imported recordings, prepared audio, transcripts,
           protocols and downloaded models in its application-data folder. Exports are written only
@@ -651,21 +706,6 @@
         {/if}
         {#if backupNote}<p class="safe-note" role="status">{backupNote}</p>{/if}
         {#if backupError}<p class="setting-error" role="alert">{backupError}</p>{/if}
-      {:else if section === 'Privacy'}
-        <div class="setting-row">
-          <div>
-            <h3>Telemetry</h3>
-            <p>LocaLog does not include analytics, remote crash reporting, or cloud sync.</p>
-          </div>
-          <span class="safe-note"><Icon name="check" size={15} /> Off</span>
-        </div>
-        <div class="setting-row">
-          <div>
-            <h3>Content logging</h3>
-            <p>Transcript, protocol, and audio content stays out of ordinary logs.</p>
-          </div>
-          <span class="safe-note"><Icon name="check" size={15} /> Excluded</span>
-        </div>
       {:else if section === 'Appearance'}
         <div class="setting-row">
           <div>
@@ -688,14 +728,10 @@
             {/each}
           </div>
         </div>
-        <div class="setting-row">
-          <div>
-            <h3>Typeface</h3>
-            <p>The typeface ships with the application. No font is ever fetched.</p>
-          </div>
-          <span class="setting-value">Barlow</span>
-        </div>
-      {:else if !isNative}
+        <!-- Barlow ships with the application and no font is ever fetched, which is
+             a property of the build rather than something to choose. It sat here as a
+             row with a value on the right and no way to change it. -->
+      {:else if section === 'Advanced'}
         <div class="setting-row">
           <div>
             <h3>Next fake job</h3>

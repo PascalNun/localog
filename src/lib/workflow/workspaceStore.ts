@@ -118,6 +118,8 @@ export interface WorkspaceStore {
     instruction: string,
   ) => Promise<RefinedPassage>;
   recordingStatus(): Promise<RecordingStatus>;
+  workspaceLocation(): Promise<string>;
+  revealWorkspace(): Promise<void>;
   setProjectArchived(projectId: string, archived: boolean): Promise<WorkspaceData>;
   setMeetingArchived(meetingId: string, archived: boolean): Promise<WorkspaceData>;
   archivedWork(): Promise<ArchivedWork>;
@@ -386,6 +388,14 @@ class TauriWorkspaceStore implements WorkspaceStore {
 
   recordingStatus(): Promise<RecordingStatus> {
     return invoke('recording_status');
+  }
+
+  workspaceLocation(): Promise<string> {
+    return invoke('workspace_location');
+  }
+
+  revealWorkspace(): Promise<void> {
+    return invoke('reveal_workspace');
   }
 
   setProjectArchived(projectId: string, archived: boolean): Promise<WorkspaceData> {

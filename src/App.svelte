@@ -23,6 +23,7 @@
   import { documentFacts } from './lib/protocol/document';
   import type { ProtocolDocument } from './lib/protocol/document';
   import { printProtocol } from './lib/protocol/print';
+  import { transcriptToMarkdown, transcriptToText } from './lib/protocol/transcriptExport';
   import {
     DEFAULT_SIDEBAR_WIDTH,
     SIDEBAR_WIDTH_STORAGE_KEY,
@@ -36,6 +37,7 @@
   import { formatBytes } from './lib/bytes';
   import type {
     AppRoute,
+    ExportFormat,
     FakeJobOutcome,
     StyleEdit,
     RecordingStatus,
@@ -70,6 +72,13 @@
   /// So "auto" is a real choice and the default, and following the system means
   /// listening rather than reading once.
   let themeChoice: 'auto' | 'light' | 'dark' = 'auto';
+  /// Which export the protocol editor offers first.
+  ///
+  /// An interface preference rather than workspace data, so it lives beside the
+  /// theme in local storage: it describes how this person likes to work on this
+  /// machine, not anything about the meetings.
+  let defaultExport: ExportFormat = 'pdf';
+  let workspacePath: string | null = null;
 
   /// Whether anything is being recorded, known everywhere rather than only on the
   /// screen that started it.
@@ -296,6 +305,19 @@
 
     sidebarWidth = parseStoredSidebarWidth(localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
 
+    const savedExport = localStorage.getItem('localog-default-export');
+    if (
+      savedExport === 'pdf' ||
+      savedExport === 'docx' ||
+      savedExport === 'markdown' ||
+      savedExport === 'text'
+    ) {
+      defaultExport = savedExport;
+    }
+    void bridge
+      .workspaceLocation()
+      .then((where) => (workspacePath = where))
+      .catch(() => (workspacePath = null));
     const saved = localStorage.getItem('localog-theme');
     themeChoice = saved === 'light' || saved === 'dark' ? saved : 'auto';
     const system = window.matchMedia('(prefers-color-scheme: dark)');
@@ -537,10 +559,7 @@
     navigate(projectId ? { name: 'project', projectId } : { name: 'start' });
   }
 
-  async function exportProtocol(
-    format: 'pdf' | 'docx' | 'markdown' | 'text',
-    pageStarts: number[] = [],
-  ) {
+  async function exportProtocol(format: ExportFormat, pageStarts: number[] = []) {
     if (!meeting || !snapshot) return;
     const protocol = snapshot.protocols[meeting.id];
     if (!protocol) return;
@@ -789,6 +808,31 @@
       {:else if route.name === 'transcript' && project && meeting}
         <TranscriptView
           {protocolStyle}
+          onExportTranscript={async (format: 'markdown' | 'text') => {
+            const held = snapshot?.transcripts[meeting.id] ?? null;
+            if (!held || !project) return;
+            // Built here from the same document the screen is showing, and
+            // written by the same command that saves a Word file. A transcript
+            // rendered in Rust would be a second renderer to keep in agreement
+            // with this one, and the first would lose.
+            const context = {
+              meetingTitle: meeting.title,
+              projectName: project.name,
+              occurredAt: meeting.occurredAt,
+            };
+            const rendered =
+              format === 'markdown'
+                ? transcriptToMarkdown(held, context)
+                : transcriptToText(held, context);
+            const saved = await bridge.exportProtocolBytes(
+              new TextEncoder().encode(rendered),
+              `${meeting.title} transcript`,
+              format === 'markdown' ? 'md' : 'txt',
+              format === 'markdown' ? 'Markdown' : 'Plain text',
+            );
+            if (saved) announcement = 'Transcript exported';
+            else if (!isDesktop) announcement = 'Exporting needs the desktop application.';
+          }}
           onLoadAudio={(meetingId: string) => bridge.getMeetingAudio(meetingId)}
           onFindIntroductions={(meetingId: string) => bridge.findIntroductions(meetingId)}
           projectHasNames={Boolean(
@@ -834,6 +878,7 @@
             bridge.previewNameReplacement(text, wrong, right)}
           presets={appearancePresets}
           onApplyPreset={(presetId: string) => bridge.applyAppearancePreset(project.id, presetId)}
+          {defaultExport}
           onDeletePreset={async (presetId: string) => {
             appearancePresets = await bridge.deleteAppearancePreset(presetId);
           }}
@@ -904,6 +949,13 @@
               modelError = errorMessage(error);
             }
           }}
+          {defaultExport}
+          onChooseDefaultExport={(format: ExportFormat) => {
+            defaultExport = format;
+            localStorage.setItem('localog-default-export', format);
+          }}
+          {workspacePath}
+          onRevealWorkspace={() => bridge.revealWorkspace()}
           onArchivedWork={() => bridge.archivedWork()}
           onUnarchiveProject={(projectId) => bridge.setProjectArchived(projectId, false)}
           onUnarchiveMeeting={(meetingId) => bridge.setMeetingArchived(meetingId, false)}
