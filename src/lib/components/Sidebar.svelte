@@ -4,6 +4,7 @@
   import SidebarResizeHandle from './SidebarResizeHandle.svelte';
   import { clock } from '../time';
   import { formatBytes } from '../bytes';
+  import { t } from '../i18n';
 
   export let projects: ProjectSummary[];
   export let route: AppRoute;
@@ -99,10 +100,10 @@
 </script>
 
 {#if open}
-  <button class="sidebar-scrim" aria-label="Close navigation" onclick={onClose}></button>
+  <button class="sidebar-scrim" aria-label={$t.sidebar.closeNavigation} onclick={onClose}></button>
 {/if}
 
-<aside class:open class="sidebar" aria-label="Primary navigation">
+<aside class:open class="sidebar" aria-label={$t.sidebar.primaryNavigation}>
   <button class="wordmark" onclick={() => navigate({ name: 'start' })}>
     <!-- The application's own mark, the same seven bars as its icon and its start
          page, cropped to the middle five so it reads at the height of a word. -->
@@ -119,10 +120,10 @@
   <nav class="sidebar-nav">
     <section aria-labelledby="projects-label">
       <div class="nav-section-heading">
-        <span id="projects-label">Projects</span>
+        <span id="projects-label">{$t.sidebar.projects}</span>
         <button
           class="icon-button compact"
-          aria-label="Create project"
+          aria-label={$t.sidebar.createProject}
           onclick={() => navigate({ name: 'new-project', returnToImport: false })}
           ><Icon name="plus" size={15} /></button
         >
@@ -141,33 +142,33 @@
       <button
         class="text-action sidebar-action"
         onclick={() => navigate({ name: 'new-project', returnToImport: false })}
-        ><Icon name="plus" size={15} /> New project</button
+        ><Icon name="plus" size={15} /> {$t.sidebar.newProject}</button
       >
     </section>
 
     <section aria-labelledby="library-label">
-      <div class="nav-section-heading"><span id="library-label">Library</span></div>
+      <div class="nav-section-heading"><span id="library-label">{$t.sidebar.library}</span></div>
       <button
         class:active={route.name === 'styles'}
         class="nav-link"
         onclick={() => navigate({ name: 'styles' })}
-        ><Icon name="document" size={17} /> Protocol styles</button
+        ><Icon name="document" size={17} /> {$t.sidebar.protocolStyles}</button
       >
       <button
         class:active={route.name === 'vocabulary'}
         class="nav-link"
         onclick={() => navigate({ name: 'vocabulary' })}
-        ><Icon name="book" size={17} /> Names &amp; terms</button
+        ><Icon name="book" size={17} /> {$t.sidebar.namesAndTerms}</button
       >
     </section>
 
     <section aria-labelledby="settings-label">
-      <div class="nav-section-heading"><span id="settings-label">Settings</span></div>
+      <div class="nav-section-heading"><span id="settings-label">{$t.sidebar.settings}</span></div>
       <button
         class:active={route.name === 'settings'}
         class="nav-link"
         onclick={() => navigate({ name: 'settings' })}
-        ><Icon name="settings" size={17} /> Settings</button
+        ><Icon name="settings" size={17} /> {$t.sidebar.settings}</button
       >
     </section>
   </nav>
@@ -185,7 +186,7 @@
       >
         <span class="recording-dot"></span>
         <span
-          ><strong>Recording</strong><small
+          ><strong>{$t.sidebar.recording}</strong><small
             >{recordingMeeting ? `${recordingMeeting} · ` : ''}{clock(recording.seconds)}</small
           ></span
         >
@@ -214,11 +215,11 @@
       class="icon-button"
       onclick={onToggleTheme}
       aria-label={themeChoice === 'auto'
-        ? 'Following the system theme. Switch to always light.'
+        ? $t.sidebar.themeFollowingSystem
         : themeChoice === 'light'
-          ? 'Always light. Switch to always dark.'
-          : 'Always dark. Switch to following the system.'}
-      title={themeChoice === 'auto' ? 'Following the system' : `Always ${themeChoice}`}
+          ? $t.sidebar.themeAlwaysLight
+          : $t.sidebar.themeAlwaysDark}
+      title={themeChoice === 'auto' ? $t.sidebar.themeFollowingShort : `Always ${themeChoice}`}
       ><Icon name={THEME_ICON[themeChoice]} /></button
     >
   </div>

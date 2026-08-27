@@ -197,6 +197,26 @@ export const en = {
       'What LocaLog itself is written in. Separate from the language of each meeting.',
   },
 
+  /** The sidebar, which is on screen whatever else is. */
+  sidebar: {
+    projects: 'Projects',
+    newProject: 'New project',
+    createProject: 'Create project',
+    library: 'Library',
+    protocolStyles: 'Protocol styles',
+    namesAndTerms: 'Names & terms',
+    settings: 'Settings',
+    recording: 'Recording',
+    primaryNavigation: 'Primary navigation',
+    closeNavigation: 'Close navigation',
+    openNavigation: 'Open navigation',
+    themeFollowingSystem: 'Following the system theme. Switch to always light.',
+    themeAlwaysLight: 'Always light. Switch to always dark.',
+    themeAlwaysDark: 'Always dark. Switch to following the system.',
+    themeFollowingShort: 'Following the system',
+    resizeSidebar: 'Resize sidebar. Use arrow keys to adjust or Enter to reset.',
+  },
+
   start: {
     eyebrow: 'Local AI for private meeting protocols',
     title: 'Start a meeting',

@@ -200,6 +200,25 @@ export const de: Strings = {
       'In welcher Sprache LocaLog selbst geschrieben ist. Unabhängig von der Sprache der einzelnen Besprechung.',
   },
 
+  sidebar: {
+    projects: 'Projekte',
+    newProject: 'Neues Projekt',
+    createProject: 'Projekt anlegen',
+    library: 'Bibliothek',
+    protocolStyles: 'Protokollstile',
+    namesAndTerms: 'Namen & Begriffe',
+    settings: 'Einstellungen',
+    recording: 'Aufnahme läuft',
+    primaryNavigation: 'Hauptnavigation',
+    closeNavigation: 'Navigation schließen',
+    openNavigation: 'Navigation öffnen',
+    themeFollowingSystem: 'Folgt dem System. Umschalten auf immer hell.',
+    themeAlwaysLight: 'Immer hell. Umschalten auf immer dunkel.',
+    themeAlwaysDark: 'Immer dunkel. Umschalten auf dem System folgen.',
+    themeFollowingShort: 'Folgt dem System',
+    resizeSidebar: 'Seitenleiste anpassen. Mit den Pfeiltasten ändern, mit Enter zurücksetzen.',
+  },
+
   start: {
     eyebrow: 'Lokale KI für vertrauliche Besprechungsprotokolle',
     title: 'Besprechung beginnen',

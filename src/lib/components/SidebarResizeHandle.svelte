@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { t } from '../i18n';
   import {
     DEFAULT_SIDEBAR_WIDTH,
     MAX_SIDEBAR_WIDTH,
@@ -73,7 +74,7 @@
 <div
   class="sidebar-resize-handle"
   role="separator"
-  aria-label="Resize sidebar. Use arrow keys to adjust or Enter to reset."
+  aria-label={$t.sidebar.resizeSidebar}
   aria-orientation="vertical"
   aria-valuemin={MIN_SIDEBAR_WIDTH}
   aria-valuemax={MAX_SIDEBAR_WIDTH}
