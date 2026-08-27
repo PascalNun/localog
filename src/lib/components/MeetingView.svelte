@@ -20,11 +20,12 @@
   // of each, and showed the model in the recording's units until it was noticed that
   // the same two files read 46 MB here and 43 MB in Settings.
   import { formatModelSize } from '../models/modelSize';
+  import { t } from '../i18n';
 
   export let project: ProjectSummary;
   export let meeting: MeetingSummary;
   /** Resolved from the real transcription setting; never a fixed label. */
-  export let presetLabel: string = 'Not selected';
+  export let presetLabel: string = $t.meeting.notSelected;
   export let job: ActiveJob | null;
   export let onNavigate: (route: AppRoute) => void;
   export let onTranscribe: (speakers: SpeakerRequest) => Promise<void>;
@@ -66,7 +67,7 @@
             : Number(speakerChoice),
       );
     } catch {
-      transcriptionStartError = 'Transcription could not be started. Please try again.';
+      transcriptionStartError = $t.meeting.transcriptionFailedToStart;
     } finally {
       startingTranscription = false;
     }
@@ -95,14 +96,16 @@
       <div class="editable-title">
         {#if editingTitle}<input
             bind:value={titleDraft}
-            aria-label="Meeting title"
+            aria-label={$t.meeting.titleLabel}
             onkeydown={(event) => event.key === 'Enter' && saveTitle()}
-          /> <button class="text-action" onclick={saveTitle}>Save</button>{:else}<h1 tabindex="-1">
+          /> <button class="text-action" onclick={saveTitle}>{$t.meeting.save}</button>{:else}<h1
+            tabindex="-1"
+          >
             {meeting.title}
           </h1>
           <button
             class="icon-button compact"
-            aria-label="Edit meeting title"
+            aria-label={$t.meeting.editTitle}
             onclick={() => (editingTitle = true)}>✎</button
           >{/if}
       </div>
@@ -111,12 +114,15 @@
         {#if editingLanguage}<input
             bind:value={languageDraft}
             list="meeting-view-languages"
-            aria-label="Meeting language"
+            aria-label={$t.meeting.languageLabel}
           /><datalist id="meeting-view-languages">
             {#each COMMON_MEETING_LANGUAGES as language (language)}<option value={language}
               ></option>{/each}
-          </datalist><button class="text-action" onclick={saveLanguage}>Save language</button
-          ><button class="text-action" onclick={() => (editingLanguage = false)}>Cancel</button>
+          </datalist><button class="text-action" onclick={saveLanguage}
+            >{$t.meeting.saveLanguage}</button
+          ><button class="text-action" onclick={() => (editingLanguage = false)}
+            >{$t.meeting.cancel}</button
+          >
         {:else}<button
             class="inline-setting"
             disabled={transcriptionUnavailable}
@@ -124,7 +130,7 @@
               languageDraft = meeting.language;
               editingLanguage = true;
             }}
-            aria-label="Change meeting language">{meetingLanguageLabel(meeting.language)}</button
+            aria-label={$t.meeting.changeLanguage}>{meetingLanguageLabel(meeting.language)}</button
           >{/if} · {meeting.durationLabel ?? 'Duration pending'}
       </p>
       {#if languageError}<p class="form-error" role="alert">{languageError}</p>{/if}
@@ -145,23 +151,22 @@
       <!-- A meeting created to be recorded rather than imported: no file was chosen,
            so there is nothing being copied and the next step is the recorder. -->
       <div class="stage-message">
-        <p class="eyebrow">Recording</p>
-        <h2>Nothing recorded yet</h2>
+        <p class="eyebrow">{$t.meeting.recordingEyebrow}</p>
+        <h2>{$t.meeting.nothingRecorded}</h2>
         <p>
-          The room and the call will be captured on separate tracks, on this device. You can stop
-          whenever the meeting ends.
+          {$t.meeting.recordLead}
         </p>
         <button
           class="primary-action"
           onclick={() => onNavigate({ name: 'recording', meetingId: meeting.id })}
         >
-          Record this meeting
+          {$t.meeting.recordThisMeeting}
         </button>
       </div>
     {:else if meeting.lifecycle === 'draft'}
       <div class="stage-message">
-        <p class="eyebrow">Source import</p>
-        <h2>Your original remains unchanged</h2>
+        <p class="eyebrow">{$t.meeting.sourceImport}</p>
+        <h2>{$t.meeting.originalUnchanged}</h2>
         <p>
           {#if relevantJob?.state === 'interrupted'}LocaLog was closed before the managed copy was
             committed. The meeting remains in Draft and the import can be retried safely.{:else if relevantJob?.state === 'cancelled'}The
@@ -174,8 +179,8 @@
       </div>
     {:else if meeting.lifecycle === 'source_ready'}
       <div class="stage-message">
-        <p class="eyebrow">Source ready</p>
-        <h2>Ready to transcribe</h2>
+        <p class="eyebrow">{$t.meeting.sourceReady}</p>
+        <h2>{$t.meeting.readyToTranscribe}</h2>
         <p>
           {#if meeting.sourceByteCount !== null}<strong>{meeting.sourceName}</strong> is safely stored
             with this meeting. The external original was not modified.{:else}<strong
@@ -184,7 +189,7 @@
         </p>
         <dl class="resolved-settings">
           <div>
-            <dt>Managed source</dt>
+            <dt>{$t.meeting.managedSource}</dt>
             <dd>
               {meeting.sourceByteCount === null
                 ? 'Synthetic fixture'
@@ -194,23 +199,21 @@
             </dd>
           </div>
           <div>
-            <dt>Language</dt>
+            <dt>{$t.meeting.language}</dt>
             <dd>
-              {meetingLanguageLabel(meeting.language)}<small
-                >Meeting setting · change above before transcribing</small
-              >
+              {meetingLanguageLabel(meeting.language)}<small>{$t.meeting.languageHint}</small>
             </dd>
           </div>
           <div>
-            <dt>Preset</dt>
-            <dd>{presetLabel}<small>Global default</small></dd>
+            <dt>{$t.meeting.preset}</dt>
+            <dd>{presetLabel}<small>{$t.meeting.globalDefault}</small></dd>
           </div>
         </dl>
         <label class="transcription-option">
-          <span>People speaking</span>
+          <span>{$t.meeting.peopleSpeaking}</span>
           <select bind:value={speakerChoice}>
-            <option value="">Do not separate speakers</option>
-            <option value="estimate">Separate them, and work out how many</option>
+            <option value="">{$t.meeting.doNotSeparate}</option>
+            <option value="estimate">{$t.meeting.separateAndCount}</option>
             {#each Array.from({ length: 29 }, (_, index) => index + 2) as count (count)}
               <option value={count}>{count} people</option>
             {/each}
@@ -226,10 +229,9 @@
         {#if speakerNeedsPreparation}
           <div class="speaker-preparation" role="status">
             <div>
-              <strong>Prepare speaker separation</strong>
+              <strong>{$t.meeting.prepareSpeakers}</strong>
               <p>
-                LocaLog needs two verified local model files before it can add provisional speaker
-                labels. Your recording stays on this device.
+                {$t.meeting.prepareSpeakersDetail}
               </p>
             </div>
             <button
@@ -237,14 +239,15 @@
               onclick={onPrepareSpeakerModels}
               disabled={speakerPreparing}
               >{speakerPreparing
-                ? `Preparing ${speakerDownloadPercent}%`
-                : `Prepare${speakerStatus.downloadBytes > 0 ? ` (${formatModelSize(speakerStatus.downloadBytes)})` : ''}`}</button
+                ? $t.meeting.preparing(speakerDownloadPercent)
+                : speakerStatus.downloadBytes > 0
+                  ? $t.meeting.prepareWithSize(formatModelSize(speakerStatus.downloadBytes))
+                  : $t.meeting.prepare}</button
             >
           </div>
         {:else if speakerChoice && !speakerStatus.runtimeHealthy}
           <p class="setting-hint speaker-runtime-note">
-            The speaker runtime is not available in this installation. Transcription can continue,
-            but the transcript will use editable generic speaker labels.
+            {$t.meeting.speakerRuntimeMissing}
           </p>
         {/if}
         <button
@@ -252,12 +255,12 @@
           onclick={startTranscription}
           disabled={startingTranscription || transcriptionUnavailable || speakerNeedsPreparation}
           >{startingTranscription
-            ? 'Getting ready to transcribe…'
+            ? $t.meeting.gettingReady
             : transcriptionUnavailable
-              ? 'Use the job controls above'
+              ? $t.meeting.useJobControls
               : speakerNeedsPreparation
-                ? 'Prepare speaker separation first'
-                : 'Transcribe'}
+                ? $t.meeting.prepareSpeakersFirst
+                : $t.meeting.transcribe}
           <Icon name="arrow" /></button
         >
         {#if transcriptionStartError}<p class="form-error" role="alert">
@@ -267,31 +270,31 @@
           <button
             class="text-action"
             onclick={() => onNavigate({ name: 'recording-review', meetingId: meeting.id })}
-            >Review and trim the recording first</button
+            >{$t.meeting.reviewAndTrim}</button
           > — cut the wait before the meeting starts and anything it does not need. Your recording is
           never changed.
         </p>
       </div>
     {:else if meeting.lifecycle === 'transcript_ready'}
       <div class="stage-message">
-        <p class="eyebrow">Transcript ready</p>
-        <h2>Review before generation</h2>
-        <p>The timestamped transcript is ready for corrections and manual speaker mapping.</p>
+        <p class="eyebrow">{$t.meeting.transcriptReady}</p>
+        <h2>{$t.meeting.reviewBeforeGeneration}</h2>
+        <p>{$t.meeting.transcriptReadyDetail}</p>
         <button
           class="primary-action"
           onclick={() => onNavigate({ name: 'transcript', meetingId: meeting.id })}
-          >Review transcript <Icon name="arrow" /></button
+          >{$t.meeting.reviewTranscript} <Icon name="arrow" /></button
         >
       </div>
     {:else}
       <div class="stage-message">
-        <p class="eyebrow">Protocol available</p>
-        <h2>Continue in the document editor</h2>
-        <p>The transcript remains available alongside the current protocol revision.</p>
+        <p class="eyebrow">{$t.meeting.protocolAvailable}</p>
+        <h2>{$t.meeting.continueInEditor}</h2>
+        <p>{$t.meeting.protocolDetail}</p>
         <button
           class="primary-action"
           onclick={() => onNavigate({ name: 'protocol', meetingId: meeting.id })}
-          >Open protocol <Icon name="arrow" /></button
+          >{$t.meeting.openProtocol} <Icon name="arrow" /></button
         >
       </div>
     {/if}
