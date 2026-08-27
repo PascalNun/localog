@@ -823,7 +823,14 @@ the thing they describe rather than by remembering it.
   the current workspace aside rather than deleting it.
 - The final public protocol-generation runtime is undecided; Ollama is for development
   and early technical previews.
-- Real English end-to-end quality evidence is still missing. This is criterion 8 in
+- Real English end-to-end quality evidence is still missing.
+- **The interface is English only.** Meetings can be transcribed in twelve
+  languages and the protocol is written in the meeting's language, but every word
+  of the application around them is English — in a product written for German
+  offices. A settings row said "Interface language: English" with no way to change
+  it, which was worse than saying nothing, and was removed on 27 August 2026 rather
+  than wired to a menu: the work is translating every string, not adding a control.
+  It should be sized properly before it is started. This is criterion 8 in
   `MVP.md` and the only one of the ten that is open and actionable.
 - The application is not signed. It is ad-hoc signed, which runs here and is refused
   on anybody else's Mac, and there is no Developer ID on this machine. This is the
