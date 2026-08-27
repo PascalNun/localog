@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { AppRoute, MeetingLifecycle } from '../workflow/types';
   import Icon from './Icon.svelte';
+  import { t } from '../i18n';
 
   export let meetingId: string;
   export let lifecycle: MeetingLifecycle;
@@ -11,24 +12,24 @@
   const protocolReady = () => ['protocol_draft', 'reviewed'].includes(lifecycle);
 </script>
 
-<nav class="stage-rail" aria-label="Meeting stages">
+<nav class="stage-rail" aria-label={$t.stages.label}>
   <button
     class:complete={lifecycle !== 'draft'}
     onclick={() => onNavigate({ name: 'meeting', meetingId })}
-    ><span>{lifecycle !== 'draft' ? '✓' : '1'}</span>Source</button
+    ><span>{lifecycle !== 'draft' ? '✓' : '1'}</span>{$t.stages.source}</button
   >
   <Icon name="chevron" size={14} />
   <button
     class:complete={transcriptReady()}
     disabled={!transcriptReady()}
     onclick={() => onNavigate({ name: 'transcript', meetingId })}
-    ><span>{transcriptReady() ? '✓' : '2'}</span>Transcript</button
+    ><span>{transcriptReady() ? '✓' : '2'}</span>{$t.stages.transcript}</button
   >
   <Icon name="chevron" size={14} />
   <button
     class:complete={protocolReady()}
     disabled={!protocolReady()}
     onclick={() => onNavigate({ name: 'protocol', meetingId })}
-    ><span>{protocolReady() ? '✓' : '3'}</span>Protocol</button
+    ><span>{protocolReady() ? '✓' : '3'}</span>{$t.stages.protocol}</button
   >
 </nav>

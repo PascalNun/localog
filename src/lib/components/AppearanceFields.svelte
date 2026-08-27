@@ -1,6 +1,7 @@
 <script lang="ts">
   import { APPEARANCE_CHOICES } from '../protocol/appearance';
   import type { DocumentAppearance } from '../workflow/types';
+  import { t } from '../i18n';
 
   export let appearance: DocumentAppearance;
   export let projectName: string;
@@ -20,10 +21,18 @@
   /// through the option list rather than used directly.
   const ROWS = [
     { key: 'font', label: 'Font', choices: APPEARANCE_CHOICES.font },
-    { key: 'bodySize', label: 'Body size', choices: APPEARANCE_CHOICES.bodySize },
-    { key: 'headingScale', label: 'Heading scale', choices: APPEARANCE_CHOICES.headingScale },
-    { key: 'lineSpacing', label: 'Line spacing', choices: APPEARANCE_CHOICES.lineSpacing },
-    { key: 'pageWidth', label: 'Page width', choices: APPEARANCE_CHOICES.pageWidth },
+    { key: 'bodySize', label: $t.appearance.bodySize, choices: APPEARANCE_CHOICES.bodySize },
+    {
+      key: 'headingScale',
+      label: $t.appearance.headingScale,
+      choices: APPEARANCE_CHOICES.headingScale,
+    },
+    {
+      key: 'lineSpacing',
+      label: $t.appearance.lineSpacing,
+      choices: APPEARANCE_CHOICES.lineSpacing,
+    },
+    { key: 'pageWidth', label: $t.appearance.pageWidth, choices: APPEARANCE_CHOICES.pageWidth },
   ] as const;
 </script>
 

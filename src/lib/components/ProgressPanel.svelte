@@ -2,6 +2,7 @@
   import type { ActiveJob } from '../workflow/types';
   import Icon from './Icon.svelte';
   import { formatBytes } from '../bytes';
+  import { t } from '../i18n';
 
   export let job: ActiveJob;
   export let onCancel: () => Promise<void>;
@@ -11,25 +12,25 @@
 
   $: kindLabel =
     job.kind === 'import'
-      ? 'Importing recording'
+      ? $t.progress.importing
       : job.kind === 'transcription'
-        ? 'Transcribing'
-        : 'Generating protocol';
+        ? $t.progress.transcribing
+        : $t.progress.generating;
 
   $: byteProgress =
     job.kind === 'import' && job.totalBytes !== null
       ? `${formatBytes(job.progressBytes)} of ${formatBytes(job.totalBytes)}`
       : job.stage.toLowerCase().includes('speaker')
-        ? 'Working…'
+        ? $t.progress.working
         : `${job.progress}%`;
   $: indeterminate = job.stage.toLowerCase().includes('speaker');
-  $: stageLabel = indeterminate ? 'Separating speakers' : job.stage;
+  $: stageLabel = indeterminate ? $t.progress.separatingSpeakers : job.stage;
   $: continueLabel =
     job.kind === 'import'
-      ? 'Continue import'
+      ? $t.progress.continueImport
       : job.kind === 'transcription'
-        ? 'Start transcription again'
-        : 'Start generation again';
+        ? $t.progress.transcribeAgain
+        : $t.progress.generateAgain;
 </script>
 
 <section
@@ -44,11 +45,11 @@
   </div>
   {#if job.requiresDuplicateConfirmation}
     <div class="progress-actions duplicate-actions">
-      <span class="safe-note"
-        >The same content is already stored in LocaLog. Nothing has been merged or discarded.</span
-      ><button class="secondary-action" onclick={onCancel}>Cancel import</button><button
-        class="primary-action"
-        onclick={onConfirmDuplicate}>Import another copy</button
+      <span class="safe-note">{$t.progress.duplicateNote}</span><button
+        class="secondary-action"
+        onclick={onCancel}>{$t.progress.cancelImport}</button
+      ><button class="primary-action" onclick={onConfirmDuplicate}
+        >{$t.progress.importAnotherCopy}</button
       >
     </div>
   {:else if ['failed', 'interrupted', 'cancelled'].includes(job.state) || (job.state === 'queued' && job.progressBytes === 0)}
@@ -59,7 +60,7 @@
           : ''}</span
       >{#if ['source_missing', 'source_reselection_required'].includes(job.error?.code ?? '')}<button
           class="secondary-action"
-          onclick={onReselectSource}>Choose source again</button
+          onclick={onReselectSource}>{$t.progress.chooseSourceAgain}</button
         >{/if}{#if job.error?.code !== 'source_reselection_required'}<button
           class="primary-action"
           onclick={onRetry}>{job.state === 'queued' ? continueLabel : 'Retry'}</button
@@ -84,7 +85,7 @@
         role="progressbar"
         aria-label={kindLabel}
         aria-valuenow={indeterminate ? undefined : job.progress}
-        aria-valuetext={indeterminate ? 'Separating speakers' : `${job.progress}%`}
+        aria-valuetext={indeterminate ? $t.progress.separatingSpeakers : `${job.progress}%`}
         aria-valuemin="0"
         aria-valuemax="100"
       >

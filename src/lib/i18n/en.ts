@@ -239,6 +239,51 @@ export const en = {
       'A section set aside leaves the document, so what you read is still exactly what is exported. It is kept here and can be put back.',
   },
 
+  stages: {
+    label: 'Meeting stages',
+    source: 'Source',
+    transcript: 'Transcript',
+    protocol: 'Protocol',
+  },
+
+  progress: {
+    importing: 'Importing recording',
+    transcribing: 'Transcribing',
+    generating: 'Generating protocol',
+    separatingSpeakers: 'Separating speakers',
+    working: 'Working…',
+    duplicateNote:
+      'The same content is already stored in LocaLog. Nothing has been merged or discarded.',
+    cancelImport: 'Cancel import',
+    importAnotherCopy: 'Import another copy',
+    chooseSourceAgain: 'Choose source again',
+    continueImport: 'Continue import',
+    transcribeAgain: 'Start transcription again',
+    generateAgain: 'Start generation again',
+  },
+
+  newProject: {
+    eyebrow: 'Projects',
+    title: 'New project',
+    lead: 'Create the professional context that meetings and sources belong to.',
+    defaults: 'Project defaults',
+    name: 'Project name',
+    namePlaceholder: 'e.g. Community hall study',
+    description: 'Description',
+    descriptionOptional: 'optional',
+    descriptionPlaceholder: 'A concise internal description',
+    defaultLanguage: 'Default meeting language',
+    defaultLanguageDetail: 'Independent from the application interface language.',
+    cancel: 'Cancel',
+  },
+
+  appearance: {
+    bodySize: 'Body size',
+    headingScale: 'Heading scale',
+    lineSpacing: 'Line spacing',
+    pageWidth: 'Page width',
+  },
+
   sidebar: {
     projects: 'Projects',
     newProject: 'New project',

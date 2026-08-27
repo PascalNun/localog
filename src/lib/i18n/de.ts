@@ -242,6 +242,51 @@ export const de: Strings = {
       'Ein zurückgelegter Abschnitt verlässt das Dokument — was Sie lesen, ist also genau das, was exportiert wird. Er bleibt hier erhalten und kann zurückgeholt werden.',
   },
 
+  stages: {
+    label: 'Schritte der Besprechung',
+    source: 'Quelle',
+    transcript: 'Transkript',
+    protocol: 'Protokoll',
+  },
+
+  progress: {
+    importing: 'Aufnahme wird importiert',
+    transcribing: 'Transkription läuft',
+    generating: 'Protokoll wird erzeugt',
+    separatingSpeakers: 'Sprecher werden getrennt',
+    working: 'Wird bearbeitet …',
+    duplicateNote:
+      'Derselbe Inhalt liegt bereits in LocaLog. Es wurde nichts zusammengeführt und nichts verworfen.',
+    cancelImport: 'Import abbrechen',
+    importAnotherCopy: 'Weitere Kopie importieren',
+    chooseSourceAgain: 'Quelle erneut wählen',
+    continueImport: 'Import fortsetzen',
+    transcribeAgain: 'Transkription erneut starten',
+    generateAgain: 'Erzeugung erneut starten',
+  },
+
+  newProject: {
+    eyebrow: 'Projekte',
+    title: 'Neues Projekt',
+    lead: 'Legen Sie den fachlichen Zusammenhang an, zu dem Besprechungen und Quellen gehören.',
+    defaults: 'Projektvorgaben',
+    name: 'Projektname',
+    namePlaceholder: 'z. B. Studie Bürgerhaus',
+    description: 'Beschreibung',
+    descriptionOptional: 'optional',
+    descriptionPlaceholder: 'Eine knappe interne Beschreibung',
+    defaultLanguage: 'Standardsprache der Besprechung',
+    defaultLanguageDetail: 'Unabhängig von der Sprache der Oberfläche.',
+    cancel: 'Abbrechen',
+  },
+
+  appearance: {
+    bodySize: 'Schriftgröße',
+    headingScale: 'Überschriften',
+    lineSpacing: 'Zeilenabstand',
+    pageWidth: 'Satzbreite',
+  },
+
   sidebar: {
     projects: 'Projekte',
     newProject: 'Neues Projekt',

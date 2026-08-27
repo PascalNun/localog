@@ -3,6 +3,7 @@
   import { COMMON_MEETING_LANGUAGES, DETECT_LANGUAGE_LABEL } from '../workflow/languages';
   import Icon from './Icon.svelte';
   import { errorMessage } from '../errors';
+  import { t } from '../i18n';
 
   export let returnToImport: boolean;
   export let onCancel: () => void;
@@ -34,37 +35,38 @@
 <main class="workspace narrow-workspace" id="main-content">
   <header class="workspace-header compact-header">
     <div>
-      <p class="eyebrow">Projects</p>
-      <h1 tabindex="-1">New project</h1>
-      <p>Create the professional context that meetings and sources belong to.</p>
+      <p class="eyebrow">{$t.newProject.eyebrow}</p>
+      <h1 tabindex="-1">{$t.newProject.title}</h1>
+      <p>{$t.newProject.lead}</p>
     </div>
   </header>
   <form class="editorial-form" onsubmit={submit}>
     <label
-      ><span>Project name</span><input
+      ><span>{$t.newProject.name}</span><input
         bind:value={name}
-        placeholder="e.g. Community hall study"
+        placeholder={$t.newProject.namePlaceholder}
         required
       /></label
     >
     <label
-      ><span>Description <em>optional</em></span><textarea
+      ><span>{$t.newProject.description} <em>{$t.newProject.descriptionOptional}</em></span
+      ><textarea
         bind:value={description}
         rows="3"
-        placeholder="A concise internal description"></textarea></label
+        placeholder={$t.newProject.descriptionPlaceholder}></textarea></label
     >
     <label
-      ><span>Default meeting language</span><input
+      ><span>{$t.newProject.defaultLanguage}</span><input
         bind:value={defaultLanguage}
         list="project-languages"
         placeholder={DETECT_LANGUAGE_LABEL}
       /><datalist id="project-languages">
         {#each COMMON_MEETING_LANGUAGES as language (language)}<option value={language}
           ></option>{/each}
-      </datalist><small>Independent from the application interface language.</small></label
+      </datalist><small>{$t.newProject.defaultLanguageDetail}</small></label
     >
     <details class="advanced-disclosure">
-      <summary>Project defaults</summary>
+      <summary>{$t.newProject.defaults}</summary>
       <p>
         A protocol style, and the names and terms this work uses, can be set for the project after
         it is created. The names are worth a minute: they are what transcription cannot guess.
@@ -72,10 +74,9 @@
     </details>
     {#if submitError}<p class="form-error" role="alert">{submitError}</p>{/if}
     <footer class="form-actions">
-      <button type="button" class="secondary-action" onclick={onCancel}>Cancel</button><button
-        class="primary-action"
-        type="submit"
-        disabled={!name.trim() || submitting}
+      <button type="button" class="secondary-action" onclick={onCancel}
+        >{$t.newProject.cancel}</button
+      ><button class="primary-action" type="submit" disabled={!name.trim() || submitting}
         >{submitting ? 'Creating…' : returnToImport ? 'Create and continue' : 'Create project'}
         <Icon name="arrow" /></button
       >
