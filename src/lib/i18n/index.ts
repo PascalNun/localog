@@ -110,16 +110,27 @@ export function startLanguage() {
 /**
  * The sentence for something that failed in the backend.
  *
- * Rust returns a code — `missingProject` — and never a sentence, so that the
- * application can be translated without the backend knowing or caring which
- * language the interface is in. A code with no entry here is shown as itself:
- * ugly, and far better than an empty dialog, because it names exactly what to
- * look up.
+ * Rust returns a key — `missingProject`, or `backupDamaged:projects/a.wav` —
+ * and never a sentence, so the application can be translated without the
+ * backend knowing or caring which language the interface is in.
+ *
+ * The detail is whatever follows the *first* colon, because a detail is often a
+ * path and a path contains colons. A key with nothing to render it comes back as
+ * itself: ugly on screen, and far better than an empty dialog, because it names
+ * exactly what to add to the dictionary.
  */
-export function failureText(code: string, detail?: number): string {
-  const table = get(t).failures as Record<string, unknown>;
-  const found = table[code];
-  if (typeof found === 'function') return (found as (value: number) => string)(detail ?? 0);
+export function failureText(raw: string): string {
+  const at = raw.indexOf(':');
+  const code = at === -1 ? raw : raw.slice(0, at);
+  const detail = at === -1 ? '' : raw.slice(at + 1);
+  const found = (get(t).failures as Record<string, unknown>)[code];
+  if (typeof found === 'function') return (found as (value: string) => string)(detail);
   if (typeof found === 'string') return found;
-  return code;
+  return raw;
+}
+
+/** Whether a string is a key this can render, rather than text to show as it is. */
+export function isFailureCode(raw: string): boolean {
+  const code = raw.includes(':') ? raw.slice(0, raw.indexOf(':')) : raw;
+  return Object.prototype.hasOwnProperty.call(get(t).failures, code);
 }

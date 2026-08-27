@@ -34,7 +34,7 @@ const failures = {
   missingJob: 'Der Importvorgang ist nicht mehr verfügbar.',
   importBusy:
     'Es wird bereits eine Aufnahme importiert. Schließen Sie diesen Vorgang ab oder brechen Sie ihn ab.',
-  unsupportedSchema: (version: number) =>
+  unsupportedSchema: (version: string) =>
     `Diese LocaLog-Daten stammen aus einer neueren, nicht unterstützten Version (${version}).`,
   storageUnavailable: 'LocaLog konnte nicht auf seinen lokalen Arbeitsbereich zugreifen.',
 
@@ -79,6 +79,116 @@ const failures = {
     'Starten Sie Ihre vorhandene Ollama-Installation, bevor Sie die Vorstellungsrunde lesen.',
   providerModelRequired:
     'Wählen Sie in den Einstellungen unter „Protokollerzeugung“ ein installiertes Ollama-Modell.',
+
+  // Validierung und Speicherung.
+  styleNotMigrated: 'Ein Stil konnte nicht übernommen werden.',
+  termMissing: 'Dieser Begriff existiert nicht mehr.',
+  exportFormatInvalid: 'Wählen Sie ein gültiges Exportformat.',
+  meetingDateInvalid: 'Wählen Sie ein gültiges Datum für die Besprechung.',
+  scopeInvalid: 'Wählen Sie einen gültigen Geltungsbereich.',
+  sourceFileInvalid: 'Wählen Sie eine gültige Quelldatei.',
+  workspaceViewInvalid: 'Wählen Sie eine gültige Ansicht.',
+  recordingUnreadable: 'Diese Aufnahme konnte nicht gelesen werden.',
+  appearanceNotSaved: 'Das Erscheinungsbild konnte nicht gespeichert werden.',
+  furnitureNotSaved: 'Kopf- und Fußzeile konnten nicht gespeichert werden.',
+  documentOperationFailed: 'Der Vorgang am Dokument konnte nicht abgeschlossen werden.',
+  providerConfigNotSaved:
+    'Die Einstellungen zur Protokollerzeugung konnten nicht gespeichert werden.',
+  runtimeConfigNotSaved: 'Die Einstellungen zur Transkription konnten nicht gespeichert werden.',
+  recorderNotStarted: 'Die Aufnahme konnte nicht gestartet werden.',
+  tracksNotCombined: 'Die Spuren der Aufnahme konnten nicht zusammengeführt werden.',
+  protocolInvalid: 'Das gespeicherte Protokoll ist ungültig.',
+  protocolNotUtf8: 'Das gespeicherte Protokoll ist kein gültiges UTF-8.',
+  editsNotRecorded: 'Diese Änderungen konnten nicht festgehalten werden.',
+
+  // Fehler aus der Befehlsschicht.
+  recordingAlreadyRunning: 'Es wird bereits eine Besprechung aufgenommen.',
+  presetUnknown: 'Wählen Sie eine bekannte Transkriptionsqualität.',
+  providerModelNotInstalled: 'Wählen Sie ein Modell, das in Ollama bereits installiert ist.',
+  diariserPathInvalid: 'Wählen Sie ein vorhandenes Programm zur Sprechertrennung.',
+  whisperPathInvalid: 'Wählen Sie eine vorhandene whisper.cpp-Anwendung.',
+  nothingRecording: 'Es wird gerade nichts aufgenommen.',
+  revealOnlyOnMac:
+    'Das Öffnen des Ordners ist bisher nur unter macOS eingerichtet. Der Pfad oben stimmt.',
+  privacySettingsOnlyOnMac:
+    'Das Öffnen der Datenschutzeinstellungen ist bisher nur unter macOS eingerichtet.',
+  providerNeededForModel:
+    'Starten Sie Ihre vorhandene Ollama-Installation, bevor Sie ein Modell wählen.',
+  settingsNotOpened: 'Die Systemeinstellungen konnten nicht geöffnet werden.',
+  presetMissing: 'Diese Voreinstellung ist nicht mehr verfügbar.',
+  downloadStopped: 'Der Download wurde unerwartet beendet.',
+  coordinatorUnavailable: 'LocaLog konnte den Vorgang nicht starten. Starten Sie LocaLog neu.',
+  taskStopped: 'Ein interner Vorgang wurde unerwartet beendet.',
+  recorderPermissionsUnknown: 'Die Aufnahme konnte nicht nach ihren Berechtigungen gefragt werden.',
+  recorderStateUnknown: 'Die Aufnahme ist in einem unbekannten Zustand. Starten Sie LocaLog neu.',
+  recordingNotFinished: 'Die Aufnahme konnte nicht abgeschlossen werden.',
+  replacementNotPrepared: 'Die Ersetzung konnte nicht vorbereitet werden.',
+  workspaceNotOpened: 'Der Ordner konnte nicht geöffnet werden.',
+  settingsPaneUnknown: 'Diesen Einstellungsbereich gibt es nicht.',
+  meetingBusy: 'An dieser Besprechung wird noch gearbeitet. Brechen Sie das zuerst ab.',
+  printDialogUnavailable: 'Dieses Fenster konnte den Druckdialog nicht öffnen.',
+
+  // Sichern und Zurückspielen.
+  backupNameUnsafe: 'Dieser Name kann nicht als Ordnername verwendet werden.',
+  notABackup: 'Dieser Ordner ist keine LocaLog-Sicherung: Es fehlt die Datei manifest.json.',
+  backupPathOutside: (path: string) =>
+    `Diese Sicherung nennt eine Datei außerhalb ihres eigenen Ordners (${path}) und wurde deshalb nicht zurückgespielt.`,
+  backupFormatUnknown: (format: string) =>
+    `Diese Sicherung wurde im Format ${format} geschrieben, das diese LocaLog-Version nicht lesen kann. Eine neuere kann es.`,
+  backupDamaged: (what: string) =>
+    `Diese Sicherung ist unvollständig oder beschädigt (${what}). Es wurde nichts geändert, Ihre laufende Arbeit ist unberührt.`,
+  backupNameTaken: (name: string) => `In diesem Ordner gibt es bereits etwas namens „${name}“.`,
+  backupIoFailed: (what: string) =>
+    `Die Sicherung konnte nicht geschrieben oder gelesen werden: ${what}`,
+  backupDatabaseFailed: (what: string) => `Die Datenbank konnte nicht kopiert werden: ${what}`,
+
+  // Die Verarbeitung: Audio, Modelle, lokales Modell, Aufnahme.
+  embeddingsUnrecognisable: 'Die Sprechererkennung hat keine lesbaren Stimmprofile geschrieben.',
+  embeddingsNoDimensions: 'Die Stimmprofile beschreiben keine Dimensionen.',
+  embeddingsTruncated: 'Die Stimmprofile sind kürzer, als sie angeben.',
+  probeInvalid: 'Die Medienprüfung hat ungültige Angaben zurückgegeben.',
+  cachePathInvalid: 'Der Pfad zur aufbereiteten Audiodatei ist ungültig.',
+  normalizerNoOutput: 'Die Audioaufbereitung hat keine Datei erzeugt.',
+  speakerPassNoAudio: 'Für die Sprechererkennung ist nichts zu hören.',
+  speakerPassTooMuchAudio:
+    'Die Sprechererkennung hat mehr Audio geplant, als gehalten werden kann.',
+  recordingEmpty: 'Die Aufnahme wurde als leere Datei gespeichert.',
+  editsLeaveNothing: 'Nach diesen Änderungen bliebe von der Aufnahme nichts übrig.',
+  workingAudioUnreadable: 'Die Arbeitsdatei ist keine lesbare WAV-Datei.',
+  workingAudioNotWav: 'Die Arbeitsdatei ist keine WAV-Datei.',
+  workingAudioSilent: 'Die Arbeitsdatei enthält kein Audio.',
+  workingAudioFormatUnreadable: 'Die Arbeitsdatei hat ein unlesbares Format.',
+  workingAudioNoFormat: 'Die Arbeitsdatei beschreibt kein Format.',
+  condensedAudioTooLarge: 'Das zusammengefasste Audio ist zu groß zum Schreiben.',
+  combinedPathInvalid: 'Der Pfad zur zusammengeführten Aufnahme ist ungültig.',
+  modelUnknown: 'Dieses Transkriptionsmodell ist nicht bekannt.',
+  downloadCancelled: 'Der Download wurde abgebrochen.',
+  downloadCorrupt: 'Der Download war unvollständig oder beschädigt und wurde verworfen.',
+  ollamaModelGone:
+    'Das gewählte Ollama-Modell ist nicht mehr installiert. Wählen Sie ein anderes und versuchen Sie es erneut.',
+  ollamaModelChanged:
+    'Das gewählte Ollama-Modell hat sich geändert, nachdem dieser Vorgang eingereiht wurde. Versuchen Sie es erneut.',
+  ollamaRuntimeChanged:
+    'Die Ollama-Laufzeit hat sich geändert, nachdem dieser Vorgang eingereiht wurde. Versuchen Sie es erneut.',
+  responseTooLarge:
+    'Die Antwort des lokalen Modells hat die sichere Grenze überschritten und wurde nicht übernommen.',
+  responseIncomplete:
+    'Das lokale Modell hat abgebrochen, bevor ein vollständiges Protokoll vorlag.',
+  recorderMissing:
+    'Es ist keine Aufnahmekomponente installiert. LocaLog liefert eine mit, dieser Build findet sie nicht.',
+  recorderSilentAboutPermissions: 'Die Aufnahmekomponente hat nicht mitgeteilt, was sie darf.',
+  recorderCannotReportPermissions: 'Diese Aufnahmekomponente kann nicht mitteilen, was sie darf.',
+  runtimePathsMustBeAbsolute:
+    'Wählen Sie absolute Pfade für die whisper.cpp-Anwendung und das Modell.',
+  whisperExecutableMissing: 'Die gewählte whisper.cpp-Anwendung wurde nicht gefunden.',
+  whisperModelMissing: 'Das gewählte whisper.cpp-Modell wurde nicht gefunden.',
+  embeddingsVersion: (version: string) =>
+    `Diese Stimmprofile haben Version ${version}, die dieser Build nicht liest.`,
+  recordingTooSmall: (what: string) =>
+    `Die gespeicherte Aufnahme ist zu klein für ihre Länge (${what}).`,
+  workingAudioFormatWrong: (what: string) =>
+    `Die Sprechererkennung braucht 16 kHz, mono, 16 Bit — vorliegend ist ${what}.`,
+  notEnoughSpace: (what: string) => `Nicht genug Platz für dieses Modell (${what}).`,
 };
 
 export const de: Strings = {

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { INTERFACE_LANGUAGES, preferredLanguage } from './index';
+import {
+  INTERFACE_LANGUAGES,
+  chooseLanguage,
+  failureText,
+  isFailureCode,
+  preferredLanguage,
+} from './index';
+import { errorMessage } from '../errors';
 import { en } from './en';
 import { de } from './de';
 
@@ -86,5 +93,56 @@ describe('choosing the language to start in', () => {
 
   it('takes the first system language it speaks, not the first it is given', () => {
     expect(preferredLanguage(null, ['ja-JP', 'de-DE', 'en-US'])).toBe('de');
+  });
+});
+
+describe('a failure that came from Rust', () => {
+  /**
+   * The whole point of the conversion. Rust says what happened; the interface
+   * says it in words, and says it in whichever language it is currently in.
+   */
+  it('is rendered in the language the interface is in', () => {
+    chooseLanguage('en');
+    expect(failureText('missingProject')).toBe('The selected project no longer exists.');
+    chooseLanguage('de');
+    expect(failureText('missingProject')).toBe('Das gewählte Projekt existiert nicht mehr.');
+    chooseLanguage('en');
+  });
+
+  it('puts the detail into the sentence', () => {
+    chooseLanguage('en');
+    expect(failureText('backupNameTaken:LocaLog backup 2026-08-27')).toContain(
+      'LocaLog backup 2026-08-27',
+    );
+    chooseLanguage('de');
+    expect(failureText('backupNameTaken:Sicherung')).toContain('Sicherung');
+    chooseLanguage('en');
+  });
+
+  it('splits on the first colon only, because a detail can be a path', () => {
+    // A Windows path, or anything else with a colon in it, must arrive whole.
+    const rendered = failureText('backupDamaged:C:/work/a.wav is missing');
+    expect(rendered).toContain('C:/work/a.wav is missing');
+  });
+
+  it('shows an unknown key as itself rather than as nothing', () => {
+    expect(failureText('somethingNobodyWroteDown')).toBe('somethingNobodyWroteDown');
+    expect(isFailureCode('somethingNobodyWroteDown')).toBe(false);
+  });
+
+  it('leaves a sentence the front end raised alone', () => {
+    const own = 'Backing up needs the desktop application.';
+    expect(errorMessage(own)).toBe(own);
+  });
+
+  it('translates through the funnel every catch site already uses', () => {
+    chooseLanguage('de');
+    expect(errorMessage('importBusy')).toBe(
+      'Es wird bereits eine Aufnahme importiert. Schließen Sie diesen Vorgang ab oder brechen Sie ihn ab.',
+    );
+    expect(errorMessage(new Error('missingMeeting'))).toBe(
+      'Die gewählte Besprechung existiert nicht mehr.',
+    );
+    chooseLanguage('en');
   });
 });

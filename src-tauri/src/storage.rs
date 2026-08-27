@@ -90,23 +90,33 @@ pub enum StorageError {
 }
 
 impl StorageError {
-    /// Commands return bounded, content-free messages rather than database paths or SQL details.
-    pub fn user_message(&self) -> String {
+    /// What went wrong, named rather than written out.
+    ///
+    /// This returned an English sentence until 27 August 2026, which meant the
+    /// storage layer had an opinion about what language the person reading it
+    /// speaks — something it cannot know and has no business deciding. It now
+    /// answers with a key, and the interface owns every word.
+    ///
+    /// The key is the one the dictionary uses, so a code that reaches the screen
+    /// with nothing to render it is greppable in both languages at once.
+    ///
+    /// A code may carry one number after a colon, which is the whole of the
+    /// format: the only failure that needs a value is a schema from the future,
+    /// and inventing a general encoding for one case would be building for a
+    /// second case that does not exist.
+    ///
+    /// Database paths and SQL text still never leave: `Io` and `Sql` collapse to
+    /// one key, because what a person can do about either is the same and the
+    /// details belong in a log rather than in a dialog.
+    pub fn code(&self) -> String {
         match self {
-            Self::InvalidData(message) => (*message).to_string(),
-            Self::MissingProject => "The selected project no longer exists.".to_string(),
-            Self::MissingMeeting => "The selected meeting no longer exists.".to_string(),
-            Self::MissingJob => "The import job is no longer available.".to_string(),
-            Self::ImportBusy => {
-                "Another recording is already being imported. Finish or cancel it first."
-                    .to_string()
-            }
-            Self::UnsupportedSchema(_) => {
-                "This LocaLog data was created by a newer, unsupported version.".to_string()
-            }
-            Self::Io(_) | Self::Sql(_) => {
-                "LocaLog could not access its local workspace storage.".to_string()
-            }
+            Self::InvalidData(code) => (*code).to_string(),
+            Self::MissingProject => "missingProject".to_string(),
+            Self::MissingMeeting => "missingMeeting".to_string(),
+            Self::MissingJob => "missingJob".to_string(),
+            Self::ImportBusy => "importBusy".to_string(),
+            Self::UnsupportedSchema(version) => format!("unsupportedSchema:{version}"),
+            Self::Io(_) | Self::Sql(_) => "storageUnavailable".to_string(),
         }
     }
 }
@@ -322,7 +332,7 @@ impl WorkspaceRepository {
             )
             .optional()?
             .ok_or(StorageError::InvalidData(
-                "The selected protocol style is unavailable.",
+                "styleUnavailable",
             ))?;
         let vocabulary = self.list_vocabulary_for_project(&project_id)?;
         let resolved_vocabulary: Vec<ResolvedVocabularyEntry> = vocabulary
@@ -334,7 +344,7 @@ impl WorkspaceRepository {
             })
             .collect();
         let vocabulary_json = serde_json::to_vec(&resolved_vocabulary)
-            .map_err(|_| StorageError::InvalidData("The vocabulary could not be resolved."))?;
+            .map_err(|_| StorageError::InvalidData("vocabularyUnresolved"))?;
         Ok(ResolvedProtocolInputs {
             meeting_language: language,
             style,
@@ -397,7 +407,7 @@ impl WorkspaceRepository {
     pub fn duplicate_protocol_style(&self, style_id: &str, name: &str) -> Result<String> {
         let name = name.trim();
         if name.is_empty() {
-            return Err(StorageError::InvalidData("Give the style a name."));
+            return Err(StorageError::InvalidData("styleNameRequired"));
         }
         let (description, language_scope, instructions, sections, density, expectations): (
             String,
@@ -425,7 +435,7 @@ impl WorkspaceRepository {
                 },
             )
             .optional()?
-            .ok_or(StorageError::InvalidData("That style no longer exists."))?;
+            .ok_or(StorageError::InvalidData("styleMissing"))?;
 
         let new_style = new_id("style");
         self.connection.execute(
@@ -468,14 +478,14 @@ impl WorkspaceRepository {
     ) -> Result<()> {
         let name = name.trim();
         if name.is_empty() {
-            return Err(StorageError::InvalidData("Give the style a name."));
+            return Err(StorageError::InvalidData("styleNameRequired"));
         }
         let kept: Vec<&String> = instructions
             .iter()
             .filter(|instruction| !instruction.trim().is_empty())
             .collect();
         let json = serde_json::to_string(&kept)
-            .map_err(|_| StorageError::InvalidData("The style could not be saved."))?;
+            .map_err(|_| StorageError::InvalidData("styleNotSaved"))?;
         let changed = self.connection.execute(
             "UPDATE protocol_styles
                 SET name = ?1, description = ?2, instructions_json = ?3, density = ?4,
@@ -484,7 +494,7 @@ impl WorkspaceRepository {
             params![name, description.trim(), json, density.as_str(), style_id],
         )?;
         if changed == 0 {
-            return Err(StorageError::InvalidData("That style no longer exists."));
+            return Err(StorageError::InvalidData("styleMissing"));
         }
         Ok(())
     }
@@ -498,7 +508,7 @@ impl WorkspaceRepository {
         )?;
         if in_use > 0 {
             return Err(StorageError::InvalidData(
-                "A meeting is using this style. Change those meetings first.",
+                "styleUsedByMeeting",
             ));
         }
         let projects: i64 = self.connection.query_row(
@@ -508,14 +518,14 @@ impl WorkspaceRepository {
         )?;
         if projects > 0 {
             return Err(StorageError::InvalidData(
-                "A project uses this style by default. Change that first.",
+                "styleUsedByProject",
             ));
         }
         let changed = self
             .connection
             .execute("DELETE FROM protocol_styles WHERE id = ?1", [style_id])?;
         if changed == 0 {
-            return Err(StorageError::InvalidData("That style no longer exists."));
+            return Err(StorageError::InvalidData("styleMissing"));
         }
         Ok(())
     }
@@ -554,7 +564,7 @@ impl WorkspaceRepository {
     ) -> Result<()> {
         let name = name.trim();
         if name.is_empty() {
-            return Err(StorageError::InvalidData("Give the template a name."));
+            return Err(StorageError::InvalidData("presetNameRequired"));
         }
         let now = unix_time_millis();
         self.connection.execute(
@@ -567,9 +577,9 @@ impl WorkspaceRepository {
                 name,
                 description.trim(),
                 serde_json::to_string(appearance)
-                    .map_err(|_| StorageError::InvalidData("The template could not be saved."))?,
+                    .map_err(|_| StorageError::InvalidData("presetNotSaved"))?,
                 serde_json::to_string(furniture)
-                    .map_err(|_| StorageError::InvalidData("The template could not be saved."))?,
+                    .map_err(|_| StorageError::InvalidData("presetNotSaved"))?,
                 now
             ],
         )?;
@@ -584,7 +594,7 @@ impl WorkspaceRepository {
         )?;
         if changed == 0 {
             return Err(StorageError::InvalidData(
-                "A template that shipped with LocaLog cannot be deleted.",
+                "presetBuiltInUndeletable",
             ));
         }
         Ok(())
@@ -614,7 +624,7 @@ impl WorkspaceRepository {
         sections: &[SetAsideSection],
     ) -> Result<()> {
         let json = serde_json::to_string(sections)
-            .map_err(|_| StorageError::InvalidData("The section could not be set aside."))?;
+            .map_err(|_| StorageError::InvalidData("sectionNotSetAside"))?;
         let changed = self.connection.execute(
             "UPDATE protocol_working SET set_aside_json = ?1, updated_at_ms = ?2
              WHERE meeting_id = ?3",
@@ -622,7 +632,7 @@ impl WorkspaceRepository {
         )?;
         if changed == 0 {
             return Err(StorageError::InvalidData(
-                "Generate a protocol before setting a section aside.",
+                "protocolNeededBeforeSetAside",
             ));
         }
         Ok(())
@@ -638,7 +648,7 @@ impl WorkspaceRepository {
             )
             .optional()?
             .ok_or(StorageError::InvalidData(
-                "Generate a protocol before exporting it.",
+                "protocolNeededBeforeExport",
             ))?;
         read_verified_artifact(&self.root, &path, &checksum)
     }
@@ -1241,7 +1251,7 @@ impl WorkspaceRepository {
         } else {
             Some(
                 serde_json::to_string(edits)
-                    .map_err(|_| StorageError::InvalidData("Those edits cannot be recorded."))?,
+                    .map_err(|_| StorageError::InvalidData("editsNotRecorded"))?,
             )
         };
         let changed = self.connection.execute(
@@ -1270,7 +1280,7 @@ impl WorkspaceRepository {
             )
             .optional()?
             .ok_or(StorageError::InvalidData(
-                "The selected protocol style is unavailable.",
+                "styleUnavailable",
             ))?;
         let (name, description, edited): (String, String, i64) = self.connection.query_row(
             "SELECT name, description, revision FROM protocol_styles WHERE id = ?1",
@@ -1389,7 +1399,7 @@ impl WorkspaceRepository {
             "Project" => Some(input.project_id.clone().ok_or(StorageError::InvalidData(
                 "Choose the project this term belongs to.",
             ))?),
-            _ => return Err(StorageError::InvalidData("Choose a valid scope.")),
+            _ => return Err(StorageError::InvalidData("scopeInvalid")),
         };
         let clash: Option<String> = self
             .connection
@@ -1428,7 +1438,7 @@ impl WorkspaceRepository {
                     ],
                 )?;
                 if changed == 0 {
-                    return Err(StorageError::InvalidData("That term no longer exists."));
+                    return Err(StorageError::InvalidData("termMissing"));
                 }
             }
             None => {
@@ -1459,7 +1469,7 @@ impl WorkspaceRepository {
             .connection
             .execute("DELETE FROM vocabulary_entries WHERE id = ?1", [id])?;
         if removed == 0 {
-            return Err(StorageError::InvalidData("That term no longer exists."));
+            return Err(StorageError::InvalidData("termMissing"));
         }
         Ok(())
     }
@@ -1603,7 +1613,7 @@ impl WorkspaceRepository {
     /// Set what repeats at the top and bottom of this project's printed pages.
     pub fn set_project_furniture(&self, project_id: &str, furniture: &PageFurniture) -> Result<()> {
         let json = serde_json::to_string(furniture)
-            .map_err(|_| StorageError::InvalidData("The header and footer could not be stored."))?;
+            .map_err(|_| StorageError::InvalidData("furnitureNotSaved"))?;
         let changed = self.connection.execute(
             "UPDATE projects SET furniture_json = ?1, updated_at_ms = ?2
              WHERE id = ?3 AND archived_at_ms IS NULL",
@@ -1622,7 +1632,7 @@ impl WorkspaceRepository {
         appearance: &DocumentAppearance,
     ) -> Result<()> {
         let json = serde_json::to_string(appearance)
-            .map_err(|_| StorageError::InvalidData("The appearance could not be stored."))?;
+            .map_err(|_| StorageError::InvalidData("appearanceNotSaved"))?;
         let changed = self.connection.execute(
             "UPDATE projects SET appearance_json = ?1, updated_at_ms = ?2
              WHERE id = ?3 AND archived_at_ms IS NULL",
@@ -1709,7 +1719,7 @@ impl WorkspaceRepository {
 
     pub fn save_workspace_location(&self, meeting_id: &str, route: &str) -> Result<()> {
         if !matches!(route, "meeting" | "transcript" | "protocol") {
-            return Err(StorageError::InvalidData("Choose a valid workspace view."));
+            return Err(StorageError::InvalidData("workspaceViewInvalid"));
         }
         if !self
             .connection
@@ -1759,7 +1769,7 @@ impl WorkspaceRepository {
                 row?;
             let bytes = read_verified_artifact(&self.root, &path, &working_checksum)?;
             let artifact: TranscriptArtifact = serde_json::from_slice(&bytes)
-                .map_err(|_| StorageError::InvalidData("The saved transcript is invalid."))?;
+                .map_err(|_| StorageError::InvalidData("transcriptInvalid"))?;
             validate_transcript_artifact(&artifact, &meeting_id)?;
             documents.insert(
                 meeting_id,
@@ -1816,7 +1826,7 @@ impl WorkspaceRepository {
             ) = row?;
             let bytes = read_verified_artifact(&self.root, &path, &working_checksum)?;
             let markdown = String::from_utf8(bytes)
-                .map_err(|_| StorageError::InvalidData("The saved protocol is invalid."))?;
+                .map_err(|_| StorageError::InvalidData("protocolInvalid"))?;
             let revision_for_evidence = base_revision_id.clone();
             let is_dirty = working_checksum != base_checksum;
             let review_state = if reviewed_revision_id.as_deref() == Some(&base_revision_id) {
@@ -2498,7 +2508,7 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
                 })
                 .collect();
             let rewritten = serde_json::to_string(&kept)
-                .map_err(|_| StorageError::InvalidData("A style could not be migrated."))?;
+                .map_err(|_| StorageError::InvalidData("styleNotMigrated"))?;
             connection.execute(
                 "UPDATE protocol_styles SET instructions_json = ?1 WHERE id = ?2",
                 params![rewritten, id],
@@ -2559,7 +2569,7 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             }
             let kept: Vec<&String> = instructions.iter().filter(|line| *line != MOVED).collect();
             let rewritten = serde_json::to_string(&kept)
-                .map_err(|_| StorageError::InvalidData("A style could not be migrated."))?;
+                .map_err(|_| StorageError::InvalidData("styleNotMigrated"))?;
             connection.execute(
                 "UPDATE protocol_styles SET instructions_json = ?1 WHERE id = ?2",
                 params![rewritten, id],
@@ -3162,7 +3172,7 @@ fn optional_text(value: &str, max_chars: usize, message: &'static str) -> Result
 fn source_name(value: &str) -> Result<String> {
     let source_name = required_text(value, 512, "Choose a valid source file.")?;
     if source_name.contains(['/', '\\']) || source_name == "." || source_name == ".." {
-        return Err(StorageError::InvalidData("Choose a valid source file."));
+        return Err(StorageError::InvalidData("sourceFileInvalid"));
     }
     Ok(source_name)
 }
@@ -3260,7 +3270,7 @@ fn meeting_date(value: &str) -> Result<String> {
             .enumerate()
             .all(|(index, byte)| matches!(index, 4 | 7) || byte.is_ascii_digit());
     if !valid {
-        return Err(StorageError::InvalidData("Choose a valid meeting date."));
+        return Err(StorageError::InvalidData("meetingDateInvalid"));
     }
     Ok(value.to_string())
 }

@@ -341,15 +341,15 @@ fn provider_processing_error(error: provider::ProviderError) -> ProcessingError 
         provider::ProviderError::Cancelled => ProcessingError::Cancelled,
         provider::ProviderError::ModelMissing(_) => ProcessingError::Runtime {
             code: "provider_model_missing",
-            message: "The selected Ollama model is no longer installed. Choose another model and retry.".into(),
+            message: "ollamaModelGone".into(),
         },
         provider::ProviderError::ModelChanged => ProcessingError::Runtime {
             code: "provider_model_changed",
-            message: "The selected Ollama model changed after this job was queued. Retry to resolve it again.".into(),
+            message: "ollamaModelChanged".into(),
         },
         provider::ProviderError::RuntimeChanged => ProcessingError::Runtime {
             code: "provider_runtime_changed",
-            message: "The Ollama runtime changed after this job was queued. Retry to resolve it again.".into(),
+            message: "ollamaRuntimeChanged".into(),
         },
         provider::ProviderError::Unavailable(message) => ProcessingError::Runtime {
             code: "provider_unavailable",
@@ -361,11 +361,11 @@ fn provider_processing_error(error: provider::ProviderError) -> ProcessingError 
         },
         provider::ProviderError::ResponseTooLarge => ProcessingError::Runtime {
             code: "provider_response_too_large",
-            message: "The local model response exceeded the safe limit and was not committed.".into(),
+            message: "responseTooLarge".into(),
         },
         provider::ProviderError::IncompleteResponse => ProcessingError::Runtime {
             code: "provider_incomplete_output",
-            message: "The local model stopped before returning a complete protocol.".into(),
+            message: "responseIncomplete".into(),
         },
         // Said in terms of what happened and what to do, because the alternative is
         // a person watching a progress bar that will never move again.
@@ -619,7 +619,7 @@ fn transcription_metadata(
         .map(|value| serde_json::to_string(&value))
         .transpose()
         .map_err(|_| {
-            StorageError::InvalidData("The transcription runtime configuration could not be saved.")
+            StorageError::InvalidData("runtimeConfigNotSaved")
         })?;
     Ok((
         "whisper.cpp",
@@ -823,7 +823,7 @@ fn generation_metadata(
         ));
     }
     let model = status.selected_model.ok_or(StorageError::InvalidData(
-        "Choose an installed Ollama model in Settings → Protocol generation.",
+        "providerModelRequired",
     ))?;
     let model_digest = status
         .selected_model_digest
@@ -875,7 +875,7 @@ fn generation_metadata(
         &inputs.meeting_language,
     );
     let runtime_config_json = serde_json::to_string(&config).map_err(|_| {
-        StorageError::InvalidData("The protocol provider configuration could not be saved.")
+        StorageError::InvalidData("providerConfigNotSaved")
     })?;
     Ok((
         "ollama",
@@ -1060,7 +1060,7 @@ fn execute_generation(
             .as_deref()
             .ok_or_else(|| ProcessingError::Runtime {
                 code: "provider_missing",
-                message: "Choose an installed Ollama model in Settings → Protocol generation."
+                message: "providerModelRequired"
                     .into(),
             })
             .and_then(|value| {
@@ -2375,11 +2375,11 @@ pub(crate) fn export_protocol(
     destination: &str,
 ) -> StorageResult<()> {
     if !matches!(format, "markdown" | "text") {
-        return Err(StorageError::InvalidData("Choose a valid export format."));
+        return Err(StorageError::InvalidData("exportFormatInvalid"));
     }
     let repository = WorkspaceRepository::open(root)?;
     let markdown = String::from_utf8(repository.protocol_working_markdown(meeting_id)?)
-        .map_err(|_| StorageError::InvalidData("The saved protocol is not valid UTF-8."))?;
+        .map_err(|_| StorageError::InvalidData("protocolNotUtf8"))?;
     let content = if format == "text" {
         markdown_to_plain_text(&markdown)
     } else {
@@ -2659,7 +2659,7 @@ fn processing_to_storage(error: ProcessingError) -> StorageError {
         | ProcessingError::InjectedFailure
         | ProcessingError::InvalidOutput
         | ProcessingError::Runtime { .. } => {
-            StorageError::InvalidData("The local document operation could not finish.")
+            StorageError::InvalidData("documentOperationFailed")
         }
     }
 }
@@ -2729,7 +2729,7 @@ pub(crate) fn begin_recording(
     )?;
 
     let recording = crate::recording::Recording::start(root, system_path, microphone_path)
-        .map_err(|_| StorageError::InvalidData("The recorder could not be started."))?;
+        .map_err(|_| StorageError::InvalidData("recorderNotStarted"))?;
     Ok((recording, recording_id))
 }
 
@@ -2760,7 +2760,7 @@ pub(crate) fn finish_recording(
         &combined,
         &std::sync::atomic::AtomicBool::new(false),
     )
-    .map_err(|_| StorageError::InvalidData("The recording's tracks could not be combined."))?;
+    .map_err(|_| StorageError::InvalidData("tracksNotCombined"))?;
 
     let relative = combined
         .strip_prefix(root)

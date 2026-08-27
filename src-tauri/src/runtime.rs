@@ -103,13 +103,13 @@ impl Display for ProcessFailure {
 
 pub(crate) fn validate_config(executable: &Path, model: &Path) -> Result<RuntimeConfig, String> {
     if !executable.is_absolute() || !model.is_absolute() {
-        return Err("Choose absolute paths for the whisper.cpp executable and model.".into());
+        return Err("runtimePathsMustBeAbsolute".into());
     }
     if !executable.is_file() {
-        return Err("The selected whisper.cpp executable was not found.".into());
+        return Err("whisperExecutableMissing".into());
     }
     if !model.is_file() {
-        return Err("The selected whisper.cpp model was not found.".into());
+        return Err("whisperModelMissing".into());
     }
     Ok(RuntimeConfig {
         executable: executable.to_path_buf(),

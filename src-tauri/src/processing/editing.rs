@@ -37,11 +37,11 @@ pub(crate) fn autosave_transcript_segment(
         .iter_mut()
         .find(|segment| segment.id == segment_id)
         .ok_or(StorageError::InvalidData(
-            "The transcript segment no longer exists.",
+            "transcriptSegmentMissing",
         ))?;
     let trimmed = text.trim();
     if trimmed.is_empty() || trimmed.chars().count() > 20_000 {
-        return Err(StorageError::InvalidData("Enter valid transcript text."));
+        return Err(StorageError::InvalidData("transcriptTextRequired"));
     }
     segment.text = trimmed.to_string();
     // The reader has now said what the words are, so the model's doubt is settled.
@@ -77,12 +77,12 @@ pub(crate) fn delete_transcript_segment(
         .any(|segment| segment.id == segment_id)
     {
         return Err(StorageError::InvalidData(
-            "The transcript segment no longer exists.",
+            "transcriptSegmentMissing",
         ));
     }
     if artifact.segments.len() <= 1 {
         return Err(StorageError::InvalidData(
-            "A transcript needs at least one segment.",
+            "transcriptNeedsSegment",
         ));
     }
     artifact.segments.retain(|segment| segment.id != segment_id);
@@ -98,7 +98,7 @@ pub(crate) fn rename_speaker(
     let repository = WorkspaceRepository::open(root)?;
     let replacement = replacement.trim();
     if replacement.is_empty() || replacement.chars().count() > 200 {
-        return Err(StorageError::InvalidData("Enter a valid speaker label."));
+        return Err(StorageError::InvalidData("transcriptSpeakerRequired"));
     }
     let (path, mut artifact) = working_transcript(root, &repository, meeting_id)?;
     for segment in &mut artifact.segments {
@@ -117,7 +117,7 @@ pub(super) fn persist_transcript_working(
 ) -> StorageResult<()> {
     validate_transcript_artifact(artifact, meeting_id)?;
     let bytes = serde_json::to_vec_pretty(artifact)
-        .map_err(|_| StorageError::InvalidData("The transcript could not be saved."))?;
+        .map_err(|_| StorageError::InvalidData("transcriptNotSaved"))?;
     let relative = Path::new(path);
     replace_working_file(&repository.root, relative, &bytes, None)
         .map_err(processing_to_storage)?;
@@ -140,7 +140,7 @@ pub(crate) fn autosave_protocol(
     markdown: &str,
 ) -> StorageResult<WorkspaceSnapshot> {
     if markdown.trim().is_empty() || markdown.len() > 5_000_000 {
-        return Err(StorageError::InvalidData("Enter valid protocol text."));
+        return Err(StorageError::InvalidData("protocolTextRequired"));
     }
     let repository = WorkspaceRepository::open(root)?;
     let path: String = repository.connection.query_row(
@@ -223,7 +223,7 @@ pub(crate) fn restore_protocol_revision(
         )
         .optional()?
         .ok_or(StorageError::InvalidData(
-            "The selected protocol revision no longer exists.",
+            "protocolRevisionMissing",
         ))?;
     let bytes = read_verified(root, &path, &checksum).map_err(processing_to_storage)?;
     commit_protocol_bytes(&mut repository, meeting_id, &bytes, Some(revision_id))?;
@@ -244,19 +244,19 @@ pub(super) fn commit_transcript_working_if_dirty(
         )
         .optional()?
         .ok_or(StorageError::InvalidData(
-            "Review the transcript before generation.",
+            "reviewBeforeGeneration",
         ))?;
     if checksum == base_checksum {
         return Ok(base_id);
     }
     let bytes = read_verified(&repository.root, &path, &checksum).map_err(processing_to_storage)?;
     let mut artifact: TranscriptArtifact = serde_json::from_slice(&bytes)
-        .map_err(|_| StorageError::InvalidData("The saved transcript is invalid."))?;
+        .map_err(|_| StorageError::InvalidData("transcriptInvalid"))?;
     let revision_id = new_id("transcript");
     artifact.revision_id = revision_id.clone();
     validate_transcript_artifact(&artifact, meeting_id)?;
     let revision_bytes = serde_json::to_vec_pretty(&artifact)
-        .map_err(|_| StorageError::InvalidData("The transcript could not be committed."))?;
+        .map_err(|_| StorageError::InvalidData("transcriptNotCommitted"))?;
     let (project_id, recording_id, language, source_checksum): (String, String, String, String) =
         repository.connection.query_row(
             "SELECT m.project_id, r.recording_id, r.language, r.source_checksum
@@ -414,6 +414,6 @@ pub(super) fn working_transcript(
     )?;
     let bytes = read_verified(root, &path, &checksum).map_err(processing_to_storage)?;
     let artifact: TranscriptArtifact = serde_json::from_slice(&bytes)
-        .map_err(|_| StorageError::InvalidData("The saved transcript is invalid."))?;
+        .map_err(|_| StorageError::InvalidData("transcriptInvalid"))?;
     Ok((path, artifact))
 }

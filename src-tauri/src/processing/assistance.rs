@@ -55,7 +55,7 @@ pub(crate) fn refine_passage(
     instruction: &str,
 ) -> StorageResult<RefinedPassage> {
     if passage.trim().is_empty() {
-        return Err(StorageError::InvalidData("Select some text to change."));
+        return Err(StorageError::InvalidData("selectionRequired"));
     }
     // A whole protocol is not a passage. The limit is generous — several paragraphs
     // — and exists so that "rewrite" cannot quietly become "regenerate", which is a
@@ -63,7 +63,7 @@ pub(crate) fn refine_passage(
     const LONGEST_PASSAGE: usize = 6_000;
     if passage.len() > LONGEST_PASSAGE {
         return Err(StorageError::InvalidData(
-            "That is too much text to change at once. Select a section rather than the document.",
+            "selectionTooLong",
         ));
     }
 
@@ -83,11 +83,11 @@ pub(crate) fn refine_passage(
     let status = provider::OllamaProvider::loopback().status(selected);
     if !status.server_reachable {
         return Err(StorageError::InvalidData(
-            "Start your existing Ollama installation before changing a passage.",
+            "providerNeededForPassage",
         ));
     }
     let model = status.selected_model.ok_or(StorageError::InvalidData(
-        "Choose an installed Ollama model in Settings → Protocol generation.",
+        "providerModelRequired",
     ))?;
 
     let request = provider::GenerationRequest {
@@ -123,7 +123,7 @@ pub(crate) fn refine_passage(
         )
         // The provider's own message is not passed on: a model's complaint can quote
         // the meeting back at whoever reads the error.
-        .map_err(|_| StorageError::InvalidData("That passage could not be rewritten."))?;
+        .map_err(|_| StorageError::InvalidData("passageNotRewritten"))?;
 
     // The instruction tells the model to keep every figure. Whether it did is a
     // separate question, and one that can be answered rather than assumed.
@@ -195,11 +195,11 @@ pub(crate) fn find_introductions(
     let status = provider::OllamaProvider::loopback().status(selected);
     if !status.server_reachable {
         return Err(StorageError::InvalidData(
-            "Start your existing Ollama installation before reading the introductions.",
+            "providerNeededForOpening",
         ));
     }
     let model = status.selected_model.ok_or(StorageError::InvalidData(
-        "Choose an installed Ollama model in Settings → Protocol generation.",
+        "providerModelRequired",
     ))?;
     let model_digest = status.selected_model_digest.unwrap_or_default();
 
@@ -237,7 +237,7 @@ pub(crate) fn find_introductions(
         // The provider's own message is not passed on: these are bounded,
         // content-free strings by convention, and a model's complaint can quote the
         // meeting back at whoever reads the error.
-        .map_err(|_| StorageError::InvalidData("The meeting's opening could not be read."))
+        .map_err(|_| StorageError::InvalidData("openingNotRead"))
 }
 /// The words the transcriber was never sure of in a meeting's working transcript.
 pub(crate) fn name_candidates(
@@ -282,7 +282,7 @@ pub(crate) fn apply_correction(
 ) -> StorageResult<AppliedCorrectionResult> {
     let right = right.trim();
     if wrong.trim().is_empty() || right.is_empty() || right.chars().count() > 200 {
-        return Err(StorageError::InvalidData("Enter a valid spelling."));
+        return Err(StorageError::InvalidData("spellingRequired"));
     }
     let mut repository = WorkspaceRepository::open(root)?;
     let (path, mut artifact) = working_transcript(root, &repository, meeting_id)?;

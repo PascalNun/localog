@@ -114,28 +114,22 @@ pub(crate) enum BackupError {
 }
 
 impl BackupError {
-    pub(crate) fn user_message(&self) -> String {
+    /// What went wrong, named rather than written out. See `StorageError::code`.
+    ///
+    /// Several of these carry a detail worth showing — which file did not match,
+    /// which name was taken — so a code may be followed by a colon and the rest
+    /// of the line. The interface splits on the first colon only, because a path
+    /// can contain one and the detail is whatever remains.
+    pub(crate) fn code(&self) -> String {
         match self {
-            Self::UnsafeName => "That backup name cannot be used as a folder name.".into(),
-            Self::UnsafePath(path) => format!(
-                "This backup lists a file outside its own folder ({path}), so it was not restored."
-            ),
-            Self::NotABackup => {
-                "That folder is not a LocaLog backup: it has no manifest.json.".into()
-            }
-            Self::UnknownFormat(format) => format!(
-                "This backup was written in format {format}, which this version of LocaLog does not \
-                 know how to read. A newer LocaLog will."
-            ),
-            Self::Damaged(what) => format!(
-                "This backup is incomplete or damaged ({what}), so nothing was changed. Your \
-                 current work is untouched."
-            ),
-            Self::AlreadyThere(name) => {
-                format!("There is already something called \"{name}\" in that folder.")
-            }
-            Self::Io(what) => format!("The backup could not be written or read: {what}"),
-            Self::Database(what) => format!("The database could not be copied: {what}"),
+            Self::UnsafeName => "backupNameUnsafe".into(),
+            Self::UnsafePath(path) => format!("backupPathOutside:{path}"),
+            Self::NotABackup => "notABackup".into(),
+            Self::UnknownFormat(format) => format!("backupFormatUnknown:{format}"),
+            Self::Damaged(what) => format!("backupDamaged:{what}"),
+            Self::AlreadyThere(name) => format!("backupNameTaken:{name}"),
+            Self::Io(what) => format!("backupIoFailed:{what}"),
+            Self::Database(what) => format!("backupDatabaseFailed:{what}"),
         }
     }
 }

@@ -28,7 +28,7 @@ pub(crate) struct Stream {
 }
 
 pub(crate) fn parse_probe(json: &str) -> Result<Probe, String> {
-    serde_json::from_str(json).map_err(|_| "The media probe returned invalid metadata.".into())
+    serde_json::from_str(json).map_err(|_| "probeInvalid".into())
 }
 
 pub(crate) fn probe(
@@ -86,7 +86,7 @@ pub(crate) fn normalize(
 ) -> Result<(), String> {
     let parent = destination
         .parent()
-        .ok_or("The normalized cache path is invalid.")?;
+        .ok_or("cachePathInvalid")?;
     fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     let temporary = destination.with_extension("wav.part");
     let _ = fs::remove_file(&temporary);
@@ -110,7 +110,7 @@ pub(crate) fn normalize(
     run_media_tool(command, cancellation, &temporary)?;
     progress(90);
     if !temporary.is_file() {
-        return Err("The media normalizer did not produce an audio file.".into());
+        return Err("normalizerNoOutput".into());
     }
     // Make the derived cache durable before exposing it at its final path.
     if let Err(error) = fs::File::open(&temporary).and_then(|file| file.sync_all()) {
@@ -224,21 +224,21 @@ pub(crate) fn condense_for_diarisation(
     destination: &Path,
 ) -> Result<(), String> {
     let Some(last) = samples.last() else {
-        return Err("There is nothing for the speaker pass to listen to.".into());
+        return Err("speakerPassNoAudio".into());
     };
     let (data_offset, data_length) = pcm16_mono_16k_data(normalized)?;
 
     let mut source = fs::File::open(normalized)
         .map_err(|error| format!("The speaker pass could not read the working audio: {error}"))?;
     let planned_bytes = usize::try_from(last.condensed_end_ms * BYTES_PER_MS)
-        .map_err(|_| "The speaker pass planned more audio than can be held.".to_string())?;
+        .map_err(|_| "speakerPassTooMuchAudio".to_string())?;
     // Everything not written to is silence, which is what the gaps between the
     // samples are made of.
     let mut condensed = vec![0u8; planned_bytes];
 
     for sample in samples {
         let at = usize::try_from(sample.condensed_start_ms * BYTES_PER_MS)
-            .map_err(|_| "The speaker pass planned more audio than can be held.".to_string())?;
+            .map_err(|_| "speakerPassTooMuchAudio".to_string())?;
         let wanted = ((sample.source_end_ms - sample.source_start_ms) * BYTES_PER_MS) as usize;
         let from = sample.source_start_ms * BYTES_PER_MS;
         // A sample reaching past the end of the recording is read as far as it
@@ -325,7 +325,7 @@ pub(crate) fn encode_to_opus(
         .len();
     if written == 0 {
         let _ = fs::remove_file(&temporary);
-        return Err("The recording was stored as an empty file.".into());
+        return Err("recordingEmpty".into());
     }
     let (_, data_length) = pcm16_mono_16k_data(source).unwrap_or((0, 0));
     if data_length > 0 {
@@ -336,7 +336,7 @@ pub(crate) fn encode_to_opus(
         if written < least {
             let _ = fs::remove_file(&temporary);
             return Err(format!(
-                "The stored recording is {written} bytes, too small for {seconds:.0} seconds."
+                "recordingTooSmall:{written} bytes for {seconds:.0} seconds"
             ));
         }
     }
@@ -412,7 +412,7 @@ pub(crate) fn apply_edits(
 ) -> Result<(), String> {
     let spans = crate::edits::kept(duration_ms, edits);
     if spans.is_empty() {
-        return Err("These edits would leave no recording at all.".into());
+        return Err("editsLeaveNothing".into());
     }
     let (data_offset, data_length) = pcm16_mono_16k_data(source)?;
     let mut file = fs::File::open(source)
@@ -437,7 +437,7 @@ pub(crate) fn apply_edits(
             .map_err(|error| format!("The recording could not be read: {error}"))?;
     }
     if kept.is_empty() {
-        return Err("These edits would leave no recording at all.".into());
+        return Err("editsLeaveNothing".into());
     }
     write_pcm16_mono_16k(destination, &kept)
 }
@@ -456,16 +456,16 @@ fn pcm16_mono_16k_data(path: &Path) -> Result<(u64, u64), String> {
         .map_err(|error| format!("The speaker pass could not read the working audio: {error}"))?;
     let mut header = [0u8; 12];
     file.read_exact(&mut header)
-        .map_err(|_| "The working audio is not a readable WAV file.".to_string())?;
+        .map_err(|_| "workingAudioUnreadable".to_string())?;
     if &header[0..4] != b"RIFF" || &header[8..12] != b"WAVE" {
-        return Err("The working audio is not a WAV file.".into());
+        return Err("workingAudioNotWav".into());
     }
     let mut position = 12u64;
     let mut format_seen = false;
     loop {
         let mut chunk = [0u8; 8];
         if file.read_exact(&mut chunk).is_err() {
-            return Err("The working audio has no audio in it.".into());
+            return Err("workingAudioSilent".into());
         }
         let id = [chunk[0], chunk[1], chunk[2], chunk[3]];
         let length = u32::from_le_bytes([chunk[4], chunk[5], chunk[6], chunk[7]]) as u64;
@@ -473,20 +473,20 @@ fn pcm16_mono_16k_data(path: &Path) -> Result<(u64, u64), String> {
         if &id == b"fmt " {
             let mut format = [0u8; 16];
             file.read_exact(&mut format)
-                .map_err(|_| "The working audio has an unreadable format.".to_string())?;
+                .map_err(|_| "workingAudioFormatUnreadable".to_string())?;
             let encoding = u16::from_le_bytes([format[0], format[1]]);
             let channels = u16::from_le_bytes([format[2], format[3]]);
             let rate = u32::from_le_bytes([format[4], format[5], format[6], format[7]]);
             let bits = u16::from_le_bytes([format[14], format[15]]);
             if encoding != 1 || channels != 1 || rate != 16_000 || bits != 16 {
                 return Err(format!(
-                    "The speaker pass needs 16 kHz mono 16-bit audio, and this is {rate} Hz, {channels} channel(s), {bits}-bit."
+                    "workingAudioFormatWrong:{rate} Hz, {channels} channel(s), {bits}-bit"
                 ));
             }
             format_seen = true;
         } else if &id == b"data" {
             if !format_seen {
-                return Err("The working audio describes no format.".into());
+                return Err("workingAudioNoFormat".into());
             }
             return Ok((position, length));
         }
@@ -500,7 +500,7 @@ fn pcm16_mono_16k_data(path: &Path) -> Result<(u64, u64), String> {
 /// Write 16 kHz mono 16-bit PCM as a plain WAV, which is what the diariser reads.
 fn write_pcm16_mono_16k(destination: &Path, audio: &[u8]) -> Result<(), String> {
     let length = u32::try_from(audio.len())
-        .map_err(|_| "The condensed audio is too large to write.".to_string())?;
+        .map_err(|_| "condensedAudioTooLarge".to_string())?;
     let mut file = fs::File::create(destination)
         .map_err(|error| format!("The speaker pass could not write its audio: {error}"))?;
     let mut header = Vec::with_capacity(44);
@@ -633,7 +633,7 @@ pub(crate) fn combine_tracks(
 ) -> Result<(), String> {
     let parent = destination
         .parent()
-        .ok_or("The combined recording path is invalid.")?;
+        .ok_or("combinedPathInvalid")?;
     fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     let temporary = destination.with_extension("wav.part");
     let _ = fs::remove_file(&temporary);

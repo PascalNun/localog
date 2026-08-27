@@ -183,24 +183,25 @@ impl Merged {
 pub(crate) fn read_vectors(path: &std::path::Path) -> Result<(Vec<u32>, Vec<Vec<f32>>), String> {
     let bytes = std::fs::read(path).map_err(|error| format!("{}: {error}", path.display()))?;
     if bytes.len() < 16 || &bytes[0..4] != b"LLEM" {
-        return Err("The speaker pass did not write recognisable embeddings.".into());
+        return Err("embeddingsUnrecognisable".into());
     }
     let word =
         |at: usize| u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]]);
     let version = word(4);
     if version != 1 {
         return Err(format!(
-            "These embeddings are version {version}, which this build does not read."
+            // The code, then the detail after a colon: the interface owns the sentence.
+            "embeddingsVersion:{version}"
         ));
     }
     let count = word(8) as usize;
     let dimensions = word(12) as usize;
     if dimensions == 0 {
-        return Err("The embeddings describe no dimensions.".into());
+        return Err("embeddingsNoDimensions".into());
     }
     let stride = 4 + dimensions * 4;
     if bytes.len() < 16 + count * stride {
-        return Err("The embeddings are shorter than they claim to be.".into());
+        return Err("embeddingsTruncated".into());
     }
     let mut segments = Vec::with_capacity(count);
     let mut vectors = Vec::with_capacity(count);
@@ -335,7 +336,10 @@ mod tests {
         )
         .expect("a file");
         let error = read_vectors(&path).expect_err("a version refusal");
-        assert!(error.contains("version 9"), "{error}");
+        // The code and its detail, which is the contract with the interface. This
+        // asserted on the English sentence until the words moved out of Rust —
+        // and a test that pins a wording fails whenever somebody improves it.
+        assert_eq!(error, "embeddingsVersion:9", "{error}");
         let _ = std::fs::remove_file(&path);
     }
 

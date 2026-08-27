@@ -123,7 +123,7 @@ impl JobCoordinatorState {
         let mut held = self
             .heavy
             .lock()
-            .map_err(|_| "The local job coordinator is unavailable.".to_string())?;
+            .map_err(|_| "coordinatorUnavailable".to_string())?;
         match held.as_ref() {
             Some(current) if current.key == key => Ok(()),
             Some(current) => Err(format!(
@@ -229,7 +229,7 @@ async fn configure_transcription_runtime(
         let executable = PathBuf::from(&executable_path);
         if !executable.is_absolute() || !executable.is_file() {
             return Err(storage::StorageError::InvalidData(
-                "Choose an existing whisper.cpp executable.",
+                "whisperPathInvalid",
             ));
         }
         repository.write_setting("transcription.whisperExecutable", &executable_path)?;
@@ -253,7 +253,7 @@ async fn transcription_capability(
 ) -> Result<models::TranscriptionCapability, String> {
     let root = storage.root.clone();
     off_thread(move || {
-        let repository = WorkspaceRepository::open(&root).map_err(|error| error.user_message())?;
+        let repository = WorkspaceRepository::open(&root).map_err(|error| error.code())?;
         Ok(models::capability(&root, &selected_preset(&repository)))
     })
     .await?
@@ -267,12 +267,12 @@ async fn set_transcription_preset(
     let root = storage.root.clone();
     off_thread(move || {
         if !models::is_known_preset(&preset) {
-            return Err("Choose a known transcription quality.".to_string());
+            return Err("presetUnknown".to_string());
         }
-        let repository = WorkspaceRepository::open(&root).map_err(|error| error.user_message())?;
+        let repository = WorkspaceRepository::open(&root).map_err(|error| error.code())?;
         repository
             .write_setting("transcription.preset", &preset)
-            .map_err(|error| error.user_message())?;
+            .map_err(|error| error.code())?;
         Ok(models::capability(&root, &preset))
     })
     .await?
@@ -286,7 +286,7 @@ async fn remove_transcription_model(
     let root = storage.root.clone();
     off_thread(move || {
         models::remove_model(&root, &model_id).map_err(|error| error.to_string())?;
-        let repository = WorkspaceRepository::open(&root).map_err(|error| error.user_message())?;
+        let repository = WorkspaceRepository::open(&root).map_err(|error| error.code())?;
         Ok(models::capability(&root, &selected_preset(&repository)))
     })
     .await?
@@ -310,7 +310,7 @@ async fn download_transcription_model(
         let mut active = coordinator
             .cancellations
             .lock()
-            .map_err(|_| "The local processing coordinator is unavailable.".to_string())?;
+            .map_err(|_| "coordinatorUnavailable".to_string())?;
         if active.contains_key(&key) {
             return Ok(());
         }
@@ -362,7 +362,7 @@ async fn download_transcription_model(
             Err(_) => {
                 let _ = app.emit(
                     "model://error",
-                    serde_json::json!({ "modelId": model_id, "message": "The download stopped unexpectedly." }),
+                    serde_json::json!({ "modelId": model_id, "message": "downloadStopped" }),
                 );
             }
         }
@@ -475,7 +475,7 @@ async fn recording_review(
         // are applied to the file.
         let duration_ms = duration_ms.unwrap_or_default().max(0) as u64;
         let waveform = media::waveform(&absolute, buckets.unwrap_or(2_000) as usize)
-            .map_err(|_| storage::StorageError::InvalidData("That recording could not be read."))?;
+            .map_err(|_| storage::StorageError::InvalidData("recordingUnreadable"))?;
         Ok(Some(RecordingReview {
             kept_duration_ms: edits::kept_duration_ms(duration_ms, &stored),
             duration_ms,
@@ -559,7 +559,7 @@ async fn configure_speaker_runtime(
         let executable = PathBuf::from(&executable_path);
         if !executable.is_absolute() || !executable.is_file() {
             return Err(storage::StorageError::InvalidData(
-                "Choose an existing speaker separation program.",
+                "diariserPathInvalid",
             ));
         }
         repository.write_setting("diarisation.executable", &executable_path)?;
@@ -584,7 +584,7 @@ async fn download_speaker_models(
         let mut active = coordinator
             .cancellations
             .lock()
-            .map_err(|_| "The local processing coordinator is unavailable.".to_string())?;
+            .map_err(|_| "coordinatorUnavailable".to_string())?;
         if active.contains_key(&key) {
             return Ok(());
         }
@@ -631,7 +631,7 @@ async fn download_speaker_models(
                     "model://error",
                     serde_json::json!({
                         "modelId": "speaker-separation",
-                        "message": "The download stopped unexpectedly."
+                        "message": "downloadStopped"
                     }),
                 );
             }
@@ -664,7 +664,7 @@ async fn configure_protocol_provider(
             let status = provider::OllamaProvider::loopback().status(None);
             if !status.server_reachable {
                 return Err(storage::StorageError::InvalidData(
-                    "Start your existing Ollama installation before selecting a model.",
+                    "providerNeededForModel",
                 ));
             }
             if !status
@@ -673,7 +673,7 @@ async fn configure_protocol_provider(
                 .any(|candidate| candidate.name == model_name)
             {
                 return Err(storage::StorageError::InvalidData(
-                    "Choose a model that is already installed in Ollama.",
+                    "providerModelNotInstalled",
                 ));
             }
             repository.write_setting("generation.ollamaModel", model_name)?;
@@ -697,8 +697,8 @@ async fn load_workspace(state: State<'_, StorageState>) -> Result<WorkspaceSnaps
         processing::reconcile(&root)
     })
     .await
-    .map_err(|_| "The local recovery check stopped unexpectedly.".to_string())?
-    .map_err(|error| error.user_message())
+    .map_err(|_| "taskStopped".to_string())?
+    .map_err(|error| error.code())
 }
 
 #[tauri::command]
@@ -774,7 +774,7 @@ async fn cancel_processing(
     let cancellation = coordinator
         .cancellations
         .lock()
-        .map_err(|_| "The local processing coordinator is unavailable.".to_string())?
+        .map_err(|_| "coordinatorUnavailable".to_string())?
         .get(&meeting_id)
         .cloned();
     if let Some(cancellation) = cancellation {
@@ -820,7 +820,7 @@ fn launch_processing(
         let mut active = state
             .cancellations
             .lock()
-            .map_err(|_| "The local processing coordinator is unavailable.".to_string())?;
+            .map_err(|_| "coordinatorUnavailable".to_string())?;
         if active.contains_key(&meeting_id) {
             return Ok(());
         }
@@ -926,7 +926,7 @@ async fn create_backup(
     // Hashing and copying gigabytes of audio, so nowhere near the interface thread.
     off_thread(move || backup::create(&root, std::path::Path::new(&parent), &folder_name))
         .await?
-        .map_err(|error| error.user_message())
+        .map_err(|error| error.code())
 }
 
 /// What a folder claims to be, without checking a single file.
@@ -937,7 +937,7 @@ async fn create_backup(
 async fn inspect_backup(folder: String) -> Result<backup::Manifest, String> {
     off_thread(move || backup::inspect(std::path::Path::new(&folder)))
         .await?
-        .map_err(|error| error.user_message())
+        .map_err(|error| error.code())
 }
 
 /// Put a backup back, after checking all of it.
@@ -949,7 +949,7 @@ async fn restore_backup(
     let root = state.root.clone();
     off_thread(move || backup::restore(&root, std::path::Path::new(&folder)))
         .await?
-        .map_err(|error| error.user_message())
+        .map_err(|error| error.code())
 }
 
 /// Where this workspace actually is.
@@ -977,14 +977,14 @@ async fn reveal_workspace(state: State<'_, StorageState>) -> Result<(), String> 
             .arg(&root)
             .spawn()
             .map(|_| ())
-            .map_err(|_| "The workspace folder could not be opened.".to_string())
+            .map_err(|_| "workspaceNotOpened".to_string())
     }
     #[cfg(not(target_os = "macos"))]
     {
         // xdg-open on Linux and explorer on Windows, once either has a build to
         // try it in. Naming the folder still works everywhere.
         let _ = root;
-        Err("Opening the folder is only wired up on macOS. The path above is correct.".into())
+        Err("revealOnlyOnMac".into())
     }
 }
 
@@ -1004,7 +1004,7 @@ async fn open_privacy_settings(pane: String) -> Result<(), String> {
     let anchor = match pane.as_str() {
         "screen" => "Privacy_ScreenCapture",
         "microphone" => "Privacy_Microphone",
-        _ => return Err("There is no such settings pane.".into()),
+        _ => return Err("settingsPaneUnknown".into()),
     };
     #[cfg(target_os = "macos")]
     {
@@ -1013,14 +1013,14 @@ async fn open_privacy_settings(pane: String) -> Result<(), String> {
             .arg(url)
             .spawn()
             .map(|_| ())
-            .map_err(|_| "System Settings could not be opened.".to_string())
+            .map_err(|_| "settingsNotOpened".to_string())
     }
     // Windows and Linux name and place these differently, and guessing at a path
     // that does not exist is worse than the interface simply not offering the door.
     #[cfg(not(target_os = "macos"))]
     {
         let _ = anchor;
-        Err("Opening the privacy settings is only wired up on macOS.".into())
+        Err("privacySettingsOnlyOnMac".into())
     }
 }
 
@@ -1034,7 +1034,7 @@ async fn recording_permissions() -> Result<recording::Permissions, String> {
     // Spawns a process, so it is kept off the interface thread.
     tauri::async_runtime::spawn_blocking(recording::permissions)
         .await
-        .map_err(|_| "The recorder could not be asked about permissions.".to_string())
+        .map_err(|_| "recorderPermissionsUnknown".to_string())
 }
 
 /// Begin recording a meeting.
@@ -1048,9 +1048,9 @@ async fn start_recording(
         let held = state
             .running
             .lock()
-            .map_err(|_| "The recorder is in an unknown state. Restart LocaLog.".to_string())?;
+            .map_err(|_| "recorderStateUnknown".to_string())?;
         if held.is_some() {
-            return Err("A meeting is already being recorded.".into());
+            return Err("recordingAlreadyRunning".into());
         }
     }
     let root = storage.root.clone();
@@ -1059,13 +1059,13 @@ async fn start_recording(
         processing::begin_recording(&root, &for_meeting)
     })
     .await
-    .map_err(|_| "The recorder could not be started.".to_string())?
-    .map_err(|error| error.user_message())?;
+    .map_err(|_| "recorderNotStarted".to_string())?
+    .map_err(|error| error.code())?;
 
     let mut held = state
         .running
         .lock()
-        .map_err(|_| "The recorder is in an unknown state. Restart LocaLog.".to_string())?;
+        .map_err(|_| "recorderStateUnknown".to_string())?;
     *held = Some((started.0, meeting_id, started.1));
     Ok(())
 }
@@ -1080,11 +1080,11 @@ async fn stop_recording(
         let mut held = state
             .running
             .lock()
-            .map_err(|_| "The recorder is in an unknown state. Restart LocaLog.".to_string())?;
+            .map_err(|_| "recorderStateUnknown".to_string())?;
         held.take()
     };
     let Some((recorder, meeting_id, recording_id)) = taken else {
-        return Err("Nothing is being recorded.".into());
+        return Err("nothingRecording".into());
     };
     let root = storage.root.clone();
     tauri::async_runtime::spawn_blocking(move || {
@@ -1093,10 +1093,10 @@ async fn stop_recording(
         let (system_path, microphone_path) = recorder.stop()?;
         let _ = meeting_id;
         processing::finish_recording(&root, &recording_id, &system_path, &microphone_path)
-            .map_err(|error| error.user_message())
+            .map_err(|error| error.code())
     })
     .await
-    .map_err(|_| "The recording could not be finished.".to_string())?
+    .map_err(|_| "recordingNotFinished".to_string())?
 }
 
 /// Who introduced themselves at the start of a meeting, as the transcript spells
@@ -1302,7 +1302,7 @@ async fn delete_meeting(
     meeting_id: String,
 ) -> Result<WorkspaceSnapshot, String> {
     if jobs.is_busy(&meeting_id) {
-        return Err("This meeting is still being worked on. Cancel that first.".into());
+        return Err("meetingBusy".into());
     }
     let root = storage.root.clone();
     off_thread(move || {
@@ -1314,7 +1314,7 @@ async fn delete_meeting(
         repository.workspace_snapshot()
     })
     .await?
-    .map_err(|error: storage::StorageError| error.user_message())
+    .map_err(|error: storage::StorageError| error.code())
 }
 
 /// Copy a style so it can be changed without touching the one that shipped.
@@ -1381,7 +1381,7 @@ async fn preview_name_replacement(
         NameReplacement { matches, markdown }
     })
     .await
-    .map_err(|_| "The replacement could not be prepared.".to_string())
+    .map_err(|_| "replacementNotPrepared".to_string())
 }
 
 #[derive(serde::Serialize)]
@@ -1443,7 +1443,7 @@ async fn apply_appearance_preset(
             .into_iter()
             .find(|candidate| candidate.id == template_id)
             .ok_or(storage::StorageError::InvalidData(
-                "That export template is no longer available.",
+                "presetMissing",
             ))?;
         repository.set_project_appearance(&project_id, &template.appearance)?;
         repository.set_project_furniture(&project_id, &template.furniture)?;
@@ -1484,7 +1484,7 @@ async fn set_protocol_sections(
         repository.workspace_snapshot()
     })
     .await?
-    .map_err(|error| error.user_message())
+    .map_err(|error| error.code())
 }
 
 /// Rewrite one passage of a protocol, as asked.
@@ -1565,7 +1565,7 @@ async fn set_project_furniture(
 async fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
     window
         .print()
-        .map_err(|_| "This window could not open the print dialog.".to_string())
+        .map_err(|_| "printDialogUnavailable".to_string())
 }
 
 /// Write a document the interface built, such as a Word file.
@@ -1578,7 +1578,7 @@ async fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
 async fn export_protocol_bytes(destination: String, contents: Vec<u8>) -> Result<(), String> {
     off_thread(move || processing::write_export(&destination, &contents))
         .await?
-        .map_err(|error| error.user_message())
+        .map_err(|error| error.code())
 }
 
 #[tauri::command]
@@ -1619,7 +1619,7 @@ async fn cancel_import(
     let cancellation = imports
         .cancellations
         .lock()
-        .map_err(|_| "The import coordinator is unavailable.".to_string())?
+        .map_err(|_| "coordinatorUnavailable".to_string())?
         .get(&meeting_id)
         .cloned();
 
@@ -1641,8 +1641,8 @@ async fn cancel_import(
             imports::cancel_unstarted_import(&root, &job.meeting_id)
         })
         .await
-        .map_err(|_| "The local cancellation task stopped unexpectedly.".to_string())?
-        .map_err(|error| error.user_message())?;
+        .map_err(|_| "taskStopped".to_string())?
+        .map_err(|error| error.code())?;
         let _ = app.emit("workspace://changed", snapshot);
     }
     Ok(())
@@ -1702,7 +1702,7 @@ fn launch_import(
         let mut active = state
             .cancellations
             .lock()
-            .map_err(|_| "The import coordinator is unavailable.".to_string())?;
+            .map_err(|_| "coordinatorUnavailable".to_string())?;
         if active.contains_key(&meeting_id) {
             return Ok(());
         }
@@ -1784,7 +1784,7 @@ where
 {
     tauri::async_runtime::spawn_blocking(work)
         .await
-        .map_err(|_| "The local storage task stopped unexpectedly.".to_string())
+        .map_err(|_| "taskStopped".to_string())
 }
 
 async fn with_repository<T, F>(root: PathBuf, operation: F) -> Result<T, String>
@@ -1797,7 +1797,7 @@ where
         operation(&mut repository)
     })
     .await?
-    .map_err(|error| error.user_message())
+    .map_err(|error| error.code())
 }
 
 async fn with_repository_root<T, F>(root: PathBuf, operation: F) -> Result<T, String>
@@ -1807,7 +1807,7 @@ where
 {
     off_thread(move || operation(&root))
         .await?
-        .map_err(|error| error.user_message())
+        .map_err(|error| error.code())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

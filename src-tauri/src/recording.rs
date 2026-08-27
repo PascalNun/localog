@@ -95,7 +95,7 @@ pub(crate) struct Permissions {
 pub(crate) fn permissions() -> Permissions {
     let Some(recorder) = recorder_path() else {
         return Permissions {
-            unavailable: Some("No recorder is installed. LocaLog ships one; this build cannot find it.".into()),
+            unavailable: Some("recorderMissing".into()),
             ..Permissions::default()
         };
     };
@@ -103,13 +103,13 @@ pub(crate) fn permissions() -> Permissions {
     match output {
         Ok(output) if output.status.success() => serde_json::from_slice(&output.stdout)
             .unwrap_or_else(|_| Permissions {
-                unavailable: Some("The recorder did not say what it is allowed to do.".into()),
+                unavailable: Some("recorderSilentAboutPermissions".into()),
                 ..Permissions::default()
             }),
         // An older recorder predating --check exits non-zero on the usage guard.
         // Saying nothing is known is honest; claiming a refusal would not be.
         _ => Permissions {
-            unavailable: Some("This recorder cannot report what it is allowed to do.".into()),
+            unavailable: Some("recorderCannotReportPermissions".into()),
             ..Permissions::default()
         },
     }
@@ -177,7 +177,7 @@ impl Recording {
         microphone_path: PathBuf,
     ) -> Result<Self, String> {
         let recorder = recorder_path().ok_or_else(|| {
-            "No recorder is installed. LocaLog ships one; this build cannot find it.".to_string()
+            "recorderMissing".to_string()
         })?;
         sweep_orphans(root);
 

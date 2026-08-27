@@ -87,11 +87,11 @@ pub(crate) enum ModelError {
 impl Display for ModelError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::UnknownModel => write!(formatter, "That transcription model is not recognised."),
-            Self::Cancelled => write!(formatter, "The download was cancelled."),
+            Self::UnknownModel => write!(formatter, "modelUnknown"),
+            Self::Cancelled => write!(formatter, "downloadCancelled"),
             Self::NotEnoughSpace { needed, available } => write!(
                 formatter,
-                "Not enough space for this model (needs {}, {} free).",
+                "notEnoughSpace:needs {}, {} free",
                 human_bytes(*needed),
                 human_bytes(*available)
             ),
@@ -100,7 +100,7 @@ impl Display for ModelError {
             }
             Self::VerifyFailed => write!(
                 formatter,
-                "The download was incomplete or corrupt and was discarded."
+                "downloadCorrupt"
             ),
             Self::Io(message) => write!(formatter, "The model could not be saved: {message}"),
         }
