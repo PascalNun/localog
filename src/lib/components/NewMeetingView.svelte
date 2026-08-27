@@ -106,12 +106,12 @@
 <main class="workspace" id="main-content">
   <header class="workspace-header compact-header">
     <div>
-      <p class="eyebrow">{forRecording ? 'Recording' : 'Structured import'}</p>
+      <p class="eyebrow">
+        {forRecording ? $t.newMeeting.titleRecording : $t.newMeeting.titleImport}
+      </p>
       <h1 tabindex="-1">{$t.newMeeting.heading}</h1>
       <p>
-        {forRecording
-          ? 'Name the meeting and choose its project. Recording starts on the next screen.'
-          : 'Choose the recording, confirm the details, and LocaLog takes it from there.'}
+        {forRecording ? $t.newMeeting.leadRecording : $t.newMeeting.leadImport}
       </p>
     </div>
   </header>
