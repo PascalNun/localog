@@ -638,9 +638,9 @@
 
         <div class="inspector-section">
           <p class="eyebrow">{$t.transcript.transcriptionInput}</p>
-          <h3>Language</h3>
+          <h3>{$t.transcript.language}</h3>
           {#if editingLanguage}<label class="setting-field"
-              ><span class="sr-only">Meeting language</span><input
+              ><span class="sr-only">{$t.transcript.meetingLanguage}</span><input
                 bind:value={languageDraft}
                 list="transcript-languages"
                 aria-label={$t.transcript.meetingLanguage}

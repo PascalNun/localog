@@ -271,8 +271,8 @@
             class="text-action"
             onclick={() => onNavigate({ name: 'recording-review', meetingId: meeting.id })}
             >{$t.meeting.reviewAndTrim}</button
-          > — cut the wait before the meeting starts and anything it does not need. Your recording is
-          never changed.
+          >
+          {$t.meeting.trimDetail}
         </p>
       </div>
     {:else if meeting.lifecycle === 'transcript_ready'}
