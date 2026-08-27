@@ -1032,6 +1032,17 @@ body.sidebar-resizing * {
   gap: 8px;
 }
 
+/* The header's labels, on the columns the row's button lays out. One template,
+   written twice, because the two elements cannot share a class: the row's is on
+   a button and the header is not interactive. */
+.meeting-index-columns {
+  display: grid;
+  grid-template-columns: 130px minmax(240px, 1.7fr) 100px minmax(150px, 1fr);
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+}
+
 .meeting-open {
   display: grid;
   grid-template-columns: 130px minmax(240px, 1.7fr) 100px minmax(150px, 1fr);

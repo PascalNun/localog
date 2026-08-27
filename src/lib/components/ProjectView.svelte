@@ -103,10 +103,24 @@
 
     {#if meetings.length}
       <div class="meeting-index">
+        <!--
+          Shaped like a row, because it is naming a row's columns.
+
+          The four labels used to sit directly in the header, which shares its
+          grid with `.meeting-row` — two columns. Four labels in two columns
+          wrapped onto three lines, and had done since the header was written;
+          English words are short enough that it read as an odd choice rather
+          than as a fault. German is about a third longer and made it obvious.
+          The inner element carries the same four columns the row's button does,
+          so the labels now sit above the things they name.
+        -->
         <div class="meeting-index-header" aria-hidden="true">
-          <span>{$t.project.columnDate}</span><span>{$t.project.columnMeeting}</span><span
-            >{$t.project.columnDuration}</span
-          ><span>{$t.project.columnStatus}</span><span></span>
+          <div class="meeting-index-columns">
+            <span>{$t.project.columnDate}</span><span>{$t.project.columnMeeting}</span><span
+              >{$t.project.columnDuration}</span
+            ><span>{$t.project.columnStatus}</span>
+          </div>
+          <span></span>
         </div>
         {#each meetings as meeting (meeting.id)}
           <div class="meeting-row">
