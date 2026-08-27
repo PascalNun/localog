@@ -7,6 +7,7 @@
   } from '../workflow/types';
   import Icon from './Icon.svelte';
   import { errorMessage } from '../errors';
+  import { t } from '../i18n';
 
   export let project: ProjectSummary;
   export let meetings: MeetingSummary[];
@@ -45,14 +46,16 @@
     }
   }
 
-  const lifecycleLabel: Record<MeetingLifecycle, string> = {
-    draft: 'Draft',
-    source_ready: 'Ready to transcribe',
-    transcript_ready: 'Transcript ready',
-    protocol_draft: 'Protocol draft',
-    reviewed: 'Reviewed',
-    archived: 'Archived',
-  };
+  // Reactive rather than constant: it was a constant when there was only one
+  // language to write it in.
+  $: lifecycleLabel = {
+    draft: $t.lifecycle.draft,
+    source_ready: $t.lifecycle.sourceReady,
+    transcript_ready: $t.lifecycle.transcriptReady,
+    protocol_draft: $t.lifecycle.protocolDraft,
+    reviewed: $t.lifecycle.reviewed,
+    archived: $t.lifecycle.archived,
+  } satisfies Record<MeetingLifecycle, string>;
 
   function openMeeting(meeting: MeetingSummary) {
     if (meeting.lifecycle === 'transcript_ready')
@@ -71,7 +74,7 @@
 <main class="workspace" id="main-content">
   <header class="workspace-header project-header">
     <div>
-      <p class="eyebrow">Project</p>
+      <p class="eyebrow">{$t.project.eyebrow}</p>
       <h1 tabindex="-1">{project.name}</h1>
       <p>{project.description}</p>
     </div>
@@ -80,27 +83,30 @@
            comes back from Settings whenever somebody wants it. So it is a quiet
            action beside the loud one rather than behind a confirmation. -->
       <button class="quiet-action" onclick={() => void onArchiveProject(project.id)}>
-        Archive project
+        {$t.project.archiveProject}
       </button>
       <button
         class="primary-action"
         onclick={() => onNavigate({ name: 'new-meeting', projectId: project.id })}
       >
-        New meeting <Icon name="plus" size={16} />
+        {$t.project.newMeeting}
+        <Icon name="plus" size={16} />
       </button>
     </div>
   </header>
 
   <section class="document-section" aria-labelledby="meetings-heading">
     <div class="section-heading-row">
-      <h2 id="meetings-heading">Meetings</h2>
-      <span class="meta">Newest first · {meetings.length} total</span>
+      <h2 id="meetings-heading">{$t.project.meetings}</h2>
+      <span class="meta">{$t.project.newestFirst} · {meetings.length}</span>
     </div>
 
     {#if meetings.length}
       <div class="meeting-index">
         <div class="meeting-index-header" aria-hidden="true">
-          <span>Date</span><span>Meeting</span><span>Duration</span><span>Status</span><span></span>
+          <span>{$t.project.columnDate}</span><span>{$t.project.columnMeeting}</span><span
+            >{$t.project.columnDuration}</span
+          ><span>{$t.project.columnStatus}</span><span></span>
         </div>
         {#each meetings as meeting (meeting.id)}
           <div class="meeting-row">
@@ -121,9 +127,15 @@
                 <!-- Archiving offered beside deleting, because most of what somebody
                      reaches for the cross to do is get it out of the list, and that
                      does not have to be permanent. -->
-                <button class="text-action" onclick={() => void archive(meeting)}>Archive</button>
-                <button class="text-action" onclick={() => void remove(meeting)}>Delete</button>
-                <button class="text-action" onclick={() => (confirming = '')}>Keep</button>
+                <button class="text-action" onclick={() => void archive(meeting)}
+                  >{$t.project.archive}</button
+                >
+                <button class="text-action" onclick={() => void remove(meeting)}
+                  >{$t.project.delete}</button
+                >
+                <button class="text-action" onclick={() => (confirming = '')}
+                  >{$t.project.keep}</button
+                >
               </span>
             {:else}
               <button
@@ -145,12 +157,12 @@
       </div>
     {:else}
       <div class="empty-inline">
-        <h3>No meetings yet</h3>
-        <p>Import the first recording to begin this project’s meeting record.</p>
+        <h3>{$t.project.noMeetings}</h3>
+        <p>{$t.project.noMeetingsDetail}</p>
         <button
           class="text-action"
           onclick={() => onNavigate({ name: 'new-meeting', projectId: project.id })}
-          >Import recording <Icon name="arrow" /></button
+          >{$t.project.importRecording} <Icon name="arrow" /></button
         >
       </div>
     {/if}

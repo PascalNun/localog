@@ -198,6 +198,47 @@ export const en = {
   },
 
   /** The sidebar, which is on screen whatever else is. */
+  project: {
+    eyebrow: 'Project',
+    archiveProject: 'Archive project',
+    newMeeting: 'New meeting',
+    meetings: 'Meetings',
+    newestFirst: 'Newest first',
+    columnDate: 'Date',
+    columnMeeting: 'Meeting',
+    columnDuration: 'Duration',
+    columnStatus: 'Status',
+    archive: 'Archive',
+    delete: 'Delete',
+    keep: 'Keep',
+    noMeetings: 'No meetings yet',
+    noMeetingsDetail: 'Import the first recording to begin this project’s meeting record.',
+    importRecording: 'Import recording',
+  },
+
+  lifecycle: {
+    draft: 'Draft',
+    sourceReady: 'Ready to transcribe',
+    transcriptReady: 'Transcript ready',
+    protocolDraft: 'Protocol draft',
+    reviewed: 'Reviewed',
+    archived: 'Archived',
+  },
+
+  sections: {
+    noHeadings: 'This protocol has no headings yet, so there is nothing to list.',
+    setAside: 'Set aside',
+    addSection: 'Add section',
+    dragHint: 'Drag, or use the arrow keys',
+    setThisAside: 'Set this section aside',
+    putThisBack: 'Put this section back',
+    moveSection: (title: string) => `Move ${title}. Use the arrow keys.`,
+    setAsideNamed: (title: string) => `Set aside ${title}`,
+    putBackNamed: (title: string) => `Put back ${title}`,
+    setAsideNote:
+      'A section set aside leaves the document, so what you read is still exactly what is exported. It is kept here and can be put back.',
+  },
+
   sidebar: {
     projects: 'Projects',
     newProject: 'New project',

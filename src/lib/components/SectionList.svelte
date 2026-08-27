@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
+  import { t } from '../i18n';
   import type { Section } from '../protocol/sections';
   import type { SetAsideSection } from '../workflow/types';
 
@@ -37,7 +38,7 @@
 </script>
 
 {#if sections.length === 0}
-  <p class="section-none">This protocol has no headings yet, so there is nothing to list.</p>
+  <p class="section-none">{$t.sections.noHeadings}</p>
 {:else}
   <ul class="section-list">
     {#each sections as section, index (section.from)}
@@ -51,15 +52,15 @@
       >
         <button
           class="section-grip"
-          aria-label={`Move ${section.title}. Use the arrow keys.`}
-          title="Drag, or use the arrow keys"
+          aria-label={$t.sections.moveSection(section.title)}
+          title={$t.sections.dragHint}
           onkeydown={(event) => void moveByKey(event, index)}>⠿</button
         >
         <button class="section-name" onclick={() => onGoTo(index)}>{section.title}</button>
         <button
           class="icon-button compact"
-          title="Set this section aside"
-          aria-label={`Set aside ${section.title}`}
+          title={$t.sections.setThisAside}
+          aria-label={$t.sections.setAsideNamed(section.title)}
           onclick={() => void onSetAside(index)}><Icon name="close" size={14} /></button
         >
       </li>
@@ -68,7 +69,7 @@
 {/if}
 
 {#if setAside.length > 0}
-  <p class="section-stash-label">Set aside</p>
+  <p class="section-stash-label">{$t.sections.setAside}</p>
   <ul class="section-list stashed">
     {#each setAside as held, index (held.title + index)}
       <li>
@@ -76,8 +77,8 @@
         <span class="section-name">{held.title}</span>
         <button
           class="icon-button compact"
-          title="Put this section back"
-          aria-label={`Put back ${held.title}`}
+          title={$t.sections.putThisBack}
+          aria-label={$t.sections.putBackNamed(held.title)}
           onclick={() => void onBringBack(index)}><Icon name="plus" size={14} /></button
         >
       </li>
@@ -87,10 +88,9 @@
 
 <button class="inspector-control" onclick={() => void onAdd()}>
   <Icon name="plus" size={16} />
-  <span>Add section</span>
+  <span>{$t.sections.addSection}</span>
   <span></span>
 </button>
 <p class="section-note">
-  A section set aside leaves the document, so what you read is still exactly what is exported. It is
-  kept here and can be put back.
+  {$t.sections.setAsideNote}
 </p>

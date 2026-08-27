@@ -200,6 +200,48 @@ export const de: Strings = {
       'In welcher Sprache LocaLog selbst geschrieben ist. Unabhängig von der Sprache der einzelnen Besprechung.',
   },
 
+  project: {
+    eyebrow: 'Projekt',
+    archiveProject: 'Projekt archivieren',
+    newMeeting: 'Neue Besprechung',
+    meetings: 'Besprechungen',
+    newestFirst: 'Neueste zuerst',
+    columnDate: 'Datum',
+    columnMeeting: 'Besprechung',
+    columnDuration: 'Dauer',
+    columnStatus: 'Status',
+    archive: 'Archivieren',
+    delete: 'Löschen',
+    keep: 'Behalten',
+    noMeetings: 'Noch keine Besprechungen',
+    noMeetingsDetail:
+      'Importieren Sie die erste Aufnahme, um mit dem Besprechungsverlauf dieses Projekts zu beginnen.',
+    importRecording: 'Aufnahme importieren',
+  },
+
+  lifecycle: {
+    draft: 'Entwurf',
+    sourceReady: 'Bereit zur Transkription',
+    transcriptReady: 'Transkript fertig',
+    protocolDraft: 'Protokollentwurf',
+    reviewed: 'Geprüft',
+    archived: 'Archiviert',
+  },
+
+  sections: {
+    noHeadings: 'Dieses Protokoll hat noch keine Überschriften, es gibt also nichts aufzulisten.',
+    setAside: 'Zurücklegen',
+    addSection: 'Abschnitt hinzufügen',
+    dragHint: 'Ziehen, oder die Pfeiltasten benutzen',
+    setThisAside: 'Diesen Abschnitt zurücklegen',
+    putThisBack: 'Diesen Abschnitt zurückholen',
+    moveSection: (title: string) => `${title} verschieben. Mit den Pfeiltasten.`,
+    setAsideNamed: (title: string) => `${title} zurücklegen`,
+    putBackNamed: (title: string) => `${title} zurückholen`,
+    setAsideNote:
+      'Ein zurückgelegter Abschnitt verlässt das Dokument — was Sie lesen, ist also genau das, was exportiert wird. Er bleibt hier erhalten und kann zurückgeholt werden.',
+  },
+
   sidebar: {
     projects: 'Projekte',
     newProject: 'Neues Projekt',
