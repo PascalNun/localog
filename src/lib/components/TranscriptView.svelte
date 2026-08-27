@@ -18,6 +18,7 @@
   import ProgressPanel from './ProgressPanel.svelte';
   import StageRail from './StageRail.svelte';
   import { errorMessage } from '../errors';
+  import { t } from '../i18n';
 
   export let project: ProjectSummary;
   export let meeting: MeetingSummary;
@@ -294,12 +295,12 @@
   $: speakerResolution = transcript?.speakerResolution ?? 'unavailable';
   $: speakerResolutionCopy =
     speakerResolution === 'resolved'
-      ? 'Speaker turns were resolved locally. Labels are provisional—rename them only when you know the participant.'
+      ? $t.transcript.speakersResolved
       : speakerResolution === 'failed'
-        ? 'Speaker separation did not produce usable turns for this run. The transcript is intact and uses neutral labels; you can continue with manual labels.'
+        ? $t.transcript.speakersFailed
         : speakerResolution === 'unknown'
-          ? 'This older transcript does not record whether speaker separation ran. Its neutral labels are not evidence that there was only one speaker.'
-          : 'Speaker separation was not available for this run. The transcript is intact and uses a neutral label; you can still rename it manually.';
+          ? $t.transcript.speakersUnknown
+          : $t.transcript.speakersUnavailable;
   $: unclearCount = segments.filter((segment) => segment.needsReview).length;
 
   // Whisper reports how sure it was of each word. Where it was not sure, the word
@@ -307,7 +308,7 @@
   // they can answer from memory of the meeting.
   function uncertainLabel(segment: TranscriptSegment): string {
     const words = segment.uncertainWords ?? [];
-    if (words.length === 0) return 'Check wording';
+    if (words.length === 0) return $t.transcript.checkWording;
     return `Check ${words.map((word) => `“${word}”`).join(', ')}`;
   }
 
@@ -315,7 +316,7 @@
     if (!audioElement) return;
     if (audioElement.paused) {
       audioElement.play().catch(() => {
-        audioError = 'This meeting’s working audio could not be played.';
+        audioError = $t.transcript.audioUnplayable;
       });
     } else {
       audioElement.pause();
@@ -376,9 +377,7 @@
 
   async function rerunTranscription() {
     if (rerunning || !transcript) return;
-    const confirmed = window.confirm(
-      `Rerun transcription in ${meeting.language}? The current transcript will stay until the new result is committed, then this working transcript will be replaced.`,
-    );
+    const confirmed = window.confirm($t.transcript.rerunConfirm(meeting.language));
     if (!confirmed) return;
     rerunning = true;
     rerunError = '';
@@ -419,14 +418,14 @@
   <header class="workspace-header meeting-header">
     <div>
       <p class="breadcrumb">{project.name} <span>›</span> {meeting.title}</p>
-      <h1 tabindex="-1">Transcript review</h1>
+      <h1 tabindex="-1">{$t.transcript.heading}</h1>
       <p>{meeting.occurredAt} · {meeting.durationLabel ?? 'Duration pending'}</p>
     </div>
     <div class="transcript-header-actions">
       <select
         class="transcript-export"
         value=""
-        aria-label="Export this transcript"
+        aria-label={$t.transcript.exportLabel}
         disabled={!transcript || transcript.segments.length === 0}
         onchange={(event) => {
           const chosen = event.currentTarget.value;
@@ -434,13 +433,13 @@
           if (chosen === 'markdown' || chosen === 'text') void exportTranscript(chosen);
         }}
       >
-        <option value="">Export transcript…</option>
-        <option value="markdown">As Markdown</option>
-        <option value="text">As plain text</option>
+        <option value="">{$t.transcript.exportTranscript}</option>
+        <option value="markdown">{$t.transcript.asMarkdown}</option>
+        <option value="text">{$t.transcript.asPlainText}</option>
       </select>
       <button
         class="secondary-action inspector-toggle"
-        onclick={() => (inspectorOpen = !inspectorOpen)}>Review details</button
+        onclick={() => (inspectorOpen = !inspectorOpen)}>{$t.transcript.reviewDetails}</button
       >
     </div>
   </header>
@@ -455,7 +454,7 @@
 
   <div class:without-inspector={!inspectorOpen} class="context-layout">
     <div class="transcript-main">
-      <section class="audio-transport" aria-label="Meeting source context">
+      <section class="audio-transport" aria-label={$t.transcript.sourceContext}>
         {#if audioSource}
           <audio
             bind:this={audioElement}
@@ -481,7 +480,7 @@
           >
           <span class="time-readout">{timeLabel(currentSeconds)}</span>
           <input
-            aria-label="Seek audio"
+            aria-label={$t.transcript.seekAudio}
             class="seek-range"
             type="range"
             min="0"
@@ -498,8 +497,8 @@
           <button
             class="quiet-action follow-toggle"
             aria-pressed={followPlayback}
-            title="Scroll the transcript to the segment being played"
-            onclick={() => (followPlayback = !followPlayback)}>Follow</button
+            title={$t.transcript.followLabel}
+            onclick={() => (followPlayback = !followPlayback)}>{$t.transcript.follow}</button
           >
         {:else}
           <p class="transport-empty">
@@ -511,25 +510,26 @@
 
       <div class="transcript-toolbar">
         <label class="search-field"
-          ><Icon name="search" size={16} /><span class="sr-only">Search transcript</span><input
-            bind:value={query}
-            placeholder="Search transcript"
-          /></label
+          ><Icon name="search" size={16} /><span class="sr-only"
+            >{$t.transcript.searchTranscript}</span
+          ><input bind:value={query} placeholder={$t.transcript.searchTranscript} /></label
         >
         {#if unclearCount}
           <button
             class="text-action review-summary"
             aria-pressed={onlyFlagged}
             onclick={() => (onlyFlagged = !onlyFlagged)}
-            >{onlyFlagged ? 'Showing' : 'Show'}
-            {unclearCount === 1 ? '1 unclear passage' : `${unclearCount} unclear passages`}</button
+            >{onlyFlagged ? $t.transcript.showing : $t.transcript.show}
+            {unclearCount === 1
+              ? $t.transcript.onePassage
+              : $t.transcript.manyPassages(unclearCount)}</button
           >
         {:else}
-          <span class="review-summary">Nothing flagged as unclear</span>
+          <span class="review-summary">{$t.transcript.nothingFlagged}</span>
         {/if}
       </div>
 
-      <section class="transcript-list" aria-label="Editable transcript">
+      <section class="transcript-list" aria-label={$t.transcript.editableTranscript}>
         {#each filteredSegments as segment (segment.id)}
           <article
             class:needs-review={segment.needsReview}
@@ -561,7 +561,7 @@
               class="segment-remove"
               onclick={() => removeSegment(segment.id)}
               disabled={deletingSegment === segment.id || (transcript?.segments.length ?? 0) <= 1}
-              title="Remove this line from the transcript"
+              title={$t.transcript.removeLine}
               aria-label="Remove the line at {segmentTimeLabel(segment.startMs)}"
               ><Icon name="close" size={14} /></button
             >
@@ -579,24 +579,24 @@
                 : transcript?.isDirty
                   ? 'Edits saved'
                   : 'Transcript revision saved'}</strong
-          ><small>Speaker labels are a starting point—rename them to the people who spoke.</small>
+          ><small>{$t.transcript.speakerHint}</small>
         </div>
         <button class="primary-action" onclick={onGenerate} disabled={generationUnavailable}
-          >Generate protocol <Icon name="arrow" /></button
+          >{$t.transcript.generateProtocol} <Icon name="arrow" /></button
         >
       </footer>
     </div>
 
     {#if inspectorOpen}
-      <aside class="context-inspector" aria-label="Transcript review details">
+      <aside class="context-inspector" aria-label={$t.transcript.detailsLabel}>
         <div class="inspector-heading">
           <div>
             <p class="eyebrow">Review</p>
-            <h2>Speakers</h2>
+            <h2>{$t.transcript.speakers}</h2>
           </div>
           <button
             class="icon-button compact"
-            aria-label="Close inspector"
+            aria-label={$t.transcript.closeInspector}
             onclick={() => (inspectorOpen = false)}><Icon name="close" size={16} /></button
           >
         </div>
@@ -626,7 +626,7 @@
         </div>
         {#if lastSegment}
           <div class="inspector-section">
-            <p class="eyebrow">Where the recording stops</p>
+            <p class="eyebrow">{$t.transcript.whereRecordingStops}</p>
             <h3>{timeLabel(lastSegment.endMs / 1000)}</h3>
             <p class="recording-last-words">“{lastSegment.text}”</p>
             <p>
@@ -637,13 +637,13 @@
         {/if}
 
         <div class="inspector-section">
-          <p class="eyebrow">Transcription input</p>
+          <p class="eyebrow">{$t.transcript.transcriptionInput}</p>
           <h3>Language</h3>
           {#if editingLanguage}<label class="setting-field"
               ><span class="sr-only">Meeting language</span><input
                 bind:value={languageDraft}
                 list="transcript-languages"
-                aria-label="Meeting language"
+                aria-label={$t.transcript.meetingLanguage}
               /><datalist id="transcript-languages">
                 {#each COMMON_MEETING_LANGUAGES as language (language)}<option value={language}
                   ></option>{/each}
@@ -654,9 +654,11 @@
                 class="secondary-action"
                 onclick={saveLanguage}
                 disabled={Boolean(relevantJob && relevantJob.state !== 'completed')}
-                >Save language</button
+                >{$t.transcript.saveLanguage}</button
               >
-              <button class="quiet-action" onclick={() => (editingLanguage = false)}>Cancel</button>
+              <button class="quiet-action" onclick={() => (editingLanguage = false)}
+                >{$t.transcript.cancel}</button
+              >
             </div>{:else}<p>{meeting.language}</p>
             <button
               class="quiet-action"
@@ -664,24 +666,21 @@
               onclick={() => {
                 languageDraft = meeting.language;
                 editingLanguage = true;
-              }}>Change language</button
+              }}>{$t.transcript.changeLanguage}</button
             >{/if}
           {#if languageError}<p class="setting-error" role="alert">{languageError}</p>{/if}
           <button
             class="secondary-action rerun-transcription"
             onclick={rerunTranscription}
             disabled={rerunning || Boolean(relevantJob && relevantJob.state !== 'completed')}
-            >{rerunning ? 'Preparing a new transcript…' : 'Rerun transcription'}</button
+            >{rerunning ? $t.transcript.rerunPreparing : $t.transcript.rerun}</button
           >
-          <small class="inspector-note"
-            >Use this after changing the language or transcription settings. The new run is recorded
-            as a separate revision.</small
-          >
+          <small class="inspector-note">{$t.transcript.rerunNote}</small>
           {#if rerunError}<p class="setting-error" role="alert">{rerunError}</p>{/if}
         </div>
         {#if !projectHasNames || introductions}
           <div class="inspector-section">
-            <p class="eyebrow">Who is in this meeting</p>
+            <p class="eyebrow">{$t.transcript.whoIsHere}</p>
             {#if introductions}
               <h3>{introductions.length} introduced themselves</h3>
               <p>
@@ -710,7 +709,9 @@
                     ? `Correct ${correctedNames.length}`
                     : 'Nothing changed yet'}
                 </button>
-                <button class="text-action" onclick={() => (introductions = null)}>Close</button>
+                <button class="text-action" onclick={() => (introductions = null)}
+                  >{$t.transcript.close}</button
+                >
               </div>
             {:else}
               <h3>No names yet for {project.name}</h3>
@@ -721,7 +722,7 @@
               <button class="secondary-action" disabled={reading} onclick={readIntroductions}>
                 {reading ? 'Reading the opening…' : 'Read who is in this meeting'}
               </button>
-              <small class="inspector-note">About a minute. Nothing else can run meanwhile.</small>
+              <small class="inspector-note">{$t.transcript.aboutAMinute}</small>
             {/if}
             {#if readError}<p class="setting-error" role="alert">{readError}</p>{/if}
             {#if introductionsSaved}<p class="correction-applied" role="status">
@@ -731,17 +732,17 @@
         {/if}
 
         <div class="inspector-section">
-          <p class="eyebrow">Names the transcriber was unsure of</p>
+          <p class="eyebrow">{$t.transcript.unsureNames}</p>
 
           {#if correcting}
             {@const editing = correcting}
-            <h3>What should it say?</h3>
+            <h3>{$t.transcript.whatShouldItSay}</h3>
             <label class="correction-field">
               <span>Heard as “{editing.heard}”</span>
               <input
                 type="text"
                 bind:value={editing.spelling}
-                placeholder="Correct spelling"
+                placeholder={$t.transcript.correctSpelling}
                 onkeydown={(event) => {
                   if (event.key === 'Enter') void applyCorrection();
                   if (event.key === 'Escape') correcting = null;
@@ -773,7 +774,7 @@
 
             <label class="correction-remember">
               <input type="checkbox" bind:checked={remember} />
-              <span>Remember for this project, so the next meeting spells it correctly</span>
+              <span>{$t.transcript.rememberForProject}</span>
             </label>
 
             <div class="correction-actions">
@@ -784,11 +785,13 @@
               >
                 {applying ? 'Correcting…' : `Correct ${keptMatches.length}`}
               </button>
-              <button class="text-action" onclick={() => (correcting = null)}>Cancel</button>
+              <button class="text-action" onclick={() => (correcting = null)}
+                >{$t.transcript.cancel}</button
+              >
             </div>
           {:else if candidates.length}
             <h3>{candidates.length} never got right</h3>
-            <p>Are any of these names? Correcting one repairs this transcript and remembers it.</p>
+            <p>{$t.transcript.areAnyNames}</p>
             <ul class="correction-candidates">
               {#each candidates as candidate (candidate.heard)}
                 <li>
@@ -801,7 +804,7 @@
               {/each}
             </ul>
           {:else}
-            <h3>Nothing to check</h3>
+            <h3>{$t.transcript.nothingToCheck}</h3>
             <p>
               {#if unclearCount}
                 No word was misheard every time it came up. {unclearCount} passages are still flagged
@@ -817,7 +820,7 @@
         </div>
         {#if protocolStyle}
           <div class="inspector-section">
-            <p class="eyebrow">Protocol style</p>
+            <p class="eyebrow">{$t.transcript.protocolStyle}</p>
             <h3>{protocolStyle.name}</h3>
             <p>{protocolStyle.description}</p>
           </div>

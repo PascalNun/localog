@@ -441,6 +441,68 @@ export const de: Strings = {
     backToMeeting: 'Zurück zur Besprechung',
   },
 
+  transcript: {
+    heading: 'Transkript prüfen',
+    exportTranscript: 'Transkript exportieren …',
+    exportLabel: 'Dieses Transkript exportieren',
+    asMarkdown: 'Als Markdown',
+    asPlainText: 'Als reinen Text',
+    reviewDetails: 'Details zur Prüfung',
+    sourceContext: 'Quelle der Besprechung',
+    seekAudio: 'Im Audio springen',
+    follow: 'Folgen',
+    followLabel: 'Das Transkript zum laufenden Abschnitt scrollen',
+    searchTranscript: 'Transkript durchsuchen',
+    editableTranscript: 'Bearbeitbares Transkript',
+    removeLine: 'Diese Zeile aus dem Transkript entfernen',
+    nothingFlagged: 'Nichts als unklar markiert',
+    show: 'Zeigen',
+    showing: 'Es werden gezeigt',
+    onePassage: '1 unklare Passage',
+    manyPassages: (count: number) => `${count} unklare Passagen`,
+    speakerHint:
+      'Die Sprecherbezeichnungen sind ein Anfang — benennen Sie sie nach den Personen, die gesprochen haben.',
+    generateProtocol: 'Protokoll erzeugen',
+    review: 'Prüfung',
+    detailsLabel: 'Details zur Transkriptprüfung',
+    closeInspector: 'Bereich schließen',
+    speakers: 'Sprecher',
+    whereRecordingStops: 'Wo die Aufnahme endet',
+    transcriptionInput: 'Eingabe der Transkription',
+    language: 'Sprache',
+    meetingLanguage: 'Sprache der Besprechung',
+    saveLanguage: 'Sprache speichern',
+    cancel: 'Abbrechen',
+    changeLanguage: 'Sprache ändern',
+    rerunNote:
+      'Verwenden Sie das nach einer Änderung der Sprache oder der Transkriptionseinstellungen. Der neue Durchlauf wird als eigene Fassung festgehalten.',
+    rerun: 'Transkription erneut ausführen',
+    rerunPreparing: 'Neues Transkript wird vorbereitet …',
+    rerunConfirm: (language: string) =>
+      `Transkription erneut auf ${language} ausführen? Das aktuelle Transkript bleibt erhalten, bis das neue Ergebnis übernommen wird — danach wird dieses Arbeitstranskript ersetzt.`,
+    whoIsHere: 'Wer ist in dieser Besprechung',
+    close: 'Schließen',
+    aboutAMinute: 'Etwa eine Minute. Solange kann nichts anderes laufen.',
+    unsureNames: 'Namen, bei denen die Transkription unsicher war',
+    whatShouldItSay: 'Wie soll es heißen?',
+    rememberForProject:
+      'Für dieses Projekt merken, damit die nächste Besprechung es richtig schreibt',
+    areAnyNames: 'Sind das Namen? Eine Korrektur bessert dieses Transkript aus und wird gemerkt.',
+    nothingToCheck: 'Nichts zu prüfen',
+    correctSpelling: 'Schreibweise korrigieren',
+    checkWording: 'Formulierung prüfen',
+    protocolStyle: 'Protokollstil',
+    audioUnplayable: 'Die Arbeitsdatei dieser Besprechung konnte nicht abgespielt werden.',
+    speakersResolved:
+      'Die Sprecherwechsel wurden lokal bestimmt. Die Bezeichnungen sind vorläufig — benennen Sie sie erst um, wenn Sie die Person kennen.',
+    speakersFailed:
+      'Die Sprechertrennung hat für diesen Durchlauf keine brauchbaren Wechsel ergeben. Das Transkript ist vollständig und verwendet neutrale Bezeichnungen. Sie können sie von Hand vergeben.',
+    speakersUnavailable:
+      'Die Sprechertrennung war für diesen Durchlauf nicht verfügbar. Das Transkript ist vollständig und verwendet eine neutrale Bezeichnung, die Sie von Hand ändern können.',
+    speakersUnknown:
+      'Dieses ältere Transkript hält nicht fest, ob eine Sprechertrennung lief. Die neutralen Bezeichnungen sind kein Beleg dafür, dass nur eine Person gesprochen hat.',
+  },
+
   sidebar: {
     projects: 'Projekte',
     newProject: 'Neues Projekt',
