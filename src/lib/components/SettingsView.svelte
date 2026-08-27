@@ -22,6 +22,7 @@
     recommendationFor,
   } from '../models/modelCatalog';
   import { formatModelSize } from '../models/modelSize';
+  import { INTERFACE_LANGUAGES, chooseLanguage, language, t } from '../i18n';
   import Icon from './Icon.svelte';
   import type { IconName } from './Icon.svelte';
 
@@ -294,12 +295,29 @@
       <h2>{section}</h2>
       {#if section === 'General'}
         <!--
-          The interface language row stood here saying "English" with no way to
-          change it, which in an application written for German offices is worse
-          than saying nothing. The answer is not a menu, it is translating every
-          string in the product, and that is its own piece of work rather than a
-          control to be wired up. It comes back when there is a second language.
+          Back, and real. This row said "English" with no way to change it until
+          there was a second language to change it to; now there is.
+
+          Separate from the language a meeting is transcribed and written in. A
+          German office regularly minutes an English meeting, and the application
+          it does that in should still be in German.
         -->
+        <div class="setting-row">
+          <div>
+            <h3>{$t.settings.interfaceLanguage}</h3>
+            <p>{$t.settings.interfaceLanguageDetail}</p>
+          </div>
+          <div class="choice-row" role="group" aria-label={$t.settings.interfaceLanguage}>
+            {#each INTERFACE_LANGUAGES as option (option.id)}
+              <button
+                class="choice"
+                class:chosen={$language === option.id}
+                aria-pressed={$language === option.id}
+                onclick={() => chooseLanguage(option.id)}>{option.label}</button
+              >
+            {/each}
+          </div>
+        </div>
         <div class="setting-row">
           <div>
             <h3>Default export</h3>

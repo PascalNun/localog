@@ -2,6 +2,7 @@
   import type { AppRoute, TranscriptionCapability } from '../workflow/types';
   import { PRESET_LABELS } from '../workflow/types';
   import { formatModelSize } from '../models/modelSize';
+  import { t } from '../i18n';
   import Icon from './Icon.svelte';
 
   export let onNavigate: (route: AppRoute) => void;
@@ -45,21 +46,18 @@
       <line x1="75" y1="14" x2="75" y2="59" />
       <line x1="88" y1="27" x2="88" y2="45" />
     </svg>
-    <p class="eyebrow">Local AI for private meeting protocols</p>
-    <h1 tabindex="-1">Start a meeting</h1>
-    <p class="hero-copy">
-      Import an audio or video file. Review every step before it becomes a protocol.
-    </p>
+    <p class="eyebrow">{$t.start.eyebrow}</p>
+    <h1 tabindex="-1">{$t.start.title}</h1>
+    <p class="hero-copy">{$t.start.lead}</p>
 
     {#if !ready && chosen}
       <div class="start-setup" aria-live="polite">
-        <p class="start-setup-title">One download before the first transcription</p>
+        <p class="start-setup-title">{$t.start.setupTitle}</p>
         <p class="start-setup-copy">
-          LocaLog transcribes on this device, so the model has to be on it. {PRESET_LABELS[
-            capability.selectedPreset
-          ].name}
-          quality is {formatModelSize(chosen.byteCount)}, downloaded once. You can import a
-          recording first — this is needed when transcription starts, not before.
+          {$t.start.setupBody(
+            PRESET_LABELS[capability.selectedPreset].name,
+            formatModelSize(chosen.byteCount),
+          )}
         </p>
         {#if fetching}
           <div class="start-setup-progress">
@@ -69,18 +67,18 @@
             <span class="start-setup-percent">{percent}%</span>
             <!-- 141 MB started from here should be stoppable from here. -->
             <button class="start-setup-cancel" onclick={() => onCancelDownload(chosen.modelId)}>
-              Cancel
+              {$t.start.setupCancel}
             </button>
           </div>
         {:else}
           <button class="start-setup-action" onclick={() => onDownloadModel(chosen.modelId)}>
-            Download it now ({formatModelSize(chosen.byteCount)})
+            {$t.start.setupDownload(formatModelSize(chosen.byteCount))}
           </button>
         {/if}
         {#if modelError}
           <p class="start-setup-error">{modelError}</p>
         {/if}
-        <p class="start-setup-aside">Other qualities, and speaker separation, are in Settings.</p>
+        <p class="start-setup-aside">{$t.start.setupAside}</p>
       </div>
     {/if}
 
@@ -89,11 +87,7 @@
       onclick={() => onNavigate({ name: 'new-meeting', projectId: null })}
     >
       <span class="import-icon"><Icon name="upload" size={26} /></span>
-      <span
-        ><strong>Import recording</strong><small
-          >Choose a project, then keep every artifact in context</small
-        ></span
-      >
+      <span><strong>{$t.start.importTitle}</strong><small>{$t.start.importDetail}</small></span>
       <Icon name="arrow" />
     </button>
 
@@ -102,21 +96,13 @@
       onclick={() => onNavigate({ name: 'new-meeting', projectId: null, forRecording: true })}
     >
       <span class="import-icon"><Icon name="microphone" size={26} /></span>
-      <span
-        ><strong>Record a meeting</strong><small
-          >Capture the room and the call on this device, on separate tracks</small
-        ></span
-      >
+      <span><strong>{$t.start.recordTitle}</strong><small>{$t.start.recordDetail}</small></span>
       <Icon name="arrow" />
     </button>
   </div>
 
   <div class="local-promise">
     <span class="lock-mark" aria-hidden="true">⌂</span>
-    <span
-      ><strong>Your meeting work stays on this device.</strong><small
-        >No LocaLog account, cloud service, or telemetry.</small
-      ></span
-    >
+    <span><strong>{$t.start.promiseTitle}</strong><small>{$t.start.promiseDetail}</small></span>
   </div>
 </main>

@@ -34,6 +34,7 @@
   import { FakeWorkflowBridge } from './lib/workflow/fakeBridge';
   import { createNativeWorkspaceStore } from './lib/workflow/workspaceStore';
   import { errorMessage } from './lib/errors';
+  import { startLanguage } from './lib/i18n';
   import { formatBytes } from './lib/bytes';
   import type {
     AppRoute,
@@ -305,6 +306,8 @@
 
     sidebarWidth = parseStoredSidebarWidth(localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
 
+    // Before anything is drawn, so nothing appears in English and then changes.
+    startLanguage();
     const savedExport = localStorage.getItem('localog-default-export');
     if (
       savedExport === 'pdf' ||
