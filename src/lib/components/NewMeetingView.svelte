@@ -8,6 +8,7 @@
   import { COMMON_MEETING_LANGUAGES, DETECT_LANGUAGE_LABEL } from '../workflow/languages';
   import Icon from './Icon.svelte';
   import { errorMessage } from '../errors';
+  import { t } from '../i18n';
 
   export let projects: ProjectSummary[];
   export let initialProjectId: string | null;
@@ -106,7 +107,7 @@
   <header class="workspace-header compact-header">
     <div>
       <p class="eyebrow">{forRecording ? 'Recording' : 'Structured import'}</p>
-      <h1 tabindex="-1">New meeting</h1>
+      <h1 tabindex="-1">{$t.newMeeting.heading}</h1>
       <p>
         {forRecording
           ? 'Name the meeting and choose its project. Recording starts on the next screen.'
@@ -119,23 +120,24 @@
     <section class="form-step" aria-labelledby="context-heading">
       <div class="step-number">1</div>
       <div class="step-content">
-        <p class="eyebrow">Context</p>
-        <h2 id="context-heading">Choose a project</h2>
+        <p class="eyebrow">{$t.newMeeting.context}</p>
+        <h2 id="context-heading">{$t.newMeeting.chooseProject}</h2>
         <div class="field-with-action">
           <label
-            ><span>Project</span><select bind:value={projectId} onchange={useProjectDefaults}
+            ><span>{$t.newMeeting.project}</span><select
+              bind:value={projectId}
+              onchange={useProjectDefaults}
               >{#each projects as project (project.id)}<option value={project.id}
                   >{project.name}</option
                 >{/each}</select
             ></label
           >
           <button type="button" class="secondary-action" onclick={onCreateProject}
-            ><Icon name="plus" size={15} /> New project</button
+            ><Icon name="plus" size={15} /> {$t.newMeeting.newProject}</button
           >
         </div>
         <p class="field-note">
-          Every source belongs to a meeting, and every meeting belongs to a project. There is no
-          inbox.
+          {$t.newMeeting.noInbox}
         </p>
       </div>
     </section>
@@ -146,10 +148,10 @@
         <div class="step-content">
           <div class="section-heading-row">
             <div>
-              <p class="eyebrow">Source</p>
-              <h2 id="source-heading">Import recording</h2>
+              <p class="eyebrow">{$t.newMeeting.source}</p>
+              <h2 id="source-heading">{$t.newMeeting.importRecording}</h2>
             </div>
-            <span class="privacy-note">Your original stays where it is</span>
+            <span class="privacy-note">{$t.newMeeting.originalStays}</span>
           </div>
           {#if onSelectNativeSource}<button
               class:has-source={sourceName}
@@ -159,21 +161,19 @@
               onclick={chooseNativeSource}
             >
               <span class="drop-icon"><Icon name="upload" size={30} /></span>
-              {#if sourceName}<strong>{sourceName}</strong><small
-                  >Ready to copy after you confirm this meeting</small
-                >{:else if draggingOver}<strong>Let go to import</strong><small
-                  >The original stays where it is.</small
-                >{:else}<strong>Drop a recording here, or click to choose one</strong><small
-                  >MP3, M4A, WAV, MP4, MOV and others. The original remains untouched — LocaLog
-                  copies it into its own storage.</small
+              {#if sourceName}<strong>{sourceName}</strong><small>{$t.newMeeting.readyToCopy}</small
+                >{:else if draggingOver}<strong>{$t.newMeeting.letGoToImport}</strong><small
+                  >{$t.newMeeting.originalStaysShort}</small
+                >{:else}<strong>{$t.newMeeting.dropHere}</strong><small
+                  >{$t.newMeeting.dropDetail}</small
                 >{/if}
             </button>{:else}<label class:has-source={sourceName} class="drop-zone">
               <input type="file" accept="audio/*,video/*" onchange={selectFile} />
               <span class="drop-icon"><Icon name="upload" size={30} /></span>
               {#if sourceName}<strong>{sourceName}</strong><small
-                  >Ready to assign to this meeting</small
-                >{:else}<strong>Choose an audio or video file</strong><small
-                  >The browser preview demonstrates the workflow without storing the file.</small
+                  >{$t.newMeeting.readyToAssign}</small
+                >{:else}<strong>{$t.newMeeting.chooseFile}</strong><small
+                  >{$t.newMeeting.previewNote}</small
                 >{/if}
             </label>
           {/if}
@@ -181,7 +181,7 @@
           {#if !onSelectNativeSource}<button
               class="text-action demo-fixture-action"
               type="button"
-              onclick={useFixture}>Use the synthetic demo recording</button
+              onclick={useFixture}>{$t.newMeeting.useDemoRecording}</button
             >{/if}
         </div>
       </section>
@@ -190,18 +190,24 @@
     <section class="form-step" aria-labelledby="details-heading">
       <div class="step-number">3</div>
       <div class="step-content">
-        <p class="eyebrow">Essentials</p>
-        <h2 id="details-heading">Meeting information</h2>
+        <p class="eyebrow">{$t.newMeeting.essentials}</p>
+        <h2 id="details-heading">{$t.newMeeting.meetingInformation}</h2>
         <div class="field-grid">
           <label
-            ><span>Title</span><input
+            ><span>{$t.newMeeting.title}</span><input
               bind:value={title}
-              placeholder="Derived from the file if left empty"
+              placeholder={$t.newMeeting.titlePlaceholder}
             /></label
           >
-          <label><span>Date</span><input type="date" bind:value={occurredAt} required /></label>
           <label
-            ><span>Meeting language</span><input
+            ><span>{$t.newMeeting.date}</span><input
+              type="date"
+              bind:value={occurredAt}
+              required
+            /></label
+          >
+          <label
+            ><span>{$t.newMeeting.language}</span><input
               bind:value={language}
               list="meeting-languages"
               placeholder={DETECT_LANGUAGE_LABEL}
@@ -210,27 +216,27 @@
                 ></option>{/each}
             </datalist><small
               >{selectedProject?.defaultLanguage === language
-                ? 'Project default'
+                ? $t.newMeeting.projectDefault
                 : 'Meeting override'}</small
             ></label
           >
           <label
-            ><span>Protocol style</span><select bind:value={styleId}
+            ><span>{$t.newMeeting.protocolStyle}</span><select bind:value={styleId}
               >{#each styles as style (style.id)}<option value={style.id}>{style.name}</option
                 >{/each}</select
             ><small
               >{selectedProject?.defaultStyleId === styleId
-                ? 'Project default'
+                ? $t.newMeeting.projectDefault
                 : 'Meeting override'}</small
             ></label
           >
           <p class="field-note">
-            Transcription quality is chosen once in Settings and applies to every meeting.
+            {$t.newMeeting.qualityNote}
             Per-meeting overrides and choosing names & terms per meeting are not available yet.
           </p>
         </div>
         <details class="advanced-disclosure">
-          <summary>Advanced processing options</summary>
+          <summary>{$t.newMeeting.advanced}</summary>
           <p>
             Transcription quality and the model that writes the protocol are chosen once, in
             Settings, and reused for every meeting.
@@ -241,7 +247,9 @@
 
     {#if submitError}<p class="form-error" role="alert">{submitError}</p>{/if}
     <footer class="form-actions">
-      <button class="secondary-action" type="button" onclick={onCancel}>Cancel</button><button
+      <button class="secondary-action" type="button" onclick={onCancel}
+        >{$t.newMeeting.cancel}</button
+      ><button
         class="primary-action"
         type="submit"
         disabled={!projectId || (forRecording ? !title.trim() : !sourceName) || submitting}
@@ -250,8 +258,8 @@
             ? 'Preparing…'
             : 'Bringing the recording in…'
           : forRecording
-            ? 'Create meeting and record'
-            : 'Create meeting and import'}
+            ? $t.newMeeting.createAndRecord
+            : $t.newMeeting.createAndImport}
         <Icon name="arrow" /></button
       >
     </footer>

@@ -7,6 +7,7 @@
   } from '../workflow/types';
   import Icon from './Icon.svelte';
   import { clockFromMillis } from '../time';
+  import { t } from '../i18n';
 
   export let meeting: MeetingSummary;
   export let review: RecordingReview | null = null;
@@ -180,7 +181,7 @@
   <header class="workspace-header">
     <div>
       <p class="breadcrumb">{meeting.title} <span>›</span> Recording</p>
-      <h1 tabindex="-1">Review recording</h1>
+      <h1 tabindex="-1">{$t.recordingReview.heading}</h1>
       <p class="page-lead">
         Cut what the meeting does not need before it is transcribed. Your recording is never changed
         — everything here can be undone.
@@ -190,8 +191,8 @@
 
   {#if !review}
     <section class="stage-message">
-      <p class="eyebrow">Recording</p>
-      <h2>No working audio yet</h2>
+      <p class="eyebrow">{$t.recordingReview.eyebrow}</p>
+      <h2>{$t.recordingReview.noAudio}</h2>
       <p>
         This meeting has no prepared audio to review. It becomes available once the import has been
         committed.
@@ -213,7 +214,7 @@
           bind:this={track}
           role="slider"
           tabindex="0"
-          aria-label="The recording. Move with the arrow keys, hold shift to select."
+          aria-label={$t.recordingReview.waveformLabel}
           aria-valuemin={0}
           aria-valuemax={Math.round(durationMs / 1000)}
           aria-valuenow={Math.round(caretMs / 1000)}
@@ -269,20 +270,22 @@
 
         <div class="review-actions">
           <button class="text-action" disabled={!selection} onclick={trimStartHere}
-            >Start here</button
+            >{$t.recordingReview.startHere}</button
           >
           <button class="text-action" disabled={!selection} onclick={removeSelection}
-            >Remove selection</button
+            >{$t.recordingReview.removeSelection}</button
           >
-          <button class="text-action" disabled={!selection} onclick={trimEndHere}>End here</button>
+          <button class="text-action" disabled={!selection} onclick={trimEndHere}
+            >{$t.recordingReview.endHere}</button
+          >
         </div>
       </div>
 
       <aside class="review-inspector">
         <div class="inspector-section">
-          <p class="eyebrow">Edits</p>
+          <p class="eyebrow">{$t.recordingReview.edits}</p>
           {#if !anyEdits}
-            <p class="review-empty">Nothing removed. The whole recording will be transcribed.</p>
+            <p class="review-empty">{$t.recordingReview.nothingRemoved}</p>
           {:else}
             <ul class="review-edits">
               {#if startMs > 0}
@@ -291,7 +294,7 @@
                   <button
                     class="text-action"
                     onclick={() => commit({ ...edits, startMs: 0 })}
-                    aria-label="Undo the start trim">Undo</button
+                    aria-label={$t.recordingReview.undoStartTrim}>{$t.recordingReview.undo}</button
                   >
                 </li>
               {/if}
@@ -301,7 +304,7 @@
                   <button
                     class="text-action"
                     onclick={() => commit({ ...edits, endMs: null })}
-                    aria-label="Undo the end trim">Undo</button
+                    aria-label={$t.recordingReview.undoEndTrim}>{$t.recordingReview.undo}</button
                   >
                 </li>
               {/if}
@@ -315,26 +318,30 @@
                   <button
                     class="text-action"
                     onclick={() => undo(index)}
-                    aria-label="Put this stretch back">Undo</button
+                    aria-label={$t.recordingReview.putStretchBack}>{$t.recordingReview.undo}</button
                   >
                 </li>
               {/each}
             </ul>
-            <button class="text-action" onclick={clearAll}>Put everything back</button>
+            <button class="text-action" onclick={clearAll}
+              >{$t.recordingReview.putEverythingBack}</button
+            >
           {/if}
           <p class="review-note">
             <Icon name="info" size={14} />
-            <span>The recording itself is untouched. These are instructions for what to use.</span>
+            <span>{$t.recordingReview.untouchedNote}</span>
           </p>
         </div>
 
         <div class="inspector-section">
-          <p class="eyebrow">Next</p>
-          <button class="primary-action" onclick={onContinue}>Continue to transcription</button>
+          <p class="eyebrow">{$t.recordingReview.next}</p>
+          <button class="primary-action" onclick={onContinue}
+            >{$t.recordingReview.continueToTranscription}</button
+          >
           <button
             class="text-action"
             onclick={() => onNavigate({ name: 'meeting', meetingId: meeting.id })}
-            >Back to the meeting</button
+            >{$t.recordingReview.backToMeeting}</button
           >
         </div>
       </aside>
