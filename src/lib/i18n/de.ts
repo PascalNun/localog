@@ -287,6 +287,41 @@ export const de: Strings = {
     pageWidth: 'Satzbreite',
   },
 
+  record: {
+    recordingNow: 'Aufnahme läuft',
+    recordThisMeeting: 'Diese Besprechung aufnehmen',
+    lead: 'Raum und Konferenz werden auf getrennten Spuren aufgenommen, auf diesem Gerät. Ob die Teilnehmenden der Aufnahme zugestimmt haben, klären Sie selbst — das kann LocaLog nicht wissen.',
+    notRecording: 'Keine Aufnahme',
+    microphone: 'Mikrofon',
+    theCall: 'Die Konferenz',
+    trackRecording: 'Nimmt auf',
+    trackSilent: 'Bisher still',
+    trackListening: 'Hört zu …',
+    stopRecording: 'Aufnahme beenden',
+    finishing: 'Wird abgeschlossen …',
+    startRecording: 'Aufnahme starten',
+    starting: 'Wird gestartet …',
+    backToMeeting: 'Zurück zur Besprechung',
+    noRecorder:
+      'Dieser Build hat keine Aufnahmekomponente. Importieren Sie stattdessen eine Datei.',
+    openTheSetting: 'Einstellung öffnen',
+    grantedInSettings:
+      'Wird in den Systemeinstellungen erteilt und hier übernommen, sobald Sie zurückkommen.',
+    callWouldNotRecordTitle: 'Die Konferenz würde nicht aufgenommen.',
+    callWouldNotRecordBody:
+      'macOS hat LocaLog die Bildschirm- und Systemtonaufnahme nicht erlaubt. Ohne sie ist eine Aufnahme der Konferenz Stille statt eines Fehlers — das klärt man besser jetzt als hinterher. Das Mikrofon im Raum würde weiterhin aufgenommen.',
+    roomWouldNotRecordTitle: 'Der Raum würde nicht aufgenommen.',
+    roomWouldNotRecordBody:
+      'LocaLog wurde das Mikrofon verweigert. Die Konferenz würde weiterhin aufgenommen, sofern die Einstellung darüber es zulässt.',
+    recorderNotesTitle: 'Die Aufnahme konnte nicht alles tun, worum sie gebeten wurde.',
+    stoppedOnItsOwn:
+      'Die Aufnahme hat von selbst gestoppt. Was bis dahin aufgenommen wurde, ist erhalten.',
+    quietCall: (seconds: number) =>
+      `Seit ${seconds} Sekunden kommt nichts von der Konferenz an. macOS gibt einer Anwendung ohne die Berechtigung zur Bildschirm- und Systemtonaufnahme Stille statt eines Fehlers — das prüft man besser jetzt als nach der Besprechung.`,
+    quietMicrophone: (seconds: number) =>
+      `Seit ${seconds} Sekunden kommt nichts vom Mikrofon an. Prüfen Sie, ob der richtige Eingang gewählt ist und ob eine andere Anwendung ihn belegt.`,
+  },
+
   sidebar: {
     projects: 'Projekte',
     newProject: 'Neues Projekt',

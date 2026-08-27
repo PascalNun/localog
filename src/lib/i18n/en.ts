@@ -284,6 +284,39 @@ export const en = {
     pageWidth: 'Page width',
   },
 
+  record: {
+    recordingNow: 'Recording',
+    recordThisMeeting: 'Record this meeting',
+    lead: 'The room and the call are captured on separate tracks, on this device. Whether the people in the meeting have agreed to be recorded is yours to settle, not something LocaLog can know.',
+    notRecording: 'Not recording',
+    microphone: 'Microphone',
+    theCall: 'The call',
+    trackRecording: 'Recording',
+    trackSilent: 'Silent so far',
+    trackListening: 'Listening…',
+    stopRecording: 'Stop recording',
+    finishing: 'Finishing…',
+    startRecording: 'Start recording',
+    starting: 'Starting…',
+    backToMeeting: 'Back to the meeting',
+    noRecorder: 'This build has no recorder. Import a file instead.',
+    openTheSetting: 'Open the setting',
+    grantedInSettings: 'Granted in System Settings, and picked up here as soon as you come back.',
+    callWouldNotRecordTitle: 'The call would not be recorded.',
+    callWouldNotRecordBody:
+      'macOS has not granted LocaLog Screen & System Audio Recording, and without it a recording of the call is silence rather than an error — so this is worth granting now rather than discovering afterwards. The microphone in the room would still be captured.',
+    roomWouldNotRecordTitle: 'The room would not be recorded.',
+    roomWouldNotRecordBody:
+      'LocaLog has been refused the microphone. The call would still be captured if the setting above allows it.',
+    recorderNotesTitle: 'The recorder could not do everything it was asked.',
+    stoppedOnItsOwn:
+      'The recorder stopped on its own. Whatever it captured up to that point has been kept.',
+    quietCall: (seconds: number) =>
+      `Nothing has arrived from the call in ${seconds} seconds. macOS gives an application silence rather than an error when it has not been granted Screen & System Audio Recording, so this is worth checking now rather than after the meeting.`,
+    quietMicrophone: (seconds: number) =>
+      `Nothing has arrived from the microphone in ${seconds} seconds. Check that the right input is selected and that nothing else is holding it.`,
+  },
+
   sidebar: {
     projects: 'Projects',
     newProject: 'New project',

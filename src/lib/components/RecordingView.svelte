@@ -8,6 +8,7 @@
   } from '../workflow/types';
   import { errorMessage } from '../errors';
   import { clock } from '../time';
+  import { t } from '../i18n';
 
   export let meeting: MeetingSummary;
   export let onNavigate: (route: AppRoute) => void;
@@ -143,10 +144,11 @@
   <header class="workspace-header">
     <div>
       <p class="breadcrumb">{meeting.title} <span>›</span> Recording</p>
-      <h1 tabindex="-1">{status.recording ? 'Recording' : 'Record this meeting'}</h1>
+      <h1 tabindex="-1">
+        {status.recording ? $t.record.recordingNow : $t.record.recordThisMeeting}
+      </h1>
       <p class="page-lead">
-        The room and the call are captured on separate tracks, on this device. Whether the people in
-        the meeting have agreed to be recorded is yours to settle, not something LocaLog can know.
+        {$t.record.lead}
       </p>
     </div>
   </header>
@@ -161,38 +163,42 @@
         {/each}
       </svg>
       <p class="recording-elapsed" aria-live="polite">
-        {status.recording ? clock(status.seconds) : 'Not recording'}
+        {status.recording ? clock(status.seconds) : $t.record.notRecording}
       </p>
     </div>
 
     {#if status.recording}
       <dl class="recording-tracks">
         <div>
-          <dt>Microphone</dt>
+          <dt>{$t.record.microphone}</dt>
           <dd class:is-quiet={quietMicrophone}>
-            {microphoneHeard ? 'Recording' : quietMicrophone ? 'Silent so far' : 'Listening…'}
+            {microphoneHeard
+              ? $t.record.trackRecording
+              : quietMicrophone
+                ? $t.record.trackSilent
+                : $t.record.trackListening}
           </dd>
         </div>
         <div>
-          <dt>The call</dt>
+          <dt>{$t.record.theCall}</dt>
           <dd class:is-quiet={quietSystem}>
-            {systemHeard ? 'Recording' : quietSystem ? 'Silent so far' : 'Listening…'}
+            {systemHeard
+              ? $t.record.trackRecording
+              : quietSystem
+                ? $t.record.trackSilent
+                : $t.record.trackListening}
           </dd>
         </div>
       </dl>
 
       {#if quietSystem}
         <p class="recording-warning" role="status">
-          Nothing has arrived from the call in {status.seconds} seconds. macOS gives an application silence
-          rather than an error when it has not been granted
-          <strong>Screen &amp; System Audio Recording</strong>, so this is worth checking now rather
-          than after the meeting.
+          {$t.record.quietCall(status.seconds)}
         </p>
       {/if}
       {#if quietMicrophone}
         <p class="recording-warning" role="status">
-          Nothing has arrived from the microphone in {status.seconds} seconds. Check that the right input
-          is selected and that nothing else is holding it.
+          {$t.record.quietMicrophone(status.seconds)}
         </p>
       {/if}
     {/if}
@@ -202,26 +208,24 @@
       <div class="recording-permission" role="status">
         {#if systemBlocked}
           <p>
-            <strong>The call would not be recorded.</strong> macOS has not granted LocaLog
-            <strong>Screen &amp; System Audio Recording</strong>, and without it a recording of the
-            call is silence rather than an error — so this is worth granting now rather than
-            discovering afterwards. The microphone in the room would still be captured.
+            <strong>{$t.record.callWouldNotRecordTitle}</strong>
+            {$t.record.callWouldNotRecordBody}
           </p>
           <button class="secondary-action" onclick={() => onOpenSettings('screen')}>
-            Open the setting
+            {$t.record.openTheSetting}
           </button>
         {/if}
         {#if microphoneBlocked}
           <p>
-            <strong>The room would not be recorded.</strong> LocaLog has been refused the microphone.
-            The call would still be captured if the setting above allows it.
+            <strong>{$t.record.roomWouldNotRecordTitle}</strong>
+            {$t.record.roomWouldNotRecordBody}
           </p>
           <button class="secondary-action" onclick={() => onOpenSettings('microphone')}>
-            Open the setting
+            {$t.record.openTheSetting}
           </button>
         {/if}
         <p class="recording-permission-aside">
-          Granted in System Settings, and picked up here as soon as you come back.
+          {$t.record.grantedInSettings}
         </p>
       </div>
     {/if}
@@ -232,7 +236,7 @@
          and paraphrasing it would throw away the only detail that separates them. -->
     {#if status.notes.length > 0}
       <div class="recording-permission" role="status">
-        <p><strong>The recorder could not do everything it was asked.</strong></p>
+        <p><strong>{$t.record.recorderNotesTitle}</strong></p>
         <ul class="recorder-notes">
           {#each status.notes as note (note)}
             <li>{note}</li>
@@ -243,7 +247,7 @@
 
     {#if status.stoppedUnexpectedly}
       <p class="setting-error" role="alert">
-        The recorder stopped on its own. Whatever it captured up to that point has been kept.
+        {$t.record.stoppedOnItsOwn}
       </p>
     {/if}
     {#if error}<p class="setting-error" role="alert">{error}</p>{/if}
@@ -251,20 +255,20 @@
     <div class="recording-actions">
       {#if status.recording}
         <button class="primary-action" disabled={working} onclick={stop}>
-          {working ? 'Finishing…' : 'Stop recording'}
+          {working ? $t.record.finishing : $t.record.stopRecording}
         </button>
       {:else if status.available}
         <button class="primary-action" disabled={working} onclick={start}>
-          {working ? 'Starting…' : 'Start recording'}
+          {working ? $t.record.starting : $t.record.startRecording}
         </button>
       {:else}
-        <p>This build has no recorder. Import a file instead.</p>
+        <p>{$t.record.noRecorder}</p>
       {/if}
       <button
         class="text-action"
         onclick={() => onNavigate({ name: 'meeting', meetingId: meeting.id })}
       >
-        Back to the meeting
+        {$t.record.backToMeeting}
       </button>
     </div>
   </section>
