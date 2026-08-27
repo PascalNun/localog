@@ -570,10 +570,10 @@
           </button>
         </div>
         <p class="setting-hint">
-          Holds every project, meeting, transcript and protocol, and the recordings themselves.
-          Downloaded models are left out on purpose: they can be fetched again for nothing, and
-          including them would make a backup of your work several gigabytes of files that are not
-          your work.
+          Holds every project, meeting, transcript and protocol, and the recordings themselves. Two
+          things are left out on purpose, because neither is your work and both are rebuilt when
+          they are needed: downloaded models, and the prepared copy of each recording. Measured on a
+          real workspace, that prepared audio alone was three quarters of the backup.
         </p>
         <div class="setting-row">
           <div>

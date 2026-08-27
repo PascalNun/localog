@@ -29,11 +29,17 @@
 //! because it looks complete. `VACUUM INTO` asks SQLite for a transactionally
 //! consistent copy with the log folded in.
 //!
-//! **Models are left out.** They are re-downloadable, checksummed on the way in,
-//! and between 77 MB and 1.5 GB each. Including them would turn a twenty-megabyte
-//! backup of somebody's actual work into a gigabyte of files they can get again
-//! for nothing. The manifest says they were left out rather than leaving somebody
-//! to notice.
+//! **Models and working files are left out.** Models are re-downloadable and
+//! between 77 MB and 1.5 GB each. `working/` is the same argument one level down:
+//! it holds the normalized audio cache, which `normalized_cache_matches` rebuilds
+//! from the original recording whenever it is absent or stale, plus scratch space
+//! for imports and jobs. Neither is anybody's work.
+//!
+//! This was measured rather than assumed, and the measurement is why it is here.
+//! The first version of this module copied `working/`, and against a real
+//! workspace with one meeting in it that was **157 MB of 207** — three quarters of
+//! a backup, all of it a cache. The manifest says what was left out rather than
+//! leaving somebody to work it out from the size.
 //!
 //! **Nothing is deleted, ever.** Restoring verifies the whole backup before it
 //! touches the workspace, and then moves what is there aside instead of removing
@@ -55,6 +61,9 @@ const FORMAT: u32 = 1;
 
 const MANIFEST: &str = "manifest.json";
 const DATABASE: &str = "localog.sqlite3";
+
+/// The per-meeting directory holding derived and transient files.
+const WORKING: &str = "working";
 
 /// One file in a backup, with what it should be when it comes back.
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -79,6 +88,12 @@ pub(crate) struct Manifest {
     pub meeting_count: u32,
     /// Said out loud so nobody discovers it at the worst moment.
     pub excludes_models: bool,
+    /// The normalized-audio cache and the import and job scratch space, which are
+    /// rebuilt from the original recording rather than kept.
+    ///
+    /// Defaulted so a manifest written before this was measured still reads.
+    #[serde(default)]
+    pub excludes_working_files: bool,
     /// Where this came from, purely so a person can tell two backups apart.
     pub folder_name: String,
 }
@@ -175,6 +190,12 @@ pub(crate) fn create(root: &Path, parent: &Path, folder_name: &str) -> Result<Ma
     if projects.is_dir() {
         let mut found = Vec::new();
         collect(&projects, &projects, &mut found)?;
+        // The cache and the scratch space, for the reason in the module note.
+        found.retain(|relative| {
+            !relative
+                .components()
+                .any(|part| part.as_os_str() == WORKING)
+        });
         // Sorted so two backups of the same workspace list their files in the
         // same order, which makes them comparable by eye and by diff.
         found.sort();
@@ -208,6 +229,7 @@ pub(crate) fn create(root: &Path, parent: &Path, folder_name: &str) -> Result<Ma
         project_count,
         meeting_count,
         excludes_models: true,
+        excludes_working_files: true,
         folder_name: name.to_string(),
     };
     let written = serde_json::to_vec_pretty(&manifest)
@@ -451,6 +473,45 @@ mod tests {
         // Forward slashes whatever the platform writes.
         assert!(!manifest.files[0].path.contains('\\'));
         assert!(away.path().join("LocaLog backup").join(DATABASE).is_file());
+    }
+
+    #[test]
+    fn the_normalized_cache_is_not_backed_up() {
+        let home = tempdir().unwrap();
+        let away = tempdir().unwrap();
+        workspace(home.path());
+
+        // A meeting that has been transcribed has a normalized copy of its audio
+        // beside the original. Measured on a real workspace, that cache was three
+        // quarters of the backup and every byte of it is rebuilt on demand.
+        let meeting = home
+            .path()
+            .join("projects")
+            .join(only_project(home.path()))
+            .join("meetings");
+        let cache = meeting.join(WORKING).join("normalized");
+        fs::create_dir_all(&cache).unwrap();
+        fs::write(cache.join("big.wav"), vec![0_u8; 4096]).unwrap();
+        fs::create_dir_all(meeting.join(WORKING).join("jobs")).unwrap();
+        fs::write(meeting.join(WORKING).join("jobs").join("scratch"), b"x").unwrap();
+
+        let manifest = create(home.path(), away.path(), "b").unwrap();
+        assert!(manifest.excludes_working_files);
+        assert!(
+            !manifest.files.iter().any(|f| f.path.contains("/working/")),
+            "a working file was backed up: {:?}",
+            manifest.files.iter().map(|f| &f.path).collect::<Vec<_>>()
+        );
+        // The original recording beside it is still kept, because that cannot be
+        // rebuilt from anything.
+        assert!(manifest.files.iter().any(|f| f.path.ends_with("source.wav")));
+    }
+
+    /// The single project id in a freshly built test workspace.
+    fn only_project(root: &Path) -> String {
+        let mut entries = fs::read_dir(root.join("projects")).unwrap();
+        let first = entries.next().unwrap().unwrap();
+        first.file_name().to_string_lossy().to_string()
     }
 
     #[test]
