@@ -219,6 +219,21 @@ export const de: Strings = {
   failures,
 
   settings: {
+    evaluatedIn: (languages: string) => `Geprüft in ${languages}`,
+    evaluationPending: 'Qualitätsprüfung steht noch aus',
+    otherModelNote:
+      'Das ist für Menschen, die bereits wissen, welches lokale Modell sie ausprobieren wollen. Es wird von LocaLog nicht geprüft und nicht empfohlen, und es unterliegt denselben Grenzen von Laufzeit und Arbeitsspeicher.',
+    qualityLead:
+      'Wählen Sie die gewünschte Qualität. LocaLog lädt beim ersten Mal, was es braucht, und behält es auf diesem Gerät.',
+    speakerDiscovery:
+      'LocaLog findet die Sprechererkennung selbst — in den mitgelieferten Ressourcen oder im Systempfad. Sie ist optional und blockiert nie die Transkription.',
+    noSpeakerRuntime: 'Auf diesem Gerät wurde noch keine passende Sprechererkennung gefunden.',
+    readinessNote:
+      'Zur Bereitschaftsprüfung gehört ein begrenzter Startversuch, damit ein unpassendes oder defektes Programm nicht als verfügbar gilt.',
+    restoreSummary: (name: string, projects: number, meetings: number, version: string) =>
+      `${name} enthält ${projects} Projekte und ${meetings} Besprechungen, gesichert aus LocaLog ${version}.`,
+    restoreWarning:
+      'Beim Zurückspielen werden die Projekte und Besprechungen in diesem Arbeitsbereich durch jene ersetzt. Nichts wird gelöscht — was hier liegt, bleibt in einem Ordner daneben erhalten —, aber LocaLog zeigt danach die zurückgespielte Arbeit, und Sie müssen es beenden und neu öffnen.',
     interfaceLanguage: 'Sprache der Oberfläche',
     interfaceLanguageDetail:
       'In welcher Sprache LocaLog selbst geschrieben ist. Unabhängig von der Sprache der einzelnen Besprechung.',
@@ -451,6 +466,14 @@ export const de: Strings = {
   },
 
   meeting: {
+    importInterrupted:
+      'LocaLog wurde geschlossen, bevor die verwaltete Kopie übernommen war. Die Besprechung bleibt ein Entwurf, und der Import kann gefahrlos wiederholt werden.',
+    importCancelled:
+      'Die verwaltete Kopie wurde abgebrochen. Die Besprechung bleibt ein Entwurf, und die externe Datei wurde nicht verändert.',
+    importFailed:
+      'Die verwaltete Kopie konnte nicht übernommen werden. Die Besprechung bleibt ein Entwurf, und die externe Datei wurde nicht verändert.',
+    importRunning:
+      'LocaLog kopiert diese Quelle in den eigenen verwalteten Speicher. Sie ist erst bereit, wenn die Kopie geprüft und übernommen wurde.',
     sourceStored:
       'ist sicher bei dieser Besprechung abgelegt. Das externe Original wurde nicht verändert.',
     sourceSynthetic:
@@ -585,6 +608,10 @@ export const de: Strings = {
   },
 
   transcript: {
+    workingAudioLater:
+      'Die Arbeitsdatei steht zur Verfügung, sobald diese Besprechung transkribiert wurde.',
+    recordingEndsNote:
+      'Wenn die Besprechung darüber hinaus weiterging, hat die Aufnahme das nicht erfasst — und das Protokoll enthält es nicht.',
     heading: 'Transkript prüfen',
     exportTranscript: 'Transkript exportieren …',
     exportLabel: 'Dieses Transkript exportieren',

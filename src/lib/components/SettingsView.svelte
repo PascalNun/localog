@@ -401,8 +401,8 @@
                 </div>
                 <p class="model-evaluation">
                   {entry.testedLanguages.length
-                    ? `Evaluated in ${entry.testedLanguages.join(' and ')}`
-                    : 'Quality evaluation still pending'}
+                    ? $t.settings.evaluatedIn(entry.testedLanguages.join(' and '))
+                    : $t.settings.evaluationPending}
                 </p>
               </div>
               <div class="model-card-action">
@@ -429,9 +429,7 @@
         <details class="advanced-disclosure model-advanced">
           <summary>{$t.settings.useAnotherModel}</summary>
           <p>
-            This is for people who already know which local model they want to try. It is not
-            evaluated or recommended by LocaLog, and it remains subject to the same local runtime
-            and memory limits.
+            {$t.settings.otherModelNote}
           </p>
           <div class="setting-field">
             <label for="other-ollama-model">{$t.settings.installedModel}</label>
@@ -463,8 +461,7 @@
           <div>
             <h3>{$t.settings.transcriptionQuality}</h3>
             <p>
-              Choose the quality you want. LocaLog downloads what it needs the first time and keeps
-              it on this device.
+              {$t.settings.qualityLead}
             </p>
           </div>
         </div>
@@ -548,8 +545,7 @@
             <div>
               <h3>{$t.settings.speakerDifferentiation}</h3>
               <p>
-                Optional voice-turn separation labels who spoke when. It never blocks a transcript,
-                and labels remain editable during review.
+                {$t.settings.speakerLead}
               </p>
             </div>
             {#if speakerStatus.modelsInstalled && speakerStatus.runtimeHealthy}
@@ -588,20 +584,18 @@
           <details class="advanced-disclosure">
             <summary>{$t.settings.advancedDetails}</summary>
             <p>
-              LocaLog discovers the speaker runtime automatically from its bundled resources or the
-              system path. The runtime is optional and never blocks transcription.
+              {$t.settings.speakerDiscovery}
             </p>
             {#if speakerStatus.runtimePath}<p class="setting-hint">
                 Discovered runtime: {speakerStatus.runtimePath}
               </p>{:else}<p class="setting-hint">
-                No compatible speaker runtime was found on this machine yet.
+                {$t.settings.noSpeakerRuntime}
               </p>{/if}
             {#if speakerStatus.runtimeVersion}<p class="setting-hint">
                 Runtime version: {speakerStatus.runtimeVersion}
               </p>{/if}
             <p class="setting-hint">
-              Readiness includes a bounded launch check, so an incompatible or broken executable is
-              not presented as available.
+              {$t.settings.readinessNote}
             </p>
             {#if speakerError}<p class="setting-error" role="alert">{speakerError}</p>{/if}
           </details>
@@ -621,8 +615,7 @@
           <div>
             <h3>{$t.settings.whereWorkIsKept}</h3>
             <p>
-              LocaLog manages this folder so that paths inside it stay valid, but it is yours and
-              you can look in it whenever you like.
+              {$t.settings.workspaceNote}
             </p>
           </div>
           {#if workspacePath}
@@ -643,8 +636,7 @@
           <div>
             <h3>{$t.settings.backup}</h3>
             <p>
-              Everything stays on this device, which also means it leaves with the device. A backup
-              is an ordinary folder you can put on a drive or wherever you keep things safe.
+              {$t.settings.backupLead}
             </p>
           </div>
           <button class="secondary-action" onclick={backUpNow} disabled={backupBusy}>
@@ -652,17 +644,13 @@
           </button>
         </div>
         <p class="setting-hint">
-          Holds every project, meeting, transcript and protocol, and the recordings themselves. Two
-          things are left out on purpose, because neither is your work and both are rebuilt when
-          they are needed: downloaded models, and the prepared copy of each recording. Measured on a
-          real workspace, that prepared audio alone was three quarters of the backup.
+          {$t.settings.backupContents}
         </p>
         <div class="setting-row">
           <div>
             <h3>{$t.settings.restore}</h3>
             <p>
-              Puts a backup back. It is checked in full first, and what is here now is moved aside
-              rather than deleted.
+              {$t.settings.restoreLead}
             </p>
           </div>
           <button class="quiet-action" onclick={chooseBackupToRestore} disabled={backupBusy}>
@@ -673,15 +661,15 @@
           <!-- Shown before the button that replaces a workspace, never after. -->
           <div class="restore-confirm">
             <p>
-              <strong>{pendingRestore.manifest.folderName}</strong> holds
-              {pendingRestore.manifest.projectCount} projects and
-              {pendingRestore.manifest.meetingCount} meetings, backed up from LocaLog
-              {pendingRestore.manifest.applicationVersion}.
+              {$t.settings.restoreSummary(
+                pendingRestore.manifest.folderName,
+                pendingRestore.manifest.projectCount,
+                pendingRestore.manifest.meetingCount,
+                pendingRestore.manifest.applicationVersion,
+              )}
             </p>
             <p class="setting-hint">
-              Restoring replaces the projects and meetings in this workspace with those. Nothing is
-              deleted — what is here is kept in a folder beside it — but LocaLog will be showing the
-              restored work, and you will need to quit and open it again.
+              {$t.settings.restoreWarning}
             </p>
             <div class="restore-actions">
               <button class="secondary-action" onclick={confirmRestore} disabled={backupBusy}>
@@ -697,8 +685,7 @@
           <div>
             <h3>{$t.settings.archived}</h3>
             <p>
-              Projects and meetings put out of the way. Nothing was deleted: every meeting,
-              transcript and protocol under them is still here, and still in every backup.
+              {$t.settings.archivedLead}
             </p>
           </div>
           <button class="quiet-action" aria-expanded={archivedOpen} onclick={toggleArchived}>
@@ -741,8 +728,8 @@
             <h3>{$t.settings.theme}</h3>
             <p>
               {themeChoice === 'auto'
-                ? `Following this Mac, which is set to ${theme}.`
-                : 'Set here, whatever this Mac is set to.'}
+                ? $t.settings.themeFollowing(theme)
+                : $t.settings.themeSetHere}
             </p>
           </div>
           <div class="choice-row" role="group" aria-label={$t.settings.theme}>

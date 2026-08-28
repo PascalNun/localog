@@ -214,6 +214,21 @@ export const en = {
   /** The screen somebody sees before there is anything to open. */
   /** The settings screen. */
   settings: {
+    evaluatedIn: (languages: string) => `Evaluated in ${languages}`,
+    evaluationPending: 'Quality evaluation still pending',
+    otherModelNote:
+      'This is for people who already know which local model they want to try. It is not evaluated or recommended by LocaLog, and it remains subject to the same local runtime and memory limits.',
+    qualityLead:
+      'Choose the quality you want. LocaLog downloads what it needs the first time and keeps it on this device.',
+    speakerDiscovery:
+      'LocaLog discovers the speaker runtime automatically from its bundled resources or the system path. The runtime is optional and never blocks transcription.',
+    noSpeakerRuntime: 'No compatible speaker runtime was found on this machine yet.',
+    readinessNote:
+      'Readiness includes a bounded launch check, so an incompatible or broken executable is not presented as available.',
+    restoreSummary: (name: string, projects: number, meetings: number, version: string) =>
+      `${name} holds ${projects} projects and ${meetings} meetings, backed up from LocaLog ${version}.`,
+    restoreWarning:
+      'Restoring replaces the projects and meetings in this workspace with those. Nothing is deleted — what is here is kept in a folder beside it — but LocaLog will be showing the restored work, and you will need to quit and open it again.',
     interfaceLanguage: 'Interface language',
     interfaceLanguageDetail:
       'What LocaLog itself is written in. Separate from the language of each meeting.',
@@ -442,6 +457,14 @@ export const en = {
   },
 
   meeting: {
+    importInterrupted:
+      'LocaLog was closed before the managed copy was committed. The meeting remains in Draft and the import can be retried safely.',
+    importCancelled:
+      'The managed copy was cancelled. The meeting remains in Draft and the external file was not modified.',
+    importFailed:
+      'The managed copy could not be committed. The meeting remains in Draft and the external file was not modified.',
+    importRunning:
+      'LocaLog is copying this source into private managed storage. It will become ready only after the copy has been validated and committed.',
     sourceStored: 'is safely stored with this meeting. The external original was not modified.',
     sourceSynthetic:
       'is assigned to this synthetic browser meeting. No real media file was copied.',
@@ -571,6 +594,9 @@ export const en = {
   },
 
   transcript: {
+    workingAudioLater: 'Working audio becomes available once this meeting has been transcribed.',
+    recordingEndsNote:
+      'If the meeting carried on past this, the recording did not capture it and the protocol will not contain it.',
     heading: 'Transcript review',
     exportTranscript: 'Export transcript…',
     exportLabel: 'Export this transcript',

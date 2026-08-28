@@ -168,13 +168,10 @@
         <p class="eyebrow">{$t.meeting.sourceImport}</p>
         <h2>{$t.meeting.originalUnchanged}</h2>
         <p>
-          {#if relevantJob?.state === 'interrupted'}LocaLog was closed before the managed copy was
-            committed. The meeting remains in Draft and the import can be retried safely.{:else if relevantJob?.state === 'cancelled'}The
-            managed copy was cancelled. The meeting remains in Draft and the external file was not
-            modified.{:else if relevantJob?.state === 'failed'}The managed copy could not be
-            committed. The meeting remains in Draft and the external file was not modified.{:else}LocaLog
-            is copying this source into private managed storage. It will become ready only after the
-            copy has been validated and committed.{/if}
+          {#if relevantJob?.state === 'interrupted'}{$t.meeting
+              .importInterrupted}{:else if relevantJob?.state === 'cancelled'}{$t.meeting
+              .importCancelled}{:else if relevantJob?.state === 'failed'}{$t.meeting
+              .importFailed}{:else}{$t.meeting.importRunning}{/if}
         </p>
       </div>
     {:else if meeting.lifecycle === 'source_ready'}

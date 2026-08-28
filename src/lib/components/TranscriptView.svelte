@@ -502,7 +502,7 @@
           >
         {:else}
           <p class="transport-empty">
-            Working audio becomes available once this meeting has been transcribed.
+            {$t.transcript.workingAudioLater}
           </p>
         {/if}
       </section>
@@ -630,8 +630,7 @@
             <h3>{timeLabel(lastSegment.endMs / 1000)}</h3>
             <p class="recording-last-words">“{lastSegment.text}”</p>
             <p>
-              If the meeting carried on past this, the recording did not capture it and the protocol
-              will not contain it.
+              {$t.transcript.recordingEndsNote}
             </p>
           </div>
         {/if}
