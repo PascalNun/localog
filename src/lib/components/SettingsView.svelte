@@ -71,10 +71,10 @@
   /// The formats the protocol editor already exports, named as somebody would
   /// say them rather than as the code spells them.
   const EXPORT_CHOICES: { id: ExportFormat; label: string }[] = [
-    { id: 'pdf', label: 'PDF' },
-    { id: 'docx', label: 'Word' },
-    { id: 'markdown', label: 'Markdown' },
-    { id: 'text', label: 'Plain text' },
+    { id: 'pdf', label: $t.settings.formatPdf },
+    { id: 'docx', label: $t.settings.formatWord },
+    { id: 'markdown', label: $t.settings.formatMarkdown },
+    { id: 'text', label: $t.settings.formatPlainText },
   ];
 
   let section = 'General';
@@ -93,14 +93,20 @@
   /// browser and, in the built application, a tab that opened an empty page.
   // The synthetic-failure control only affects the browser preview's fake adapter.
   const isNative = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-  const sections = [
-    'General',
-    'Models',
-    'Transcription',
-    'Storage',
-    'Appearance',
-    ...(isNative ? [] : ['Advanced']),
+  /// The id is what the branches below compare against and never changes; the
+  /// label is what somebody reads. They were one string until there was a second
+  /// language, at which point translating it would have silently switched off
+  /// every section — `section === 'General'` is never true once the tab says
+  /// Allgemein.
+  $: sections = [
+    { id: 'General', label: $t.settings.sectionGeneral },
+    { id: 'Models', label: $t.settings.sectionModels },
+    { id: 'Transcription', label: $t.settings.sectionTranscription },
+    { id: 'Storage', label: $t.settings.sectionStorage },
+    { id: 'Appearance', label: $t.settings.sectionAppearance },
+    ...(isNative ? [] : [{ id: 'Advanced', label: $t.settings.sectionAdvanced }]),
   ];
+  $: sectionLabel = sections.find((each) => each.id === section)?.label ?? section;
   let executablePath = '';
   let selectedProviderModel = '';
   /// What the backend measured, and only then what the browser guessed.
@@ -113,7 +119,7 @@
   $: memoryGb = providerStatus?.machineMemoryGb ?? browserMemoryGb();
   const memoryLabel = memoryGb
     ? `${memoryGb} GB memory reported`
-    : 'Using the conservative 8 GB baseline';
+    : $t.settings.conservativeBaseline;
 
   // Product language first: the user picks an outcome, not a model.
 
@@ -206,7 +212,7 @@
     const parent = await open({
       directory: true,
       multiple: false,
-      title: 'Where to keep the backup',
+      title: $t.settings.whereToKeepBackup,
     });
     if (typeof parent !== 'string') return;
     backupBusy = true;
@@ -231,7 +237,7 @@
     const folder = await open({
       directory: true,
       multiple: false,
-      title: 'Choose a LocaLog backup',
+      title: $t.settings.chooseBackupTitle,
     });
     if (typeof folder !== 'string') return;
     backupBusy = true;
@@ -269,7 +275,7 @@
     const selected = await open({
       multiple: false,
       directory: false,
-      title: 'Choose whisper-cli executable',
+      title: $t.settings.chooseWhisper,
     });
     if (typeof selected === 'string') executablePath = selected;
   }
@@ -278,21 +284,21 @@
 <main class="workspace" id="main-content">
   <header class="workspace-header compact-header">
     <div>
-      <p class="eyebrow">Application</p>
-      <h1 tabindex="-1">Settings</h1>
-      <p>Professional defaults first. Runtime details stay progressively disclosed.</p>
+      <p class="eyebrow">{$t.settings.application}</p>
+      <h1 tabindex="-1">{$t.settings.title}</h1>
+      <p>{$t.settings.lead}</p>
     </div>
   </header>
   <div class="settings-layout">
-    <nav class="settings-nav" aria-label="Settings sections">
-      {#each sections as item (item)}<button
-          class:active={section === item}
-          onclick={() => (section = item)}>{item}</button
+    <nav class="settings-nav" aria-label={$t.settings.sectionsLabel}>
+      {#each sections as item (item.id)}<button
+          class:active={section === item.id}
+          onclick={() => (section = item.id)}>{item.label}</button
         >{/each}
     </nav>
     <section class="settings-panel" aria-live="polite">
-      <p class="eyebrow">{section}</p>
-      <h2>{section}</h2>
+      <p class="eyebrow">{sectionLabel}</p>
+      <h2>{sectionLabel}</h2>
       {#if section === 'General'}
         <!--
           Back, and real. This row said "English" with no way to change it until
@@ -320,10 +326,10 @@
         </div>
         <div class="setting-row">
           <div>
-            <h3>Default export</h3>
-            <p>Which format the protocol editor offers first. The others stay one click away.</p>
+            <h3>{$t.settings.defaultExport}</h3>
+            <p>{$t.settings.defaultExportDetail}</p>
           </div>
-          <div class="choice-row" role="group" aria-label="Default export format">
+          <div class="choice-row" role="group" aria-label={$t.settings.defaultExportLabel}>
             {#each EXPORT_CHOICES as option (option.id)}
               <button
                 class="choice"
@@ -336,8 +342,8 @@
         </div>
       {:else if section === 'Models'}
         <div class="model-setting-intro">
-          <p class="eyebrow">Default for protocols</p>
-          <h3>Choose once, then keep working</h3>
+          <p class="eyebrow">{$t.settings.defaultForProtocols}</p>
+          <h3>{$t.settings.chooseOnce}</h3>
           <p>
             LocaLog uses this model for local protocol drafts until you change it. The normal
             workflow does not ask you to choose a model for every meeting.
@@ -345,7 +351,7 @@
         </div>
         <article class="model-recommendation">
           <div>
-            <p class="model-kicker">Recommended for this machine</p>
+            <p class="model-kicker">{$t.settings.recommendedForMachine}</p>
             <h3>{modelRecommendation.entry.name}</h3>
             <p>{modelRecommendation.entry.description}</p>
             <div class="model-meta">
@@ -367,12 +373,12 @@
                   : 'Use this model'}
               </button>
             {:else}
-              <span class="model-status">Not installed yet</span>
+              <span class="model-status">{$t.settings.notInstalledYet}</span>
             {/if}
           </div>
         </article>
 
-        <div class="model-catalog" aria-label="Curated protocol models">
+        <div class="model-catalog" aria-label={$t.settings.curatedModels}>
           {#each GENERATION_MODEL_CATALOG as entry (entry.id)}
             {@const installed = installedProviderModel(entry, providerStatus.models)}
             {@const selected = installed !== null && selectedProviderModel === installed.name}
@@ -380,9 +386,11 @@
               <div class="model-card-copy">
                 <div class="model-card-heading">
                   <h3>{entry.name}</h3>
-                  {#if entry.status === 'baseline'}<span class="model-badge">Baseline</span>{/if}
+                  {#if entry.status === 'baseline'}<span class="model-badge"
+                      >{$t.settings.baseline}</span
+                    >{/if}
                   {#if entry.originLabel === 'European model'}<span class="model-badge quiet"
-                      >European</span
+                      >{$t.settings.european}</span
                     >{/if}
                 </div>
                 <p>{entry.description}</p>
@@ -415,24 +423,24 @@
         <p class="setting-hint">{providerStatus.message}</p>
         <div class="setting-actions">
           <button class="secondary-action" onclick={onRefreshProvider}
-            >Check installed models</button
+            >{$t.settings.checkInstalled}</button
           >
         </div>
         <details class="advanced-disclosure model-advanced">
-          <summary>Use another installed model</summary>
+          <summary>{$t.settings.useAnotherModel}</summary>
           <p>
             This is for people who already know which local model they want to try. It is not
             evaluated or recommended by LocaLog, and it remains subject to the same local runtime
             and memory limits.
           </p>
           <div class="setting-field">
-            <label for="other-ollama-model">Installed model</label>
+            <label for="other-ollama-model">{$t.settings.installedModel}</label>
             <select
               id="other-ollama-model"
               bind:value={selectedProviderModel}
               disabled={!providerStatus.serverReachable || uncataloguedModels.length === 0}
             >
-              <option value="">Choose an installed model</option>
+              <option value="">{$t.settings.chooseInstalledModel}</option>
               {#each uncataloguedModels as model (model.name)}
                 <option value={model.name}>{model.name}</option>
               {/each}
@@ -442,7 +450,7 @@
             class="secondary-action"
             onclick={() => onConfigureProvider(selectedProviderModel || null)}
             disabled={!providerStatus.serverReachable || !selectedProviderModel}
-            >Use installed model</button
+            >{$t.settings.useInstalledModel}</button
           >
         </details>
         <div class="notice-inline">
@@ -453,7 +461,7 @@
       {:else if section === 'Transcription'}
         <div class="setting-row">
           <div>
-            <h3>Transcription quality</h3>
+            <h3>{$t.settings.transcriptionQuality}</h3>
             <p>
               Choose the quality you want. LocaLog downloads what it needs the first time and keeps
               it on this device.
@@ -490,12 +498,12 @@
                     <span style="width:{downloading[preset.modelId]}%"></span>
                   </div>
                   <button class="quiet-action" onclick={() => onCancelDownload(preset.modelId)}
-                    >Cancel</button
+                    >{$t.settings.cancel}</button
                   >
                 {:else if preset.installed}
-                  <span class="safe-note"><Icon name="check" size={15} /> Ready</span>
+                  <span class="safe-note"><Icon name="check" size={15} /> {$t.settings.ready}</span>
                   <button class="quiet-action" onclick={() => onRemoveModel(preset.modelId)}
-                    >Remove</button
+                    >{$t.settings.remove}</button
                   >
                 {:else}
                   <button class="secondary-action" onclick={() => onDownloadModel(preset.modelId)}
@@ -508,24 +516,26 @@
         </div>
         {#if modelError}<p class="setting-error" role="alert">{modelError}</p>{/if}
         <details class="advanced-disclosure">
-          <summary>Advanced details</summary>
+          <summary>{$t.settings.advancedDetails}</summary>
           <div class="advanced-block">
             <p class="setting-hint">
-              Models are stored in LocaLog’s application data folder and verified before use.
+              {$t.settings.modelsStoredNote}
             </p>
             <label class="setting-field"
               >whisper-cli executable<input
                 bind:value={executablePath}
                 placeholder="/path/to/whisper-cli"
-              /><button class="quiet-action" onclick={chooseExecutable}>Choose file</button></label
+              /><button class="quiet-action" onclick={chooseExecutable}
+                >{$t.settings.chooseFile}</button
+              ></label
             >
             <p class="setting-hint">
-              Choose the command-line transcription binary, not whisper-server.
+              {$t.settings.whisperNote}
             </p>
             <button
               class="secondary-action"
               onclick={() => onConfigureRuntime(executablePath)}
-              disabled={!executablePath}>Save runtime</button
+              disabled={!executablePath}>{$t.settings.saveRuntime}</button
             >
             {#if runtimeError}<p class="setting-error" role="alert">{runtimeError}</p>{/if}
             {#if runtimeStatus?.runtimeVersion}<p class="setting-hint">
@@ -536,17 +546,17 @@
         <div class="speaker-setting">
           <div class="setting-row">
             <div>
-              <h3>Speaker differentiation</h3>
+              <h3>{$t.settings.speakerDifferentiation}</h3>
               <p>
                 Optional voice-turn separation labels who spoke when. It never blocks a transcript,
                 and labels remain editable during review.
               </p>
             </div>
             {#if speakerStatus.modelsInstalled && speakerStatus.runtimeHealthy}
-              <span class="safe-note"><Icon name="check" size={15} /> Ready</span>
+              <span class="safe-note"><Icon name="check" size={15} /> {$t.settings.ready}</span>
             {:else if speakerStatus.modelsInstalled}
-              <span class="setting-value">Runtime not available in this installation</span>
-            {:else}<span class="setting-value">Optional</span>{/if}
+              <span class="setting-value">{$t.settings.runtimeUnavailable}</span>
+            {:else}<span class="setting-value">{$t.settings.optional}</span>{/if}
           </div>
           <div class="speaker-controls">
             {#if downloading['speaker-separation'] !== undefined}
@@ -557,7 +567,7 @@
                 aria-valuenow={downloading['speaker-separation']}
                 aria-valuemin="0"
                 aria-valuemax="100"
-                aria-label="Downloading speaker separation models"
+                aria-label={$t.settings.downloadingSpeakerModels}
               >
                 <span style="width:{downloading['speaker-separation']}%"></span>
               </div>
@@ -570,14 +580,13 @@
               </button>
             {:else if speakerStatus.runtimeConfigured}<button
                 class="quiet-action"
-                onclick={onRefreshSpeaker}>Check readiness</button
+                onclick={onRefreshSpeaker}>{$t.settings.checkReadiness}</button
               >{:else if speakerStatus.modelsInstalled}<span
-                class="setting-hint speaker-runtime-note"
-                >The models are prepared, but this installation has no compatible speaker runtime.</span
+                class="setting-hint speaker-runtime-note">{$t.settings.speakerRuntimeMissing}</span
               >{/if}
           </div>
           <details class="advanced-disclosure">
-            <summary>Advanced details</summary>
+            <summary>{$t.settings.advancedDetails}</summary>
             <p>
               LocaLog discovers the speaker runtime automatically from its bundled resources or the
               system path. The runtime is optional and never blocks transcription.
@@ -610,7 +619,7 @@
         -->
         <div class="setting-row">
           <div>
-            <h3>Where your work is kept</h3>
+            <h3>{$t.settings.whereWorkIsKept}</h3>
             <p>
               LocaLog manages this folder so that paths inside it stay valid, but it is yours and
               you can look in it whenever you like.
@@ -618,7 +627,7 @@
           </div>
           {#if workspacePath}
             <button class="quiet-action" onclick={() => void onRevealWorkspace()}>
-              Show in Finder
+              {$t.settings.showInFinder}
             </button>
           {/if}
         </div>
@@ -632,14 +641,14 @@
         </div>
         <div class="setting-row">
           <div>
-            <h3>Backup</h3>
+            <h3>{$t.settings.backup}</h3>
             <p>
               Everything stays on this device, which also means it leaves with the device. A backup
               is an ordinary folder you can put on a drive or wherever you keep things safe.
             </p>
           </div>
           <button class="secondary-action" onclick={backUpNow} disabled={backupBusy}>
-            {backupBusy ? 'Working…' : 'Back up now'}
+            {backupBusy ? $t.settings.working : $t.settings.backUpNow}
           </button>
         </div>
         <p class="setting-hint">
@@ -650,14 +659,14 @@
         </p>
         <div class="setting-row">
           <div>
-            <h3>Restore</h3>
+            <h3>{$t.settings.restore}</h3>
             <p>
               Puts a backup back. It is checked in full first, and what is here now is moved aside
               rather than deleted.
             </p>
           </div>
           <button class="quiet-action" onclick={chooseBackupToRestore} disabled={backupBusy}>
-            Choose a backup…
+            {$t.settings.chooseBackup}
           </button>
         </div>
         {#if pendingRestore}
@@ -676,32 +685,34 @@
             </p>
             <div class="restore-actions">
               <button class="secondary-action" onclick={confirmRestore} disabled={backupBusy}>
-                {backupBusy ? 'Restoring…' : 'Replace this workspace'}
+                {backupBusy ? $t.settings.restoring : $t.settings.replaceWorkspace}
               </button>
-              <button class="text-action" onclick={() => (pendingRestore = null)}>Cancel</button>
+              <button class="text-action" onclick={() => (pendingRestore = null)}
+                >{$t.settings.cancel}</button
+              >
             </div>
           </div>
         {/if}
         <div class="setting-row">
           <div>
-            <h3>Archived</h3>
+            <h3>{$t.settings.archived}</h3>
             <p>
               Projects and meetings put out of the way. Nothing was deleted: every meeting,
               transcript and protocol under them is still here, and still in every backup.
             </p>
           </div>
           <button class="quiet-action" aria-expanded={archivedOpen} onclick={toggleArchived}>
-            {archivedOpen ? 'Hide' : 'Show'}
+            {archivedOpen ? $t.settings.hide : $t.settings.show}
           </button>
         </div>
         {#if archivedOpen}
           {#if archived.projects.length === 0 && archived.meetings.length === 0}
-            <p class="setting-hint">Nothing has been archived.</p>
+            <p class="setting-hint">{$t.settings.nothingArchived}</p>
           {:else}
             <ul class="archived-list">
               {#each archived.projects as project (project.id)}
                 <li>
-                  <span><strong>{project.name}</strong><small>Project</small></span>
+                  <span><strong>{project.name}</strong><small>{$t.settings.project}</small></span>
                   <button class="text-action" onclick={() => void unarchiveProject(project.id)}>
                     Bring back
                   </button>
@@ -727,7 +738,7 @@
       {:else if section === 'Appearance'}
         <div class="setting-row">
           <div>
-            <h3>Theme</h3>
+            <h3>{$t.settings.theme}</h3>
             <p>
               {themeChoice === 'auto'
                 ? `Following this Mac, which is set to ${theme}.`
@@ -752,19 +763,20 @@
       {:else if section === 'Advanced'}
         <div class="setting-row">
           <div>
-            <h3>Next fake job</h3>
-            <p>Development-only control for reviewing failure and retry states.</p>
+            <h3>{$t.settings.nextFakeJob}</h3>
+            <p>{$t.settings.nextFakeJobDetail}</p>
           </div>
           <select
             value={nextJobOutcome}
             onchange={(event) => onSetNextJobOutcome(event.currentTarget.value as FakeJobOutcome)}
-            ><option value="success">Complete normally</option><option value="failure"
-              >Fail once, then allow retry</option
+            ><option value="success">{$t.settings.completeNormally}</option><option value="failure"
+              >{$t.settings.failOnce}</option
             ></select
           >
         </div>
         <div class="notice-inline warning">
-          <Icon name="warning" size={16} /> This affects only the in-memory synthetic runtime.
+          <Icon name="warning" size={16} />
+          {$t.settings.syntheticNote}
         </div>
       {/if}
     </section>
