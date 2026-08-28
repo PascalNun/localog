@@ -219,6 +219,12 @@ export const de: Strings = {
   failures,
 
   settings: {
+    catalogueNote:
+      'Der Katalog ist bewusst ausgewählt. LocaLog lädt keine Modelle im Stillen herunter und zeigt keinen beliebigen Modellmarkt. Neue Einträge werden erst wählbar, wenn Laufzeit, Lizenz, Speicherbedarf und Qualität auf Deutsch und Englisch geprüft sind.',
+    managedCopiesNote:
+      'LocaLog hält verwaltete Kopien importierter Aufnahmen, aufbereiteter Audiodateien, Transkripte, Protokolle und geladener Modelle in seinem Anwendungsdatenordner. Exporte werden nur dorthin geschrieben, wo Sie es wählen.',
+    discoveredRuntime: (path: string) => `Gefundene Laufzeit: ${path}`,
+    runtimeVersion: (version: string) => `Version der Laufzeit: ${version}`,
     evaluatedIn: (languages: string) => `Geprüft in ${languages}`,
     evaluationPending: 'Qualitätsprüfung steht noch aus',
     otherModelNote:
@@ -608,6 +614,18 @@ export const de: Strings = {
   },
 
   transcript: {
+    introducedThemselves: (count: number) => `${count} haben sich vorgestellt`,
+    noNamesYet: (project: string) => `Noch keine Namen für ${project}`,
+    speltAsHeard:
+      'So geschrieben, wie die Transkription sie gehört hat. Korrigieren Sie, was falsch ist — es wird hier berichtigt und für dieses Projekt gemerkt.',
+    openingNote:
+      'Besprechungen beginnen meist damit, dass die Anwesenden sagen, wer sie sind. Daraus bekommt dieses Projekt seine Namen — genau das, was eine Transkription nicht erraten kann.',
+    foundInPlaces: (count: number) =>
+      `An ${count} ${count === 1 ? 'Stelle' : 'Stellen'} gefunden. Haken Sie ab, was so bleiben soll.`,
+    noneMisheardEveryTime: (count: number) =>
+      `Kein Wort wurde jedes Mal falsch gehört. ${count} Passagen sind aus anderen Gründen weiterhin als unklar markiert.`,
+    nothingFlaggedNote:
+      'Nichts wurde als unklar markiert. Ein Transkript, das vor dieser Aufzeichnung entstand, zeigt hier ebenfalls nichts — ein älteres liest man daher besser, als dass man ihm vertraut.',
     workingAudioLater:
       'Die Arbeitsdatei steht zur Verfügung, sobald diese Besprechung transkribiert wurde.',
     recordingEndsNote:

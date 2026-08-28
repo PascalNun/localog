@@ -345,8 +345,7 @@
           <p class="eyebrow">{$t.settings.defaultForProtocols}</p>
           <h3>{$t.settings.chooseOnce}</h3>
           <p>
-            LocaLog uses this model for local protocol drafts until you change it. The normal
-            workflow does not ask you to choose a model for every meeting.
+            {$t.settings.modelLead}
           </p>
         </div>
         <article class="model-recommendation">
@@ -452,9 +451,7 @@
           >
         </details>
         <div class="notice-inline">
-          The catalogue is intentionally curated. LocaLog does not silently download models or
-          present an arbitrary model marketplace. New entries become selectable only after their
-          runtime, licence, memory use and German/English quality have been checked.
+          {$t.settings.catalogueNote}
         </div>
       {:else if section === 'Transcription'}
         <div class="setting-row">
@@ -587,12 +584,12 @@
               {$t.settings.speakerDiscovery}
             </p>
             {#if speakerStatus.runtimePath}<p class="setting-hint">
-                Discovered runtime: {speakerStatus.runtimePath}
+                {$t.settings.discoveredRuntime(speakerStatus.runtimePath)}
               </p>{:else}<p class="setting-hint">
                 {$t.settings.noSpeakerRuntime}
               </p>{/if}
             {#if speakerStatus.runtimeVersion}<p class="setting-hint">
-                Runtime version: {speakerStatus.runtimeVersion}
+                {$t.settings.runtimeVersion(speakerStatus.runtimeVersion)}
               </p>{/if}
             <p class="setting-hint">
               {$t.settings.readinessNote}
@@ -628,9 +625,7 @@
           <p class="setting-hint workspace-path">{workspacePath}</p>
         {/if}
         <div class="notice-inline">
-          LocaLog keeps managed copies of imported recordings, prepared audio, transcripts,
-          protocols and downloaded models in its application-data folder. Exports are written only
-          to the location you choose.
+          {$t.settings.managedCopiesNote}
         </div>
         <div class="setting-row">
           <div>

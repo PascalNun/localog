@@ -214,6 +214,12 @@ export const en = {
   /** The screen somebody sees before there is anything to open. */
   /** The settings screen. */
   settings: {
+    catalogueNote:
+      'The catalogue is intentionally curated. LocaLog does not silently download models or present an arbitrary model marketplace. New entries become selectable only after their runtime, licence, memory use and German/English quality have been checked.',
+    managedCopiesNote:
+      'LocaLog keeps managed copies of imported recordings, prepared audio, transcripts, protocols and downloaded models in its application-data folder. Exports are written only to the location you choose.',
+    discoveredRuntime: (path: string) => `Discovered runtime: ${path}`,
+    runtimeVersion: (version: string) => `Runtime version: ${version}`,
     evaluatedIn: (languages: string) => `Evaluated in ${languages}`,
     evaluationPending: 'Quality evaluation still pending',
     otherModelNote:
@@ -594,6 +600,18 @@ export const en = {
   },
 
   transcript: {
+    introducedThemselves: (count: number) => `${count} introduced themselves`,
+    noNamesYet: (project: string) => `No names yet for ${project}`,
+    speltAsHeard:
+      'Spelt as the transcriber heard them. Correct any that are wrong — they will be fixed here and remembered for this project.',
+    openingNote:
+      'Meetings usually open with people saying who they are. Reading that gives this project its names, which is what transcription cannot guess.',
+    foundInPlaces: (count: number) =>
+      `Found in ${count} ${count === 1 ? 'place' : 'places'}. Untick any that should stay as they are.`,
+    noneMisheardEveryTime: (count: number) =>
+      `No word was misheard every time it came up. ${count} passages are still flagged as unclear for other reasons.`,
+    nothingFlaggedNote:
+      'Nothing was flagged as unclear. A transcript made before this was recorded also shows nothing here, so an older one may be worth reading rather than trusting.',
     workingAudioLater: 'Working audio becomes available once this meeting has been transcribed.',
     recordingEndsNote:
       'If the meeting carried on past this, the recording did not capture it and the protocol will not contain it.',

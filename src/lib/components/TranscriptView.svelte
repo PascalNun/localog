@@ -681,10 +681,9 @@
           <div class="inspector-section">
             <p class="eyebrow">{$t.transcript.whoIsHere}</p>
             {#if introductions}
-              <h3>{introductions.length} introduced themselves</h3>
+              <h3>{$t.transcript.introducedThemselves(introductions.length)}</h3>
               <p>
-                Spelt as the transcriber heard them. Correct any that are wrong — they will be fixed
-                here and remembered for this project.
+                {$t.transcript.speltAsHeard}
               </p>
               <ul class="introduction-list">
                 {#each introductions as person (person.heard)}
@@ -713,10 +712,9 @@
                 >
               </div>
             {:else}
-              <h3>No names yet for {project.name}</h3>
+              <h3>{$t.transcript.noNamesYet(project.name)}</h3>
               <p>
-                Meetings usually open with people saying who they are. Reading that gives this
-                project its names, which is what transcription cannot guess.
+                {$t.transcript.openingNote}
               </p>
               <button class="secondary-action" disabled={reading} onclick={readIntroductions}>
                 {reading ? 'Reading the opening…' : 'Read who is in this meeting'}
@@ -751,9 +749,7 @@
 
             {#if matches.length}
               <p class="correction-note">
-                Found in {matches.length}
-                {matches.length === 1 ? 'place' : 'places'}. Untick any that should stay as they
-                are.
+                {$t.transcript.foundInPlaces(matches.length)}
               </p>
               <ul class="correction-matches">
                 {#each matches as match (match.segmentId)}
@@ -806,11 +802,9 @@
             <h3>{$t.transcript.nothingToCheck}</h3>
             <p>
               {#if unclearCount}
-                No word was misheard every time it came up. {unclearCount} passages are still flagged
-                as unclear for other reasons.
+                {$t.transcript.noneMisheardEveryTime(unclearCount)}
               {:else}
-                Nothing was flagged as unclear. A transcript made before this was recorded also
-                shows nothing here, so an older one may be worth reading rather than trusting.
+                {$t.transcript.nothingFlaggedNote}
               {/if}
             </p>
           {/if}
