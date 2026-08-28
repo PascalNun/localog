@@ -500,6 +500,10 @@ export const en = {
   },
 
   newMeeting: {
+    noPerMeetingOverrides:
+      'Per-meeting overrides and choosing names & terms per meeting are not available yet.',
+    chosenOnceNote:
+      'Transcription quality and the model that writes the protocol are chosen once, in Settings, and reused for every meeting.',
     titleRecording: 'Recording',
     titleImport: 'Structured import',
     heading: 'New meeting',
@@ -540,6 +544,12 @@ export const en = {
   },
 
   recordingReview: {
+    lead: 'Cut what the meeting does not need before it is transcribed. Your recording is never changed — everything here can be undone.',
+    noPreparedAudio:
+      'This meeting has no prepared audio to review. It becomes available once the import has been committed.',
+    dragToSelect:
+      'Drag across the recording to select a stretch, or use the arrow keys and hold shift.',
+    selectedRange: (from: string, to: string) => `Selected ${from} to ${to}.`,
     eyebrow: 'Recording',
     heading: 'Review recording',
     noAudio: 'No working audio yet',
@@ -621,6 +631,15 @@ export const en = {
   },
 
   library: {
+    instructionsGiven:
+      'These are the instructions the model is given, in the order it is given them',
+    asShipped: ', exactly as this style shipped',
+    invariantsNote:
+      'These are not part of this style and cannot be edited here — they are not stored with a style at all. They are added to every protocol as it is written, because a document that reports a decision nobody made is not a differently-styled protocol but a wrong one.',
+    whichTermsHelp:
+      'Names, firms and abbreviations help most. Ordinary professional terminology is usually transcribed correctly without being listed.',
+    termsLeadLong:
+      'Add the names, firms and abbreviations this work uses so they are transcribed correctly. On a real eighty-minute meeting this took the project’s own name from never spelled correctly to always.',
     eyebrow: 'Library',
     protocolStyles: 'Protocol styles',
     namesAndTerms: 'Names & terms',

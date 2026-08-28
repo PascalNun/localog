@@ -511,6 +511,10 @@ export const de: Strings = {
   },
 
   newMeeting: {
+    noPerMeetingOverrides:
+      'Abweichungen je Besprechung und die Wahl von Namen & Begriffen je Besprechung gibt es noch nicht.',
+    chosenOnceNote:
+      'Die Transkriptionsqualität und das Modell, das das Protokoll schreibt, werden einmal in den Einstellungen gewählt und für jede Besprechung verwendet.',
     titleRecording: 'Aufnahme',
     titleImport: 'Strukturierter Import',
     heading: 'Neue Besprechung',
@@ -553,6 +557,12 @@ export const de: Strings = {
   },
 
   recordingReview: {
+    lead: 'Schneiden Sie weg, was die Besprechung nicht braucht, bevor sie transkribiert wird. Ihre Aufnahme wird dabei nie verändert — alles hier lässt sich rückgängig machen.',
+    noPreparedAudio:
+      'Für diese Besprechung gibt es noch kein aufbereitetes Audio zum Prüfen. Es steht bereit, sobald der Import übernommen wurde.',
+    dragToSelect:
+      'Ziehen Sie über die Aufnahme, um einen Abschnitt zu wählen, oder benutzen Sie die Pfeiltasten mit gedrückter Umschalttaste.',
+    selectedRange: (from: string, to: string) => `Gewählt: ${from} bis ${to}.`,
     eyebrow: 'Aufnahme',
     heading: 'Aufnahme prüfen',
     noAudio: 'Noch keine Arbeitsdatei',
@@ -637,6 +647,15 @@ export const de: Strings = {
   },
 
   library: {
+    instructionsGiven:
+      'Das sind die Anweisungen, die das Modell erhält, in der Reihenfolge, in der es sie erhält',
+    asShipped: ', genau so, wie dieser Stil ausgeliefert wurde',
+    invariantsNote:
+      'Diese gehören nicht zu diesem Stil und lassen sich hier nicht ändern — sie werden gar nicht bei einem Stil gespeichert. Sie kommen zu jedem Protokoll hinzu, während es geschrieben wird: Ein Dokument, das eine Entscheidung festhält, die niemand getroffen hat, ist kein anders gesetztes Protokoll, sondern ein falsches.',
+    whichTermsHelp:
+      'Am meisten helfen Namen, Firmen und Abkürzungen. Übliche Fachbegriffe werden meist auch ohne Eintrag richtig transkribiert.',
+    termsLeadLong:
+      'Tragen Sie die Namen, Firmen und Abkürzungen dieser Arbeit ein, damit sie richtig transkribiert werden. In einer echten achtzigminütigen Besprechung wurde der Projektname damit von nie richtig geschrieben zu immer.',
     eyebrow: 'Bibliothek',
     protocolStyles: 'Protokollstile',
     namesAndTerms: 'Namen & Begriffe',

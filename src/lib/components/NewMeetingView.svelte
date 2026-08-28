@@ -232,14 +232,13 @@
           >
           <p class="field-note">
             {$t.newMeeting.qualityNote}
-            Per-meeting overrides and choosing names & terms per meeting are not available yet.
+            {$t.newMeeting.noPerMeetingOverrides}
           </p>
         </div>
         <details class="advanced-disclosure">
           <summary>{$t.newMeeting.advanced}</summary>
           <p>
-            Transcription quality and the model that writes the protocol are chosen once, in
-            Settings, and reused for every meeting.
+            {$t.newMeeting.chosenOnceNote}
           </p>
         </details>
       </div>

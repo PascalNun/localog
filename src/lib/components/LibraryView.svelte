@@ -338,9 +338,7 @@
                 <div class="style-instructions">
                   <h3>{$t.library.whatItAsksFor}</h3>
                   <p class="style-note">
-                    These are the instructions the model is given, in the order it is given them{detail.asShipped
-                      ? ', exactly as this style shipped'
-                      : ''}.
+                    {$t.library.instructionsGiven}{detail.asShipped ? $t.library.asShipped : ''}.
                   </p>
                   <ol>
                     {#each detail.instructions as instruction, at (at)}
@@ -364,10 +362,7 @@
               <div class="style-fidelity">
                 <h3>{$t.library.alwaysEveryStyle}</h3>
                 <p class="style-note">
-                  These are not part of this style and cannot be edited here — they are not stored
-                  with a style at all. They are added to every protocol as it is written, because a
-                  document that reports a decision nobody made is not a differently-styled protocol
-                  but a wrong one.
+                  {$t.library.invariantsNote}
                 </p>
                 <ul>
                   {#each detail.fidelity as rule, at (at)}
@@ -470,8 +465,7 @@
           </label>
         </div>
         <p class="vocabulary-hint">
-          Names, firms and abbreviations help most. Ordinary professional terminology is usually
-          transcribed correctly without being listed.
+          {$t.library.whichTermsHelp}
         </p>
         <div class="vocabulary-actions">
           <button class="secondary-action" onclick={save} disabled={busy}>
@@ -491,9 +485,7 @@
         <Icon name="book" size={22} />
         <h2>{$t.library.noTerms}</h2>
         <p>
-          Add the names, firms and abbreviations this work uses so they are transcribed correctly.
-          On a real eighty-minute meeting this took the project's own name from never spelled
-          correctly to always.
+          {$t.library.termsLeadLong}
         </p>
       </div>
     {:else}

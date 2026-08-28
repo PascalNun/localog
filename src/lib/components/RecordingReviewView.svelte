@@ -183,8 +183,7 @@
       <p class="breadcrumb">{meeting.title} <span>›</span> {$t.shell.breadcrumbRecording}</p>
       <h1 tabindex="-1">{$t.recordingReview.heading}</h1>
       <p class="page-lead">
-        Cut what the meeting does not need before it is transcribed. Your recording is never changed
-        — everything here can be undone.
+        {$t.recordingReview.lead}
       </p>
     </div>
   </header>
@@ -194,8 +193,7 @@
       <p class="eyebrow">{$t.recordingReview.eyebrow}</p>
       <h2>{$t.recordingReview.noAudio}</h2>
       <p>
-        This meeting has no prepared audio to review. It becomes available once the import has been
-        committed.
+        {$t.recordingReview.noPreparedAudio}
       </p>
     </section>
   {:else}
@@ -262,9 +260,12 @@
 
         <p class="review-hint">
           {#if selection}
-            Selected {clockFromMillis(selection.fromMs)} to {clockFromMillis(selection.toMs)}.
+            {$t.recordingReview.selectedRange(
+              clockFromMillis(selection.fromMs),
+              clockFromMillis(selection.toMs),
+            )}
           {:else}
-            Drag across the recording to select a stretch, or use the arrow keys and hold shift.
+            {$t.recordingReview.dragToSelect}
           {/if}
         </p>
 
