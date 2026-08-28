@@ -182,17 +182,16 @@
         <p class="eyebrow">{$t.meeting.sourceReady}</p>
         <h2>{$t.meeting.readyToTranscribe}</h2>
         <p>
-          {#if meeting.sourceByteCount !== null}<strong>{meeting.sourceName}</strong> is safely stored
-            with this meeting. The external original was not modified.{:else}<strong
-              >{meeting.sourceName}</strong
-            > is assigned to this synthetic browser meeting. No real media file was copied.{/if}
+          {#if meeting.sourceByteCount !== null}<strong>{meeting.sourceName}</strong>
+            {$t.meeting.sourceStored}{:else}<strong>{meeting.sourceName}</strong>
+            {$t.meeting.sourceSynthetic}{/if}
         </p>
         <dl class="resolved-settings">
           <div>
             <dt>{$t.meeting.managedSource}</dt>
             <dd>
               {meeting.sourceByteCount === null
-                ? 'Synthetic fixture'
+                ? $t.meeting.syntheticFixture
                 : formatBytes(meeting.sourceByteCount)}<small
                 >{meeting.sourceMediaType ?? 'Browser preview'}</small
               >

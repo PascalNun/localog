@@ -431,6 +431,10 @@ export const en = {
   },
 
   meeting: {
+    sourceStored: 'is safely stored with this meeting. The external original was not modified.',
+    sourceSynthetic:
+      'is assigned to this synthetic browser meeting. No real media file was copied.',
+    syntheticFixture: 'Synthetic fixture',
     eyebrow: 'Meeting',
     titleLabel: 'Meeting title',
     editTitle: 'Edit meeting title',

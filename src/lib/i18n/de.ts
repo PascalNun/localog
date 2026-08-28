@@ -440,6 +440,11 @@ export const de: Strings = {
   },
 
   meeting: {
+    sourceStored:
+      'ist sicher bei dieser Besprechung abgelegt. Das externe Original wurde nicht verändert.',
+    sourceSynthetic:
+      'ist dieser synthetischen Browser-Besprechung zugeordnet. Es wurde keine echte Mediendatei kopiert.',
+    syntheticFixture: 'Synthetische Vorlage',
     eyebrow: 'Besprechung',
     titleLabel: 'Titel der Besprechung',
     editTitle: 'Titel bearbeiten',
