@@ -34,7 +34,7 @@
   import { FakeWorkflowBridge } from './lib/workflow/fakeBridge';
   import { createNativeWorkspaceStore } from './lib/workflow/workspaceStore';
   import { errorMessage } from './lib/errors';
-  import { startLanguage } from './lib/i18n';
+  import { startLanguage, t } from './lib/i18n';
   import { formatBytes } from './lib/bytes';
   import type {
     AppRoute,
@@ -646,7 +646,7 @@
   ><meta name="theme-color" content={theme === 'light' ? '#f5f2ec' : '#1a1917'} /></svelte:head
 >
 
-<a class="skip-link" href="#main-content">Skip to workspace</a>
+<a class="skip-link" href="#main-content">{$t.shell.skipToWorkspace}</a>
 <div class="app-shell" style={`--sidebar-width: ${sidebarWidth}px`}>
   <div class="window-drag-region" data-tauri-drag-region aria-hidden="true"></div>
   {#if snapshot}
@@ -672,7 +672,7 @@
       <div class="mobile-topbar" data-tauri-drag-region>
         <button
           class="icon-button"
-          aria-label="Open navigation"
+          aria-label={$t.shell.openNavigation}
           onclick={() => (sidebarOpen = true)}><Icon name="menu" /></button
         >
         <button class="mobile-wordmark" onclick={() => navigate({ name: 'start' })}>LocaLog</button>
@@ -1034,14 +1034,16 @@
     </div>
   {:else if startupError}
     <main class="startup-failure" id="main-content">
-      <p class="eyebrow">Workspace</p>
-      <h1 tabindex="-1">Workspace could not be opened</h1>
-      <p>{startupError} Your existing files have not been changed.</p>
-      <button class="secondary-action" onclick={() => window.location.reload()}>Try again</button>
+      <p class="eyebrow">{$t.shell.workspace}</p>
+      <h1 tabindex="-1">{$t.shell.workspaceFailed}</h1>
+      <p>{startupError} {$t.shell.workspaceFailedDetail}</p>
+      <button class="secondary-action" onclick={() => window.location.reload()}
+        >{$t.shell.tryAgain}</button
+      >
     </main>
   {:else}
     <div class="app-loading" aria-live="polite">
-      <span class="processing-dot"></span>Preparing local workspace…
+      <span class="processing-dot"></span>{$t.shell.preparingWorkspace}
     </div>
   {/if}
 </div>

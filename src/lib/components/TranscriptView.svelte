@@ -591,7 +591,7 @@
       <aside class="context-inspector" aria-label={$t.transcript.detailsLabel}>
         <div class="inspector-heading">
           <div>
-            <p class="eyebrow">Review</p>
+            <p class="eyebrow">{$t.shell.breadcrumbReview}</p>
             <h2>{$t.transcript.speakers}</h2>
           </div>
           <button

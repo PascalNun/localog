@@ -92,7 +92,7 @@
 <main class="workspace stage-workspace" id="main-content">
   <header class="workspace-header meeting-header">
     <div>
-      <p class="breadcrumb">{project.name} <span>›</span> Meeting</p>
+      <p class="breadcrumb">{project.name} <span>›</span> {$t.shell.breadcrumbMeeting}</p>
       <div class="editable-title">
         {#if editingTitle}<input
             bind:value={titleDraft}

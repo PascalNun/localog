@@ -143,7 +143,7 @@
 <main class="workspace" id="main-content">
   <header class="workspace-header">
     <div>
-      <p class="breadcrumb">{meeting.title} <span>›</span> Recording</p>
+      <p class="breadcrumb">{meeting.title} <span>›</span> {$t.shell.breadcrumbRecording}</p>
       <h1 tabindex="-1">
         {status.recording ? $t.record.recordingNow : $t.record.recordThisMeeting}
       </h1>

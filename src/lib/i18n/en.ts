@@ -578,6 +578,19 @@ export const en = {
       `Applies to every protocol in ${project}. It repeats on the printed page and is not part of the document you are editing.`,
   },
 
+  shell: {
+    breadcrumbMeeting: 'Meeting',
+    breadcrumbRecording: 'Recording',
+    breadcrumbReview: 'Review',
+    skipToWorkspace: 'Skip to workspace',
+    workspace: 'Workspace',
+    workspaceFailed: 'Workspace could not be opened',
+    workspaceFailedDetail: 'Your existing files have not been changed.',
+    tryAgain: 'Try again',
+    preparingWorkspace: 'Preparing local workspace…',
+    openNavigation: 'Open navigation',
+  },
+
   sidebar: {
     projects: 'Projects',
     newProject: 'New project',

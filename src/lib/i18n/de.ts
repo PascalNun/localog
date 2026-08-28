@@ -592,6 +592,19 @@ export const de: Strings = {
       `Gilt für jedes Protokoll in ${project}. Sie wiederholt sich auf der gedruckten Seite und gehört nicht zu dem Dokument, das Sie bearbeiten.`,
   },
 
+  shell: {
+    breadcrumbMeeting: 'Besprechung',
+    breadcrumbRecording: 'Aufnahme',
+    breadcrumbReview: 'Prüfung',
+    skipToWorkspace: 'Zum Arbeitsbereich springen',
+    workspace: 'Arbeitsbereich',
+    workspaceFailed: 'Der Arbeitsbereich konnte nicht geöffnet werden',
+    workspaceFailedDetail: 'Ihre vorhandenen Dateien wurden nicht verändert.',
+    tryAgain: 'Erneut versuchen',
+    preparingWorkspace: 'Lokaler Arbeitsbereich wird vorbereitet …',
+    openNavigation: 'Navigation öffnen',
+  },
+
   sidebar: {
     projects: 'Projekte',
     newProject: 'Neues Projekt',

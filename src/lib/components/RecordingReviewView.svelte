@@ -180,7 +180,7 @@
 <main class="workspace" id="main-content">
   <header class="workspace-header">
     <div>
-      <p class="breadcrumb">{meeting.title} <span>›</span> Recording</p>
+      <p class="breadcrumb">{meeting.title} <span>›</span> {$t.shell.breadcrumbRecording}</p>
       <h1 tabindex="-1">{$t.recordingReview.heading}</h1>
       <p class="page-lead">
         Cut what the meeting does not need before it is transcribed. Your recording is never changed
