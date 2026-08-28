@@ -189,7 +189,7 @@ impl Recording {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|error| format!("The recorder could not be started: {error}"))?;
+            .map_err(|error| format!("recorderStartFailed:{error}"))?;
 
         let marker = root.join(RUNNING_MARKER);
         let _ = std::fs::write(&marker, child.id().to_string());

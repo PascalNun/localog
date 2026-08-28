@@ -742,7 +742,7 @@ impl WorkspaceRepository {
     }
 
     pub fn create_project(&mut self, input: NewProjectInput) -> Result<ProjectSummary> {
-        let name = required_text(&input.name, 200, "Enter a project name.")?;
+        let name = required_text(&input.name, 200, "projectNameRequired")?;
         let description = optional_text(&input.description, 2_000, "The description is too long.")?;
         let default_language = required_text(
             &input.default_language,
@@ -771,7 +771,7 @@ impl WorkspaceRepository {
     }
 
     pub fn create_meeting(&mut self, input: NewMeetingInput) -> Result<MeetingSummary> {
-        let project_id = required_text(&input.project_id, 128, "Choose a valid project.")?;
+        let project_id = required_text(&input.project_id, 128, "projectInvalid")?;
         // A meeting about to be recorded has no source yet. Everything else about it
         // is the same, so the absence of a file is the only difference: no recording
         // row, no import job, and a title somebody has to give because there is no
@@ -783,7 +783,7 @@ impl WorkspaceRepository {
             source_name(&input.source_name)?
         };
         let title = if !input.title.trim().is_empty() {
-            required_text(&input.title, 240, "The meeting title is too long.")?
+            required_text(&input.title, 240, "meetingTitleTooLong")?
         } else if to_record {
             return Err(StorageError::InvalidData(
                 "Give the meeting a title. There is no file to take one from.",
@@ -792,8 +792,8 @@ impl WorkspaceRepository {
             title_from_source(&source_name)
         };
         let occurred_at = meeting_date(&input.occurred_at)?;
-        let language = required_text(&input.language, 64, "Choose a valid meeting language.")?;
-        let style_id = required_text(&input.style_id, 128, "Choose a valid protocol style.")?;
+        let language = required_text(&input.language, 64, "meetingLanguageInvalid")?;
+        let style_id = required_text(&input.style_id, 128, "styleInvalid")?;
         let source_path = if to_record {
             String::new()
         } else {
@@ -850,8 +850,8 @@ impl WorkspaceRepository {
     }
 
     pub fn update_meeting_title(&self, meeting_id: &str, title: &str) -> Result<()> {
-        let meeting_id = required_text(meeting_id, 128, "Choose a valid meeting.")?;
-        let title = required_text(title, 240, "Enter a meeting title.")?;
+        let meeting_id = required_text(meeting_id, 128, "meetingInvalid")?;
+        let title = required_text(title, 240, "meetingTitleRequired")?;
         let updated = self.connection.execute(
             "UPDATE meetings SET title = ?1, updated_at_ms = ?2 WHERE id = ?3",
             params![title, unix_time_millis(), meeting_id],
@@ -863,8 +863,8 @@ impl WorkspaceRepository {
     }
 
     pub fn update_meeting_language(&self, meeting_id: &str, language: &str) -> Result<()> {
-        let meeting_id = required_text(meeting_id, 128, "Choose a valid meeting.")?;
-        let language = required_text(language, 64, "Choose a meeting language.")?;
+        let meeting_id = required_text(meeting_id, 128, "meetingInvalid")?;
+        let language = required_text(language, 64, "meetingLanguageRequired")?;
         let updated = self.connection.execute(
             "UPDATE meetings SET language = ?1, updated_at_ms = ?2 WHERE id = ?3",
             params![language, unix_time_millis(), meeting_id],
@@ -1135,7 +1135,7 @@ impl WorkspaceRepository {
         source_name_value: &str,
         source_path_value: &str,
     ) -> Result<()> {
-        let meeting_id = required_text(meeting_id, 128, "Choose a valid meeting.")?;
+        let meeting_id = required_text(meeting_id, 128, "meetingInvalid")?;
         let source_name = source_name(source_name_value)?;
         let source_path = required_source_path(Some(source_path_value))?;
         if self.import_is_active()? {
@@ -1392,8 +1392,8 @@ impl WorkspaceRepository {
     /// same term is not stored twice in the same scope, since a duplicate would
     /// only spend part of the runtime's short prompt saying the same thing twice.
     pub fn save_vocabulary_entry(&mut self, input: VocabularyDraft) -> Result<()> {
-        let term = required_text(&input.term, 200, "Enter a term.")?;
-        let category = required_text(&input.category, 64, "Choose a category.")?;
+        let term = required_text(&input.term, 200, "termRequired")?;
+        let category = required_text(&input.category, 64, "categoryRequired")?;
         let project_id = match input.scope.as_str() {
             "Global" => None,
             "Project" => Some(input.project_id.clone().ok_or(StorageError::InvalidData(
@@ -3181,10 +3181,10 @@ fn required_source_path(value: Option<&str>) -> Result<String> {
     let value = value.ok_or(StorageError::InvalidData(
         "Choose the source recording again.",
     ))?;
-    let path = required_text(value, 32_768, "Choose a valid source recording.")?;
+    let path = required_text(value, 32_768, "sourceRecordingInvalid")?;
     if !Path::new(&path).is_absolute() {
         return Err(StorageError::InvalidData(
-            "Choose a valid source recording.",
+            "sourceRecordingInvalid",
         ));
     }
     Ok(path)

@@ -353,7 +353,7 @@ fn provider_processing_error(error: provider::ProviderError) -> ProcessingError 
         },
         provider::ProviderError::Unavailable(message) => ProcessingError::Runtime {
             code: "provider_unavailable",
-            message: format!("Ollama could not complete the local request: {message}"),
+            message: format!("ollamaRequestFailed:{message}"),
         },
         provider::ProviderError::InvalidResponse(message) => ProcessingError::Runtime {
             code: "provider_invalid_output",

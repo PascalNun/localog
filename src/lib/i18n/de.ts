@@ -142,6 +142,30 @@ const failures = {
     `Die Sicherung konnte nicht geschrieben oder gelesen werden: ${what}`,
   backupDatabaseFailed: (what: string) => `Die Datenbank konnte nicht kopiert werden: ${what}`,
 
+  // Validation the storage layer does, and failures that carry the reason.
+  categoryRequired: 'Wählen Sie eine Kategorie.',
+  meetingLanguageRequired: 'Wählen Sie eine Sprache für die Besprechung.',
+  meetingLanguageInvalid: 'Wählen Sie eine gültige Sprache für die Besprechung.',
+  meetingInvalid: 'Wählen Sie eine gültige Besprechung.',
+  projectInvalid: 'Wählen Sie ein gültiges Projekt.',
+  styleInvalid: 'Wählen Sie einen gültigen Protokollstil.',
+  sourceRecordingInvalid: 'Wählen Sie eine gültige Quellaufnahme.',
+  meetingTitleRequired: 'Geben Sie einen Titel für die Besprechung ein.',
+  projectNameRequired: 'Geben Sie einen Projektnamen ein.',
+  termRequired: 'Geben Sie einen Begriff ein.',
+  meetingTitleTooLong: 'Der Titel der Besprechung ist zu lang.',
+  speakerPassCannotRead: (what: string) =>
+    `Die Sprechererkennung konnte die Arbeitsdatei nicht lesen: ${what}`,
+  speakerPassCannotWrite: (what: string) =>
+    `Die Sprechererkennung konnte ihr Audio nicht schreiben: ${what}`,
+  recordingNotStored: (what: string) => `Die Aufnahme konnte nicht gespeichert werden: ${what}`,
+  recordingNotRead: (what: string) => `Die Aufnahme konnte nicht gelesen werden: ${what}`,
+  modelNotDownloaded: (what: string) => `Das Modell konnte nicht geladen werden: ${what}`,
+  modelNotSaved: (what: string) => `Das Modell konnte nicht gespeichert werden: ${what}`,
+  ollamaRequestFailed: (what: string) =>
+    `Ollama konnte die lokale Anfrage nicht abschließen: ${what}`,
+  recorderStartFailed: (what: string) => `Die Aufnahme konnte nicht gestartet werden: ${what}`,
+
   // Die Verarbeitung: Audio, Modelle, lokales Modell, Aufnahme.
   embeddingsUnrecognisable: 'Die Sprechererkennung hat keine lesbaren Stimmprofile geschrieben.',
   embeddingsNoDimensions: 'Die Stimmprofile beschreiben keine Dimensionen.',

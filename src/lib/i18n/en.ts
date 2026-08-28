@@ -142,6 +142,28 @@ const failures = {
   backupIoFailed: (what: string) => `The backup could not be written or read: ${what}`,
   backupDatabaseFailed: (what: string) => `The database could not be copied: ${what}`,
 
+  // Validation the storage layer does, and failures that carry the reason.
+  categoryRequired: 'Choose a category.',
+  meetingLanguageRequired: 'Choose a meeting language.',
+  meetingLanguageInvalid: 'Choose a valid meeting language.',
+  meetingInvalid: 'Choose a valid meeting.',
+  projectInvalid: 'Choose a valid project.',
+  styleInvalid: 'Choose a valid protocol style.',
+  sourceRecordingInvalid: 'Choose a valid source recording.',
+  meetingTitleRequired: 'Enter a meeting title.',
+  projectNameRequired: 'Enter a project name.',
+  termRequired: 'Enter a term.',
+  meetingTitleTooLong: 'The meeting title is too long.',
+  speakerPassCannotRead: (what: string) =>
+    `The speaker pass could not read the working audio: ${what}`,
+  speakerPassCannotWrite: (what: string) => `The speaker pass could not write its audio: ${what}`,
+  recordingNotStored: (what: string) => `The recording could not be stored: ${what}`,
+  recordingNotRead: (what: string) => `The recording could not be read: ${what}`,
+  modelNotDownloaded: (what: string) => `The model could not be downloaded: ${what}`,
+  modelNotSaved: (what: string) => `The model could not be saved: ${what}`,
+  ollamaRequestFailed: (what: string) => `Ollama could not complete the local request: ${what}`,
+  recorderStartFailed: (what: string) => `The recorder could not be started: ${what}`,
+
   // The pipeline: audio, models, the local provider, the recorder.
   embeddingsUnrecognisable: 'The speaker pass did not write recognisable embeddings.',
   embeddingsNoDimensions: 'The embeddings describe no dimensions.',

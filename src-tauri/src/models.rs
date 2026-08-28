@@ -96,13 +96,13 @@ impl Display for ModelError {
                 human_bytes(*available)
             ),
             Self::Network(message) => {
-                write!(formatter, "The model could not be downloaded: {message}")
+                write!(formatter, "modelNotDownloaded:{message}")
             }
             Self::VerifyFailed => write!(
                 formatter,
                 "downloadCorrupt"
             ),
-            Self::Io(message) => write!(formatter, "The model could not be saved: {message}"),
+            Self::Io(message) => write!(formatter, "modelNotSaved:{message}"),
         }
     }
 }
