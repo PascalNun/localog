@@ -761,6 +761,44 @@ export const en = {
   },
 
   protocol: {
+    notFound: 'Not found',
+    matchCount: (count: number) => `${count} ${count === 1 ? 'match' : 'matches'}`,
+    replacedCount: (count: number) => ` · replaced ${count}`,
+    changesNotYetMade: (count: number) =>
+      `${count} ${count === 1 ? 'change' : 'changes'}, not yet made`,
+    compoundNote:
+      'A capitalised name is looked for inside compounds as well, which is where a plain replace misses it. Read them, then keep them or leave them.',
+    andMore: (count: number) => `and ${count} more, all of the same two forms.`,
+    passageGoesAlone:
+      'The passage goes to your local model on its own. Numbers, names and dates are to come back unchanged — check them, and undo if they did not.',
+    nothingChangedYet:
+      'Nothing has been changed yet. Read it, then keep it or leave it — a local model rewrites well and is not to be taken on trust.',
+    secondPassNote:
+      'Asked of your own model, and it is wrong in both directions: it misses changes and it queries wording that is fine. Worth a look, not a verdict.',
+    pageEdgesNote:
+      'Where the pages would end, measured the way the print stylesheet sets them: a heading or a table moves down whole rather than splitting, prose does not. The printer settles the last line or two, so treat this as within a line rather than exact.',
+    transcriptSourceNote:
+      'Written from the reviewed transcript of this meeting. Nothing records which passage produced which sentence, so what follows looks for the words rather than claiming to know — a paraphrase will find nothing, which is the honest answer.',
+    noWordsTogether:
+      'None of these words appear together in the transcript. That usually means the draft has put it in its own words, which it is entitled to do — the recording is the place to check it.',
+    revisionNote:
+      'Typing is kept as working edits and does not make a revision. A revision is made when a draft is generated, when you ask for one, when you mark a protocol reviewed, and when an older one is restored — so this list stays short enough to read.',
+    nothingRewrites:
+      'Nothing here rewrites your text for you. The draft is yours to edit, and every revision is kept.',
+    figuresKept: (kept: number, stated: number) => `${kept} of ${stated} figures kept`,
+    figuresNote: (stated: number, kept: number) =>
+      `The meeting stated ${stated} figures and this draft repeats ${kept} of them. How many belong here is a matter of the style you chose, so this is something to look at rather than a score.`,
+    figuresInvented: (count: number) =>
+      count === 1
+        ? 'One figure appears here that the meeting did not state'
+        : `${count} figures appear here that the meeting did not state`,
+    confirmAgainstRecording: '. Worth confirming against the recording.',
+    tasksUnowned: (count: number) =>
+      count === 1
+        ? 'One task here has nobody against it'
+        : `${count} tasks here have nobody against them`,
+    unownedNote:
+      '. The draft leaves an owner out rather than guessing at one, so this may be exactly what the meeting decided — and it is far cheaper to put a name to it now than at the next meeting.',
     editor: 'Protocol editor',
     markdownBacked: 'Markdown backed',
     statusDraft: 'Draft',

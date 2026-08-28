@@ -779,6 +779,44 @@ export const de: Strings = {
   },
 
   protocol: {
+    notFound: 'Nicht gefunden',
+    matchCount: (count: number) => `${count} ${count === 1 ? 'Treffer' : 'Treffer'}`,
+    replacedCount: (count: number) => ` · ${count} ersetzt`,
+    changesNotYetMade: (count: number) =>
+      `${count} ${count === 1 ? 'Änderung' : 'Änderungen'}, noch nicht vorgenommen`,
+    compoundNote:
+      'Ein großgeschriebener Name wird auch innerhalb von Zusammensetzungen gesucht — dort übersieht ihn ein einfaches Ersetzen. Lesen Sie sie, dann übernehmen oder belassen Sie sie.',
+    andMore: (count: number) => `und ${count} weitere, alle in denselben beiden Formen.`,
+    passageGoesAlone:
+      'Die Passage geht allein an Ihr lokales Modell. Zahlen, Namen und Daten sollen unverändert zurückkommen — prüfen Sie das, und machen Sie es rückgängig, wenn nicht.',
+    nothingChangedYet:
+      'Es wurde noch nichts geändert. Lesen Sie es, dann übernehmen oder belassen Sie es — ein lokales Modell formuliert gut um und ist trotzdem nicht blind zu übernehmen.',
+    secondPassNote:
+      'Von Ihrem eigenen Modell gefragt — und es irrt in beide Richtungen: Es übersieht Änderungen und beanstandet Formulierungen, die in Ordnung sind. Ein Blick wert, kein Urteil.',
+    pageEdgesNote:
+      'Wo die Seiten enden würden, gemessen so, wie das Druck-Stylesheet sie setzt: Eine Überschrift oder eine Tabelle rutscht als Ganzes nach unten statt umzubrechen, Fließtext nicht. Die letzten ein, zwei Zeilen entscheidet der Drucker — nehmen Sie das also auf eine Zeile genau, nicht exakt.',
+    transcriptSourceNote:
+      'Geschrieben aus dem geprüften Transkript dieser Besprechung. Nirgends ist festgehalten, welche Passage welchen Satz hervorgebracht hat — was folgt, sucht daher nach den Worten, statt es zu behaupten. Eine Umschreibung findet nichts, und das ist die ehrliche Antwort.',
+    noWordsTogether:
+      'Diese Worte kommen im Transkript nirgends zusammen vor. Meist heißt das, der Entwurf hat es in eigene Worte gefasst, was ihm zusteht — nachprüfen lässt es sich an der Aufnahme.',
+    revisionNote:
+      'Getipptes bleibt als laufende Bearbeitung erhalten und erzeugt keine Fassung. Eine Fassung entsteht, wenn ein Entwurf erzeugt wird, wenn Sie darum bitten, wenn Sie ein Protokoll als geprüft markieren und wenn eine ältere wiederhergestellt wird — so bleibt diese Liste kurz genug zum Lesen.',
+    nothingRewrites:
+      'Hier schreibt nichts Ihren Text für Sie um. Der Entwurf gehört Ihnen zum Bearbeiten, und jede Fassung bleibt erhalten.',
+    figuresKept: (kept: number, stated: number) => `${kept} von ${stated} Zahlen übernommen`,
+    figuresNote: (stated: number, kept: number) =>
+      `In der Besprechung fielen ${stated} Zahlen, und dieser Entwurf greift ${kept} davon auf. Wie viele hierher gehören, hängt vom gewählten Stil ab — das ist also etwas zum Ansehen, keine Bewertung.`,
+    figuresInvented: (count: number) =>
+      count === 1
+        ? 'Hier steht eine Zahl, die in der Besprechung nicht fiel'
+        : `Hier stehen ${count} Zahlen, die in der Besprechung nicht fielen`,
+    confirmAgainstRecording: '. Sollte an der Aufnahme geprüft werden.',
+    tasksUnowned: (count: number) =>
+      count === 1
+        ? 'Eine Aufgabe hier hat niemanden zugeordnet'
+        : `${count} Aufgaben hier haben niemanden zugeordnet`,
+    unownedNote:
+      '. Der Entwurf lässt die Zuordnung lieber offen, als sie zu raten — es kann also genau so beschlossen worden sein. Und einen Namen dazuzuschreiben ist jetzt weit billiger als in der nächsten Besprechung.',
     editor: 'Protokolleditor',
     markdownBacked: 'auf Markdown gestützt',
     statusDraft: 'Entwurf',

@@ -1390,9 +1390,9 @@
             >{findQuery.trim() === ''
               ? ''
               : matchCount === 0
-                ? 'Not found'
-                : `${matchCount} ${matchCount === 1 ? 'match' : 'matches'}`}{lastReplaced > 0
-              ? ` · replaced ${lastReplaced}`
+                ? $t.protocol.notFound
+                : $t.protocol.matchCount(matchCount)}{lastReplaced > 0
+              ? $t.protocol.replacedCount(lastReplaced)
               : ''}</span
           >
         </div>{/if}
@@ -1402,12 +1402,10 @@
         <section class="proposal" aria-label={$t.protocol.proposedReplacement}>
           <div class="proposal-heading">
             <p class="eyebrow">
-              {waiting.matches.length}
-              {waiting.matches.length === 1 ? 'change' : 'changes'}, not yet made
+              {$t.protocol.changesNotYetMade(waiting.matches.length)}
             </p>
             <p>
-              A capitalised name is looked for inside compounds as well, which is where a plain
-              replace misses it. Read them, then keep them or leave them.
+              {$t.protocol.compoundNote}
             </p>
           </div>
           <ul class="replacement-list">
@@ -1421,7 +1419,7 @@
           </ul>
           {#if waiting.matches.length > 12}
             <p class="proposal-same">
-              and {waiting.matches.length - 12} more, all of the same two forms.
+              {$t.protocol.andMore(waiting.matches.length - 12)}
             </p>
           {/if}
           <div class="proposal-actions">
@@ -1550,8 +1548,7 @@
                   </div>
                 {/if}
                 <p class="refine-note">
-                  The passage goes to your local model on its own. Numbers, names and dates are to
-                  come back unchanged — check them, and undo if they did not.
+                  {$t.protocol.passageGoesAlone}
                 </p>
               </div>
             {/if}
@@ -1566,8 +1563,7 @@
             <div class="proposal-heading">
               <p class="eyebrow">{$t.protocol.proposedChange}</p>
               <p>
-                Nothing has been changed yet. Read it, then keep it or leave it — a local model
-                rewrites well and is not to be taken on trust.
+                {$t.protocol.nothingChangedYet}
               </p>
             </div>
             {#if isUnchanged(waiting.changes)}
@@ -1602,8 +1598,7 @@
                   {/each}
                 </ul>
                 <p>
-                  Asked of your own model, and it is wrong in both directions: it misses changes and
-                  it queries wording that is fine. Worth a look, not a verdict.
+                  {$t.protocol.secondPassNote}
                 </p>
               </div>
             {:else if waiting.checked}
@@ -1661,9 +1656,7 @@
           </div>
           {#if showPages}
             <p class="page-note">
-              Where the pages would end, measured the way the print stylesheet sets them: a heading
-              or a table moves down whole rather than splitting, prose does not. The printer settles
-              the last line or two, so treat this as within a line rather than exact.
+              {$t.protocol.pageEdgesNote}
             </p>
           {/if}
         </div>
@@ -1881,8 +1874,7 @@
               {/each}
             </div>
             <p class="export-note">
-              The PDF is printed from the document you are reading, set the way this project sets
-              its protocols — choose "Save as PDF" in the print dialog.
+              {$t.protocol.exportNote}
             </p>
           </div>
         {:else if inspectorTab === 'transcript'}
@@ -1890,9 +1882,7 @@
             <p class="eyebrow">{$t.protocol.source}</p>
             <h3>{meeting.title}</h3>
             <p>
-              Written from the reviewed transcript of this meeting. Nothing records which passage
-              produced which sentence, so what follows looks for the words rather than claiming to
-              know — a paraphrase will find nothing, which is the honest answer.
+              {$t.protocol.transcriptSourceNote}
             </p>
             <button class="inspector-control" onclick={lookUpSelection}>
               <Icon name="search" size={16} />
@@ -1903,9 +1893,7 @@
               <p class="source-query">{$t.protocol.lookingFor} <em>{lookingUp.slice(0, 90)}</em></p>
               {#if sourceHits.length === 0}
                 <p class="source-none">
-                  None of these words appear together in the transcript. That usually means the
-                  draft has put it in its own words, which it is entitled to do — the recording is
-                  the place to check it.
+                  {$t.protocol.noWordsTogether}
                 </p>
               {:else}
                 <ul class="source-hits">
@@ -1930,32 +1918,26 @@
           {#if evidence}
             <div class="inspector-section">
               <p class="eyebrow">{$t.protocol.whatToCheck}</p>
-              <h3>{evidence.quantitiesAccounted} of {evidence.quantitiesStated} figures kept</h3>
+              <h3>
+                {$t.protocol.figuresKept(evidence.quantitiesAccounted, evidence.quantitiesStated)}
+              </h3>
               <p>
-                The meeting stated {evidence.quantitiesStated} figures and this draft repeats {evidence.quantitiesAccounted}
-                of them. How many belong here is a matter of the style you chose, so this is something
-                to look at rather than a score.
+                {$t.protocol.figuresNote(evidence.quantitiesStated, evidence.quantitiesAccounted)}
               </p>
               {#if evidence.quantitiesInvented.length > 0}
                 <p class="evidence-warning">
                   <Icon name="warning" size={15} />
                   <span
-                    >{evidence.quantitiesInvented.length === 1
-                      ? 'One figure appears here that the meeting did not state'
-                      : `${evidence.quantitiesInvented.length} figures appear here that the meeting did not state`}:
-                    {evidence.quantitiesInvented.join(', ')}. Worth confirming against the
-                    recording.</span
+                    >{$t.protocol.figuresInvented(evidence.quantitiesInvented.length)}:
+                    {evidence.quantitiesInvented.join(', ')}{$t.protocol
+                      .confirmAgainstRecording}</span
                   >
                 </p>
               {/if}
               {#if evidence.tasksUnowned && evidence.tasksUnowned.length > 0}
                 <p class="evidence-unowned">
-                  {evidence.tasksUnowned.length === 1
-                    ? 'One task here has nobody against it'
-                    : `${evidence.tasksUnowned.length} tasks here have nobody against them`}:
-                  {evidence.tasksUnowned.join('; ')}. The draft leaves an owner out rather than
-                  guessing at one, so this may be exactly what the meeting decided — and it is far
-                  cheaper to put a name to it now than at the next meeting.
+                  {$t.protocol.tasksUnowned(evidence.tasksUnowned.length)}:
+                  {evidence.tasksUnowned.join('; ')}{$t.protocol.unownedNote}
                 </p>
               {/if}
               <p class="evidence-length">
@@ -1985,15 +1967,12 @@
               {/each}
             </div>
             <p class="refinement-note">
-              Typing is kept as working edits and does not make a revision. A revision is made when
-              a draft is generated, when you ask for one, when you mark a protocol reviewed, and
-              when an older one is restored — so this list stays short enough to read.
+              {$t.protocol.revisionNote}
             </p>
           </div>
         {/if}
         <p class="refinement-note">
-          Nothing here rewrites your text for you. The draft is yours to edit, and every revision is
-          kept.
+          {$t.protocol.nothingRewrites}
         </p>
       </aside>
     {/if}
