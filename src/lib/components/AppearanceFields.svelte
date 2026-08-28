@@ -56,7 +56,6 @@
     </label>
   {/each}
   <p class="appearance-note">
-    Applies to every protocol in {projectName}, so a firm's documents look alike. It changes how the
-    protocol is set, never what it says — that is the style above.
+    {$t.appearance.appliesToProject(projectName)}
   </p>
 </div>

@@ -55,15 +55,16 @@
   {:else if ['failed', 'interrupted', 'cancelled'].includes(job.state) || (job.state === 'queued' && job.progressBytes === 0)}
     <div class="progress-actions">
       <span class="safe-note"
-        ><Icon name="check" size={15} /> Latest stable work retained{job.kind === 'import'
-          ? ' · external original unchanged'
+        ><Icon name="check" size={15} />
+        {$t.progress.latestRetained}{job.kind === 'import'
+          ? $t.progress.originalUnchanged
           : ''}</span
       >{#if ['source_missing', 'source_reselection_required'].includes(job.error?.code ?? '')}<button
           class="secondary-action"
           onclick={onReselectSource}>{$t.progress.chooseSourceAgain}</button
         >{/if}{#if job.error?.code !== 'source_reselection_required'}<button
           class="primary-action"
-          onclick={onRetry}>{job.state === 'queued' ? continueLabel : 'Retry'}</button
+          onclick={onRetry}>{job.state === 'queued' ? continueLabel : $t.progress.retry}</button
         >{/if}
     </div>
   {:else if job.state === 'completed'}
@@ -75,8 +76,7 @@
       <div class="progress-meta"><span>{stageLabel}</span><span>{byteProgress}</span></div>
       {#if indeterminate}
         <p class="progress-subnote">
-          This pass reads the full recording to compare voice turns. Long recordings can take a few
-          minutes; you can cancel safely at any time.
+          {$t.progress.speakerPassNote}
         </p>
       {/if}
       <div

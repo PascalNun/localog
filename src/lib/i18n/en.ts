@@ -312,6 +312,8 @@ export const en = {
 
   /** The sidebar, which is on screen whatever else is. */
   project: {
+    deleteWarning:
+      'Deleting a meeting removes its recording, its transcript and every protocol revision, from this device. It cannot be undone.',
     eyebrow: 'Project',
     archiveProject: 'Archive project',
     newMeeting: 'New meeting',
@@ -360,6 +362,11 @@ export const en = {
   },
 
   progress: {
+    speakerPassNote:
+      'This pass reads the full recording to compare voice turns. Long recordings can take a few minutes; you can cancel safely at any time.',
+    latestRetained: 'Latest stable work retained',
+    originalUnchanged: ' · external original unchanged',
+    retry: 'Retry',
     importing: 'Importing recording',
     transcribing: 'Transcribing',
     generating: 'Generating protocol',
@@ -376,6 +383,8 @@ export const en = {
   },
 
   newProject: {
+    afterCreated:
+      'A protocol style, and the names and terms this work uses, can be set for the project after it is created. The names are worth a minute: they are what transcription cannot guess.',
     eyebrow: 'Projects',
     title: 'New project',
     lead: 'Create the professional context that meetings and sources belong to.',
@@ -391,6 +400,8 @@ export const en = {
   },
 
   appearance: {
+    appliesToProject: (project: string) =>
+      `Applies to every protocol in ${project}, so a firm's documents look alike. It changes how the protocol is set, never what it says — that is the style above.`,
     bodySize: 'Body size',
     headingScale: 'Heading scale',
     lineSpacing: 'Line spacing',

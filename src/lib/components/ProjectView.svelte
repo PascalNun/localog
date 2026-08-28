@@ -163,8 +163,7 @@
         {/each}
         {#if confirming}
           <p class="meeting-delete-note">
-            Deleting a meeting removes its recording, its transcript and every protocol revision,
-            from this device. It cannot be undone.
+            {$t.project.deleteWarning}
           </p>
         {/if}
         {#if deleteError}<p class="setting-error" role="alert">{deleteError}</p>{/if}

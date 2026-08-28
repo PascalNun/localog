@@ -68,8 +68,7 @@
     <details class="advanced-disclosure">
       <summary>{$t.newProject.defaults}</summary>
       <p>
-        A protocol style, and the names and terms this work uses, can be set for the project after
-        it is created. The names are worth a minute: they are what transcription cannot guess.
+        {$t.newProject.afterCreated}
       </p>
     </details>
     {#if submitError}<p class="form-error" role="alert">{submitError}</p>{/if}

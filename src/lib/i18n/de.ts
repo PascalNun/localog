@@ -318,6 +318,8 @@ export const de: Strings = {
   },
 
   project: {
+    deleteWarning:
+      'Eine Besprechung zu löschen entfernt ihre Aufnahme, ihr Transkript und jede Protokollfassung von diesem Gerät. Das lässt sich nicht rückgängig machen.',
     eyebrow: 'Projekt',
     archiveProject: 'Projekt archivieren',
     newMeeting: 'Neue Besprechung',
@@ -367,6 +369,11 @@ export const de: Strings = {
   },
 
   progress: {
+    speakerPassNote:
+      'Dieser Durchgang liest die ganze Aufnahme, um Sprecherwechsel zu vergleichen. Bei langen Aufnahmen kann das einige Minuten dauern. Sie können jederzeit gefahrlos abbrechen.',
+    latestRetained: 'Der letzte stabile Stand bleibt erhalten',
+    originalUnchanged: ' · externes Original unverändert',
+    retry: 'Erneut versuchen',
     importing: 'Aufnahme wird importiert',
     transcribing: 'Transkription läuft',
     generating: 'Protokoll wird erzeugt',
@@ -383,6 +390,8 @@ export const de: Strings = {
   },
 
   newProject: {
+    afterCreated:
+      'Ein Protokollstil sowie die Namen und Begriffe dieser Arbeit lassen sich für das Projekt festlegen, sobald es angelegt ist. Die Namen sind eine Minute wert: Sie sind das, was eine Transkription nicht erraten kann.',
     eyebrow: 'Projekte',
     title: 'Neues Projekt',
     lead: 'Legen Sie den fachlichen Zusammenhang an, zu dem Besprechungen und Quellen gehören.',
@@ -398,6 +407,8 @@ export const de: Strings = {
   },
 
   appearance: {
+    appliesToProject: (project: string) =>
+      `Gilt für jedes Protokoll in ${project}, damit die Dokumente eines Hauses gleich aussehen. Es ändert, wie das Protokoll gesetzt ist, nie was darin steht — das ist der Stil darüber.`,
     bodySize: 'Schriftgröße',
     headingScale: 'Überschriften',
     lineSpacing: 'Zeilenabstand',
