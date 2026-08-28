@@ -25,7 +25,6 @@
   import { documentFacts } from '../protocol/document';
   import { findInSource } from '../protocol/source';
   import { clockFromMillis } from '../time';
-  import { reviewStateLabel } from '../protocol/document';
   import { errorMessage } from '../errors';
   import {
     appendSection,
@@ -45,6 +44,7 @@
     SetAsideSection,
     TranscriptSegment,
   } from '../workflow/types';
+  import { t } from '../i18n';
 
   export let project: ProjectSummary;
   export let meeting: MeetingSummary;
@@ -85,13 +85,13 @@
     wrong: string,
     right: string,
   ) => Promise<NameReplacement> = async () => {
-    throw new Error('Replacing a name is not available here.');
+    throw new Error($t.protocol.replaceUnavailable);
   };
   export let onRefine: (
     passage: string,
     instruction: string,
   ) => Promise<RefinedPassage> = async () => {
-    throw new Error('Rewriting is not available here.');
+    throw new Error($t.protocol.rewriteUnavailable);
   };
 
   let markdown = protocol.markdown;
@@ -362,17 +362,21 @@
   } | null = null;
 
   const REFINEMENTS = [
-    { id: 'clarity', label: 'Improve clarity', instruction: 'Make this clearer to read.' },
-    { id: 'shorter', label: 'Shorten', instruction: 'Say this in fewer words.' },
+    {
+      id: 'clarity',
+      label: $t.protocol.improveClarity,
+      instruction: $t.protocol.improveClarityInstruction,
+    },
+    { id: 'shorter', label: $t.protocol.shorten, instruction: $t.protocol.shortenInstruction },
     {
       id: 'formal',
-      label: 'Make more formal',
-      instruction: 'Make the register more formal, as a professional minute would be written.',
+      label: $t.protocol.makeFormal,
+      instruction: $t.protocol.makeFormalInstruction,
     },
     {
       id: 'plain',
-      label: 'Make plainer',
-      instruction: 'Make the wording plainer and more direct, without losing precision.',
+      label: $t.protocol.makePlainer,
+      instruction: $t.protocol.makePlainerInstruction,
     },
   ];
 
@@ -535,12 +539,12 @@
    * TableCommand, so a button for a command that does not exist will not compile.
    */
   const TABLE_COMMANDS: { command: TableCommand; icon: IconName; label: string }[] = [
-    { command: 'row-above', icon: 'row-add-above', label: 'Add a row above' },
-    { command: 'row-below', icon: 'row-add-below', label: 'Add a row below' },
-    { command: 'row-delete', icon: 'row-remove', label: 'Delete this row' },
-    { command: 'column-left', icon: 'column-add-left', label: 'Add a column to the left' },
-    { command: 'column-right', icon: 'column-add-right', label: 'Add a column to the right' },
-    { command: 'column-delete', icon: 'column-remove', label: 'Delete this column' },
+    { command: 'row-above', icon: 'row-add-above', label: $t.protocol.addRowAbove },
+    { command: 'row-below', icon: 'row-add-below', label: $t.protocol.addRowBelow },
+    { command: 'row-delete', icon: 'row-remove', label: $t.protocol.deleteRow },
+    { command: 'column-left', icon: 'column-add-left', label: $t.protocol.addColumnLeft },
+    { command: 'column-right', icon: 'column-add-right', label: $t.protocol.addColumnRight },
+    { command: 'column-delete', icon: 'column-remove', label: $t.protocol.deleteColumn },
   ];
 
   /** Where the row buttons end and the column buttons begin. */
@@ -649,13 +653,14 @@
   let savingPreset = false;
   let presetName = '';
   let presetsOpen = false;
-  $: presetSummary = presets.length === 0 ? 'None saved yet' : `${presets.length} saved`;
+  $: presetSummary =
+    presets.length === 0 ? $t.protocol.noneSaved : $t.protocol.savedCount(presets.length);
 
   const EXPORT_LABELS: Record<ExportFormat, string> = {
-    pdf: 'Export PDF',
-    docx: 'Export Word',
-    markdown: 'Export Markdown',
-    text: 'Export plain text',
+    pdf: $t.protocol.exportPdf,
+    docx: $t.protocol.exportWord,
+    markdown: $t.protocol.exportMarkdown,
+    text: $t.protocol.exportPlainText,
   };
   /// The chosen one first, the rest in their usual order behind it.
   const EXPORT_ORDER: ExportFormat[] = ['pdf', 'docx', 'markdown', 'text'];
@@ -735,7 +740,10 @@
   }
 
   async function addSection() {
-    await commitSections(appendSection(markdown, newSection(markdown, 'New section')), setAside);
+    await commitSections(
+      appendSection(markdown, newSection(markdown, $t.protocol.newSection)),
+      setAside,
+    );
   }
 
   /// Put the caret at a section, so the list is a way through the document.
@@ -904,9 +912,9 @@
   /// the ones they need once a week.
   let inspectorTab: 'document' | 'transcript' | 'history' = 'document';
   const INSPECTOR_TABS = [
-    { id: 'document', label: 'Document' },
-    { id: 'transcript', label: 'Transcript' },
-    { id: 'history', label: 'History' },
+    { id: 'document', label: $t.protocol.tabDocument },
+    { id: 'transcript', label: $t.protocol.tabTranscript },
+    { id: 'history', label: $t.protocol.tabHistory },
   ] as const;
 
   function revisionMoment(at: number) {
@@ -928,7 +936,7 @@
   let furnitureOpen = false;
   $: furniture = project.furniture;
   $: furnitureSummary = furnitureIsEmpty(furniture)
-    ? 'Nothing repeated on the page'
+    ? $t.protocol.nothingRepeated
     : [describeRow(furniture.header), describeRow(furniture.footer)]
         .filter((part) => part !== '')
         .join(' · ');
@@ -958,7 +966,19 @@
         : '')
     : '';
 
-  $: statusLabel = reviewStateLabel(protocol.reviewState);
+  /// The status as the inspector says it, in the interface's language.
+  ///
+  /// Deliberately not `reviewStateLabel`, which is still used by `documentFacts`
+  /// for the header printed on the page. That one is part of the document rather
+  /// than part of the application, and which language it should be in — the
+  /// interface's, or the meeting's — is the decision still open on the board
+  /// beside the ISO date.
+  $: statusLabel =
+    protocol.reviewState === 'reviewed'
+      ? $t.protocol.statusReviewed
+      : protocol.reviewState === 'changed_since_review'
+        ? $t.protocol.statusChanged
+        : $t.protocol.statusDraft;
 
   /// Let the document be as long as it is, and let the page do the scrolling.
   ///
@@ -1177,7 +1197,7 @@
     replaceError = '';
     try {
       replacement = await onPreviewReplacement(markdown, findQuery, replaceQuery);
-      if (replacement.matches.length === 0) replaceError = 'That name is not in this protocol.';
+      if (replacement.matches.length === 0) replaceError = $t.protocol.nameNotFound;
     } catch (cause) {
       replacement = null;
       replaceError = errorMessage(cause);
@@ -1230,14 +1250,14 @@
   <header class="workspace-header meeting-header protocol-header">
     <div>
       <p class="breadcrumb">{project.name} <span>›</span> {meeting.title}</p>
-      <h1 tabindex="-1">Protocol editor</h1>
+      <h1 tabindex="-1">{$t.protocol.editor}</h1>
       <p>
-        {statusLabel} · Markdown backed
+        {statusLabel} · {$t.protocol.markdownBacked}
       </p>
     </div>
     <button
       class="secondary-action inspector-toggle"
-      onclick={() => (inspectorOpen = !inspectorOpen)}>Document details</button
+      onclick={() => (inspectorOpen = !inspectorOpen)}>{$t.protocol.documentDetails}</button
     >
   </header>
 
@@ -1245,7 +1265,7 @@
   <div class:without-inspector={!inspectorOpen} class="context-layout protocol-layout">
     <div class="protocol-main" style={documentStyle}>
       <div class="editor-toolbar">
-        <div class="editor-tools" aria-label="Editor tools">
+        <div class="editor-tools" aria-label={$t.protocol.editorTools}>
           <button class="text-action" onclick={() => editorCommand('undo')}
             ><Icon name="undo" size={16} /><span class="sr-only">Undo</span></button
           >
@@ -1253,21 +1273,26 @@
             ><Icon name="redo" size={16} /><span class="sr-only">Redo</span></button
           >
           <button class="text-action" onclick={() => (findOpen = !findOpen)}
-            ><Icon name="search" size={15} /> Find</button
+            ><Icon name="search" size={15} /> {$t.protocol.find}</button
           >
           <span class="format-divider" aria-hidden="true"></span>
-          <button class="text-action" aria-label="Zoom out" onclick={() => zoom(-1)}>−</button>
+          <button class="text-action" aria-label={$t.protocol.zoomOut} onclick={() => zoom(-1)}
+            >−</button
+          >
           <span class="zoom-reading">{zoomLabel}</span>
-          <button class="text-action" aria-label="Zoom in" onclick={() => zoom(1)}>+</button>
+          <button class="text-action" aria-label={$t.protocol.zoomIn} onclick={() => zoom(1)}
+            >+</button
+          >
           <span class="format-divider" aria-hidden="true"></span>
           <!-- Both of these lived behind the ⋯ menu, where the person who wrote the
                application could not find them either. -->
           <button
             class="text-action"
-            title="Insert table"
+            title={$t.protocol.insertTable}
             disabled={view !== 'document'}
             onclick={() => insertTable()}
-            ><Icon name="table" size={15} /><span class="sr-only">Insert table</span></button
+            ><Icon name="table" size={15} /><span class="sr-only">{$t.protocol.insertTable}</span
+            ></button
           >
           <button
             class="text-action"
@@ -1299,7 +1324,7 @@
               class="text-action"
               aria-haspopup="true"
               aria-expanded={moreOpen}
-              aria-label="Document menu"
+              aria-label={$t.protocol.documentMenu}
               onclick={() => (moreOpen = !moreOpen)}>⋯</button
             >
             {#if moreOpen}
@@ -1320,7 +1345,7 @@
                     moreOpen = false;
                   }}
                   disabled={view !== 'document'}
-                  ><Icon name="rule" size={15} /> Insert divider</button
+                  ><Icon name="rule" size={15} /> {$t.protocol.insertDivider}</button
                 >
                 <button
                   role="menuitem"
@@ -1329,7 +1354,7 @@
                     moreOpen = false;
                   }}
                   disabled={view !== 'document'}
-                  ><Icon name="close" size={15} /> Clear formatting</button
+                  ><Icon name="close" size={15} /> {$t.protocol.clearFormatting}</button
                 >
               </div>
             {/if}
@@ -1338,10 +1363,10 @@
       </div>
       {#if findOpen}<div class:floating={pageMoved} class="editor-find">
           <label
-            ><span class="sr-only">Find in protocol</span><input
+            ><span class="sr-only">{$t.protocol.findInProtocol}</span><input
               bind:this={findField}
               bind:value={findQuery}
-              placeholder="Find in protocol"
+              placeholder={$t.protocol.findInProtocol}
               onkeydown={(event) => event.key === 'Enter' && findNext()}
             /></label
           >
@@ -1349,9 +1374,9 @@
             >Next</button
           >
           <label
-            ><span class="sr-only">Replace with</span><input
+            ><span class="sr-only">{$t.protocol.replaceWith}</span><input
               bind:value={replaceQuery}
-              placeholder="Replace with"
+              placeholder={$t.protocol.replaceWith}
               onkeydown={(event) => event.key === 'Enter' && void previewReplace()}
             /></label
           >
@@ -1374,7 +1399,7 @@
       {#if replaceError}<p class="setting-error" role="alert">{replaceError}</p>{/if}
       {#if replacement && replacement.matches.length > 0}
         {@const waiting = replacement}
-        <section class="proposal" aria-label="Proposed replacement">
+        <section class="proposal" aria-label={$t.protocol.proposedReplacement}>
           <div class="proposal-heading">
             <p class="eyebrow">
               {waiting.matches.length}
@@ -1400,8 +1425,12 @@
             </p>
           {/if}
           <div class="proposal-actions">
-            <button class="primary-action" onclick={keepReplacement}>Make these changes</button>
-            <button class="secondary-action" onclick={() => (replacement = null)}>Leave it</button>
+            <button class="primary-action" onclick={keepReplacement}
+              >{$t.protocol.makeChanges}</button
+            >
+            <button class="secondary-action" onclick={() => (replacement = null)}
+              >{$t.protocol.leaveIt}</button
+            >
           </div>
         </section>
       {/if}
@@ -1410,10 +1439,10 @@
           <div
             class="table-toolbar"
             role="toolbar"
-            aria-label="Table"
+            aria-label={$t.protocol.table}
             style={`top: ${tableBox.top}px; left: ${tableBox.left}px`}
           >
-            <span class="table-toolbar-name">Table</span>
+            <span class="table-toolbar-name">{$t.protocol.table}</span>
             <span class="format-divider" aria-hidden="true"></span>
             {#each TABLE_COMMANDS as entry, at (entry.command)}
               {#if at === TABLE_GROUP_BREAK}
@@ -1433,11 +1462,11 @@
           <div
             class="selection-toolbar"
             role="toolbar"
-            aria-label="Formatting"
+            aria-label={$t.protocol.formatting}
             style={`top: ${selectionBox.top}px; left: ${selectionBox.left}px`}
           >
             <label class="block-choice">
-              <span class="sr-only">Block type</span>
+              <span class="sr-only">{$t.protocol.blockType}</span>
               <select
                 value={BLOCK_FORMATS.some((block) => block.tag === currentBlock)
                   ? currentBlock
@@ -1453,31 +1482,31 @@
             <button
               class="text-action"
               class:chosen={marks.bold}
-              title="Bold"
+              title={$t.protocol.bold}
               onclick={() => format('bold')}><Icon name="bold" size={15} /></button
             >
             <button
               class="text-action"
               class:chosen={marks.italic}
-              title="Italic"
+              title={$t.protocol.italic}
               onclick={() => format('italic')}><Icon name="italic" size={15} /></button
             >
             <span class="format-divider" aria-hidden="true"></span>
             <button
               class="text-action"
-              title="Bulleted list"
+              title={$t.protocol.bulletedList}
               onclick={() => format('insertUnorderedList')}
               ><Icon name="list-bulleted" size={15} /></button
             >
             <button
               class="text-action"
-              title="Numbered list"
+              title={$t.protocol.numberedList}
               onclick={() => format('insertOrderedList')}
               ><Icon name="list-numbered" size={15} /></button
             >
             <button
               class="text-action"
-              title="Quotation"
+              title={$t.protocol.quotation}
               onclick={() => format('formatBlock', 'blockquote')}
               ><Icon name="quote" size={15} /></button
             >
@@ -1485,7 +1514,7 @@
             <button
               class="text-action"
               class:chosen={refineOpen}
-              title="Ask the model to say this differently"
+              title={$t.protocol.askModel}
               aria-haspopup="true"
               aria-expanded={refineOpen}
               onclick={() => (refineOpen = !refineOpen)}
@@ -1502,15 +1531,15 @@
                   >
                 {/each}
                 <button role="menuitem" onclick={() => (customOpen = !customOpen)}
-                  >Custom instruction…</button
+                  >{$t.protocol.customInstruction}</button
                 >
                 {#if customOpen}
                   <div class="refine-custom">
                     <label>
-                      <span class="sr-only">What should change?</span>
+                      <span class="sr-only">{$t.protocol.whatShouldChange}</span>
                       <input
                         bind:value={customInstruction}
-                        placeholder="What should change?"
+                        placeholder={$t.protocol.whatShouldChange}
                         onkeydown={(event) => {
                           if (event.key === 'Enter' && customInstruction.trim() !== '') {
                             void refine(customInstruction.trim(), 'Rewriting');
@@ -1533,16 +1562,16 @@
         {/if}
         {#if proposal}
           {@const waiting = proposal}
-          <section class="proposal" aria-label="Proposed rewrite">
+          <section class="proposal" aria-label={$t.protocol.proposedRewrite}>
             <div class="proposal-heading">
-              <p class="eyebrow">Proposed change</p>
+              <p class="eyebrow">{$t.protocol.proposedChange}</p>
               <p>
                 Nothing has been changed yet. Read it, then keep it or leave it — a local model
                 rewrites well and is not to be taken on trust.
               </p>
             </div>
             {#if isUnchanged(waiting.changes)}
-              <p class="proposal-same">The model returned the passage unchanged.</p>
+              <p class="proposal-same">{$t.protocol.unchanged}</p>
             {:else}
               <p class="proposal-diff">
                 {#each waiting.changes as change, at (at)}
@@ -1566,7 +1595,7 @@
             {/if}
             {#if waiting.noticedChanges.length > 0}
               <div class="proposal-noticed">
-                <p class="eyebrow">A second pass thinks these facts moved</p>
+                <p class="eyebrow">{$t.protocol.factsMoved}</p>
                 <ul>
                   {#each waiting.noticedChanges as noticed, at (at)}
                     <li>{noticed}</li>
@@ -1578,11 +1607,13 @@
                 </p>
               </div>
             {:else if waiting.checked}
-              <p class="proposal-checked">A second pass found no fact moved. It misses things.</p>
+              <p class="proposal-checked">{$t.protocol.noFactMoved}</p>
             {/if}
             <div class="proposal-actions">
-              <button class="primary-action" onclick={acceptProposal}>Use this</button>
-              <button class="secondary-action" onclick={discardProposal}>Leave it</button>
+              <button class="primary-action" onclick={acceptProposal}>{$t.protocol.useThis}</button>
+              <button class="secondary-action" onclick={discardProposal}
+                >{$t.protocol.leaveIt}</button
+              >
             </div>
           </section>
         {/if}
@@ -1616,7 +1647,7 @@
             role="textbox"
             tabindex="0"
             aria-multiline="true"
-            aria-label="Protocol"
+            aria-label={$t.protocol.protocolLabel}
             style={`--zoom: ${textScale}`}
             oninput={readDocument}
             onpaste={handlePaste}
@@ -1638,7 +1669,7 @@
         </div>
       {:else}
         <label class="protocol-editor"
-          ><span class="sr-only">Protocol Markdown</span><textarea
+          ><span class="sr-only">{$t.protocol.protocolMarkdown}</span><textarea
             bind:this={editor}
             bind:value={markdown}
             oninput={(event) => {
@@ -1652,9 +1683,9 @@
     </div>
 
     {#if inspectorOpen}
-      <aside class="context-inspector protocol-inspector" aria-label="Protocol details">
+      <aside class="context-inspector protocol-inspector" aria-label={$t.protocol.protocolDetails}>
         <div class="inspector-heading">
-          <div class="inspector-tabs" role="tablist" aria-label="Protocol details">
+          <div class="inspector-tabs" role="tablist" aria-label={$t.protocol.protocolDetails}>
             {#each INSPECTOR_TABS as tab (tab.id)}
               <button
                 role="tab"
@@ -1667,13 +1698,13 @@
           </div>
           <button
             class="icon-button compact"
-            aria-label="Close inspector"
+            aria-label={$t.protocol.closeInspector}
             onclick={() => (inspectorOpen = false)}><Icon name="close" size={16} /></button
           >
         </div>
         {#if inspectorTab === 'document'}
           <div class="inspector-section">
-            <p class="eyebrow">Status</p>
+            <p class="eyebrow">{$t.protocol.status}</p>
             <h3>{statusLabel}</h3>
             <p>
               {protocol.reviewState === 'changed_since_review'
@@ -1684,20 +1715,22 @@
             </p>
             {#if protocol.isDirty}<button
                 class="secondary-action full-width"
-                onclick={createRevision}><Icon name="check" size={16} /> Create revision</button
+                onclick={createRevision}
+                ><Icon name="check" size={16} /> {$t.protocol.createRevision}</button
               >{/if}
             {#if protocol.reviewState !== 'reviewed'}<button
                 class="secondary-action full-width"
-                onclick={markProtocolReviewed}><Icon name="check" size={16} /> Mark reviewed</button
+                onclick={markProtocolReviewed}
+                ><Icon name="check" size={16} /> {$t.protocol.markReviewed}</button
               >{/if}
           </div>
           <div class="inspector-section">
-            <p class="eyebrow">Style</p>
+            <p class="eyebrow">{$t.protocol.style}</p>
             <h3>{style.name}</h3>
             <p>{style.description}</p>
           </div>
           <div class="inspector-section">
-            <p class="eyebrow">Sections</p>
+            <p class="eyebrow">{$t.protocol.sections}</p>
             <SectionList
               {sections}
               {setAside}
@@ -1711,7 +1744,7 @@
             />
           </div>
           <div class="inspector-section">
-            <p class="eyebrow">Appearance</p>
+            <p class="eyebrow">{$t.protocol.appearance}</p>
             <h3>
               {APPEARANCE_CHOICES.font.find((choice) => choice.value === appearance.font)?.label} ·
               {appearance.bodySize} pt
@@ -1722,7 +1755,7 @@
               onclick={() => (appearanceOpen = !appearanceOpen)}
             >
               <Icon name="document" size={16} />
-              <span>Edit appearance</span>
+              <span>{$t.protocol.editAppearance}</span>
               <Icon name={appearanceOpen ? 'chevron-down' : 'chevron'} size={15} />
             </button>
             {#if appearanceOpen}
@@ -1734,7 +1767,7 @@
             {/if}
           </div>
           <div class="inspector-section">
-            <p class="eyebrow">Header &amp; footer</p>
+            <p class="eyebrow">{$t.protocol.headerFooter}</p>
             <h3>{furnitureSummary}</h3>
             <button
               class="inspector-control"
@@ -1742,7 +1775,7 @@
               onclick={() => (furnitureOpen = !furnitureOpen)}
             >
               <Icon name="rule" size={16} />
-              <span>Edit header &amp; footer</span>
+              <span>{$t.protocol.editHeaderFooter}</span>
               <Icon name={furnitureOpen ? 'chevron-down' : 'chevron'} size={15} />
             </button>
             {#if furnitureOpen}
@@ -1762,7 +1795,7 @@
             using and saving next to the thing being saved.
           -->
           <div class="inspector-section">
-            <p class="eyebrow">Presets</p>
+            <p class="eyebrow">{$t.protocol.presets}</p>
             <h3>{presetSummary}</h3>
             <button
               class="inspector-control"
@@ -1770,7 +1803,7 @@
               onclick={() => (presetsOpen = !presetsOpen)}
             >
               <Icon name="folder" size={16} />
-              <span>Use or save a preset</span>
+              <span>{$t.protocol.useOrSavePreset}</span>
               <Icon name={presetsOpen ? 'chevron-down' : 'chevron'} size={15} />
             </button>
             {#if presetsOpen}
@@ -1792,7 +1825,7 @@
                         >
                       </div>
                       <button class="text-action" onclick={() => void onApplyPreset(preset.id)}>
-                        Use
+                        {$t.protocol.use}
                       </button>
                       <!-- A shipped preset can be used and copied, never removed. -->
                       {#if !preset.builtIn}
@@ -1800,7 +1833,7 @@
                           class="text-action is-danger"
                           onclick={() => void onDeletePreset(preset.id)}
                         >
-                          Remove
+                          {$t.protocol.remove}
                         </button>
                       {/if}
                     </li>
@@ -1810,25 +1843,29 @@
               {#if savingPreset}
                 <div class="preset-save">
                   <label>
-                    <span class="sr-only">Name for this preset</span>
+                    <span class="sr-only">{$t.protocol.nameForPreset}</span>
                     <input
                       bind:value={presetName}
-                      placeholder="Name this preset"
+                      placeholder={$t.protocol.nameThisPreset}
                       onkeydown={(event) => event.key === 'Enter' && void savePreset()}
                     />
                   </label>
-                  <button class="secondary-action" onclick={() => void savePreset()}>Save</button>
-                  <button class="text-action" onclick={() => (savingPreset = false)}>Cancel</button>
+                  <button class="secondary-action" onclick={() => void savePreset()}
+                    >{$t.protocol.save}</button
+                  >
+                  <button class="text-action" onclick={() => (savingPreset = false)}
+                    >{$t.protocol.cancel}</button
+                  >
                 </div>
               {:else}
                 <button class="text-action preset-save-open" onclick={() => (savingPreset = true)}
-                  >Save this appearance and header as a preset</button
+                  >{$t.protocol.saveAsPreset}</button
                 >
               {/if}
             {/if}
           </div>
           <div class="inspector-section">
-            <p class="eyebrow">Export</p>
+            <p class="eyebrow">{$t.protocol.export}</p>
             <div class="export-actions">
               {#each exportOrder as format (format)}
                 <button
@@ -1850,7 +1887,7 @@
           </div>
         {:else if inspectorTab === 'transcript'}
           <div class="inspector-section">
-            <p class="eyebrow">Source</p>
+            <p class="eyebrow">{$t.protocol.source}</p>
             <h3>{meeting.title}</h3>
             <p>
               Written from the reviewed transcript of this meeting. Nothing records which passage
@@ -1859,11 +1896,11 @@
             </p>
             <button class="inspector-control" onclick={lookUpSelection}>
               <Icon name="search" size={16} />
-              <span>Find the selected passage</span>
+              <span>{$t.protocol.findSelectedPassage}</span>
               <span></span>
             </button>
             {#if lookingUp.trim() !== ''}
-              <p class="source-query">Looking for: <em>{lookingUp.slice(0, 90)}</em></p>
+              <p class="source-query">{$t.protocol.lookingFor} <em>{lookingUp.slice(0, 90)}</em></p>
               {#if sourceHits.length === 0}
                 <p class="source-none">
                   None of these words appear together in the transcript. That usually means the
@@ -1887,12 +1924,12 @@
             <button
               class="text-action"
               onclick={() => onNavigate({ name: 'transcript', meetingId: meeting.id })}
-              >Open reviewed transcript <Icon name="arrow" size={15} /></button
+              >{$t.protocol.openReviewedTranscript} <Icon name="arrow" size={15} /></button
             >
           </div>
           {#if evidence}
             <div class="inspector-section">
-              <p class="eyebrow">What to check</p>
+              <p class="eyebrow">{$t.protocol.whatToCheck}</p>
               <h3>{evidence.quantitiesAccounted} of {evidence.quantitiesStated} figures kept</h3>
               <p>
                 The meeting stated {evidence.quantitiesStated} figures and this draft repeats {evidence.quantitiesAccounted}
@@ -1928,7 +1965,7 @@
           {/if}
         {:else}
           <div class="inspector-section">
-            <p class="eyebrow">Revisions</p>
+            <p class="eyebrow">{$t.protocol.revisions}</p>
             <div class="revision-list">
               {#each [...protocol.revisions].reverse() as revision (revision.id)}
                 <div>
@@ -1938,10 +1975,10 @@
                     ></span
                   >
                   {#if revision.id === protocol.revisionId}
-                    <span class="revision-current">Current</span>
+                    <span class="revision-current">{$t.protocol.current}</span>
                   {:else}
                     <button class="text-action" onclick={() => restoreRevision(revision.id)}
-                      >Restore</button
+                      >{$t.protocol.restore}</button
                     >
                   {/if}
                 </div>

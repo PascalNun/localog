@@ -468,7 +468,7 @@
             </p>
           </div>
         </div>
-        <div class="preset-list" role="radiogroup" aria-label="Transcription quality">
+        <div class="preset-list" role="radiogroup" aria-label={$t.settings.transcriptionQuality}>
           {#each capability.presets as preset (preset.preset)}
             {@const active = capability.selectedPreset === preset.preset}
             {@const busy = downloading[preset.modelId] !== undefined}
@@ -522,7 +522,7 @@
               {$t.settings.modelsStoredNote}
             </p>
             <label class="setting-field"
-              >whisper-cli executable<input
+              >{$t.settings.whisperExecutable}<input
                 bind:value={executablePath}
                 placeholder="/path/to/whisper-cli"
               /><button class="quiet-action" onclick={chooseExecutable}
@@ -745,7 +745,7 @@
                 : 'Set here, whatever this Mac is set to.'}
             </p>
           </div>
-          <div class="choice-row" role="group" aria-label="Theme">
+          <div class="choice-row" role="group" aria-label={$t.settings.theme}>
             {#each THEME_CHOICES as option (option.id)}
               <button
                 class="choice"
