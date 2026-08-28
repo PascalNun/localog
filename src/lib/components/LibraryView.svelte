@@ -10,13 +10,14 @@
   } from '../workflow/types';
   import Icon from './Icon.svelte';
   import { errorMessage } from '../errors';
+  import { t } from '../i18n';
 
   export let kind: 'styles' | 'vocabulary';
   export let styles: ProtocolStyle[];
   export let vocabulary: VocabularyEntry[];
   export let projects: ProjectSummary[];
   export let onOpenStyle: (styleId: string) => Promise<ProtocolStyleDetail> = async () => {
-    throw new Error('Styles cannot be read here.');
+    throw new Error($t.library.stylesUnreadable);
   };
   export let onDuplicateStyle: (styleId: string, name: string) => Promise<void> = async () =>
     undefined;
@@ -32,11 +33,14 @@
   // What a style asks for, said plainly. The value steers the model and sizes the
   // answer budget, so it belongs where someone choosing a style can see it.
   const DENSITY_LABEL: Record<string, string> = {
-    comprehensive: 'Full prose',
-    concise: 'Plain statements',
-    terse: 'A line per point',
+    comprehensive: $t.library.densityFull,
+    concise: $t.library.densityPlain,
+    terse: $t.library.densityLine,
   };
 
+  /// The values stored in the database, which stay English whatever the
+  /// interface is in: translating them would write German into a column and
+  /// break the same list opened in English. Only the label is translated.
   const CATEGORIES = [
     'Person',
     'Organisation',
@@ -119,9 +123,9 @@
     });
 
   const DENSITY_CHOICES: { value: ProtocolDensity; label: string }[] = [
-    { value: 'comprehensive', label: 'Full prose' },
-    { value: 'concise', label: 'Plain statements' },
-    { value: 'terse', label: 'A line per point' },
+    { value: 'comprehensive', label: $t.library.densityFull },
+    { value: 'concise', label: $t.library.densityPlain },
+    { value: 'terse', label: $t.library.densityLine },
   ];
 
   async function openStyleDetail(styleId: string) {
@@ -145,9 +149,9 @@
 
   /// What a density setting means where somebody is deciding between them.
   const DENSITY_MEANING: Record<string, string> = {
-    comprehensive: 'Full prose. A reader who was absent can follow the discussion.',
-    concise: 'Plain statements. What was said, without the retelling.',
-    terse: 'A line per point. The record, and nothing around it.',
+    comprehensive: $t.library.densityFullMeaning,
+    concise: $t.library.densityPlainMeaning,
+    terse: $t.library.densityLineMeaning,
   };
 
   let draft: VocabularyDraft | null = null;
@@ -234,31 +238,33 @@
 
   function ownerLabel(entry: VocabularyEntry): string {
     if (entry.scope !== 'Project') return 'Every project';
-    return projects.find((project) => project.id === entry.projectId)?.name ?? 'Unknown project';
+    return (
+      projects.find((project) => project.id === entry.projectId)?.name ?? $t.library.unknownProject
+    );
   }
 </script>
 
 <main class="workspace" id="main-content">
   <header class="workspace-header library-header">
     <div>
-      <p class="eyebrow">Library</p>
+      <p class="eyebrow">{$t.library.eyebrow}</p>
       <h1 tabindex="-1">
-        {kind === 'styles' ? 'Protocol styles' : 'Names & terms'}
+        {kind === 'styles' ? $t.library.protocolStyles : $t.library.namesAndTerms}
       </h1>
       <p>
-        {kind === 'styles'
-          ? 'What a protocol says, and in what order. Not how it is set — that is the appearance, and it lives in the protocol editor beside the document it describes.'
-          : 'The names transcription cannot guess: your project, the firms, the people. Measured on a real meeting, these are worth more than any other setting here.'}
+        {kind === 'styles' ? $t.library.stylesLead : $t.library.termsLead}
       </p>
     </div>
     {#if kind === 'vocabulary' && !draft}
-      <button class="secondary-action" onclick={startAdding} disabled={busy}>Add term</button>
+      <button class="secondary-action" onclick={startAdding} disabled={busy}
+        >{$t.library.addTerm}</button
+      >
     {/if}
   </header>
 
   {#if kind === 'styles'}
     {#if styleError}<p class="setting-error" role="alert">{styleError}</p>{/if}
-    <section class="library-list" aria-label="Protocol styles">
+    <section class="library-list" aria-label={$t.library.protocolStyles}>
       {#each styles as style (style.id)}
         {@const isOpen = openStyle?.id === style.id}
         <article class:open={isOpen}>
@@ -284,22 +290,22 @@
             {@const detail = openStyle}
             <div class="style-detail">
               <div class="style-density">
-                <h3>Length</h3>
+                <h3>{$t.library.length}</h3>
                 <p>{DENSITY_MEANING[detail.density] ?? detail.density}</p>
               </div>
 
               {#if editingStyle}
                 <div class="style-editor">
                   <label>
-                    <span>Name</span>
+                    <span>{$t.library.name}</span>
                     <input bind:value={editName} maxlength="120" />
                   </label>
                   <label>
-                    <span>Description</span>
+                    <span>{$t.library.description}</span>
                     <input bind:value={editDescription} maxlength="240" />
                   </label>
                   <label>
-                    <span>Length</span>
+                    <span>{$t.library.length}</span>
                     <select bind:value={editDensity}>
                       {#each DENSITY_CHOICES as choice (choice.value)}
                         <option value={choice.value}>{choice.label}</option>
@@ -307,13 +313,13 @@
                     </select>
                   </label>
                   <div class="style-instruction-fields">
-                    <span class="style-fields-label">What this style asks for</span>
+                    <span class="style-fields-label">{$t.library.whatItAsksFor}</span>
                     {#each editInstructions as _, at (at)}
                       <div class="style-instruction-row">
                         <textarea bind:value={editInstructions[at]} rows="2"></textarea>
                         <button
                           class="icon-button compact"
-                          aria-label="Remove this instruction"
+                          aria-label={$t.library.removeInstruction}
                           onclick={() =>
                             (editInstructions = editInstructions.filter(
                               (__, index) => index !== at,
@@ -324,13 +330,13 @@
                     <button
                       class="text-action"
                       onclick={() => (editInstructions = [...editInstructions, ''])}
-                      ><Icon name="plus" size={14} /> Add an instruction</button
+                      ><Icon name="plus" size={14} /> {$t.library.addInstruction}</button
                     >
                   </div>
                 </div>
               {:else}
                 <div class="style-instructions">
-                  <h3>What this style asks for</h3>
+                  <h3>{$t.library.whatItAsksFor}</h3>
                   <p class="style-note">
                     These are the instructions the model is given, in the order it is given them{detail.asShipped
                       ? ', exactly as this style shipped'
@@ -346,7 +352,7 @@
 
               {#if detail.checks.length > 0}
                 <div class="style-sections">
-                  <h3>Checked on the finished protocol</h3>
+                  <h3>{$t.library.checkedOnProtocol}</h3>
                   <ul>
                     {#each detail.checks as check, at (at)}
                       <li>{check}</li>
@@ -356,7 +362,7 @@
               {/if}
 
               <div class="style-fidelity">
-                <h3>Always, in every style</h3>
+                <h3>{$t.library.alwaysEveryStyle}</h3>
                 <p class="style-note">
                   These are not part of this style and cannot be edited here — they are not stored
                   with a style at all. They are added to every protocol as it is written, because a
@@ -376,36 +382,33 @@
                     <button
                       class="primary-action"
                       disabled={styleBusy}
-                      onclick={() => void saveStyle(detail.id)}>Save style</button
+                      onclick={() => void saveStyle(detail.id)}>{$t.library.saveStyle}</button
                     >
                     <button class="secondary-action" onclick={() => (editingStyle = false)}
-                      >Cancel</button
+                      >{$t.library.cancel}</button
                     >
                     <button
                       class="text-action"
                       disabled={styleBusy}
-                      onclick={() => void removeStyle(detail.id)}>Delete</button
+                      onclick={() => void removeStyle(detail.id)}>{$t.library.delete}</button
                     >
                   {:else}
                     <button class="secondary-action" onclick={() => startStyleEditing(detail)}
-                      >Edit this style</button
+                      >{$t.library.editThisStyle}</button
                     >
                     <button
                       class="text-action"
                       disabled={styleBusy}
-                      onclick={() => void duplicateStyle(detail)}>Duplicate</button
+                      onclick={() => void duplicateStyle(detail)}>{$t.library.duplicate}</button
                     >
                   {/if}
                 {:else}
                   <button
                     class="secondary-action"
                     disabled={styleBusy}
-                    onclick={() => void duplicateStyle(detail)}>Duplicate to edit</button
+                    onclick={() => void duplicateStyle(detail)}>{$t.library.duplicateToEdit}</button
                   >
-                  <span class="style-note"
-                    >A style that shipped stays as it is, so a protocol written last year can be
-                    written the same way again. Copy it to make your own.</span
-                  >
+                  <span class="style-note">{$t.library.shippedStyleNote}</span>
                 {/if}
               </div>
             </div>
@@ -415,9 +418,7 @@
     </section>
   {:else}
     <div class="library-scope-note">
-      <strong>Ownership is automatic.</strong><span
-        >A project's names and terms apply to its meetings without repeated selection.</span
-      >
+      <strong>{$t.library.ownershipAutomatic}</strong><span>{$t.library.termsScopeNote}</span>
     </div>
 
     {#if draft}
@@ -425,11 +426,11 @@
       <section class="vocabulary-editor" aria-label={editing.id ? 'Edit term' : 'Add term'}>
         <div class="vocabulary-fields">
           <label>
-            <span>Term</span>
+            <span>{$t.library.term}</span>
             <input
               type="text"
               bind:value={editing.term}
-              placeholder="Spelling as it should appear"
+              placeholder={$t.library.spellingAsShown}
               maxlength="200"
               use:takeFocus
               onkeydown={(event) => {
@@ -439,7 +440,7 @@
             />
           </label>
           <label>
-            <span>Category</span>
+            <span>{$t.library.category}</span>
             <select bind:value={editing.category}>
               {#each CATEGORIES as category (category)}
                 <option value={category}>{category}</option>
@@ -447,7 +448,7 @@
             </select>
           </label>
           <label>
-            <span>Applies to</span>
+            <span>{$t.library.appliesTo}</span>
             <select
               value={editing.scope === 'Project' ? (editing.projectId ?? '') : 'global'}
               onchange={(event) => {
@@ -464,7 +465,7 @@
               {#each projects as project (project.id)}
                 <option value={project.id}>{project.name}</option>
               {/each}
-              <option value="global">Every project</option>
+              <option value="global">{$t.library.everyProject}</option>
             </select>
           </label>
         </div>
@@ -474,9 +475,9 @@
         </p>
         <div class="vocabulary-actions">
           <button class="secondary-action" onclick={save} disabled={busy}>
-            {editing.id ? 'Save term' : 'Add term'}
+            {editing.id ? $t.library.saveTerm : $t.library.addTerm}
           </button>
-          <button class="text-action" onclick={cancel} disabled={busy}>Cancel</button>
+          <button class="text-action" onclick={cancel} disabled={busy}>{$t.library.cancel}</button>
         </div>
       </section>
     {/if}
@@ -488,7 +489,7 @@
     {#if vocabulary.length === 0}
       <div class="empty-inline">
         <Icon name="book" size={22} />
-        <h2>No names or terms yet</h2>
+        <h2>{$t.library.noTerms}</h2>
         <p>
           Add the names, firms and abbreviations this work uses so they are transcribed correctly.
           On a real eighty-minute meeting this took the project's own name from never spelled
@@ -496,7 +497,7 @@
         </p>
       </div>
     {:else}
-      <section class="library-list" aria-label="Names and terms">
+      <section class="library-list" aria-label={$t.library.namesAndTerms}>
         {#each vocabulary as entry (entry.id)}<article class:is-disabled={!entry.enabled}>
             <div>
               <h2>{entry.term}</h2>
@@ -505,7 +506,7 @@
             <span class="meta">{ownerLabel(entry)}</span>
             <div class="vocabulary-row-actions">
               {#if confirmingDelete === entry.id}
-                <span class="meta">Delete this term?</span>
+                <span class="meta">{$t.library.deleteThisTerm}</span>
                 <button class="text-action" onclick={() => remove(entry.id)} disabled={busy}>
                   Delete
                 </button>

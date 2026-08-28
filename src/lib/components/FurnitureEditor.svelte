@@ -1,6 +1,7 @@
 <script lang="ts">
   import { FURNITURE_FIELDS, fieldsFromLine, lineHtml } from '../protocol/furniture';
   import type { FurnitureField, FurnitureRow, PageFurniture } from '../workflow/types';
+  import { t } from '../i18n';
 
   export let furniture: PageFurniture;
   export let projectName: string;
@@ -71,15 +72,18 @@
     );
   }
 
-  const BANDS = [
-    { id: 'header', label: 'Header' },
-    { id: 'footer', label: 'Footer' },
+  // Reactive, not constant: a `const` reads the dictionary once, at the moment
+  // this component is first created, and would still say Header after somebody
+  // switched to German. The ids are what the model is keyed on and never move.
+  $: BANDS = [
+    { id: 'header', label: $t.furniture.header },
+    { id: 'footer', label: $t.furniture.footer },
   ] as const;
 
-  const SLOTS = [
-    { id: 'left', label: 'Left' },
-    { id: 'centre', label: 'Centre' },
-    { id: 'right', label: 'Right' },
+  $: SLOTS = [
+    { id: 'left', label: $t.furniture.left },
+    { id: 'centre', label: $t.furniture.centre },
+    { id: 'right', label: $t.furniture.right },
   ] as const;
 </script>
 
@@ -120,7 +124,7 @@
                 void editSlot(band.id, slot.id, () => readLine(node));
               }}
             >
-              <option value="">Insert…</option>
+              <option value="">{$t.furniture.insert}</option>
               {#each FURNITURE_FIELDS.filter((choice) => choice.kind !== 'text') as choice (choice.kind)}
                 <option value={choice.kind}>{choice.label}</option>
               {/each}
@@ -132,12 +136,10 @@
   {/each}
 
   <p class="appearance-note">
-    Type the line as it should read, and put a value into it where you want one — “Seite ”, the page
-    number, “ von 12”. A value is one object: it selects and deletes whole.
+    {$t.furniture.lineHint}
   </p>
   <p class="appearance-note">
-    Applies to every protocol in {projectName}. It repeats on the printed page and is not part of
-    the document you are editing.
+    {$t.furniture.appliesTo(projectName)}
   </p>
 </div>
 
