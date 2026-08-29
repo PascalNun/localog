@@ -1151,9 +1151,31 @@ was wrong about most of it — checked against the code on 29 August 2026.**
   The build order in the design says to do the deterministic pass first and then see
   whether the leftover is worth a model, and that question can now actually be asked
   of a real meeting.
-- **1b is not built**: nothing harvests the protocol model's own notes about names it
-  did not recognise, which is the only one of the three sources that can catch a name
-  the transcriber was _confident_ about.
+- **1b is built** — 29 August 2026. The protocol's own notes are harvested into the
+  candidate list, which is the only one of the three sources that can catch a name the
+  transcriber was _confident_ about.
+
+  Read by punctuation rather than by words: a bracketed aside holding a quoted term.
+  That is the same move the actions-table check makes, and for the same reason — a
+  bracket and a quotation mark look the same in German, while a pattern matching "it
+  is unclear" would find nothing in the language this product is for. Markdown links
+  are excluded, a quoted clause is not a name, and **a term the transcript never says
+  is dropped**, so a model quoting something it invented cannot become a spelling
+  somebody is invited to apply to their own record.
+
+  Deliberately _not_ done by asking the model for the names in its structured answer,
+  which would be more robust. Generation's prompt is the one place in this project
+  where a change cannot be judged without hours of real runs — sending
+  `required_sections` once took the reference protocol from 17,393 characters to
+  2,747 — and the notes are already written, so harvesting them costs nothing and
+  risks nothing. If parsing the prose proves too weak on real drafts, the schema field
+  is the fallback, and it should be measured rather than assumed better.
+
+  Two labels stopped being true when this landed and were fixed with it: the panel
+  said "Names the transcriber was unsure of" and the heading said "N never got right",
+  and neither describes a word the transcriber was sure of. Each questioned word now
+  says who doubted it, because those are the ones that look right and would otherwise
+  have no visible reason for being in the list.
 
 One thing found by using it, and worth keeping as a shape rather than as a bug: the
 vocabulary categories were shown as their raw stored values, and the dictionary had
