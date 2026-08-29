@@ -4,7 +4,9 @@ This is the short answer to “where is LocaLog now, and what should happen next
 
 The product and architecture documents describe the destination. The decision log records choices. This document describes what the code can honestly claim today.
 
-Last reviewed: 17 August 2026.
+Last reviewed: 29 August 2026. The interface-language entry under "What is not yet
+true" was checked against the code and rewritten; the rest was read rather than
+re-verified.
 
 ## What 16 August established
 
@@ -824,14 +826,45 @@ the thing they describe rather than by remembering it.
 - The final public protocol-generation runtime is undecided; Ollama is for development
   and early technical previews.
 - Real English end-to-end quality evidence is still missing.
-- **The interface is English only.** Meetings can be transcribed in twelve
-  languages and the protocol is written in the meeting's language, but every word
-  of the application around them is English — in a product written for German
-  offices. A settings row said "Interface language: English" with no way to change
-  it, which was worse than saying nothing, and was removed on 27 August 2026 rather
-  than wired to a menu: the work is translating every string, not adding a control.
-  It should be sized properly before it is started. This is criterion 8 in
-  `MVP.md` and the only one of the ten that is open and actionable.
+- ~~**The interface is English only.**~~ Done, 28 August 2026. The application speaks
+  English and German throughout, and on a first run it follows the system's own
+  language, so somebody whose Mac is in German is never asked.
+
+  What made it a piece of work rather than a settings row is that **152 of the
+  sentences were in Rust**. The backend now returns a code — `missingProject`, or
+  `backupDamaged:projects/a.wav` — and the interface says it in words, so a further
+  language is one file and touches no Rust at all. 735 keys, and German is typed
+  against English, so a key nobody translated is a compile error rather than an
+  English word appearing mid-sentence at runtime.
+
+  Three faults of the same shape turned up and are worth naming, because a fourth
+  will look like them: **a string that is both an identifier and a label** reads as
+  one thing until there is a second language, and then it is quietly two. Settings
+  sections (`section === 'General'` is never true when the tab says *Allgemein*),
+  vocabulary categories, and export formats each needed the id separated from the
+  label. Constants that read the dictionary at module level had the mirror-image
+  fault: they captured English once and would still have said `Header` after a
+  switch.
+
+  What stays English is deliberate, and is listed so it is not mistaken for unfinished
+  work: `Display` implementations, which are logs; `Speaker 1`, which is written into
+  the transcript as data; vocabulary categories, which are stored database values;
+  "Screen & System Audio Recording", which is the literal name in macOS System
+  Settings and translating it would send somebody looking for something that is not
+  there; and the density instructions in `domain.rs`, which are sent to a model rather
+  than shown to a person.
+
+  Two things are open behind it. The **printed header's values** are still English on
+  an ISO date, so a German protocol's header reads `Protocol · 2026-08-10 · Draft`;
+  whether the printed page follows the interface's language or the meeting's is a
+  decision about the document rather than about the application, and it is the
+  owner's. And **French, Spanish, Italian, Japanese, Korean and Simplified Chinese**
+  were asked for and are not built — each is now one file, plus a font that covers
+  the last three.
+
+  One correction to what stood here: this was never criterion 8 in `MVP.md`. That
+  criterion asks for recorded German **and English quality evidence**, is untouched by
+  this work, and is still open.
 - The application is not signed. It is ad-hoc signed, which runs here and is refused
   on anybody else's Mac, and there is no Developer ID on this machine. This is the
   whole of what stands between the current bundle and handing it to somebody. The
