@@ -406,6 +406,21 @@ struct SynthesisPayload<'a> {
     correction: Option<&'a str>,
 }
 
+/// A spelling a model thinks is a mis-hearing of a name the project already lists.
+///
+/// A *proposal*, and never anything more. The transcript is the evidence a protocol
+/// is written from, so it changes only where a person said so.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ProposedCorrection {
+    /// The spelling in the transcript, character for character.
+    pub heard: String,
+    /// What it should say — always built from a term the project lists.
+    pub suggested: String,
+    /// The sentence it was judged in, so a person can judge it the same way.
+    pub passage: String,
+}
+
 /// Somebody who said their own name near the start of a meeting.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1161,6 +1176,59 @@ impl OllamaProvider {
     ///
     /// It also reaches errors the candidate extractor cannot: that offers words the
     /// transcriber was unsure of, and it was perfectly confident about "Person C".
+    /// Ask about one word, in its own sentence, and keep the answer only if the list
+    /// could have produced it.
+    ///
+    /// The whole design of this stage is in the second half of that sentence. A model
+    /// near the evidence record has exactly one dangerous failure — inventing a name
+    /// nobody entered — and it is bounded here rather than hoped away in the prompt:
+    /// **a suggestion is discarded unless it contains a term the project lists.** So
+    /// `Clusterwohnenheit` may become `Clusterwohneinheit`, because `Cluster` is
+    /// listed; nothing can turn it into a firm nobody has ever typed.
+    ///
+    /// The window is one sentence. Deciding whether `Halle` is a surname or the word
+    /// for a cross needs the sentence it is in and nothing else, which makes this the
+    /// one stage in the pipeline where a long context is provably unnecessary — and
+    /// so the one that costs seconds rather than minutes.
+    pub(crate) fn propose_correction(
+        &self,
+        request: &GenerationRequest,
+        heard: &str,
+        passage: &str,
+        cancelled: &AtomicBool,
+    ) -> Result<Option<ProposedCorrection>> {
+        if request.vocabulary.is_empty() {
+            // Nothing to build a correction from, so there is nothing to ask.
+            return Ok(None);
+        }
+        let payload = CorrectionPayload {
+            meeting_language: &request.meeting_language,
+            heard,
+            passage,
+            names_and_terms: &request.vocabulary,
+        };
+        let prompt = encode_prompt(&payload)?;
+        let generated = self.complete(
+            request,
+            Completion {
+                system: CORRECTION_SYSTEM,
+                prompt: &prompt,
+                format: correction_schema(),
+                num_predict: answer_budget(request.context_tokens, prompt.len(), 128),
+                attempt: 0,
+            },
+            cancelled,
+            &mut |_| Ok(()),
+        )?;
+        let structured: StructuredCorrection = parse_structured(&generated)?;
+        Ok(accept_correction(
+            heard,
+            passage,
+            &structured.suggested,
+            &request.vocabulary,
+        ))
+    }
+
     pub(crate) fn find_introductions(
         &self,
         request: &GenerationRequest,
@@ -1932,6 +2000,82 @@ struct IntroductionsPayload<'a> {
 /// around it. A meeting that introduces somebody at minute forty is not one this can
 /// help, and the candidate extractor covers what it misses.
 const INTRODUCTIONS_WINDOW_MS: u64 = 8 * 60 * 1000;
+
+/// Whether a suggestion may be offered at all.
+///
+/// This is the guard, not the prompt. Four things have to hold, and each of them is a
+/// way the answer has been wrong in this project before:
+///
+/// - it says something, and something different from what was heard;
+/// - **it is built from the list** — some listed term appears inside it. This is the
+///   one that matters: it is what makes "it cannot invent a name nobody entered" a
+///   property of the code rather than an instruction a model may ignore;
+/// - it is a word rather than a sentence, because models explain when asked to
+///   answer;
+/// - the word it claims to correct is really in the passage, which is the same check
+///   `find_introductions` makes for the same reason — a model tidies on its way out.
+fn accept_correction(
+    heard: &str,
+    passage: &str,
+    suggested: &str,
+    vocabulary: &[String],
+) -> Option<ProposedCorrection> {
+    let suggested = suggested.trim();
+    if suggested.is_empty() || suggested.eq_ignore_ascii_case(heard.trim()) {
+        return None;
+    }
+    if suggested.chars().count() > 80 || suggested.split_whitespace().count() > 4 {
+        return None;
+    }
+    if !passage.contains(heard.trim()) {
+        return None;
+    }
+    let lowered = suggested.to_lowercase();
+    let built_from_the_list = vocabulary.iter().any(|term| {
+        let term = term.trim().to_lowercase();
+        !term.is_empty() && lowered.contains(&term)
+    });
+    if !built_from_the_list {
+        return None;
+    }
+    Some(ProposedCorrection {
+        heard: heard.trim().to_string(),
+        suggested: suggested.to_string(),
+        passage: passage.to_string(),
+    })
+}
+
+/// Deciding whether one word is a mis-heard name.
+///
+/// Told twice, in the strongest terms available, that it may only choose from the
+/// list — because the single risk of letting a model near the evidence record is that
+/// it invents a name nobody entered. The prompt is not the guard, though: the answer
+/// is checked against the list afterwards, and that check is the guard. This wording
+/// only makes the check fire less often.
+const CORRECTION_SYSTEM: &str = "One sentence from a meeting transcript is given, one word in it, and the list of names and terms this project uses. Decide whether that word is a mis-hearing of exactly one entry in the list. Answer with the entry as it is spelled in the list, or with an empty string. You may only answer with a spelling built from the list: never invent a name, never offer a word that is not in the list, and never correct ordinary language. A word that is a perfectly normal word of the language may still be a mis-hearing of a name — decide from the sentence, which is what it is for. When unsure, answer with an empty string: an unhelpful answer costs nothing and a wrong one edits somebody's record. Return only schema-valid JSON.";
+
+/// One word, its sentence, and the list a correction may be built from.
+#[derive(Serialize)]
+struct CorrectionPayload<'a> {
+    meeting_language: &'a str,
+    heard: &'a str,
+    passage: &'a str,
+    names_and_terms: &'a [String],
+}
+
+fn correction_schema() -> serde_json::Value {
+    serde_json::json!({
+        "type": "object",
+        "required": ["suggested"],
+        "properties": { "suggested": { "type": "string" } },
+        "additionalProperties": false
+    })
+}
+
+#[derive(Debug, Deserialize)]
+struct StructuredCorrection {
+    suggested: String,
+}
 
 const MERGE_SYSTEM: &str = "Combine consecutive sets of meeting notes into one set, in the meeting's language. Keep every decision, action, owner, open question, number, measurement, date and proper name. Remove only exact repetition between the sets. Do not shorten anything that is stated once. Return only schema-valid JSON. If a correction field is present, the previous attempt was rejected for the reason it gives; fix that and return the notes again.";
 
@@ -3792,6 +3936,95 @@ mod tests {
         let several = append_gap_notice("# Protokoll".into(), &[one, two], &german);
         assert!(several.contains("Mehrere Abschnitte"));
         assert!(!several.contains("Ein Abschnitt der Aufnahme"));
+    }
+
+    mod what_a_proposed_correction_must_clear {
+        use super::super::accept_correction;
+
+        fn listed() -> Vec<String> {
+            vec![
+                "Cluster".to_string(),
+                "Halde".to_string(),
+                "HOAI".to_string(),
+            ]
+        }
+
+        /// The case the design was written around: a compound the stem substitution
+        /// left imperfect, repaired from a term that *is* listed.
+        #[test]
+        fn a_spelling_built_from_the_list_is_offered() {
+            let accepted = accept_correction(
+                "Clusterwohnenheit",
+                "Die Clusterwohnenheit im Norden bleibt.",
+                "Clusterwohneinheit",
+                &listed(),
+            )
+            .expect("built from a listed term");
+            assert_eq!(accepted.suggested, "Clusterwohneinheit");
+            assert_eq!(accepted.heard, "Clusterwohnenheit");
+        }
+
+        /// The single dangerous failure of putting a model near the evidence record,
+        /// and the reason this is a check in the code rather than a line in a prompt.
+        #[test]
+        fn a_name_nobody_entered_is_refused_however_plausible() {
+            assert!(
+                accept_correction(
+                    "Marketti",
+                    "Marketti hat zugestimmt.",
+                    "Marchetti-Sauer",
+                    &listed(),
+                )
+                .is_none(),
+                "nothing listed appears inside it, so it cannot be offered"
+            );
+        }
+
+        /// A perfectly ordinary German word that is also a surname. The whole reason
+        /// this stage exists, and the whole reason it gets the sentence.
+        #[test]
+        fn an_ordinary_word_may_still_be_corrected_to_a_listed_name() {
+            assert!(
+                accept_correction("Halle", "Herr Halle übernimmt das.", "Halde", &listed())
+                    .is_some()
+            );
+        }
+
+        #[test]
+        fn an_empty_or_unchanged_answer_is_no_answer() {
+            assert!(accept_correction("Halle", "Herr Halle.", "", &listed()).is_none());
+            assert!(accept_correction("Halle", "Herr Halle.", "   ", &listed()).is_none());
+            assert!(accept_correction("Halde", "Herr Halde.", "kreutz", &listed()).is_none());
+        }
+
+        /// Models explain when they are asked to answer, and a paragraph offered as a
+        /// spelling would be applied to somebody's transcript as one.
+        #[test]
+        fn a_sentence_is_not_a_spelling() {
+            assert!(
+                accept_correction(
+                    "Halle",
+                    "Herr Halle übernimmt das.",
+                    "This is probably Halde, the surname of the engineer",
+                    &listed(),
+                )
+                .is_none()
+            );
+        }
+
+        /// The same check `find_introductions` makes: a model tidies on its way out,
+        /// and a correction to a word the passage does not contain would find nothing.
+        #[test]
+        fn a_word_the_passage_does_not_contain_is_refused() {
+            assert!(
+                accept_correction("Halle", "Die Fassade bleibt.", "Halde", &listed()).is_none()
+            );
+        }
+
+        #[test]
+        fn nothing_is_offered_when_the_project_lists_nothing() {
+            assert!(accept_correction("Halle", "Herr Halle.", "Halde", &[]).is_none());
+        }
     }
 
     /// A kept answer still has to be a protocol. Three JSON dumps are not a document

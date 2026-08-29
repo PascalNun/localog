@@ -262,6 +262,112 @@ pub(crate) fn name_candidates(
         &protocol,
     ))
 }
+/// Ask a small model about the few words substitution could not settle.
+///
+/// The last stage of the names work, and deliberately the smallest. Everything before
+/// it is exact: a candidate is a word mis-heard the same way every time, and
+/// correcting its stem repairs every compound built on it in milliseconds. What
+/// reaches here is the opposite — a word whose mis-hearing varied, one occurrence
+/// each, with no stem to catch.
+///
+/// One request per word, each holding one sentence and the project's own list. The
+/// windows are a few hundred characters, so the whole pass is seconds where
+/// transcription is minutes.
+///
+/// **Nothing here writes.** Each answer is a proposal the interface shows with its
+/// sentence, and the transcript changes only through `apply_correction`, where
+/// somebody has said so. A model altering the evidence a protocol is written from,
+/// unasked, is the one thing this application must not do.
+///
+/// A word the model declines, or whose answer the guard refuses, simply does not
+/// appear. Nothing is reported about it, because "the machine had no idea about this
+/// word" is not a task anybody can act on.
+pub(crate) fn propose_corrections(
+    root: &Path,
+    meeting_id: &str,
+) -> StorageResult<Vec<provider::ProposedCorrection>> {
+    let repository = WorkspaceRepository::open(root)?;
+    let artifact = working_transcript(root, &repository, meeting_id)?.1;
+
+    let vocabulary = repository.transcription_vocabulary(meeting_id)?;
+    if vocabulary.is_empty() {
+        // With nothing listed there is nothing a correction could be built from, so
+        // asking would be spending a model on a question with no possible answer.
+        return Ok(Vec::new());
+    }
+
+    let protocol = repository
+        .protocol_working_markdown(meeting_id)
+        .ok()
+        .and_then(|bytes| String::from_utf8(bytes).ok())
+        .unwrap_or_default();
+    let offered = crate::corrections::name_candidates(&artifact.segments, &protocol);
+    let left = crate::corrections::unsettled(&artifact.segments, &offered);
+    if left.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let selected = repository
+        .read_setting("generation.ollamaModel")?
+        .filter(|value| !value.is_empty());
+    let status = provider::OllamaProvider::loopback().status(selected);
+    if !status.server_reachable {
+        return Err(StorageError::InvalidData("providerNeededForCorrections"));
+    }
+    let model = status
+        .selected_model
+        .ok_or(StorageError::InvalidData("providerModelRequired"))?;
+    let language: String = repository
+        .connection
+        .query_row(
+            "SELECT language FROM meetings WHERE id = ?1",
+            [meeting_id],
+            |row| row.get(0),
+        )
+        .unwrap_or_else(|_| "German".to_string());
+
+    let request = provider::GenerationRequest {
+        // Nothing here writes a protocol, so no note about a document is reachable.
+        document_notes: Default::default(),
+        model,
+        model_digest: status.selected_model_digest.unwrap_or_default(),
+        runtime_version: status.runtime_version.unwrap_or_else(|| "unknown".into()),
+        meeting_language: language,
+        style: provider::GenerationStyle {
+            id: "corrections".into(),
+            revision: "1".into(),
+            density: crate::domain::ProtocolDensity::Terse,
+            instructions: Vec::new(),
+            expectations: Vec::new(),
+        },
+        vocabulary_revision: "corrections".into(),
+        vocabulary,
+        transcript: Vec::new(),
+        seed: 7,
+        temperature_milli: 0,
+        // A sentence and a word list. The floor this project measured is for writing a
+        // protocol from a whole meeting, and has nothing to do with this.
+        context_tokens: 4_096,
+        maximum_output_tokens: 128,
+    };
+
+    let provider = provider::OllamaProvider::loopback();
+    let cancelled = std::sync::atomic::AtomicBool::new(false);
+    let mut proposals = Vec::new();
+    for word in &left {
+        // One word going wrong is one word, not the pass. A model that stumbles over
+        // a fragment of German has nothing to say about the next word either way, and
+        // losing the four it did answer would be the worse trade.
+        match provider.propose_correction(&request, &word.heard, &word.passage, &cancelled) {
+            Ok(Some(proposal)) => proposals.push(proposal),
+            Ok(None) => {}
+            Err(error) if error.is_a_bad_draw() => {}
+            Err(_) => break,
+        }
+    }
+    Ok(proposals)
+}
+
 /// Every place a correction would apply. Nothing is changed.
 pub(crate) fn preview_correction(
     root: &Path,

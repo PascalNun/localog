@@ -28,6 +28,7 @@ import type {
   VocabularyEntry,
   FileDropEvent,
   NameCandidate,
+  ProposedCorrection,
   Introduction,
   DocumentAppearance,
   PageFurniture,
@@ -133,6 +134,7 @@ export interface WorkspaceStore {
   stopRecording(): Promise<WorkspaceData>;
   findIntroductions(meetingId: string): Promise<Introduction[]>;
   findNameCandidates(meetingId: string): Promise<NameCandidate[]>;
+  proposeCorrections(meetingId: string): Promise<ProposedCorrection[]>;
   previewCorrection(meetingId: string, wrong: string, right: string): Promise<CorrectionMatch[]>;
   applyCorrection(
     meetingId: string,
@@ -465,6 +467,10 @@ class TauriWorkspaceStore implements WorkspaceStore {
 
   findNameCandidates(meetingId: string): Promise<NameCandidate[]> {
     return invoke('find_name_candidates', { meetingId });
+  }
+
+  proposeCorrections(meetingId: string) {
+    return invoke<ProposedCorrection[]>('propose_corrections', { meetingId });
   }
 
   previewCorrection(meetingId: string, wrong: string, right: string): Promise<CorrectionMatch[]> {

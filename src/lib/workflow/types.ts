@@ -73,6 +73,22 @@ export interface NameCandidate {
 }
 
 /**
+ * A spelling a small model thinks is a mis-hearing of a name the project lists.
+ *
+ * A proposal and never more: the transcript is the evidence a protocol is written
+ * from, so it changes only where a person said so. The backend refuses any suggestion
+ * that is not built from a listed term, so this cannot carry a name nobody entered.
+ */
+export interface ProposedCorrection {
+  /** The spelling in the transcript. */
+  heard: string;
+  /** What it should say, built from a term the project lists. */
+  suggested: string;
+  /** The sentence it was judged in, so a person can judge it the same way. */
+  passage: string;
+}
+
+/**
  * Somebody who said their own name near the start of a meeting.
  *
  * The spelling is the transcript's, however wrong — that is what makes the list
@@ -755,6 +771,8 @@ export interface WorkflowBridge {
   findIntroductions(meetingId: string): Promise<Introduction[]>;
   /** Words the transcriber was never sure of, most likely first. */
   findNameCandidates(meetingId: string): Promise<NameCandidate[]>;
+  /** What a small model makes of the few words substitution could not settle. */
+  proposeCorrections(meetingId: string): Promise<ProposedCorrection[]>;
   /** Every place a correction would apply, with enough sentence to judge it. */
   previewCorrection(meetingId: string, wrong: string, right: string): Promise<CorrectionMatch[]>;
   /**

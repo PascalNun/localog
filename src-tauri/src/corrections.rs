@@ -214,6 +214,80 @@ fn place_in_transcript(segments: &[TranscriptSegment], name: &str) -> Option<Can
     })
 }
 
+/// A word the deterministic pass could not settle, with the sentence it sits in.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Unsettled {
+    /// Where it is, so a proposal can be placed back without searching again.
+    pub segment_id: String,
+    /// The word as the transcript spells it.
+    pub heard: String,
+    /// The sentence around it, and nothing more.
+    ///
+    /// The whole segment, which averages about seven seconds of speech. Deciding
+    /// whether `Halle` is a surname or the word for a cross needs one sentence, not
+    /// eighty minutes — this is the one stage in the pipeline where a long context is
+    /// provably unnecessary.
+    pub passage: String,
+}
+
+/// How many unsettled words are worth asking about.
+///
+/// Measured on the reference meeting, substitution left about three genuinely wrong;
+/// this is a guard against an unusual transcript rather than a limit that normally
+/// bites. It also bounds the cost: one small request each.
+const MOST_UNSETTLED: usize = 8;
+
+/// The uncertain words substitution cannot reach.
+///
+/// What is left after the candidate list is a different kind of problem, not a
+/// smaller amount of the same one. A candidate is a word mis-heard the *same* way
+/// every time, which is what makes correcting one stem repair forty occurrences. What
+/// remains is the word whose mis-hearing varied — no consistent stem to catch, one
+/// occurrence each — and there is nothing deterministic left to do with it.
+///
+/// This function is worth having even if nothing is ever built on top of it. The plan
+/// gates the model pass on a measurement nobody had made: whether the leftover is
+/// consistently three-ish words, in which case a person fixes them faster than a
+/// suggestion could be built. Running this on a real meeting is that measurement.
+pub(crate) fn unsettled(
+    segments: &[TranscriptSegment],
+    already_offered: &[Candidate],
+) -> Vec<Unsettled> {
+    let offered: Vec<String> = already_offered
+        .iter()
+        .map(|candidate| candidate.heard.to_lowercase())
+        .collect();
+    let mut seen: Vec<String> = Vec::new();
+    let mut left: Vec<Unsettled> = Vec::new();
+
+    for segment in segments {
+        for word in &segment.uncertain_words {
+            let heard = word.trim_matches(|glyph: char| !glyph.is_alphabetic());
+            if heard.chars().count() < LEAST_LETTERS {
+                continue;
+            }
+            let key = heard.to_lowercase();
+            // Anything the candidate list already offers is settled by substitution,
+            // which is exact, instant and undoable. A model has nothing to add there
+            // and every reason not to be asked.
+            if offered.contains(&key) || seen.contains(&key) {
+                continue;
+            }
+            seen.push(key);
+            left.push(Unsettled {
+                segment_id: segment.id.clone(),
+                heard: heard.to_string(),
+                passage: segment.text.clone(),
+            });
+            if left.len() >= MOST_UNSETTLED {
+                return left;
+            }
+        }
+    }
+    left
+}
+
 /// Names the protocol model itself questioned, taken from what it already wrote.
 ///
 /// A transcriber's confidence cannot flag an error it is confident about, and that is
@@ -631,6 +705,75 @@ mod tests {
         assert_eq!(found[0].heard, "Trakwerk");
         assert_eq!(found[0].occurrences, 2);
         assert!(found[0].context.contains("Trakwerk"), "{:?}", found[0]);
+    }
+
+    /// What substitution leaves behind is a different problem, not less of the same
+    /// one. A candidate is mis-heard the *same* way every time, which is what makes
+    /// correcting one stem repair forty occurrences; this is the word whose
+    /// mis-hearing varied, so there is no stem and nothing exact left to do.
+    #[test]
+    fn what_the_candidate_list_already_offers_is_not_asked_about_again() {
+        let segments = vec![
+            doubted("a", "Das Trakwerk liegt darüber.", &["Trakwerk"]),
+            doubted("b", "Das Trakwerk bleibt so.", &["Trakwerk"]),
+            doubted("c", "Herr Halle übernimmt das.", &["Halle"]),
+        ];
+        let offered = name_candidates(&segments, "");
+        assert_eq!(offered.len(), 1, "Trakwerk is the deterministic one");
+
+        let left = unsettled(&segments, &offered);
+        assert_eq!(left.len(), 1, "{left:?}");
+        assert_eq!(left[0].heard, "Halle");
+        assert_eq!(left[0].segment_id, "c");
+        assert_eq!(
+            left[0].passage, "Herr Halle übernimmt das.",
+            "the sentence it sits in, and nothing else"
+        );
+    }
+
+    #[test]
+    fn one_word_is_asked_about_once_however_often_it_was_doubted() {
+        let segments = vec![
+            doubted("a", "Die Nukera liefert.", &["Nukera"]),
+            doubted(
+                "b",
+                "Nukera bestätigt, und Vermessung auch.",
+                &["Nukera", "Vermessung"],
+            ),
+        ];
+        let left = unsettled(&segments, &[]);
+        assert_eq!(
+            left.iter()
+                .map(|word| word.heard.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Nukera", "Vermessung"]
+        );
+    }
+
+    #[test]
+    fn a_transcript_with_nothing_left_asks_nothing() {
+        let segments = vec![doubted("a", "Die Fassade bleibt.", &[])];
+        assert!(unsettled(&segments, &[]).is_empty());
+    }
+
+    /// A guard against an unusual transcript rather than a limit that normally bites:
+    /// substitution left about three genuinely wrong on the reference meeting. It also
+    /// bounds the cost, since each of these is a request.
+    #[test]
+    fn the_number_asked_about_is_capped() {
+        // Distinct and alphabetic: the trim strips digits along with punctuation, so
+        // `Fremdwort001` and `Fremdwort002` are the same word by the time it counts.
+        let segments: Vec<_> = (b'a'..b'a' + 30)
+            .map(|letter| {
+                let word = format!("Fremdwort{}", letter as char);
+                doubted(
+                    &format!("s{letter}"),
+                    &format!("Hier steht {word} im Satz."),
+                    &[word.as_str()],
+                )
+            })
+            .collect();
+        assert_eq!(unsettled(&segments, &[]).len(), MOST_UNSETTLED);
     }
 
     /// The class nothing else can reach. whisper flagged the mangled form of this

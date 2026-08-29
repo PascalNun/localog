@@ -1,10 +1,9 @@
 use crate::domain::{
     DocumentAppearance, FurnitureField, FurnitureRow, JobErrorSummary, JobState, JobSummary,
-    MeetingLifecycle, MeetingSummary, NewMeetingInput, NewProjectInput, NewProjectName,
-    PageFurniture, PageWidth, ProjectSummary, ProtocolDensity, ProtocolDocument, ProtocolEvidence,
-    ProtocolRevisionSummary, ProtocolStyle, Scale, Spacing, SpeakerResolution,
-    StructuralExpectation, TranscriptDocument, TranscriptSegment, VocabularyDraft, VocabularyEntry,
-    WorkspaceSnapshot,
+    MeetingLifecycle, MeetingSummary, NewMeetingInput, NewProjectInput, PageFurniture, PageWidth,
+    ProjectSummary, ProtocolDensity, ProtocolDocument, ProtocolEvidence, ProtocolRevisionSummary,
+    ProtocolStyle, Scale, Spacing, SpeakerResolution, StructuralExpectation, TranscriptDocument,
+    TranscriptSegment, VocabularyDraft, VocabularyEntry, WorkspaceSnapshot,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
@@ -4269,19 +4268,19 @@ mod tests {
                 names: vec![
                     // Deliberately typed out of order, and with a repeat in a
                     // different case, which is what a form actually receives.
-                    NewProjectName {
+                    crate::domain::NewProjectName {
                         term: "Tragwerk".into(),
                         category: "Technical term".into(),
                     },
-                    NewProjectName {
+                    crate::domain::NewProjectName {
                         term: "Halde".into(),
                         category: "Person".into(),
                     },
-                    NewProjectName {
+                    crate::domain::NewProjectName {
                         term: "HOAI".into(),
                         category: "Organisation".into(),
                     },
-                    NewProjectName {
+                    crate::domain::NewProjectName {
                         term: "hoai".into(),
                         category: "Organisation".into(),
                     },
@@ -4324,11 +4323,11 @@ mod tests {
         let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
         let refused = repository.create_project(NewProjectInput {
             names: vec![
-                NewProjectName {
+                crate::domain::NewProjectName {
                     term: "Halde".into(),
                     category: "Person".into(),
                 },
-                NewProjectName {
+                crate::domain::NewProjectName {
                     term: "x".repeat(400),
                     category: "Person".into(),
                 },

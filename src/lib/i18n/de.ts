@@ -665,6 +665,16 @@ export const de: Strings = {
   },
 
   transcript: {
+    heardAs: (heard: string) => `Verstanden als „${heard}“`,
+    askAboutTheRest: 'Den Rest prüfen lassen',
+    askingAboutTheRest: 'Die Sätze werden gelesen …',
+    askAboutTheRestNote:
+      'Einige Wörter werden jedes Mal anders verhört, deshalb findet sie keine Korrektur einer Schreibweise. Hier wird jedes davon in seinem eigenen Satz gelesen und ein Name aus der Liste dieses Projekts vorgeschlagen — etwas anderes kann nicht vorgeschlagen werden, und geändert wird nichts, bevor Sie es sagen.',
+    proposedNothing: 'Es wurde nichts weiter erkannt.',
+    proposedNothingNote:
+      'Das ist die übliche und eine gute Antwort: Vorgeschlagen werden darf nur ein Name, den dieses Projekt bereits führt — also bleibt es lieber still, als einen zu erfinden.',
+    proposalsHeading: (count: number) => (count === 1 ? '1 Vorschlag' : `${count} Vorschläge`),
+    proposalSuggests: (heard: string, suggested: string) => `${heard} → ${suggested}`,
     spellingsToCheck: (count: number) =>
       count === 1 ? '1 Schreibweise zum Prüfen' : `${count} Schreibweisen zum Prüfen`,
     questionedByProtocol: 'das Protokoll kennt dieses Wort nicht',

@@ -9,6 +9,7 @@
     TranscriptDocument,
     TranscriptSegment,
     NameCandidate,
+    ProposedCorrection,
     Introduction,
     CorrectionMatch,
     AppliedCorrection,
@@ -48,6 +49,9 @@
     meetingId: string,
   ) => Promise<{ source: string; durationMs: number | null } | null>;
   export let onFindNameCandidates: (meetingId: string) => Promise<NameCandidate[]> = async () => [];
+  export let onProposeCorrections: (
+    meetingId: string,
+  ) => Promise<ProposedCorrection[]> = async () => [];
   export let onPreviewCorrection: (
     meetingId: string,
     wrong: string,
@@ -138,16 +142,48 @@
   /// a third of the transcript.
   let candidates: NameCandidate[] = [];
   let candidatesFor = '';
+  /* eslint-disable no-useless-assignment --
+     Every assignment here is read by the template or by this block's own condition on
+     the next run, neither of which the rule can see. Moving to another meeting must
+     clear what belonged to the last one: a suggestion about somebody else's
+     transcript, shown against this one, would be the worst thing on this screen. */
   $: if (transcript && candidatesFor !== meeting.id) {
-    // Read by this block's own condition on the next run, which the linter cannot
-    // see; and assigning the candidates cannot retrigger a condition that depends
-    // only on the meeting.
-    // eslint-disable-next-line no-useless-assignment
     candidatesFor = meeting.id;
     correcting = null;
+    proposals = [];
+    asked = false;
+    correctionError = '';
     // eslint-disable-next-line svelte/infinite-reactive-loop
     void onFindNameCandidates(meeting.id).then((found) => (candidates = found));
   }
+  /* eslint-enable no-useless-assignment */
+
+  /// What a small model made of the words substitution could not settle.
+  ///
+  /// Asked for rather than run with the rest: it is model work, this application runs
+  /// one heavy task at a time, and the person who has just corrected the obvious ones
+  /// is the one who knows whether anything is left worth asking about.
+  ///
+  /// `asked` is what separates "nothing was proposed" from "nobody has asked yet".
+  /// The two look identical as an empty list and mean opposite things.
+  let proposals: ProposedCorrection[] = [];
+  let asking = false;
+  let asked = false;
+
+  async function askAboutTheRest() {
+    asking = true;
+    applied = '';
+    try {
+      proposals = await onProposeCorrections(meeting.id);
+      asked = true;
+    } catch (cause) {
+      correctionError = errorMessage(cause);
+    } finally {
+      asking = false;
+    }
+  }
+
+  let correctionError = '';
 
   /** The candidate being corrected, and what somebody is typing for it. */
   let correcting: { heard: string; spelling: string } | null = null;
@@ -163,6 +199,19 @@
     correcting = { heard: candidate.heard, spelling: candidate.heard };
     declined = [];
     matches = await onPreviewCorrection(meeting.id, candidate.heard, candidate.heard);
+  }
+
+  /// A proposal opens the same review a candidate does, with the spelling filled in.
+  ///
+  /// Deliberately the same screen rather than a shorter one: every occurrence is
+  /// still shown in context and can still be declined one at a time. A suggestion
+  /// from a model has earned no more trust than a word somebody typed, and arguably
+  /// less.
+  async function startFromProposal(proposal: ProposedCorrection) {
+    applied = '';
+    correcting = { heard: proposal.heard, spelling: proposal.suggested };
+    declined = [];
+    matches = await onPreviewCorrection(meeting.id, proposal.heard, proposal.suggested);
   }
 
   function toggleDeclined(segmentId: string) {
@@ -739,7 +788,7 @@
             {@const editing = correcting}
             <h3>{$t.transcript.whatShouldItSay}</h3>
             <label class="correction-field">
-              <span>Heard as “{editing.heard}”</span>
+              <span>{$t.transcript.heardAs(editing.heard)}</span>
               <input
                 type="text"
                 bind:value={editing.spelling}
@@ -820,6 +869,36 @@
                 {$t.transcript.nothingFlaggedNote}
               {/if}
             </p>
+          {/if}
+
+          <!-- The last stage, and offered only while nothing is being corrected: two
+               lists of spellings to act on at once is two tasks, and this one is the
+               afterthought to the other. -->
+          {#if !correcting}
+            {#if proposals.length}
+              <h3>{$t.transcript.proposalsHeading(proposals.length)}</h3>
+              <ul class="correction-candidates">
+                {#each proposals as proposal (proposal.heard)}
+                  <li>
+                    <button class="candidate" onclick={() => void startFromProposal(proposal)}>
+                      <span class="candidate-word"
+                        >{$t.transcript.proposalSuggests(proposal.heard, proposal.suggested)}</span
+                      >
+                      <span class="candidate-context">{proposal.passage}</span>
+                    </button>
+                  </li>
+                {/each}
+              </ul>
+            {:else if asked}
+              <h3>{$t.transcript.proposedNothing}</h3>
+              <p>{$t.transcript.proposedNothingNote}</p>
+            {:else}
+              <p class="inspector-note">{$t.transcript.askAboutTheRestNote}</p>
+              <button class="secondary-action" disabled={asking} onclick={askAboutTheRest}>
+                {asking ? $t.transcript.askingAboutTheRest : $t.transcript.askAboutTheRest}
+              </button>
+            {/if}
+            {#if correctionError}<p class="form-error" role="alert">{correctionError}</p>{/if}
           {/if}
 
           {#if applied}<p class="correction-applied" role="status">{applied}</p>{/if}

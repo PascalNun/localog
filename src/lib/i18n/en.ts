@@ -666,6 +666,21 @@ export const en = {
   },
 
   transcript: {
+    heardAs: (heard: string) => `Heard as “${heard}”`,
+    /**
+     * The last stage of the names work, and the smallest. Everything before it is
+     * exact; this asks a model about the two or three words substitution cannot
+     * reach, and it proposes rather than applies.
+     */
+    askAboutTheRest: 'Ask about the rest',
+    askingAboutTheRest: 'Reading the sentences…',
+    askAboutTheRestNote:
+      'A few words are mis-heard differently each time, so correcting a spelling cannot find them. This reads each one in its own sentence and suggests a name from this project’s list — it can suggest nothing else, and it changes nothing until you say so.',
+    proposedNothing: 'Nothing more was recognised.',
+    proposedNothingNote:
+      'Which is the usual answer, and a good one: it may only suggest a name this project already lists, so it stays quiet rather than inventing one.',
+    proposalsHeading: (count: number) => (count === 1 ? '1 suggestion' : `${count} suggestions`),
+    proposalSuggests: (heard: string, suggested: string) => `${heard} → ${suggested}`,
     /**
      * The heading over the spellings worth checking. It used to read "N never got
      * right", which stopped being true when the protocol model's own doubts joined

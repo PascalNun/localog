@@ -29,6 +29,7 @@ import type {
   RecordingEdits,
   RecordingReview,
   NameCandidate,
+  ProposedCorrection,
   Introduction,
   RecordingStatus,
   CorrectionMatch,
@@ -848,6 +849,19 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         occurrences: 2,
         context: '…die kanopie über dem Eingang…',
         questioned: false,
+      },
+    ];
+  }
+
+  async proposeCorrections(meetingId: string): Promise<ProposedCorrection[]> {
+    if (this.workspaceStore) return this.workspaceStore.proposeCorrections(meetingId);
+    // One, because that is what the measurement suggests is left: substitution
+    // reaches almost everything, and what remains is a word whose mis-hearing varied.
+    return [
+      {
+        heard: 'Halle',
+        suggested: 'Halde',
+        passage: 'Herr Halle übernimmt die Tragwerksplanung.',
       },
     ];
   }

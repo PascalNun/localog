@@ -854,6 +854,7 @@
             snapshot?.vocabulary.some((entry) => entry.projectId === project?.id),
           )}
           onFindNameCandidates={(meetingId: string) => bridge.findNameCandidates(meetingId)}
+          onProposeCorrections={(meetingId: string) => bridge.proposeCorrections(meetingId)}
           onPreviewCorrection={(meetingId: string, wrong: string, right: string) =>
             bridge.previewCorrection(meetingId, wrong, right)}
           onApplyCorrection={(meetingId: string, correction: AppliedCorrection) =>

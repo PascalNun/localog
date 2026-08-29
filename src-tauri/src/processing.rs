@@ -26,7 +26,7 @@ mod durability;
 mod editing;
 pub(crate) use assistance::{
     AppliedCorrectionResult, RefinedPassage, apply_correction, find_introductions, name_candidates,
-    preview_correction, refine_passage,
+    preview_correction, propose_corrections, refine_passage,
 };
 use durability::{
     backup_path, cleanup_working_backup, finalize_staged, meeting_root, quarantine_final,

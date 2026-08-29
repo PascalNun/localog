@@ -1139,6 +1139,22 @@ async fn find_name_candidates(
     .await
 }
 
+/// What a small model makes of the few words substitution could not settle.
+///
+/// Asked for rather than run automatically: it is model work, this application runs
+/// one heavy task at a time, and a person who has just corrected the obvious ones is
+/// the person who knows whether anything is left worth asking about.
+#[tauri::command]
+async fn propose_corrections(
+    state: State<'_, StorageState>,
+    meeting_id: String,
+) -> Result<Vec<provider::ProposedCorrection>, String> {
+    with_repository_root(state.root.clone(), move |root| {
+        processing::propose_corrections(root, &meeting_id)
+    })
+    .await
+}
+
 /// Every place a correction would apply, so it can be judged before it is made.
 #[tauri::command]
 async fn preview_correction(
@@ -1872,6 +1888,7 @@ pub fn run() {
             stop_recording,
             find_introductions,
             find_name_candidates,
+            propose_corrections,
             preview_correction,
             apply_correction,
             retry_processing,
