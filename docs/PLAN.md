@@ -1132,7 +1132,34 @@ list, and measured, almost entirely a list of proper nouns.
 
 #### Where the application asks, and what it does with the answer
 
-Designed 16 August 2026 with the owner. Not built.
+Designed 16 August 2026 with the owner. **Built, and the "not built" that stood here
+was wrong about most of it — checked against the code on 29 August 2026.**
+
+- **1, 3, 4 and 6 were already built.** `corrections.rs` reduces the flagged words to
+  a handful of candidates, the replacement is deterministic and reviewable match by
+  match in the transcript view, and every step says what it did.
+- **2 was built too**, as the `remember` flag: one correction fixes the transcript and
+  enters Names & terms.
+- **The asking was the part genuinely missing, and is now built** — 29 August 2026.
+  Four fields at project creation, asked by kind rather than as one box of words,
+  because "Names & terms" is not a question anybody can answer and "the people", "the
+  client and the firms" are. The category then comes free from the field, and it is
+  not decoration: it is the order `transcription_vocabulary` trims in when the list
+  outgrows the transcriber's short prompt. Written in the same transaction as the
+  project, so a refused term leaves no project behind.
+- **5 is not built** — the small model over the few words substitution cannot settle.
+  The build order in the design says to do the deterministic pass first and then see
+  whether the leftover is worth a model, and that question can now actually be asked
+  of a real meeting.
+- **1b is not built**: nothing harvests the protocol model's own notes about names it
+  did not recognise, which is the only one of the three sources that can catch a name
+  the transcriber was _confident_ about.
+
+One thing found by using it, and worth keeping as a shape rather than as a bug: the
+vocabulary categories were shown as their raw stored values, and the dictionary had
+had the words for them from the beginning. Nothing looked them up. The comment beside
+`CATEGORIES` described the intention — "Only the label is translated" — as though it
+were the behaviour.
 
 **1. Offer candidates instead of a number nobody can act on.** whisper already records
 which words it was unsure of, and the transcript view already has a panel for them.
