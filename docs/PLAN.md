@@ -1130,6 +1130,68 @@ The screen is now called **Names & terms**. Vocabulary oversold it and glossary 
 be wrong — a glossary carries definitions and this carries none. It is a spelling
 list, and measured, almost entirely a list of proper nouns.
 
+#### Should LocaLog ship a vocabulary for a profession? — open, 29 August 2026
+
+The owner asked whether a new project should start pre-adapted to its field: an
+architecture preset, a different one for another profession. Looking for the answer
+turned up **two records in this repository that contradict each other**, and the
+contradiction is load-bearing rather than cosmetic.
+
+`media.rs`, 6 August, in the comment that justifies the ordering rule:
+
+> standard professional terminology was already transcribed correctly with no help,
+> while every term the vocabulary actually corrected was a proper noun. Spending this
+> budget on words the model already knows wastes it.
+
+The table in this document, 16 August, ten days later. Of its five rows, **three are
+not proper nouns**: the housing form, the word for the building envelope (19 right
+without, 35 with) and the word for structural engineering — which without the
+vocabulary **does not occur once in seventy-two thousand characters**, and is the row
+this document calls the one to act on.
+
+Both cannot be true. What follows from each is opposite:
+
+- If 6 August is right, a preset spends a scarce budget on words the runtime already
+  knows, and the answer is no.
+- If 16 August is right, a preset is valuable **and** `transcription_vocabulary` is
+  wrong today: it ranks `Technical term` fifth, below even the unknown-category
+  fallback, on the strength of the 6 August claim.
+
+**The budget is the constraint that makes this matter.** whisper caps its initial
+prompt at about 224 tokens — `VOCABULARY_PROMPT_LIMIT` is 620 characters, so roughly
+fifty terms in total. A preset does not sit alongside the project's names; it competes
+with them for the same fifty slots. Nothing shipped may ever outrank a client's name.
+
+**The mechanism decides the design, and nobody has established it.** If the prompt
+works as a dictionary, a preset must contain the exact word and fifty slots will not
+cover a profession. If it works as a _domain prime_ — which is what whisper's
+`initial_prompt` actually is, since it conditions the decoding rather than being
+looked up — then twenty well-chosen words could pull a whole transcript toward the
+field, and a preset is both cheap and powerful. The 16 August table hints at priming,
+because the list it describes is thirty proper nouns and yet two common nouns improved.
+
+**The experiment that settles it** is one meeting and four arms: no vocabulary; the
+thirty proper nouns alone; thirty generic architecture terms alone, with no names; and
+both. If the third arm alone recovers the envelope and structural-engineering terms,
+priming is the mechanism, a preset earns its place, and the ordering rule needs
+rewriting. If it changes nothing, 6 August was right and this idea should be dropped.
+Counting term occurrences is a direct count, and this document's own rule is that
+direct counts held where single-seed comparisons did not.
+
+**If it earns its place, the storage needs nothing new.** A preset is a bundle of
+`scope: Global` entries, and Global already ranks below project-scoped in
+`transcription_vocabulary`, so a shipped term can never crowd out a name somebody
+typed. That is already the right shape.
+
+Two cautions worth keeping with it. Shipping "the architecture preset" is a content
+commitment, per profession and per meeting language, and it grows without bound — one
+preset for the first audience, built from the reference meeting's own evidence, is a
+different proposition from a marketplace of professions. And there is a cheaper
+version of the same idea that costs no curation at all: **a firm's own corrected terms
+already accumulate**, every correction enters Names & terms, and Global scope exists.
+After a few projects an office has a vocabulary that is exactly right for it, and
+nobody had to decide what architecture means.
+
 #### Where the application asks, and what it does with the answer
 
 Designed 16 August 2026 with the owner. **Built, and the "not built" that stood here

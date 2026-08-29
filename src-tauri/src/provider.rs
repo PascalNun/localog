@@ -1350,7 +1350,7 @@ impl OllamaProvider {
             let section_notes = match section_notes {
                 Ok(notes) => notes,
                 Err(error) if error.is_a_bad_draw() => {
-                    let gap = Gap::across(&request.transcript[range.clone()], &error);
+                    let gap = Gap::across(&request.transcript[range.clone()]);
                     let placeholder = gap.as_note(&request.meeting_language);
                     gaps.push(gap);
                     placeholder
@@ -2147,22 +2147,30 @@ fn mentions(spoken: &str, term: &str) -> bool {
 /// window alongside the style, vocabulary and room for the answer. Returns a single
 /// range when the whole transcript already fits.
 /// A stretch of the meeting that could not be condensed, and where it was.
+///
+/// It used to carry the reason as well, and printed it: a `ProviderError`'s `Display`
+/// text — "the local model response was incomplete" — landed in the closing section
+/// of the finished protocol, in English, in a document somebody sends to a client.
+/// Developer prose in a professional record, and untranslatable by construction,
+/// since `Display` is the log.
+///
+/// It is gone rather than translated. The reader of a protocol needs to know **which
+/// stretch** is missing so they can go and listen to it; why the machine failed is
+/// not something they can act on, and the run that produced it says so elsewhere.
 #[derive(Debug, Clone)]
 pub(crate) struct Gap {
     from_ms: u64,
     to_ms: u64,
-    reason: String,
 }
 
 impl Gap {
-    fn across(segments: &[GenerationSegment], error: &ProviderError) -> Self {
+    fn across(segments: &[GenerationSegment]) -> Self {
         Self {
             from_ms: segments
                 .first()
                 .map(|segment| segment.start_ms)
                 .unwrap_or(0),
             to_ms: segments.last().map(|segment| segment.start_ms).unwrap_or(0),
-            reason: error.to_string(),
         }
     }
 
@@ -2178,13 +2186,9 @@ impl Gap {
         )
     }
 
+    /// Where the hole is, which is the whole of what a reader can act on.
     fn as_notice(&self) -> String {
-        format!(
-            "- {} – {} ({})",
-            clock(self.from_ms),
-            clock(self.to_ms),
-            self.reason
-        )
+        format!("- {} – {}", clock(self.from_ms), clock(self.to_ms))
     }
 }
 
@@ -3922,12 +3926,10 @@ mod tests {
         let one = Gap {
             from_ms: 60_000,
             to_ms: 90_000,
-            reason: "unreadable".into(),
         };
         let two = Gap {
             from_ms: 120_000,
             to_ms: 150_000,
-            reason: "unreadable".into(),
         };
         let single = append_gap_notice("# Protokoll".into(), std::slice::from_ref(&one), &german);
         assert!(single.contains("Ein Abschnitt der Aufnahme"));
@@ -4100,7 +4102,6 @@ mod tests {
         let gaps = vec![Gap {
             from_ms: 1_500_000,
             to_ms: 2_400_000,
-            reason: "the model stopped answering".into(),
         }];
         let out = append_gap_notice(
             "# Protokoll\n\nInhalt.".into(),
@@ -4115,7 +4116,13 @@ mod tests {
         assert!(out.contains("Not covered by this protocol"));
         assert!(out.contains("25:00"), "the start is scrubbable: {out}");
         assert!(out.contains("40:00"), "the end is scrubbable: {out}");
-        assert!(out.contains("the model stopped answering"));
+        // And nothing about why the machine failed. That used to be a ProviderError's
+        // Display text, printed in English into a document somebody sends to a client,
+        // and it is not a thing the reader of a protocol can act on.
+        assert!(
+            !out.contains("model"),
+            "no developer prose in the document: {out}"
+        );
     }
 
     #[test]
@@ -4124,12 +4131,10 @@ mod tests {
             Gap {
                 from_ms: 0,
                 to_ms: 60_000,
-                reason: "a".into(),
             },
             Gap {
                 from_ms: 3_600_000,
                 to_ms: 3_720_000,
-                reason: "b".into(),
             },
         ];
         let out = append_gap_notice("# P".into(), &gaps, &DocumentNotes::english_for_harnesses());
