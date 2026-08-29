@@ -4,6 +4,7 @@
   import Icon from './Icon.svelte';
   import { errorMessage } from '../errors';
   import { t } from '../i18n';
+  import { namesFromFields, type NameKind } from '../workflow/names';
 
   export let returnToImport: boolean;
   export let onCancel: () => void;
@@ -15,6 +16,18 @@
   // not happened yet, and the wrong claim is expensive: it transcribed a German
   // recording in English and was only discovered eleven minutes later.
   let defaultLanguage = '';
+  /// Asked for by kind rather than as one box of words, and that is the whole
+  /// design. "Names & terms" is not a question anybody can answer; "the people",
+  /// "the client and the firms" are. The category comes free from which box a name
+  /// was typed into, and it is not decoration — when the list outgrows the
+  /// transcriber's short prompt, people and organisations are what survive the trim.
+  let names: Record<NameKind, string> = {
+    Person: '',
+    Organisation: '',
+    Project: '',
+    'Technical term': '',
+  };
+
   let submitting = false;
   let submitError = '';
 
@@ -24,7 +37,7 @@
     submitting = true;
     submitError = '';
     try {
-      await onCreate({ name, description, defaultLanguage });
+      await onCreate({ name, description, defaultLanguage, names: namesFromFields(names) });
     } catch (error) {
       submitError = errorMessage(error);
       submitting = false;
@@ -65,6 +78,35 @@
           ></option>{/each}
       </datalist><small>{$t.newProject.defaultLanguageDetail}</small></label
     >
+    <fieldset class="names-fieldset">
+      <legend>{$t.newProject.namesHeading}</legend>
+      <p class="names-lead">{$t.newProject.namesLead}</p>
+      <label
+        ><span>{$t.newProject.namesPeople}</span><input
+          bind:value={names.Person}
+          placeholder={$t.newProject.namesPeoplePlaceholder}
+        /><small>{$t.newProject.namesPeopleHint}</small></label
+      >
+      <label
+        ><span>{$t.newProject.namesOrganisations}</span><input
+          bind:value={names.Organisation}
+          placeholder={$t.newProject.namesOrganisationsPlaceholder}
+        /><small>{$t.newProject.namesOrganisationsHint}</small></label
+      >
+      <label
+        ><span>{$t.newProject.namesProject}</span><input
+          bind:value={names.Project}
+          placeholder={$t.newProject.namesProjectPlaceholder}
+        /><small>{$t.newProject.namesProjectHint}</small></label
+      >
+      <label
+        ><span>{$t.newProject.namesTerms}</span><input
+          bind:value={names['Technical term']}
+          placeholder={$t.newProject.namesTermsPlaceholder}
+        /><small>{$t.newProject.namesTermsHint}</small></label
+      >
+      <p class="names-note">{$t.newProject.namesNote}</p>
+    </fieldset>
     <details class="advanced-disclosure">
       <summary>{$t.newProject.defaults}</summary>
       <p>
@@ -86,3 +128,36 @@
     </footer>
   </form>
 </main>
+
+<style>
+  /* Its own block, because it is a group of questions rather than four more rows
+     of the form: the lead has to be read before the first field is answered. */
+  .names-fieldset {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    margin: 0;
+    padding: 1.1rem 1.2rem 1.2rem;
+    border: 1px solid var(--line-soft, rgba(120, 110, 95, 0.28));
+    border-radius: 10px;
+    background: var(--surface-raised, rgba(255, 255, 255, 0.03));
+  }
+
+  .names-fieldset legend {
+    padding: 0 0.4rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  .names-lead,
+  .names-note {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--ink-soft, rgba(90, 82, 70, 0.85));
+  }
+
+  .names-note {
+    font-size: 0.85rem;
+  }
+</style>

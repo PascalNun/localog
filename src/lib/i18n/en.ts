@@ -432,6 +432,29 @@ export const en = {
   },
 
   newProject: {
+    /**
+     * The names asked for as a project is created. This is the most valuable minute
+     * anybody spends in this application — measured, thirty proper nouns took
+     * fourteen counted terms from three spelled correctly to thirteen — so the
+     * wording has to earn the minute rather than describe a settings field.
+     */
+    namesHeading: 'Names & terms',
+    namesLead:
+      'Transcription cannot guess a name it has never heard. Giving it these now is the most useful minute you can spend on this project: a name it mishears is repeated in every protocol written from that recording, and no later step can recover it.',
+    namesPeople: 'People',
+    namesPeopleHint: 'Anyone likely to be in the room, or named in a meeting.',
+    namesPeoplePlaceholder: 'Halde, Prüfstelle, Fachplanung',
+    namesOrganisations: 'Firms and clients',
+    namesOrganisationsHint: 'The client, the other consultants, the suppliers.',
+    namesOrganisationsPlaceholder: 'HOAI, Klinker-Nord',
+    namesProject: 'This project',
+    namesProjectHint: 'What the project, the site or the building is called.',
+    namesProjectPlaceholder: 'Halle 4, Halle 4',
+    namesTerms: 'Anything else worth spelling right',
+    namesTermsHint: 'Words this work uses that a general transcriber would not know.',
+    namesTermsPlaceholder: 'Tragwerk, Clusterwohnung',
+    namesNote:
+      'Separate them with commas. All optional, and none of it is final: you can add and correct terms at any time under Names & terms, and a correction you make while reviewing a transcript is kept here too.',
     creating: 'Creating…',
     createAndContinue: 'Create and continue',
     afterCreated:
@@ -737,6 +760,10 @@ export const en = {
   },
 
   library: {
+    remove: 'Remove',
+    edit: 'Edit',
+    keep: 'Keep',
+    notInUseSuffix: ' · not in use',
     enterATerm: 'Enter a term.',
     reading: 'Reading…',
     editTerm: 'Edit term',
@@ -793,6 +820,13 @@ export const en = {
     densityFullMeaning: 'Full prose. A reader who was absent can follow the discussion.',
     densityPlainMeaning: 'Plain statements. What was said, without the retelling.',
     densityLineMeaning: 'A line per point. The record, and nothing around it.',
+    /**
+     * The words for the vocabulary categories. The category itself is stored in the
+     * database and stays English whatever the interface is in — translating the
+     * stored value would write German into a column and break the same list opened
+     * in English. These are the labels for it. They had been here from the start and
+     * nothing looked them up, so the raw stored value was what people saw.
+     */
     categoryPerson: 'Person',
     categoryOrganisation: 'Organisation',
     categoryProject: 'Project',

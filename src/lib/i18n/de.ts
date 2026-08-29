@@ -433,6 +433,23 @@ export const de: Strings = {
   },
 
   newProject: {
+    namesHeading: 'Namen & Begriffe',
+    namesLead:
+      'Eine Transkription kann keinen Namen erraten, den sie nie gehört hat. Diese Angaben jetzt zu machen ist die nützlichste Minute, die Sie in dieses Projekt stecken können: Ein falsch gehörter Name steht in jedem Protokoll zu dieser Aufnahme genauso, und kein späterer Schritt holt ihn zurück.',
+    namesPeople: 'Personen',
+    namesPeopleHint: 'Alle, die voraussichtlich im Raum sind oder genannt werden.',
+    namesPeoplePlaceholder: 'Halde, Prüfstelle, Fachplanung',
+    namesOrganisations: 'Firmen und Auftraggeber',
+    namesOrganisationsHint: 'Der Auftraggeber, die weiteren Fachplaner, die Lieferanten.',
+    namesOrganisationsPlaceholder: 'HOAI, Klinker-Nord',
+    namesProject: 'Dieses Projekt',
+    namesProjectHint: 'Wie das Projekt, das Grundstück oder das Gebäude heißt.',
+    namesProjectPlaceholder: 'Halle 4, Halle 4',
+    namesTerms: 'Weitere Begriffe, die richtig geschrieben werden sollen',
+    namesTermsHint: 'Fachwörter dieser Arbeit, die eine allgemeine Transkription nicht kennt.',
+    namesTermsPlaceholder: 'Tragwerk, Clusterwohnung',
+    namesNote:
+      'Mit Kommas trennen. Alles freiwillig, und nichts davon ist endgültig: Sie können jederzeit unter „Namen & Begriffe“ ergänzen und korrigieren, und eine Korrektur beim Durchsehen eines Transkripts wird hier ebenfalls übernommen.',
     creating: 'Wird angelegt …',
     createAndContinue: 'Anlegen und fortfahren',
     afterCreated:
@@ -746,6 +763,10 @@ export const de: Strings = {
   },
 
   library: {
+    remove: 'Entfernen',
+    edit: 'Bearbeiten',
+    keep: 'Behalten',
+    notInUseSuffix: ' · nicht in Verwendung',
     enterATerm: 'Geben Sie einen Begriff ein.',
     reading: 'Wird gelesen …',
     editTerm: 'Begriff bearbeiten',

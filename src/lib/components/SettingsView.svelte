@@ -707,7 +707,7 @@
                 <li>
                   <span><strong>{project.name}</strong><small>{$t.settings.project}</small></span>
                   <button class="text-action" onclick={() => void unarchiveProject(project.id)}>
-                    Bring back
+                    {$t.settings.bringBack}
                   </button>
                 </li>
               {/each}

@@ -84,9 +84,7 @@ pub(crate) fn normalize(
     cancellation: &AtomicBool,
     mut progress: impl FnMut(u64),
 ) -> Result<(), String> {
-    let parent = destination
-        .parent()
-        .ok_or("cachePathInvalid")?;
+    let parent = destination.parent().ok_or("cachePathInvalid")?;
     fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     let temporary = destination.with_extension("wav.part");
     let _ = fs::remove_file(&temporary);
@@ -228,8 +226,8 @@ pub(crate) fn condense_for_diarisation(
     };
     let (data_offset, data_length) = pcm16_mono_16k_data(normalized)?;
 
-    let mut source = fs::File::open(normalized)
-        .map_err(|error| format!("speakerPassCannotRead:{error}"))?;
+    let mut source =
+        fs::File::open(normalized).map_err(|error| format!("speakerPassCannotRead:{error}"))?;
     let planned_bytes = usize::try_from(last.condensed_end_ms * BYTES_PER_MS)
         .map_err(|_| "speakerPassTooMuchAudio".to_string())?;
     // Everything not written to is silence, which is what the gaps between the
@@ -250,14 +248,10 @@ pub(crate) fn condense_for_diarisation(
         }
         source
             .seek(SeekFrom::Start(data_offset + from))
-            .map_err(|error| {
-                format!("speakerPassCannotRead:{error}")
-            })?;
+            .map_err(|error| format!("speakerPassCannotRead:{error}"))?;
         source
             .read_exact(&mut condensed[at..at + available])
-            .map_err(|error| {
-                format!("speakerPassCannotRead:{error}")
-            })?;
+            .map_err(|error| format!("speakerPassCannotRead:{error}"))?;
     }
 
     write_pcm16_mono_16k(destination, &condensed)
@@ -364,8 +358,7 @@ pub(crate) fn waveform(source: &Path, buckets: usize) -> Result<Vec<f32>, String
     if frames == 0 {
         return Ok(vec![0.0; buckets]);
     }
-    let mut file = fs::File::open(source)
-        .map_err(|error| format!("recordingNotRead:{error}"))?;
+    let mut file = fs::File::open(source).map_err(|error| format!("recordingNotRead:{error}"))?;
     file.seek(SeekFrom::Start(data_offset))
         .map_err(|error| format!("recordingNotRead:{error}"))?;
 
@@ -415,8 +408,7 @@ pub(crate) fn apply_edits(
         return Err("editsLeaveNothing".into());
     }
     let (data_offset, data_length) = pcm16_mono_16k_data(source)?;
-    let mut file = fs::File::open(source)
-        .map_err(|error| format!("recordingNotRead:{error}"))?;
+    let mut file = fs::File::open(source).map_err(|error| format!("recordingNotRead:{error}"))?;
 
     let mut kept = Vec::new();
     for span in &spans {
@@ -452,8 +444,8 @@ const BYTES_PER_MS: u64 = 32;
 /// correct for it, and reading a stereo or 44.1 kHz file as though it were this
 /// one would produce noise that the diariser would dutifully cluster.
 fn pcm16_mono_16k_data(path: &Path) -> Result<(u64, u64), String> {
-    let mut file = fs::File::open(path)
-        .map_err(|error| format!("speakerPassCannotRead:{error}"))?;
+    let mut file =
+        fs::File::open(path).map_err(|error| format!("speakerPassCannotRead:{error}"))?;
     let mut header = [0u8; 12];
     file.read_exact(&mut header)
         .map_err(|_| "workingAudioUnreadable".to_string())?;
@@ -499,10 +491,9 @@ fn pcm16_mono_16k_data(path: &Path) -> Result<(u64, u64), String> {
 
 /// Write 16 kHz mono 16-bit PCM as a plain WAV, which is what the diariser reads.
 fn write_pcm16_mono_16k(destination: &Path, audio: &[u8]) -> Result<(), String> {
-    let length = u32::try_from(audio.len())
-        .map_err(|_| "condensedAudioTooLarge".to_string())?;
-    let mut file = fs::File::create(destination)
-        .map_err(|error| format!("speakerPassCannotWrite:{error}"))?;
+    let length = u32::try_from(audio.len()).map_err(|_| "condensedAudioTooLarge".to_string())?;
+    let mut file =
+        fs::File::create(destination).map_err(|error| format!("speakerPassCannotWrite:{error}"))?;
     let mut header = Vec::with_capacity(44);
     header.extend_from_slice(b"RIFF");
     header.extend_from_slice(&(36 + length).to_le_bytes());
@@ -631,9 +622,7 @@ pub(crate) fn combine_tracks(
     destination: &Path,
     cancellation: &AtomicBool,
 ) -> Result<(), String> {
-    let parent = destination
-        .parent()
-        .ok_or("combinedPathInvalid")?;
+    let parent = destination.parent().ok_or("combinedPathInvalid")?;
     fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     let temporary = destination.with_extension("wav.part");
     let _ = fs::remove_file(&temporary);

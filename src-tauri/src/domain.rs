@@ -7,6 +7,27 @@ pub struct NewProjectInput {
     pub name: String,
     pub description: String,
     pub default_language: String,
+    /// The names this project's meetings will use, asked for as the project is made.
+    ///
+    /// Part of creating a project rather than a step afterwards, because the
+    /// mechanism for using them has always existed and the asking is what was
+    /// missing: somebody who creates a project, records a meeting and presses go
+    /// otherwise gets a transcript with every proper noun wrong, and no later stage
+    /// can recover a name that was never heard.
+    #[serde(default)]
+    pub names: Vec<NewProjectName>,
+}
+
+/// One name, and the kind of thing it is.
+///
+/// The category comes from which field it was typed into rather than being asked
+/// for separately. It decides what survives when the list outgrows the
+/// transcriber's short prompt — see `transcription_vocabulary`.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewProjectName {
+    pub term: String,
+    pub category: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]

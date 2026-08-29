@@ -226,8 +226,8 @@ pub(crate) fn create(root: &Path, parent: &Path, folder_name: &str) -> Result<Ma
         excludes_working_files: true,
         folder_name: name.to_string(),
     };
-    let written = serde_json::to_vec_pretty(&manifest)
-        .map_err(|error| BackupError::Io(error.to_string()))?;
+    let written =
+        serde_json::to_vec_pretty(&manifest).map_err(|error| BackupError::Io(error.to_string()))?;
     fs::write(folder.join(MANIFEST), written)?;
     Ok(manifest)
 }
@@ -243,8 +243,7 @@ pub(crate) fn inspect(folder: &Path) -> Result<Manifest> {
         return Err(BackupError::NotABackup);
     }
     let text = fs::read_to_string(&path)?;
-    let manifest: Manifest =
-        serde_json::from_str(&text).map_err(|_| BackupError::NotABackup)?;
+    let manifest: Manifest = serde_json::from_str(&text).map_err(|_| BackupError::NotABackup)?;
     if manifest.format != FORMAT {
         return Err(BackupError::UnknownFormat(manifest.format));
     }
@@ -427,6 +426,7 @@ mod tests {
         let mut repository = WorkspaceRepository::open(root).unwrap();
         let project = repository
             .create_project(NewProjectInput {
+                names: Vec::new(),
                 name: "Harbour".to_string(),
                 description: String::new(),
                 default_language: "German".to_string(),
@@ -498,7 +498,12 @@ mod tests {
         );
         // The original recording beside it is still kept, because that cannot be
         // rebuilt from anything.
-        assert!(manifest.files.iter().any(|f| f.path.ends_with("source.wav")));
+        assert!(
+            manifest
+                .files
+                .iter()
+                .any(|f| f.path.ends_with("source.wav"))
+        );
     }
 
     /// The single project id in a freshly built test workspace.
@@ -586,6 +591,7 @@ mod tests {
             let mut repository = WorkspaceRepository::open(home.path()).unwrap();
             repository
                 .create_project(NewProjectInput {
+                    names: Vec::new(),
                     name: "Something else".to_string(),
                     description: String::new(),
                     default_language: "German".to_string(),
@@ -630,7 +636,10 @@ mod tests {
     #[test]
     fn a_folder_without_a_manifest_is_not_a_backup() {
         let empty = tempdir().unwrap();
-        assert!(matches!(inspect(empty.path()), Err(BackupError::NotABackup)));
+        assert!(matches!(
+            inspect(empty.path()),
+            Err(BackupError::NotABackup)
+        ));
     }
 
     #[test]

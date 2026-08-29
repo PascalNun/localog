@@ -41,7 +41,8 @@
 
   /// The values stored in the database, which stay English whatever the
   /// interface is in: translating them would write German into a column and
-  /// break the same list opened in English. Only the label is translated.
+  /// break the same list opened in English. Only the label is translated —
+  /// `categoryLabel` below, which this comment claimed existed long before it did.
   const CATEGORIES = [
     'Person',
     'Organisation',
@@ -50,6 +51,31 @@
     'Technical term',
     'Other',
   ] as const;
+
+  /// The word for a stored category.
+  ///
+  /// A category this build does not know passes through as itself rather than
+  /// becoming blank: the ordering in `transcription_vocabulary` has an `ELSE` for
+  /// exactly that case, so one can genuinely arrive here from a later build or a
+  /// migration, and showing the raw value is how somebody works out what it is.
+  function categoryLabel(category: string): string {
+    switch (category) {
+      case 'Person':
+        return $t.library.categoryPerson;
+      case 'Organisation':
+        return $t.library.categoryOrganisation;
+      case 'Project':
+        return $t.library.categoryProject;
+      case 'Abbreviation':
+        return $t.library.categoryAbbreviation;
+      case 'Technical term':
+        return $t.library.categoryTechnicalTerm;
+      case 'Other':
+        return $t.library.categoryOther;
+      default:
+        return category;
+    }
+  }
 
   /// The style being read, and what it took to get it.
   ///
@@ -444,7 +470,7 @@
             <span>{$t.library.category}</span>
             <select bind:value={editing.category}>
               {#each CATEGORIES as category (category)}
-                <option value={category}>{category}</option>
+                <option value={category}>{categoryLabel(category)}</option>
               {/each}
             </select>
           </label>
@@ -499,17 +525,17 @@
         {#each vocabulary as entry (entry.id)}<article class:is-disabled={!entry.enabled}>
             <div>
               <h2>{entry.term}</h2>
-              <p>{entry.category}{entry.enabled ? '' : ' · not in use'}</p>
+              <p>{categoryLabel(entry.category)}{entry.enabled ? '' : $t.library.notInUseSuffix}</p>
             </div>
             <span class="meta">{ownerLabel(entry)}</span>
             <div class="vocabulary-row-actions">
               {#if confirmingDelete === entry.id}
                 <span class="meta">{$t.library.deleteThisTerm}</span>
                 <button class="text-action" onclick={() => remove(entry.id)} disabled={busy}>
-                  Delete
+                  {$t.library.delete}
                 </button>
                 <button class="text-action" onclick={() => (confirmingDelete = '')} disabled={busy}>
-                  Keep
+                  {$t.library.keep}
                 </button>
               {:else}
                 <button
@@ -521,14 +547,14 @@
                   {entry.enabled ? $t.library.inUse : $t.library.notInUse}
                 </button>
                 <button class="text-action" onclick={() => startEditing(entry)} disabled={busy}>
-                  Edit
+                  {$t.library.edit}
                 </button>
                 <button
                   class="text-action"
                   onclick={() => (confirmingDelete = entry.id)}
                   disabled={busy}
                 >
-                  Remove
+                  {$t.library.remove}
                 </button>
               {/if}
             </div>

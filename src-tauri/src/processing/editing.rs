@@ -36,9 +36,7 @@ pub(crate) fn autosave_transcript_segment(
         .segments
         .iter_mut()
         .find(|segment| segment.id == segment_id)
-        .ok_or(StorageError::InvalidData(
-            "transcriptSegmentMissing",
-        ))?;
+        .ok_or(StorageError::InvalidData("transcriptSegmentMissing"))?;
     let trimmed = text.trim();
     if trimmed.is_empty() || trimmed.chars().count() > 20_000 {
         return Err(StorageError::InvalidData("transcriptTextRequired"));
@@ -76,14 +74,10 @@ pub(crate) fn delete_transcript_segment(
         .iter()
         .any(|segment| segment.id == segment_id)
     {
-        return Err(StorageError::InvalidData(
-            "transcriptSegmentMissing",
-        ));
+        return Err(StorageError::InvalidData("transcriptSegmentMissing"));
     }
     if artifact.segments.len() <= 1 {
-        return Err(StorageError::InvalidData(
-            "transcriptNeedsSegment",
-        ));
+        return Err(StorageError::InvalidData("transcriptNeedsSegment"));
     }
     artifact.segments.retain(|segment| segment.id != segment_id);
     persist_transcript_working(&repository, meeting_id, &path, &artifact)?;
@@ -222,9 +216,7 @@ pub(crate) fn restore_protocol_revision(
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()?
-        .ok_or(StorageError::InvalidData(
-            "protocolRevisionMissing",
-        ))?;
+        .ok_or(StorageError::InvalidData("protocolRevisionMissing"))?;
     let bytes = read_verified(root, &path, &checksum).map_err(processing_to_storage)?;
     commit_protocol_bytes(&mut repository, meeting_id, &bytes, Some(revision_id))?;
     repository.workspace_snapshot()
@@ -243,9 +235,7 @@ pub(super) fn commit_transcript_working_if_dirty(
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .optional()?
-        .ok_or(StorageError::InvalidData(
-            "reviewBeforeGeneration",
-        ))?;
+        .ok_or(StorageError::InvalidData("reviewBeforeGeneration"))?;
     if checksum == base_checksum {
         return Ok(base_id);
     }

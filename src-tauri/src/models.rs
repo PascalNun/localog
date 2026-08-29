@@ -98,10 +98,7 @@ impl Display for ModelError {
             Self::Network(message) => {
                 write!(formatter, "modelNotDownloaded:{message}")
             }
-            Self::VerifyFailed => write!(
-                formatter,
-                "downloadCorrupt"
-            ),
+            Self::VerifyFailed => write!(formatter, "downloadCorrupt"),
             Self::Io(message) => write!(formatter, "modelNotSaved:{message}"),
         }
     }

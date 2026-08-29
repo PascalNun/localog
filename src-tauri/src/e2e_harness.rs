@@ -168,6 +168,7 @@ fn runs_the_whole_pipeline_on_a_real_meeting() {
         .unwrap();
     let project = repository
         .create_project(NewProjectInput {
+            names: Vec::new(),
             name: "Pipeline exercise".to_string(),
             description: String::new(),
             default_language: language.clone(),
@@ -301,7 +302,8 @@ fn runs_the_whole_pipeline_on_a_real_meeting() {
         &meeting.id,
         false,
         &crate::provider::DocumentNotes::english_for_harnesses(),
-    ).unwrap();
+    )
+    .unwrap();
     drive(root, &generation.id, "generation");
 
     let repository = WorkspaceRepository::open(root).unwrap();
@@ -378,7 +380,8 @@ fn generates_from_an_existing_workspace() {
         &meeting_id,
         false,
         &crate::provider::DocumentNotes::english_for_harnesses(),
-    ).unwrap();
+    )
+    .unwrap();
     drive(&root, &generation.id, "generation");
 
     let repository = WorkspaceRepository::open(&root).unwrap();
@@ -435,7 +438,7 @@ fn finds_the_topics_of_a_real_meeting() {
         .find(|candidate| candidate.name == model_name)
         .expect("the requested model is not installed");
     let request = GenerationRequest {
-            document_notes: crate::provider::DocumentNotes::english_for_harnesses(),
+        document_notes: crate::provider::DocumentNotes::english_for_harnesses(),
         model: model.name.clone(),
         model_digest: model.digest.clone(),
         runtime_version: provider.version().expect("ollama must be running"),

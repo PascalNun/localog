@@ -525,6 +525,7 @@ mod tests {
             let mut repository = WorkspaceRepository::open(&root).unwrap();
             let project = repository
                 .create_project(NewProjectInput {
+                    names: Vec::new(),
                     name: "Synthetic public project".to_string(),
                     description: "Crash-boundary fixture".to_string(),
                     default_language: "English".to_string(),

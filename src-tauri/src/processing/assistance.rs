@@ -62,9 +62,7 @@ pub(crate) fn refine_passage(
     // different operation with a different cost and its own button.
     const LONGEST_PASSAGE: usize = 6_000;
     if passage.len() > LONGEST_PASSAGE {
-        return Err(StorageError::InvalidData(
-            "selectionTooLong",
-        ));
+        return Err(StorageError::InvalidData("selectionTooLong"));
     }
 
     let repository = WorkspaceRepository::open(root)?;
@@ -82,13 +80,11 @@ pub(crate) fn refine_passage(
         .filter(|value| !value.is_empty());
     let status = provider::OllamaProvider::loopback().status(selected);
     if !status.server_reachable {
-        return Err(StorageError::InvalidData(
-            "providerNeededForPassage",
-        ));
+        return Err(StorageError::InvalidData("providerNeededForPassage"));
     }
-    let model = status.selected_model.ok_or(StorageError::InvalidData(
-        "providerModelRequired",
-    ))?;
+    let model = status
+        .selected_model
+        .ok_or(StorageError::InvalidData("providerModelRequired"))?;
 
     let request = provider::GenerationRequest {
         // Nothing here writes a protocol, so no note about a document is reachable
@@ -198,13 +194,11 @@ pub(crate) fn find_introductions(
         .filter(|value| !value.is_empty());
     let status = provider::OllamaProvider::loopback().status(selected);
     if !status.server_reachable {
-        return Err(StorageError::InvalidData(
-            "providerNeededForOpening",
-        ));
+        return Err(StorageError::InvalidData("providerNeededForOpening"));
     }
-    let model = status.selected_model.ok_or(StorageError::InvalidData(
-        "providerModelRequired",
-    ))?;
+    let model = status
+        .selected_model
+        .ok_or(StorageError::InvalidData("providerModelRequired"))?;
     let model_digest = status.selected_model_digest.unwrap_or_default();
 
     let request = provider::GenerationRequest {
@@ -375,6 +369,7 @@ mod refine_against_the_real_model {
             .unwrap();
         let project = repository
             .create_project(crate::domain::NewProjectInput {
+                names: Vec::new(),
                 name: "Nordenstadt".to_string(),
                 description: String::new(),
                 default_language: "German".to_string(),

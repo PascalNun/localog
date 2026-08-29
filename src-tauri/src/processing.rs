@@ -643,9 +643,7 @@ fn transcription_metadata(
     let runtime_config_json = resolved
         .map(|value| serde_json::to_string(&value))
         .transpose()
-        .map_err(|_| {
-            StorageError::InvalidData("runtimeConfigNotSaved")
-        })?;
+        .map_err(|_| StorageError::InvalidData("runtimeConfigNotSaved"))?;
     Ok((
         "whisper.cpp",
         runtime_version,
@@ -756,7 +754,12 @@ pub(crate) fn queue_generation(
         .ok_or(StorageError::MissingMeeting)?;
     let protocol_inputs = repository.protocol_inputs(meeting_id)?;
     let (provider_name, runtime_version, model_digest, settings_json, runtime_config_json) =
-        generation_metadata(&repository, &protocol_inputs, notes, use_synthetic_adapters())?;
+        generation_metadata(
+            &repository,
+            &protocol_inputs,
+            notes,
+            use_synthetic_adapters(),
+        )?;
     let job_id = new_id("job");
     let revision_id = new_id("protocol");
     let final_relative_path = meeting_root(&project_id, meeting_id)
@@ -849,9 +852,9 @@ fn generation_metadata(
             "Start your existing Ollama installation before generating a protocol.",
         ));
     }
-    let model = status.selected_model.ok_or(StorageError::InvalidData(
-        "providerModelRequired",
-    ))?;
+    let model = status
+        .selected_model
+        .ok_or(StorageError::InvalidData("providerModelRequired"))?;
     let model_digest = status
         .selected_model_digest
         .ok_or(StorageError::InvalidData(
@@ -902,9 +905,8 @@ fn generation_metadata(
         config.maximum_output_tokens,
         &inputs.meeting_language,
     );
-    let runtime_config_json = serde_json::to_string(&config).map_err(|_| {
-        StorageError::InvalidData("providerConfigNotSaved")
-    })?;
+    let runtime_config_json = serde_json::to_string(&config)
+        .map_err(|_| StorageError::InvalidData("providerConfigNotSaved"))?;
     Ok((
         "ollama",
         runtime_version,
@@ -1088,8 +1090,7 @@ fn execute_generation(
             .as_deref()
             .ok_or_else(|| ProcessingError::Runtime {
                 code: "provider_missing",
-                message: "providerModelRequired"
-                    .into(),
+                message: "providerModelRequired".into(),
             })
             .and_then(|value| {
                 serde_json::from_str(value).map_err(|_| ProcessingError::Runtime {
@@ -2287,7 +2288,12 @@ pub(crate) fn retry_job(
     let generation_snapshot = if kind == "generation" {
         let inputs = repository.protocol_inputs(meeting_id)?;
         Some((
-            generation_metadata(&repository, &inputs, &Default::default(), use_synthetic_adapters())?,
+            generation_metadata(
+                &repository,
+                &inputs,
+                &Default::default(),
+                use_synthetic_adapters(),
+            )?,
             inputs.style.revision,
             inputs.vocabulary_revision,
         ))
@@ -2687,9 +2693,7 @@ fn processing_to_storage(error: ProcessingError) -> StorageError {
         ProcessingError::Cancelled
         | ProcessingError::InjectedFailure
         | ProcessingError::InvalidOutput
-        | ProcessingError::Runtime { .. } => {
-            StorageError::InvalidData("documentOperationFailed")
-        }
+        | ProcessingError::Runtime { .. } => StorageError::InvalidData("documentOperationFailed"),
     }
 }
 
@@ -2883,6 +2887,7 @@ mod recording_contract {
         let mut repository = crate::storage::WorkspaceRepository::open(root).unwrap();
         let project = repository
             .create_project(crate::domain::NewProjectInput {
+                names: Vec::new(),
                 name: "Recorded here".to_string(),
                 description: String::new(),
                 default_language: "German".to_string(),
@@ -3223,6 +3228,7 @@ mod tests {
             let mut repository = WorkspaceRepository::open(&root).unwrap();
             let project = repository
                 .create_project(NewProjectInput {
+                    names: Vec::new(),
                     name: "Synthetic workflow".to_string(),
                     description: "No real meeting data".to_string(),
                     default_language: "English".to_string(),
@@ -3313,7 +3319,13 @@ mod tests {
     fn a_queued_generation_job_stores_each_value_in_its_own_column() {
         let fixture = Fixture::source_ready();
         fixture.transcribe();
-        let (generation, _) = queue_generation(&fixture.root, &fixture.meeting_id, false, &provider::DocumentNotes::english_for_harnesses()).unwrap();
+        let (generation, _) = queue_generation(
+            &fixture.root,
+            &fixture.meeting_id,
+            false,
+            &provider::DocumentNotes::english_for_harnesses(),
+        )
+        .unwrap();
 
         let repository = WorkspaceRepository::open(&fixture.root).unwrap();
         let (style_revision, vocabulary_revision): (Option<String>, Option<String>) = repository
@@ -3426,7 +3438,13 @@ mod tests {
             .unwrap();
         assert!(edited.transcripts[&fixture.meeting_id].is_dirty);
 
-        let (generation, _) = queue_generation(&fixture.root, &fixture.meeting_id, false, &provider::DocumentNotes::english_for_harnesses()).unwrap();
+        let (generation, _) = queue_generation(
+            &fixture.root,
+            &fixture.meeting_id,
+            false,
+            &provider::DocumentNotes::english_for_harnesses(),
+        )
+        .unwrap();
         let committed_input = generation.input_revision_id.clone().unwrap();
         assert_ne!(committed_input, transcript.base_revision_id);
         run_job(
@@ -3487,7 +3505,13 @@ mod tests {
     fn export_reads_verified_working_protocol_without_mutating_lifecycle() {
         let fixture = Fixture::source_ready();
         fixture.transcribe();
-        let (generation, _) = queue_generation(&fixture.root, &fixture.meeting_id, false, &provider::DocumentNotes::english_for_harnesses()).unwrap();
+        let (generation, _) = queue_generation(
+            &fixture.root,
+            &fixture.meeting_id,
+            false,
+            &provider::DocumentNotes::english_for_harnesses(),
+        )
+        .unwrap();
         run_job(
             &fixture.root,
             &generation.id,
@@ -3604,7 +3628,13 @@ mod tests {
             MeetingLifecycle::TranscriptReady
         );
 
-        let (generation, _) = queue_generation(&fixture.root, &fixture.meeting_id, true, &provider::DocumentNotes::english_for_harnesses()).unwrap();
+        let (generation, _) = queue_generation(
+            &fixture.root,
+            &fixture.meeting_id,
+            true,
+            &provider::DocumentNotes::english_for_harnesses(),
+        )
+        .unwrap();
         assert_eq!(
             run_job(
                 &fixture.root,
@@ -3648,7 +3678,13 @@ mod tests {
     fn restoring_an_older_protocol_creates_a_new_draft_revision() {
         let fixture = Fixture::source_ready();
         fixture.transcribe();
-        let (job, _) = queue_generation(&fixture.root, &fixture.meeting_id, false, &provider::DocumentNotes::english_for_harnesses()).unwrap();
+        let (job, _) = queue_generation(
+            &fixture.root,
+            &fixture.meeting_id,
+            false,
+            &provider::DocumentNotes::english_for_harnesses(),
+        )
+        .unwrap();
         run_job(
             &fixture.root,
             &job.id,

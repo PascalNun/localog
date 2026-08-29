@@ -176,9 +176,7 @@ impl Recording {
         system_path: PathBuf,
         microphone_path: PathBuf,
     ) -> Result<Self, String> {
-        let recorder = recorder_path().ok_or_else(|| {
-            "recorderMissing".to_string()
-        })?;
+        let recorder = recorder_path().ok_or_else(|| "recorderMissing".to_string())?;
         sweep_orphans(root);
 
         let mut child = Command::new(&recorder)
@@ -250,7 +248,10 @@ impl Recording {
 
     /// What the recorder has said went wrong, in its own words.
     pub(crate) fn notes(&self) -> Vec<String> {
-        self.notes.lock().map(|held| held.clone()).unwrap_or_default()
+        self.notes
+            .lock()
+            .map(|held| held.clone())
+            .unwrap_or_default()
     }
 
     /// Whether the recorder is still running, which is not the same as having been

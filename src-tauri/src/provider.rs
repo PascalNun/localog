@@ -38,7 +38,10 @@ pub enum ProviderError {
     /// 29 August 2026, which was a category error with a consequence — the two
     /// numbers a person needs in order to act travelled as free prose in the one
     /// variant whose prose is otherwise correction text written for a model.
-    BeyondOneAnswer { expected: usize, ceiling: usize },
+    BeyondOneAnswer {
+        expected: usize,
+        ceiling: usize,
+    },
 }
 
 impl ProviderError {
@@ -3848,7 +3851,11 @@ mod tests {
     fn a_protocol_with_no_gaps_is_left_exactly_as_written() {
         let markdown = "# Protokoll\n\n## 1. Thema\n\nInhalt.\n".to_string();
         assert_eq!(
-            append_gap_notice(markdown.clone(), &[], &DocumentNotes::english_for_harnesses()),
+            append_gap_notice(
+                markdown.clone(),
+                &[],
+                &DocumentNotes::english_for_harnesses()
+            ),
             markdown
         );
     }
@@ -3892,11 +3899,7 @@ mod tests {
                 reason: "b".into(),
             },
         ];
-        let out = append_gap_notice(
-            "# P".into(),
-            &gaps,
-            &DocumentNotes::english_for_harnesses(),
-        );
+        let out = append_gap_notice("# P".into(), &gaps, &DocumentNotes::english_for_harnesses());
         assert!(out.contains("0:00 – 1:00"));
         assert!(out.contains("1:00:00 – 1:02:00"), "past an hour: {out}");
         assert!(out.contains("Several stretches"));
@@ -4099,7 +4102,10 @@ mod tests {
         .expect("the protocol from the first attempt is still a protocol");
 
         assert_eq!(answer, "a whole protocol, lacking only its table");
-        assert!(!within, "and it is still reported as not what was asked for");
+        assert!(
+            !within,
+            "and it is still reported as not what was asked for"
+        );
         assert_eq!(tries, 2, "it stopped once the retry failed");
     }
 
@@ -4155,16 +4161,46 @@ mod tests {
                 let Ok((mut stream, _)) = listener.accept() else {
                     break;
                 };
-                let mut buffer = [0_u8; 8192];
-                match stream.read(&mut buffer) {
-                    Ok(0) | Err(_) => break,
-                    Ok(_) => {}
+                if read_whole_request(&mut stream).is_none() {
+                    break;
                 }
                 served += 1;
                 write_http_response(&mut stream, body.as_bytes());
             }
             served
         })
+    }
+
+    /// Read a request in full — headers, and the body its `Content-Length` declares.
+    ///
+    /// Reading once and replying is what the first version did, and it is a race
+    /// rather than a shortcut: the client is still writing its body when the reply
+    /// arrives and the socket closes, so the run fails with a connection reset that
+    /// has nothing to do with what is being tested. It passed for a while and then
+    /// did not, which is the worst way for a test to be wrong.
+    ///
+    /// `None` means the peer sent nothing, which is how the test unblocks an accept
+    /// still waiting after the client asked fewer times than expected.
+    fn read_whole_request(stream: &mut std::net::TcpStream) -> Option<()> {
+        let mut buffer: Vec<u8> = Vec::new();
+        let mut chunk = [0_u8; 4096];
+        loop {
+            if let Some(at) = buffer.windows(4).position(|window| window == b"\r\n\r\n") {
+                let head = String::from_utf8_lossy(&buffer[..at]).to_lowercase();
+                let length = head
+                    .lines()
+                    .find_map(|line| line.strip_prefix("content-length:"))
+                    .and_then(|value| value.trim().parse::<usize>().ok())
+                    .unwrap_or(0);
+                if buffer.len() >= at + 4 + length {
+                    return Some(());
+                }
+            }
+            match stream.read(&mut chunk) {
+                Ok(0) | Err(_) => return None,
+                Ok(read) => buffer.extend_from_slice(&chunk[..read]),
+            }
+        }
     }
 
     /// A meeting long enough to be worth 200 characters of protocol, which is the

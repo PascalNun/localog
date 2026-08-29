@@ -1,9 +1,10 @@
 use crate::domain::{
     DocumentAppearance, FurnitureField, FurnitureRow, JobErrorSummary, JobState, JobSummary,
-    MeetingLifecycle, MeetingSummary, NewMeetingInput, NewProjectInput, PageFurniture, PageWidth,
-    ProjectSummary, ProtocolDensity, ProtocolDocument, ProtocolEvidence, ProtocolRevisionSummary,
-    ProtocolStyle, Scale, Spacing, SpeakerResolution, StructuralExpectation, TranscriptDocument,
-    TranscriptSegment, VocabularyDraft, VocabularyEntry, WorkspaceSnapshot,
+    MeetingLifecycle, MeetingSummary, NewMeetingInput, NewProjectInput, NewProjectName,
+    PageFurniture, PageWidth, ProjectSummary, ProtocolDensity, ProtocolDocument, ProtocolEvidence,
+    ProtocolRevisionSummary, ProtocolStyle, Scale, Spacing, SpeakerResolution,
+    StructuralExpectation, TranscriptDocument, TranscriptSegment, VocabularyDraft, VocabularyEntry,
+    WorkspaceSnapshot,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
@@ -331,9 +332,7 @@ impl WorkspaceRepository {
                 protocol_style_from_row,
             )
             .optional()?
-            .ok_or(StorageError::InvalidData(
-                "styleUnavailable",
-            ))?;
+            .ok_or(StorageError::InvalidData("styleUnavailable"))?;
         let vocabulary = self.list_vocabulary_for_project(&project_id)?;
         let resolved_vocabulary: Vec<ResolvedVocabularyEntry> = vocabulary
             .iter()
@@ -484,8 +483,8 @@ impl WorkspaceRepository {
             .iter()
             .filter(|instruction| !instruction.trim().is_empty())
             .collect();
-        let json = serde_json::to_string(&kept)
-            .map_err(|_| StorageError::InvalidData("styleNotSaved"))?;
+        let json =
+            serde_json::to_string(&kept).map_err(|_| StorageError::InvalidData("styleNotSaved"))?;
         let changed = self.connection.execute(
             "UPDATE protocol_styles
                 SET name = ?1, description = ?2, instructions_json = ?3, density = ?4,
@@ -507,9 +506,7 @@ impl WorkspaceRepository {
             |row| row.get(0),
         )?;
         if in_use > 0 {
-            return Err(StorageError::InvalidData(
-                "styleUsedByMeeting",
-            ));
+            return Err(StorageError::InvalidData("styleUsedByMeeting"));
         }
         let projects: i64 = self.connection.query_row(
             "SELECT COUNT(*) FROM projects WHERE default_style_id = ?1 AND archived_at_ms IS NULL",
@@ -517,9 +514,7 @@ impl WorkspaceRepository {
             |row| row.get(0),
         )?;
         if projects > 0 {
-            return Err(StorageError::InvalidData(
-                "styleUsedByProject",
-            ));
+            return Err(StorageError::InvalidData("styleUsedByProject"));
         }
         let changed = self
             .connection
@@ -593,9 +588,7 @@ impl WorkspaceRepository {
             [template_id],
         )?;
         if changed == 0 {
-            return Err(StorageError::InvalidData(
-                "presetBuiltInUndeletable",
-            ));
+            return Err(StorageError::InvalidData("presetBuiltInUndeletable"));
         }
         Ok(())
     }
@@ -631,9 +624,7 @@ impl WorkspaceRepository {
             params![json, unix_time_millis(), meeting_id],
         )?;
         if changed == 0 {
-            return Err(StorageError::InvalidData(
-                "protocolNeededBeforeSetAside",
-            ));
+            return Err(StorageError::InvalidData("protocolNeededBeforeSetAside"));
         }
         Ok(())
     }
@@ -647,9 +638,7 @@ impl WorkspaceRepository {
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .optional()?
-            .ok_or(StorageError::InvalidData(
-                "protocolNeededBeforeExport",
-            ))?;
+            .ok_or(StorageError::InvalidData("protocolNeededBeforeExport"))?;
         read_verified_artifact(&self.root, &path, &checksum)
     }
 
@@ -743,16 +732,38 @@ impl WorkspaceRepository {
 
     pub fn create_project(&mut self, input: NewProjectInput) -> Result<ProjectSummary> {
         let name = required_text(&input.name, 200, "projectNameRequired")?;
-        let description = optional_text(&input.description, 2_000, "The description is too long.")?;
-        let default_language = required_text(
-            &input.default_language,
-            64,
-            "Choose a valid default meeting language.",
-        )?;
+        let description = optional_text(&input.description, 2_000, "descriptionTooLong")?;
+        let default_language =
+            required_text(&input.default_language, 64, "meetingLanguageInvalid")?;
+
+        // Every name is validated before anything at all is written. A term too long
+        // or a category missing must not leave behind a project the person then has
+        // to go and find and delete, having been told only that one word was wrong.
+        //
+        // Deduplicated here as well as in the interface, without regard to case,
+        // because this is the layer that must not store the same term twice: a
+        // duplicate spends part of the transcriber's short prompt saying one thing
+        // twice, and `save_vocabulary_entry` refuses one for that reason.
+        let mut seen: Vec<String> = Vec::new();
+        let mut names: Vec<(String, String)> = Vec::new();
+        for entry in &input.names {
+            let term = required_text(&entry.term, 200, "termRequired")?;
+            let category = required_text(&entry.category, 64, "categoryRequired")?;
+            let key = term.to_lowercase();
+            if seen.contains(&key) {
+                continue;
+            }
+            seen.push(key);
+            names.push((term, category));
+        }
+
         let id = new_id("project");
         let now = unix_time_millis();
 
-        self.connection.execute(
+        // One transaction, so a project and the names it was created with either both
+        // exist or neither does.
+        let transaction = self.connection.transaction()?;
+        transaction.execute(
             "INSERT INTO projects (
                 id, name, description, default_language, default_style_id,
                 created_at_ms, updated_at_ms
@@ -766,6 +777,16 @@ impl WorkspaceRepository {
                 now
             ],
         )?;
+        for (term, category) in &names {
+            transaction.execute(
+                "INSERT INTO vocabulary_entries
+                    (id, term, preferred_spelling, category, scope, project_id,
+                     enabled, revision, updated_at_ms)
+                 VALUES (?1, ?2, ?2, ?3, 'Project', ?4, 1, 1, ?5)",
+                params![new_id("vocabulary"), term, category, id, now],
+            )?;
+        }
+        transaction.commit()?;
 
         self.project_by_id(&id)?.ok_or(StorageError::MissingProject)
     }
@@ -1279,9 +1300,7 @@ impl WorkspaceRepository {
                 protocol_style_from_row,
             )
             .optional()?
-            .ok_or(StorageError::InvalidData(
-                "styleUnavailable",
-            ))?;
+            .ok_or(StorageError::InvalidData("styleUnavailable"))?;
         let (name, description, edited): (String, String, i64) = self.connection.query_row(
             "SELECT name, description, revision FROM protocol_styles WHERE id = ?1",
             [style_id],
@@ -3183,9 +3202,7 @@ fn required_source_path(value: Option<&str>) -> Result<String> {
     ))?;
     let path = required_text(value, 32_768, "sourceRecordingInvalid")?;
     if !Path::new(&path).is_absolute() {
-        return Err(StorageError::InvalidData(
-            "sourceRecordingInvalid",
-        ));
+        return Err(StorageError::InvalidData("sourceRecordingInvalid"));
     }
     Ok(path)
 }
@@ -3499,6 +3516,7 @@ mod tests {
 
     fn project_input() -> NewProjectInput {
         NewProjectInput {
+            names: Vec::new(),
             name: "Synthetic civic study".to_string(),
             description: "Synthetic repository fixture".to_string(),
             default_language: "English".to_string(),
@@ -3771,6 +3789,7 @@ mod tests {
     fn project_with_meeting(repository: &mut WorkspaceRepository, root: &Path) -> (String, String) {
         let project = repository
             .create_project(NewProjectInput {
+                names: Vec::new(),
                 name: "Beispielquartier".to_string(),
                 description: String::new(),
                 default_language: "German".to_string(),
@@ -4236,6 +4255,92 @@ mod tests {
         // The project's own name comes first despite sorting later alphabetically,
         // and a disabled entry never reaches the runtime.
         assert_eq!(terms, vec!["NORVEK".to_string(), "Zzz Global".to_string()]);
+    }
+
+    /// The whole point of asking at creation: the names have to reach the
+    /// transcriber, in the order that survives a trim, without anybody visiting the
+    /// Names & terms screen. The mechanism was always there; nothing ever filled it.
+    #[test]
+    fn names_given_when_a_project_is_created_reach_the_transcriber() {
+        let temporary = tempdir().unwrap();
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let project = repository
+            .create_project(NewProjectInput {
+                names: vec![
+                    // Deliberately typed out of order, and with a repeat in a
+                    // different case, which is what a form actually receives.
+                    NewProjectName {
+                        term: "Tragwerk".into(),
+                        category: "Technical term".into(),
+                    },
+                    NewProjectName {
+                        term: "Halde".into(),
+                        category: "Person".into(),
+                    },
+                    NewProjectName {
+                        term: "HOAI".into(),
+                        category: "Organisation".into(),
+                    },
+                    NewProjectName {
+                        term: "hoai".into(),
+                        category: "Organisation".into(),
+                    },
+                ],
+                ..project_input()
+            })
+            .unwrap();
+        let source = temporary.path().join("names-fixture.wav");
+        fs::write(&source, b"synthetic").unwrap();
+        let meeting = repository
+            .create_meeting(NewMeetingInput {
+                project_id: project.id.clone(),
+                title: "Jour fixe".to_string(),
+                occurred_at: "2026-08-06".to_string(),
+                language: "German".to_string(),
+                source_name: "names-fixture.wav".to_string(),
+                source_path: Some(source.to_string_lossy().into_owned()),
+                style_id: "style-formal".to_string(),
+            })
+            .unwrap()
+            .id;
+
+        let terms = repository.transcription_vocabulary(&meeting).unwrap();
+        assert_eq!(
+            terms,
+            vec![
+                "Halde".to_string(),
+                "HOAI".to_string(),
+                "Tragwerk".to_string()
+            ],
+            "people first, then organisations, then general terms — and the repeat once"
+        );
+    }
+
+    /// A term this layer refuses must not leave a project behind that somebody then
+    /// has to find and delete, having been told only that one word was wrong.
+    #[test]
+    fn a_project_is_not_created_at_all_if_one_of_its_names_is_refused() {
+        let temporary = tempdir().unwrap();
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let refused = repository.create_project(NewProjectInput {
+            names: vec![
+                NewProjectName {
+                    term: "Halde".into(),
+                    category: "Person".into(),
+                },
+                NewProjectName {
+                    term: "x".repeat(400),
+                    category: "Person".into(),
+                },
+            ],
+            ..project_input()
+        });
+
+        assert!(refused.is_err());
+        assert!(
+            repository.list_projects().unwrap().is_empty(),
+            "nothing at all should have been written"
+        );
     }
 
     #[test]

@@ -228,9 +228,7 @@ async fn configure_transcription_runtime(
     with_repository(storage.root.clone(), move |repository| {
         let executable = PathBuf::from(&executable_path);
         if !executable.is_absolute() || !executable.is_file() {
-            return Err(storage::StorageError::InvalidData(
-                "whisperPathInvalid",
-            ));
+            return Err(storage::StorageError::InvalidData("whisperPathInvalid"));
         }
         repository.write_setting("transcription.whisperExecutable", &executable_path)?;
         Ok(runtime_status(repository))
@@ -558,9 +556,7 @@ async fn configure_speaker_runtime(
     with_repository(storage.root.clone(), move |repository| {
         let executable = PathBuf::from(&executable_path);
         if !executable.is_absolute() || !executable.is_file() {
-            return Err(storage::StorageError::InvalidData(
-                "diariserPathInvalid",
-            ));
+            return Err(storage::StorageError::InvalidData("diariserPathInvalid"));
         }
         repository.write_setting("diarisation.executable", &executable_path)?;
         Ok(speaker_status(repository))
@@ -663,9 +659,7 @@ async fn configure_protocol_provider(
         if let Some(model_name) = model.as_deref() {
             let status = provider::OllamaProvider::loopback().status(None);
             if !status.server_reachable {
-                return Err(storage::StorageError::InvalidData(
-                    "providerNeededForModel",
-                ));
+                return Err(storage::StorageError::InvalidData("providerNeededForModel"));
             }
             if !status
                 .models
@@ -1446,9 +1440,7 @@ async fn apply_appearance_preset(
             .list_appearance_presets()?
             .into_iter()
             .find(|candidate| candidate.id == template_id)
-            .ok_or(storage::StorageError::InvalidData(
-                "presetMissing",
-            ))?;
+            .ok_or(storage::StorageError::InvalidData("presetMissing"))?;
         repository.set_project_appearance(&project_id, &template.appearance)?;
         repository.set_project_furniture(&project_id, &template.furniture)?;
         repository.workspace_snapshot()

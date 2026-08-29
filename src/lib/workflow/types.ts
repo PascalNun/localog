@@ -1,3 +1,4 @@
+import type { TypedName } from './names';
 // Stable document readiness and transient execution are deliberately separate domain axes.
 export type MeetingLifecycle =
   'draft' | 'source_ready' | 'transcript_ready' | 'protocol_draft' | 'reviewed' | 'archived';
@@ -533,6 +534,15 @@ export interface NewProjectInput {
   name: string;
   description: string;
   defaultLanguage: string;
+  /**
+   * The names this project's meetings will use, asked for as it is created.
+   *
+   * Part of creating the project rather than a step afterwards: the mechanism for
+   * using them has always existed and the asking is what was missing, so somebody
+   * who makes a project, records a meeting and presses go got a transcript with
+   * every proper noun wrong.
+   */
+  names: TypedName[];
 }
 
 export interface NewMeetingInput {

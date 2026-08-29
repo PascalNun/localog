@@ -189,6 +189,7 @@ describe('FakeWorkflowBridge', () => {
       name: createdProject.name,
       description: createdProject.description,
       defaultLanguage: createdProject.defaultLanguage,
+      names: [],
     });
 
     expect(store.createProject).toHaveBeenCalledOnce();
