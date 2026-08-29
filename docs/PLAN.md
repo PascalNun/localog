@@ -896,6 +896,20 @@ the thing they describe rather than by remembering it.
   criterion asks for recorded German **and English quality evidence**, is untouched by
   this work, and is still open.
 
+  **And a correction to the entry itself, 29 August.** It was not done on the 28th.
+  The sweep that produced those 735 keys was driven by an extractor matching text
+  between a `>` and a `<`, so it never saw a string inside a `{...}` expression, a
+  `title=` or `aria-label=` attribute, or either arm of a ternary — and that is where
+  a great deal of the interface lived. Ninety-one more keys were needed: the theme
+  button's three spoken labels, every autosave state in both editors, the sidebar's
+  account of what it is doing, the speaker control's explanation of its three
+  answers, the export announcements, the vocabulary editor. 826 now.
+
+  The lesson is the one this document keeps recording in different clothes: **each
+  sweep found a construct the previous one could not see, so only a count taken after
+  the tool stops finding anything is worth writing down.** The check that actually
+  closed it was the running application in German, screen by screen, not a grep.
+
 - The application is not signed. It is ad-hoc signed, which runs here and is refused
   on anybody else's Mac, and there is no Developer ID on this machine. This is the
   whole of what stands between the current bundle and handing it to somebody. The
