@@ -665,6 +665,9 @@ export const de: Strings = {
   },
 
   transcript: {
+    spellingsToCheck: (count: number) =>
+      count === 1 ? '1 Schreibweise zum Prüfen' : `${count} Schreibweisen zum Prüfen`,
+    questionedByProtocol: 'das Protokoll kennt dieses Wort nicht',
     autosaveFailed:
       'Automatisches Speichern fehlgeschlagen — Ihr zuletzt gespeicherter Stand ist unversehrt',
     correctCount: (count: number) => `${count} korrigieren`,
@@ -742,7 +745,7 @@ export const de: Strings = {
     whoIsHere: 'Wer ist in dieser Besprechung',
     close: 'Schließen',
     aboutAMinute: 'Etwa eine Minute. Solange kann nichts anderes laufen.',
-    unsureNames: 'Namen, bei denen die Transkription unsicher war',
+    unsureNames: 'Namen, die einen zweiten Blick verdienen',
     whatShouldItSay: 'Wie soll es heißen?',
     rememberForProject:
       'Für dieses Projekt merken, damit die nächste Besprechung es richtig schreibt',

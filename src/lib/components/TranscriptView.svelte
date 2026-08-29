@@ -791,7 +791,7 @@
               >
             </div>
           {:else if candidates.length}
-            <h3>{candidates.length} never got right</h3>
+            <h3>{$t.transcript.spellingsToCheck(candidates.length)}</h3>
             <p>{$t.transcript.areAnyNames}</p>
             <ul class="correction-candidates">
               {#each candidates as candidate (candidate.heard)}
@@ -800,6 +800,13 @@
                     <span class="candidate-word">{candidate.heard}</span>
                     <span class="candidate-count">{candidate.occurrences}×</span>
                     <span class="candidate-context">{candidate.context}</span>
+                    <!-- Said only for these, because they are the ones that look
+                         right. A garbled word explains itself; a plain wrong spelling
+                         the transcriber was confident about needs a reason for being
+                         in this list at all. -->
+                    {#if candidate.questioned}<span class="candidate-questioned"
+                        >{$t.transcript.questionedByProtocol}</span
+                      >{/if}
                   </button>
                 </li>
               {/each}

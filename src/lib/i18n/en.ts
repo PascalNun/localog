@@ -666,6 +666,15 @@ export const en = {
   },
 
   transcript: {
+    /**
+     * The heading over the spellings worth checking. It used to read "N never got
+     * right", which stopped being true when the protocol model's own doubts joined
+     * the list: those are words the transcriber was perfectly sure of.
+     */
+    spellingsToCheck: (count: number) =>
+      count === 1 ? '1 spelling worth checking' : `${count} spellings worth checking`,
+    /** Beside a word the protocol model said it did not recognise. */
+    questionedByProtocol: 'the protocol did not recognise this',
     autosaveFailed: 'Autosave failed — your last saved work is intact',
     correctCount: (count: number) => `Correct ${count}`,
     audioCouldNotLoad: 'This meeting’s working audio could not be loaded.',
@@ -740,7 +749,12 @@ export const en = {
     whoIsHere: 'Who is in this meeting',
     close: 'Close',
     aboutAMinute: 'About a minute. Nothing else can run meanwhile.',
-    unsureNames: 'Names the transcriber was unsure of',
+    /**
+     * Was 'Names the transcriber was unsure of', which stopped being true when the
+     * protocol model's own doubts joined this list: those are words the transcriber
+     * was perfectly confident about, and they are the dangerous ones.
+     */
+    unsureNames: 'Names worth a second look',
     whatShouldItSay: 'What should it say?',
     rememberForProject: 'Remember for this project, so the next meeting spells it correctly',
     areAnyNames: 'Are any of these names? Correcting one repairs this transcript and remembers it.',

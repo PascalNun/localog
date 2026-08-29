@@ -3136,6 +3136,16 @@ button.review-summary[aria-pressed='true'] {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A line of its own under the context, because it is a reason rather than a label.
+   The word above it looks perfectly correct — that is the whole point of it being
+   here — so this says who doubted it. Quiet, like every other status in this
+   application: it is a thing to notice, not a warning. */
+.candidate-questioned {
+  grid-column: 1 / -1;
+  font-size: 0.72rem;
+  font-style: italic;
+  opacity: 0.75;
+}
 .correction-field {
   display: flex;
   flex-direction: column;

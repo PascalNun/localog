@@ -625,7 +625,7 @@ fn what_the_extractor_offers() {
         segments.len()
     );
 
-    let candidates = crate::corrections::name_candidates(&segments);
+    let candidates = crate::corrections::name_candidates(&segments, "");
     println!("\n{} offered:\n", candidates.len());
     for candidate in &candidates {
         println!(

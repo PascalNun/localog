@@ -811,23 +811,44 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   async findNameCandidates(meetingId: string): Promise<NameCandidate[]> {
     if (this.workspaceStore) return this.workspaceStore.findNameCandidates(meetingId);
     return [
+      // One of them stands for the class only the protocol's own notes can reach: a
+      // spelling the transcriber was perfectly confident about and wrong.
+      {
+        heard: 'Klinker-Nord',
+        occurrences: 5,
+        context: '…agreed with Klinker-Nord at the last review…',
+        questioned: true,
+      },
       {
         heard: 'Prüfstelle',
         occurrences: 7,
         context: '…confirmed with Prüfstelle before the review…',
+        questioned: false,
       },
       {
         heard: 'Junktion',
         occurrences: 4,
         context: '…the Junktion detail remains serviceable…',
+        questioned: false,
       },
       {
         heard: 'Fachplanung',
         occurrences: 3,
         context: '…Fachplanung will circulate both items…',
+        questioned: false,
       },
-      { heard: 'ansonst', occurrences: 2, context: '…und ansonst bleibt es dabei…' },
-      { heard: 'kanopie', occurrences: 2, context: '…die kanopie über dem Eingang…' },
+      {
+        heard: 'ansonst',
+        occurrences: 2,
+        context: '…und ansonst bleibt es dabei…',
+        questioned: false,
+      },
+      {
+        heard: 'kanopie',
+        occurrences: 2,
+        context: '…die kanopie über dem Eingang…',
+        questioned: false,
+      },
     ];
   }
 

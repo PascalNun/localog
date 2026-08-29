@@ -73,6 +73,13 @@ pub(crate) struct Candidate {
     /// One place it appears, because a mis-heard word is unfamiliar by definition
     /// and cannot be recognised without its sentence.
     pub context: String,
+    /// Whether the model writing the protocol said it did not recognise this.
+    ///
+    /// Worth telling the reader apart from the rest, because these are the ones that
+    /// *look* right. A garbled word explains itself on sight; a plain wrong spelling
+    /// the transcriber was confident about needs somebody to be told why it is being
+    /// offered at all.
+    pub questioned: bool,
 }
 
 /// How many candidates are worth offering.
@@ -103,7 +110,10 @@ const LEAST_LETTERS: usize = 4;
 ///
 /// It cannot catch a name the transcriber was confident about and wrong — nothing
 /// reading confidence can. Those turn up in the protocol model's own notes instead.
-pub(crate) fn name_candidates(segments: &[TranscriptSegment]) -> Vec<Candidate> {
+pub(crate) fn name_candidates(
+    segments: &[TranscriptSegment],
+    protocol_markdown: &str,
+) -> Vec<Candidate> {
     let mut heard: HashMap<String, usize> = HashMap::new();
     let mut unsure: HashMap<String, usize> = HashMap::new();
     let mut first_seen: HashMap<String, (usize, usize)> = HashMap::new();
@@ -138,6 +148,7 @@ pub(crate) fn name_candidates(segments: &[TranscriptSegment]) -> Vec<Candidate> 
                     .to_string(),
                 occurrences: heard.get(word).copied().unwrap_or(0),
                 context: around(&segment.text, at, spelled.len()),
+                questioned: false,
             })
         })
         .filter(|candidate| candidate.heard.chars().count() >= LEAST_LETTERS)
@@ -150,8 +161,171 @@ pub(crate) fn name_candidates(segments: &[TranscriptSegment]) -> Vec<Candidate> 
             .cmp(&left.occurrences)
             .then_with(|| left.heard.cmp(&right.heard))
     });
+
+    // The names the protocol model questioned go in front, and before the truncation.
+    //
+    // Not because there are many — four drafts in thirteen carried one — but because
+    // they are the only ones nothing else can find, and a list cut to twelve must not
+    // drop the one entry that had no other way of getting here.
+    for name in names_the_protocol_questioned(protocol_markdown) {
+        if let Some(already) = candidates
+            .iter_mut()
+            .find(|candidate| candidate.heard.eq_ignore_ascii_case(&name))
+        {
+            already.questioned = true;
+            continue;
+        }
+        // Only a word the transcript actually contains. A model quoting something it
+        // invented must not become a spelling somebody is invited to correct, and
+        // without a place in the transcript there would be nothing to show them.
+        let Some(placed) = place_in_transcript(segments, &name) else {
+            continue;
+        };
+        candidates.insert(0, placed);
+    }
+
     candidates.truncate(MOST_CANDIDATES);
     candidates
+}
+
+/// A name, counted and placed in the transcript that used it.
+///
+/// `None` when the transcript never says it, which is the filter that keeps a model's
+/// invention out of a list of spellings to correct.
+fn place_in_transcript(segments: &[TranscriptSegment], name: &str) -> Option<Candidate> {
+    let wanted = name.to_lowercase();
+    let mut occurrences = 0;
+    let mut first: Option<(usize, usize, usize)> = None;
+    for (index, segment) in segments.iter().enumerate() {
+        for (at, word) in words(&segment.text) {
+            if word.to_lowercase() == wanted {
+                occurrences += 1;
+                first.get_or_insert((index, at, word.len()));
+            }
+        }
+    }
+    let (index, at, length) = first?;
+    let segment = segments.get(index)?;
+    Some(Candidate {
+        heard: name.to_string(),
+        occurrences,
+        context: around(&segment.text, at, length),
+        questioned: true,
+    })
+}
+
+/// Names the protocol model itself questioned, taken from what it already wrote.
+///
+/// A transcriber's confidence cannot flag an error it is confident about, and that is
+/// the dangerous class: a plain wrong spelling reaches a client's inbox looking
+/// correct, while the catastrophically mangled form gets flagged and fixed. The model
+/// writing the protocol does sometimes notice, unprompted. Found by accident at the
+/// foot of a draft, about the client's own name:
+///
+/// ```text
+/// [Note: The term "Klinker-Nord" is used in the source text; it is unclear if
+/// this refers to a specific project name or location.]
+/// ```
+///
+/// whisper had flagged the mangled `Lärgedorf-Bildes-Fropette-Reit` and not this,
+/// because it was confident about it. So this is the only one of the three sources of
+/// candidates that can see this class at all, and it costs nothing: the notes are
+/// already written.
+///
+/// **Read by punctuation rather than by words**, for the reason the actions-table
+/// check is read that way. A bracket and a quotation mark look the same in German; a
+/// pattern matching "it is unclear" would find nothing in the language this product
+/// is actually for. What is looked for is a bracketed aside holding a quoted term —
+/// which is the shape of the note, in any language the model writes it in.
+///
+/// Weak on its own, and that is fine. Four drafts in thirteen carried such a note,
+/// each naming one thing.
+pub(crate) fn names_the_protocol_questioned(markdown: &str) -> Vec<String> {
+    let mut found: Vec<String> = Vec::new();
+    for aside in bracketed_asides(markdown) {
+        for quoted in quoted_runs(aside) {
+            let term = quoted
+                .trim()
+                .trim_matches(|glyph: char| !glyph.is_alphanumeric());
+            if !looks_like_a_name(term) {
+                continue;
+            }
+            if !found.iter().any(|kept| kept.eq_ignore_ascii_case(term)) {
+                found.push(term.to_string());
+            }
+        }
+    }
+    found
+}
+
+/// The `[...]` spans, minus the ones that are markdown links.
+///
+/// A link is `[text](url)`, so a bracket followed by a parenthesis is not an aside.
+/// Nesting is not handled and does not need to be: a note about a name does not
+/// contain another bracket, and the worst case of getting it wrong is one candidate
+/// too many in a list somebody is reading anyway.
+fn bracketed_asides(markdown: &str) -> Vec<&str> {
+    let bytes = markdown.as_bytes();
+    let mut asides = Vec::new();
+    let mut opened: Option<usize> = None;
+    for (at, glyph) in markdown.char_indices() {
+        match glyph {
+            '[' => opened = Some(at + 1),
+            ']' => {
+                if let Some(from) = opened.take() {
+                    let is_link = bytes.get(at + 1) == Some(&b'(');
+                    if !is_link && at > from {
+                        asides.push(&markdown[from..at]);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    asides
+}
+
+/// What sits between a pair of quotation marks, in the several shapes they take.
+///
+/// German writes `„so"` and sometimes `»so«`; English writes `"so"` or `“so”`. The
+/// straight apostrophe is deliberately not a quotation mark here, because it is far
+/// more often a possessive than a quotation.
+fn quoted_runs(text: &str) -> Vec<&str> {
+    const PAIRS: [(char, &[char]); 5] = [
+        ('"', &['"']),
+        ('\u{201c}', &['\u{201d}', '\u{201c}']),
+        ('\u{201e}', &['\u{201c}', '\u{201d}', '"']),
+        ('\u{bb}', &['\u{ab}']),
+        ('\u{ab}', &['\u{bb}']),
+    ];
+    let mut runs = Vec::new();
+    let mut opened: Option<(usize, &[char])> = None;
+    for (at, glyph) in text.char_indices() {
+        match opened {
+            Some((from, closers)) if closers.contains(&glyph) => {
+                if at > from {
+                    runs.push(&text[from..at]);
+                }
+                opened = None;
+            }
+            Some(_) => {}
+            None => {
+                if let Some((_, closers)) = PAIRS.iter().find(|(open, _)| *open == glyph) {
+                    opened = Some((at + glyph.len_utf8(), closers));
+                }
+            }
+        }
+    }
+    runs
+}
+
+/// Whether a quoted run is plausibly a name rather than a sentence.
+///
+/// Models quote whole clauses as readily as words, and a clause offered as a spelling
+/// to correct is noise in a list whose whole value is that it is short.
+fn looks_like_a_name(term: &str) -> bool {
+    let letters = term.chars().filter(|glyph| glyph.is_alphabetic()).count();
+    letters >= LEAST_LETTERS && term.chars().count() <= 60 && term.split_whitespace().count() <= 4
 }
 
 /// Words of a passage, with where each one starts.
@@ -451,7 +625,7 @@ mod tests {
             doubted("d", "Die Wohnungen sind fertig.", &[]),
             doubted("e", "Wohnungen überall.", &[]),
         ];
-        let found = name_candidates(&segments);
+        let found = name_candidates(&segments, "");
 
         assert_eq!(found.len(), 1, "{found:?}");
         assert_eq!(found[0].heard, "Trakwerk");
@@ -459,10 +633,96 @@ mod tests {
         assert!(found[0].context.contains("Trakwerk"), "{:?}", found[0]);
     }
 
+    /// The class nothing else can reach. whisper flagged the mangled form of this
+    /// client's name and not the plain wrong spelling, because it was confident about
+    /// it — and a confidently wrong name is the one that reaches a client's inbox
+    /// looking correct.
+    #[test]
+    fn a_name_the_transcriber_was_sure_of_is_found_in_the_protocols_own_note() {
+        let segments = vec![
+            doubted("a", "Klinker-Nord hat zugestimmt.", &[]),
+            doubted("b", "Der Termin mit Klinker-Nord steht.", &[]),
+        ];
+        let protocol = "## Beschluss\n\nEs bleibt dabei.\n\n[Note: The term \
+             \"Klinker-Nord\" is used in the source text; it is unclear if this \
+             refers to a specific project name or location.]";
+
+        let found = name_candidates(&segments, protocol);
+
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!(found[0].heard, "Klinker-Nord");
+        assert_eq!(
+            found[0].occurrences, 2,
+            "counted in the transcript, not the note"
+        );
+        assert!(
+            found[0].questioned,
+            "and shown as the model's doubt, not whisper's"
+        );
+        assert!(found[0].context.contains("Klinker-Nord"));
+    }
+
+    /// The reason it is read by punctuation. A note written in German shares no words
+    /// with the English one, and this product is for German offices — a pattern
+    /// matching "it is unclear" would find nothing where it matters most.
+    #[test]
+    fn the_same_note_written_in_german_is_read_just_as_well() {
+        let segments = vec![
+            doubted("a", "Die Nukera liefert die Bauteile.", &[]),
+            doubted("b", "Nukera bestätigt den Termin.", &[]),
+        ];
+        let protocol = "## Beschluss\n\n[Anmerkung: Der Begriff „Nukera“ kommt im \
+             Ausgangstext vor; unklar, ob damit eine Firma gemeint ist.]";
+
+        let found = name_candidates(&segments, protocol);
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!(found[0].heard, "Nukera");
+        assert!(found[0].questioned);
+    }
+
+    /// The filter that keeps a model's invention out of a list of spellings somebody
+    /// is invited to apply to their own record.
+    #[test]
+    fn a_name_the_transcript_never_says_is_not_offered() {
+        let segments = vec![doubted("a", "Die Fassade bleibt.", &[])];
+        let protocol = "[Note: \"Marchetti-Sauer\" may be a firm.]";
+        assert!(name_candidates(&segments, protocol).is_empty());
+    }
+
+    /// Both sources finding the same word is one entry, marked as questioned. Two
+    /// rows for one spelling would read as two different problems.
+    #[test]
+    fn a_word_both_sources_find_is_offered_once() {
+        let segments = vec![
+            doubted("a", "Das Trakwerk liegt darüber.", &["Trakwerk"]),
+            doubted("b", "Das Trakwerk bleibt so.", &["Trakwerk"]),
+        ];
+        let found = name_candidates(&segments, "[Note: \"Trakwerk\" is unfamiliar.]");
+
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!(found[0].questioned);
+        assert_eq!(found[0].occurrences, 2);
+    }
+
+    #[test]
+    fn what_the_protocol_questioned_is_read_without_being_fooled_by_prose() {
+        // A markdown link is not an aside, and a quoted clause is not a name.
+        let markdown = "See [the note](https://example.invalid/\"x\") and \
+             [Note: \"the entire discussion of the facade was hard to follow\"] and \
+             [Note: \"ab\" is short] and [Note: \"HOAI\" is unfamiliar.]";
+        assert_eq!(names_the_protocol_questioned(markdown), vec!["HOAI"]);
+    }
+
+    #[test]
+    fn a_protocol_with_no_notes_at_all_adds_nothing() {
+        assert!(names_the_protocol_questioned("# Protokoll\n\nEs wurde gesprochen.").is_empty());
+        assert!(names_the_protocol_questioned("").is_empty());
+    }
+
     #[test]
     fn a_word_heard_once_is_a_stumble_rather_than_a_name() {
         let segments = vec![doubted("a", "Ein Propositionen hier.", &["Propositionen"])];
-        assert!(name_candidates(&segments).is_empty());
+        assert!(name_candidates(&segments, "").is_empty());
     }
 
     #[test]
@@ -472,7 +732,7 @@ mod tests {
             doubted("b", "Nukera und Trakwerk.", &["Nukera", "Trakwerk"]),
             doubted("c", "Nukera nochmal.", &["Nukera"]),
         ];
-        let found = name_candidates(&segments);
+        let found = name_candidates(&segments, "");
         assert_eq!(found[0].heard, "Nukera");
         assert_eq!(found[0].occurrences, 3);
         assert_eq!(found[1].heard, "Trakwerk");
@@ -499,13 +759,13 @@ mod tests {
                 ]
             })
             .collect();
-        assert_eq!(name_candidates(&segments).len(), MOST_CANDIDATES);
+        assert_eq!(name_candidates(&segments, "").len(), MOST_CANDIDATES);
     }
 
     #[test]
     fn a_transcript_with_no_uncertainty_offers_nothing() {
         let segments = vec![doubted("a", "Alles war deutlich zu hören.", &[])];
-        assert!(name_candidates(&segments).is_empty());
+        assert!(name_candidates(&segments, "").is_empty());
     }
 
     /// German capitalises nouns, so the same word appears both ways; counting them
@@ -516,7 +776,7 @@ mod tests {
             doubted("a", "Das Trakwerk hier.", &["Trakwerk"]),
             doubted("b", "trakwerk kommt später.", &["trakwerk"]),
         ];
-        let found = name_candidates(&segments);
+        let found = name_candidates(&segments, "");
         assert_eq!(found.len(), 1, "{found:?}");
     }
 

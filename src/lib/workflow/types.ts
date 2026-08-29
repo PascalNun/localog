@@ -63,6 +63,13 @@ export interface NameCandidate {
   occurrences: number;
   /** One place it appears, so it can be recognised without hunting for it. */
   context: string;
+  /**
+   * Whether the model writing the protocol said it did not recognise this.
+   *
+   * The only source that can catch a name the transcriber was *confident* about,
+   * which is the class that reaches a client's inbox looking correct.
+   */
+  questioned: boolean;
 }
 
 /**

@@ -248,7 +248,19 @@ pub(crate) fn name_candidates(
 ) -> StorageResult<Vec<crate::corrections::Candidate>> {
     let repository = WorkspaceRepository::open(root)?;
     let artifact = working_transcript(root, &repository, meeting_id)?.1;
-    Ok(crate::corrections::name_candidates(&artifact.segments))
+    // The protocol is optional here and deliberately not required: candidates are
+    // offered while reviewing the transcript, which is before a protocol exists on
+    // the first pass through a meeting. A second pass, after a draft has been
+    // written, is where the model's own notes become available.
+    let protocol = repository
+        .protocol_working_markdown(meeting_id)
+        .ok()
+        .and_then(|bytes| String::from_utf8(bytes).ok())
+        .unwrap_or_default();
+    Ok(crate::corrections::name_candidates(
+        &artifact.segments,
+        &protocol,
+    ))
 }
 /// Every place a correction would apply. Nothing is changed.
 pub(crate) fn preview_correction(
