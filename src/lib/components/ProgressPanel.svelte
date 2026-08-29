@@ -39,7 +39,9 @@
   aria-live="polite"
 >
   <div class="progress-copy">
-    <p class="eyebrow">{job.state === 'failed' ? 'Needs attention' : 'Background work'}</p>
+    <p class="eyebrow">
+      {job.state === 'failed' ? $t.progress.needsAttention : $t.progress.backgroundWork}
+    </p>
     <h2>{job.error?.title ?? kindLabel}</h2>
     <p>{job.error?.detail ?? stageLabel}</p>
   </div>
@@ -92,7 +94,7 @@
         <span class:indeterminate style={`width: ${indeterminate ? 35 : job.progress}%`}></span>
       </div>
       <button class="secondary-action" onclick={onCancel} disabled={job.state === 'cancelling'}
-        >{job.state === 'cancelling' ? 'Cancelling safely…' : 'Cancel'}</button
+        >{job.state === 'cancelling' ? $t.progress.cancellingSafely : $t.progress.cancel}</button
       >
     </div>
   {/if}

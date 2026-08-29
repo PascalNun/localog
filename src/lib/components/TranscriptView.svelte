@@ -471,7 +471,7 @@
             ontimeupdate={() => {
               if (!isScrubbing) currentSeconds = audioElement?.currentTime ?? 0;
             }}
-            onerror={() => (audioError = 'This meeting’s working audio could not be loaded.')}
+            onerror={() => (audioError = $t.transcript.audioCouldNotLoad)}
             onplay={() => (isPlaying = true)}
             onpause={() => (isPlaying = false)}
             onended={() => (isPlaying = false)}
@@ -479,7 +479,7 @@
           <button
             class="play-button"
             onclick={togglePlayback}
-            aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
+            aria-label={isPlaying ? $t.transcript.pauseAudio : $t.transcript.playAudio}
             ><Icon name={isPlaying ? 'pause' : 'play'} size={20} /></button
           >
           <span class="time-readout">{timeLabel(currentSeconds)}</span>
@@ -577,12 +577,12 @@
         <div>
           <strong
             >{saveState === 'saving'
-              ? 'Saving…'
+              ? $t.transcript.saving
               : saveState === 'failed'
-                ? 'Autosave failed — your last saved work is intact'
+                ? $t.transcript.autosaveFailed
                 : transcript?.isDirty
-                  ? 'Edits saved'
-                  : 'Transcript revision saved'}</strong
+                  ? $t.transcript.editsSaved
+                  : $t.transcript.revisionSaved}</strong
           ><small>{$t.transcript.speakerHint}</small>
         </div>
         <button class="primary-action" onclick={onGenerate} disabled={generationUnavailable}
@@ -611,10 +611,10 @@
           <p class="speaker-status" role="status">
             <Icon name="info" size={14} />
             {speakerResolution === 'failed'
-              ? 'Speaker separation is not available in this installation yet. You can continue with manual labels.'
+              ? $t.transcript.separationUnavailableHere
               : speakerResolution === 'unknown'
-                ? 'Rerun this transcript to record a current speaker-separation result.'
-                : 'Speaker separation was not available for this run. You can continue with manual labels.'}
+                ? $t.transcript.rerunForSeparation
+                : $t.transcript.separationUnavailableForRun}
           </p>
         {/if}
         <div class="speaker-list">
@@ -708,8 +708,8 @@
                   onclick={saveIntroductions}
                 >
                   {correctedNames.length
-                    ? `Correct ${correctedNames.length}`
-                    : 'Nothing changed yet'}
+                    ? $t.transcript.correctCount(correctedNames.length)
+                    : $t.transcript.nothingChangedYet}
                 </button>
                 <button class="text-action" onclick={() => (introductions = null)}
                   >{$t.transcript.close}</button
@@ -721,7 +721,7 @@
                 {$t.transcript.openingNote}
               </p>
               <button class="secondary-action" disabled={reading} onclick={readIntroductions}>
-                {reading ? 'Reading the opening…' : 'Read who is in this meeting'}
+                {reading ? $t.transcript.readingOpening : $t.transcript.readWhoIsHere}
               </button>
               <small class="inspector-note">{$t.transcript.aboutAMinute}</small>
             {/if}
@@ -782,7 +782,9 @@
                 disabled={applying || !keptMatches.length || !editing.spelling.trim()}
                 onclick={applyCorrection}
               >
-                {applying ? 'Correcting…' : `Correct ${keptMatches.length}`}
+                {applying
+                  ? $t.transcript.correcting
+                  : $t.transcript.correctCount(keptMatches.length)}
               </button>
               <button class="text-action" onclick={() => (correcting = null)}
                 >{$t.transcript.cancel}</button

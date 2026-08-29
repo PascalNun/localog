@@ -32,7 +32,8 @@
   // only a short prompt, so this order decides what survives.
   // What a style asks for, said plainly. The value steers the model and sizes the
   // answer budget, so it belongs where someone choosing a style can see it.
-  const DENSITY_LABEL: Record<string, string> = {
+  let DENSITY_LABEL: Record<string, string>;
+  $: DENSITY_LABEL = {
     comprehensive: $t.library.densityFull,
     concise: $t.library.densityPlain,
     terse: $t.library.densityLine,
@@ -122,7 +123,8 @@
       openStyle = null;
     });
 
-  const DENSITY_CHOICES: { value: ProtocolDensity; label: string }[] = [
+  let DENSITY_CHOICES: { value: ProtocolDensity; label: string }[];
+  $: DENSITY_CHOICES = [
     { value: 'comprehensive', label: $t.library.densityFull },
     { value: 'concise', label: $t.library.densityPlain },
     { value: 'terse', label: $t.library.densityLine },
@@ -148,7 +150,8 @@
   }
 
   /// What a density setting means where somebody is deciding between them.
-  const DENSITY_MEANING: Record<string, string> = {
+  let DENSITY_MEANING: Record<string, string>;
+  $: DENSITY_MEANING = {
     comprehensive: $t.library.densityFullMeaning,
     concise: $t.library.densityPlainMeaning,
     terse: $t.library.densityLineMeaning,
@@ -203,7 +206,7 @@
   async function save() {
     if (!draft) return;
     if (!draft.term.trim()) {
-      error = 'Enter a term.';
+      error = $t.library.enterATerm;
       return;
     }
     await commit(draft);
@@ -237,7 +240,7 @@
   }
 
   function ownerLabel(entry: VocabularyEntry): string {
-    if (entry.scope !== 'Project') return 'Every project';
+    if (entry.scope !== 'Project') return $t.library.everyProject;
     return (
       projects.find((project) => project.id === entry.projectId)?.name ?? $t.library.unknownProject
     );
@@ -280,7 +283,7 @@
             </div>
             <span class="meta"
               >{openingStyleId === style.id
-                ? 'Reading…'
+                ? $t.library.reading
                 : (DENSITY_LABEL[style.density] ?? style.language)}</span
             >
             <Icon name={isOpen ? 'chevron-down' : 'chevron'} size={15} />
@@ -418,7 +421,10 @@
 
     {#if draft}
       {@const editing = draft}
-      <section class="vocabulary-editor" aria-label={editing.id ? 'Edit term' : 'Add term'}>
+      <section
+        class="vocabulary-editor"
+        aria-label={editing.id ? $t.library.editTerm : $t.library.addTerm}
+      >
         <div class="vocabulary-fields">
           <label>
             <span>{$t.library.term}</span>
@@ -512,7 +518,7 @@
                   onclick={() => toggleEnabled(entry)}
                   disabled={busy}
                 >
-                  {entry.enabled ? 'In use' : 'Not in use'}
+                  {entry.enabled ? $t.library.inUse : $t.library.notInUse}
                 </button>
                 <button class="text-action" onclick={() => startEditing(entry)} disabled={busy}>
                   Edit

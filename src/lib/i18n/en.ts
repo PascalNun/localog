@@ -200,6 +200,7 @@ const failures = {
   },
   generationConfigUnreadable:
     'This job was prepared by an earlier version of LocaLog and cannot be read. Nothing was committed and your transcript is unchanged. Start the generation again.',
+  ollamaUnchecked: 'Ollama has not been checked yet.',
   responseUnusable:
     'The local model returned an answer LocaLog could not use as a protocol. Nothing was committed and your transcript is unchanged. Retrying often succeeds, because a model answers differently each time.',
   recorderMissing: 'No recorder is installed. LocaLog ships one; this build cannot find it.',
@@ -230,6 +231,13 @@ export const en = {
   /** The screen somebody sees before there is anything to open. */
   /** The settings screen. */
   settings: {
+    memoryReported: (gb: number) => `${gb} GB memory reported`,
+    themeAutomatic: 'Automatic',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    modelSelected: 'Selected',
+    useThisModel: 'Use this model',
+    useModel: 'Use model',
     catalogueNote:
       'The catalogue is intentionally curated. LocaLog does not silently download models or present an arbitrary model marketplace. New entries become selectable only after their runtime, licence, memory use and German/English quality have been checked.',
     managedCopiesNote:
@@ -399,6 +407,10 @@ export const en = {
   },
 
   progress: {
+    needsAttention: 'Needs attention',
+    backgroundWork: 'Background work',
+    cancellingSafely: 'Cancelling safely…',
+    cancel: 'Cancel',
     speakerPassNote:
       'This pass reads the full recording to compare voice turns. Long recordings can take a few minutes; you can cancel safely at any time.',
     latestRetained: 'Latest stable work retained',
@@ -420,6 +432,8 @@ export const en = {
   },
 
   newProject: {
+    creating: 'Creating…',
+    createAndContinue: 'Create and continue',
     afterCreated:
       'A protocol style, and the names and terms this work uses, can be set for the project after it is created. The names are worth a minute: they are what transcription cannot guess.',
     eyebrow: 'Projects',
@@ -437,6 +451,7 @@ export const en = {
   },
 
   appearance: {
+    font: 'Font',
     appliesToProject: (project: string) =>
       `Applies to every protocol in ${project}, so a firm's documents look alike. It changes how the protocol is set, never what it says — that is the style above.`,
     bodySize: 'Body size',
@@ -479,6 +494,14 @@ export const en = {
   },
 
   meeting: {
+    /** Where a recording came from, when the shell cannot say. */
+    browserPreview: 'Browser preview',
+    /** Under the speaker control: what each of its three answers does. */
+    speakersEstimateNote:
+      'LocaLog groups the voices it hears and counts them. An estimate, and one you can replace with a number if it reads wrong.',
+    speakersCountNote:
+      'Your best estimate is enough — it is the number of voices LocaLog looks for. Too many can split one person in two, too few can put two people together.',
+    speakersTogetherNote: 'The transcript keeps one speaker label.',
     importInterrupted:
       'LocaLog was closed before the managed copy was committed. The meeting remains in Draft and the import can be retried safely.',
     importCancelled:
@@ -545,6 +568,10 @@ export const en = {
   },
 
   newMeeting: {
+    /** Under a field the meeting sets for itself, rather than taking from the project. */
+    meetingOverride: 'Meeting override',
+    preparing: 'Preparing…',
+    bringingRecordingIn: 'Bringing the recording in…',
     noPerMeetingOverrides:
       'Per-meeting overrides and choosing names & terms per meeting are not available yet.',
     chosenOnceNote:
@@ -616,6 +643,23 @@ export const en = {
   },
 
   transcript: {
+    autosaveFailed: 'Autosave failed — your last saved work is intact',
+    correctCount: (count: number) => `Correct ${count}`,
+    audioCouldNotLoad: 'This meeting’s working audio could not be loaded.',
+    pauseAudio: 'Pause audio',
+    playAudio: 'Play audio',
+    saving: 'Saving…',
+    editsSaved: 'Edits saved',
+    revisionSaved: 'Transcript revision saved',
+    separationUnavailableHere:
+      'Speaker separation is not available in this installation yet. You can continue with manual labels.',
+    rerunForSeparation: 'Rerun this transcript to record a current speaker-separation result.',
+    separationUnavailableForRun:
+      'Speaker separation was not available for this run. You can continue with manual labels.',
+    nothingChangedYet: 'Nothing changed yet',
+    readingOpening: 'Reading the opening…',
+    readWhoIsHere: 'Read who is in this meeting',
+    correcting: 'Correcting…',
     /** Beside a meeting's date, before its length has been worked out. */
     durationPending: 'Duration pending',
     introducedThemselves: (count: number) => `${count} introduced themselves`,
@@ -693,6 +737,11 @@ export const en = {
   },
 
   library: {
+    enterATerm: 'Enter a term.',
+    reading: 'Reading…',
+    editTerm: 'Edit term',
+    inUse: 'In use',
+    notInUse: 'Not in use',
     instructionsGiven:
       'These are the instructions the model is given, in the order it is given them',
     asShipped: ', exactly as this style shipped',
@@ -776,9 +825,53 @@ export const en = {
     tryAgain: 'Try again',
     preparingWorkspace: 'Preparing local workspace…',
     openNavigation: 'Open navigation',
+
+    /** Shown where a transcription preset was expected and none is chosen. */
+    notSelected: 'Not selected',
+
+    /** The compact line in the sidebar and header while a job runs. */
+    jobNeedsDecision: 'Needs your decision',
+    jobReadyToContinue: 'Ready to continue',
+    jobCancelling: 'Cancelling safely',
+
+    /**
+     * The names of the export formats, as the save dialog offers them. Markdown is
+     * the format's own name and stays as it is in every language.
+     */
+    formatWordDocument: 'Word document',
+    formatPlainText: 'Plain text',
+    exportSaved: (format: string) => `${format} export saved`,
+    exportFailed: (format: string, why: string) => `${format} export failed: ${why}`,
+    exportPrepared: (format: string) => `${format} export prepared`,
+    exportNeedsDesktop: (format: string) => `${format} export needs the desktop application.`,
+
+    meetingArchived: 'Meeting archived. It is in Settings under Storage.',
+    projectArchived: 'Project archived. It is in Settings under Storage.',
+    transcriptExported: 'Transcript exported',
   },
 
   protocol: {
+    undo: 'Undo',
+    redo: 'Redo',
+    next: 'Next',
+    /** The block format picker in the editor's toolbar. */
+    blockParagraph: 'Paragraph',
+    blockHeading1: 'Heading 1',
+    blockHeading2: 'Heading 2',
+    blockHeading3: 'Heading 3',
+    figuresMissingFromRewrite: (count: number) =>
+      `${count} figures the passage stated are missing from this rewrite`,
+    markdownView: 'Markdown view',
+    documentView: 'Document view',
+    looking: 'Looking…',
+    replaceAll: 'Replace all',
+    rewrite: 'Rewrite',
+    rewriting: 'Rewriting',
+    figureMissingFromRewrite: 'A figure the passage stated is missing from this rewrite',
+    reviewedRevisionPreserved:
+      'The reviewed revision is preserved. These working edits have not been reviewed.',
+    thisRevisionReviewed: 'This exact immutable revision was marked reviewed.',
+    generatedStaysEditable: 'Generated content remains reviewable and editable.',
     notFound: 'Not found',
     matchCount: (count: number) => `${count} ${count === 1 ? 'match' : 'matches'}`,
     replacedCount: (count: number) => ` · replaced ${count}`,
@@ -846,6 +939,13 @@ export const en = {
     fieldPageNumber: 'Page number',
     fieldPageOfCount: 'Page n of m',
     fieldText: 'Custom text',
+    showPageBreaks: 'Show page breaks',
+    hidePageBreaks: 'Hide page breaks',
+    /** The four states of the autosave, shown at the end of the editor's toolbar. */
+    saving: 'Saving…',
+    autosaveFailed: 'Autosave failed',
+    workingEditsSaved: 'Working edits saved',
+    revisionSaved: 'Revision saved',
     editorTools: 'Editor tools',
     find: 'Find',
     findInProtocol: 'Find in protocol',
@@ -958,6 +1058,24 @@ export const en = {
     themeAlwaysDark: 'Always dark. Switch to following the system.',
     themeFollowingShort: 'Following the system',
     resizeSidebar: 'Resize sidebar. Use arrow keys to adjust or Enter to reset.',
+    themeAlwaysLightShort: 'Always light',
+    themeAlwaysDarkShort: 'Always dark',
+
+    /**
+     * What the sidebar says while work runs. Deliberately not the progress panel's
+     * wording: the panel is read beside the work, and this is read from another
+     * screen, so it names the thing rather than the stage.
+     */
+    importNeedsDecision: 'Import needs your decision',
+    needsAttention: 'Needs your attention',
+    importingRecording: 'Importing the recording',
+    transcribing: 'Transcribing',
+    writingProtocol: 'Writing the protocol',
+    working: 'Working',
+    workingEllipsis: 'Working…',
+    separatingSpeakers: 'Separating speakers',
+    openMeetingNeedingAttention: 'Open the meeting that needs attention',
+    openThisMeeting: 'Open this meeting',
   },
 
   start: {

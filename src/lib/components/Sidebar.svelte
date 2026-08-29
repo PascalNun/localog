@@ -57,20 +57,20 @@
   // the only time this corner of the screen is the one they are reading.
   $: jobHeading = jobNeedsAttention
     ? operationalJob?.requiresDuplicateConfirmation
-      ? 'Import needs your decision'
-      : 'Needs your attention'
+      ? $t.sidebar.importNeedsDecision
+      : $t.sidebar.needsAttention
     : (activeJobMeeting ?? workHeading(operationalJob?.kind));
 
   function workHeading(kind: string | undefined): string {
     switch (kind) {
       case 'import':
-        return 'Importing the recording';
+        return $t.sidebar.importingRecording;
       case 'transcription':
-        return 'Transcribing';
+        return $t.sidebar.transcribing;
       case 'generation':
-        return 'Writing the protocol';
+        return $t.sidebar.writingProtocol;
       default:
-        return 'Working';
+        return $t.sidebar.working;
     }
   }
 
@@ -86,11 +86,13 @@
   }
 
   function stageLabel(job: ActiveJob) {
-    return job.stage.toLowerCase().includes('speaker') ? 'Separating speakers' : job.stage;
+    return job.stage.toLowerCase().includes('speaker') ? $t.sidebar.separatingSpeakers : job.stage;
   }
 
   function progressLabel(job: ActiveJob) {
-    return job.stage.toLowerCase().includes('speaker') ? 'Working…' : `${job.progress}%`;
+    return job.stage.toLowerCase().includes('speaker')
+      ? $t.sidebar.workingEllipsis
+      : `${job.progress}%`;
   }
 
   function navigate(nextRoute: AppRoute) {
@@ -200,7 +202,9 @@
         class:attention={jobNeedsAttention}
         class="local-status"
         aria-live="polite"
-        title={jobNeedsAttention ? 'Open the meeting that needs attention' : 'Open this meeting'}
+        title={jobNeedsAttention
+          ? $t.sidebar.openMeetingNeedingAttention
+          : $t.sidebar.openThisMeeting}
         onclick={() =>
           operationalJob && navigate({ name: 'meeting', meetingId: operationalJob.meetingId })}
       >

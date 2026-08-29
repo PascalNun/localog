@@ -204,7 +204,7 @@
   let providerError: string | null = null;
 
   function presetDisplayName(preset: TranscriptionPreset) {
-    return PRESET_LABELS[preset]?.name ?? 'Not selected';
+    return PRESET_LABELS[preset]?.name ?? $t.shell.notSelected;
   }
 
   function withoutModel(entries: Record<string, number>, modelId: string) {
@@ -243,7 +243,7 @@
     selectedModel: null,
     selectedModelDigest: null,
     selectedModelReady: false,
-    message: 'Ollama has not been checked yet.',
+    message: 'ollamaUnchecked',
     machineMemoryGb: null,
   };
 
@@ -418,9 +418,9 @@
   }
 
   function compactJobStatus(job: NonNullable<WorkflowSnapshot['activeJob']>) {
-    if (job.requiresDuplicateConfirmation) return 'Needs your decision';
-    if (job.state === 'queued') return 'Ready to continue';
-    if (job.state === 'cancelling') return 'Cancelling safely';
+    if (job.requiresDuplicateConfirmation) return $t.shell.jobNeedsDecision;
+    if (job.state === 'queued') return $t.shell.jobReadyToContinue;
+    if (job.state === 'cancelling') return $t.shell.jobCancelling;
     if (job.kind === 'import' && job.totalBytes !== null) {
       return `${formatBytes(job.progressBytes)} of ${formatBytes(job.totalBytes)} copied`;
     }
@@ -601,17 +601,18 @@
           buildDocx(exported),
           meeting.title,
           'docx',
-          'Word document',
+          $t.shell.formatWordDocument,
         );
-        if (saved) announcement = 'Word export saved';
-        else if (!isDesktop) announcement = 'Word export needs the desktop application.';
+        if (saved) announcement = $t.shell.exportSaved($t.shell.formatWordDocument);
+        else if (!isDesktop)
+          announcement = $t.shell.exportNeedsDesktop($t.shell.formatWordDocument);
       } catch (cause) {
-        announcement = `Word export failed: ${errorMessage(cause)}`;
+        announcement = $t.shell.exportFailed($t.shell.formatWordDocument, errorMessage(cause));
       }
       return;
     }
 
-    const name = format === 'markdown' ? 'Markdown' : 'Plain text';
+    const name = format === 'markdown' ? 'Markdown' : $t.shell.formatPlainText;
     // Saying what went wrong rather than falling quietly through to a browser
     // download the desktop shell blocks. Exporting was silently doing nothing for
     // exactly that reason: the save dialog needed a permission it had not been
@@ -619,13 +620,13 @@
     try {
       const nativeExported = await bridge.exportProtocol(meeting.id, format, meeting.title);
       if (nativeExported) {
-        announcement = `${name} export saved`;
+        announcement = $t.shell.exportSaved(name);
         return;
       }
       // A cancelled dialog is a choice, not a failure, and says nothing.
       if (isDesktop) return;
     } catch (cause) {
-      announcement = `${name} export failed: ${errorMessage(cause)}`;
+      announcement = $t.shell.exportFailed(name, errorMessage(cause));
       return;
     }
     const content =
@@ -640,7 +641,9 @@
     anchor.download = `${meeting.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.${format === 'markdown' ? 'md' : 'txt'}`;
     anchor.click();
     URL.revokeObjectURL(href);
-    announcement = `${format === 'markdown' ? 'Markdown' : 'Plain text'} export prepared`;
+    announcement = $t.shell.exportPrepared(
+      format === 'markdown' ? 'Markdown' : $t.shell.formatPlainText,
+    );
   }
 </script>
 
@@ -681,11 +684,15 @@
         <button
           class="icon-button"
           aria-label={themeChoice === 'auto'
-            ? 'Following the system theme. Switch to always light.'
+            ? $t.sidebar.themeFollowingSystem
             : themeChoice === 'light'
-              ? 'Always light. Switch to always dark.'
-              : 'Always dark. Switch to following the system.'}
-          title={themeChoice === 'auto' ? 'Following the system' : `Always ${themeChoice}`}
+              ? $t.sidebar.themeAlwaysLight
+              : $t.sidebar.themeAlwaysDark}
+          title={themeChoice === 'auto'
+            ? $t.sidebar.themeFollowingShort
+            : themeChoice === 'light'
+              ? $t.sidebar.themeAlwaysLightShort
+              : $t.sidebar.themeAlwaysDarkShort}
           onclick={toggleTheme}
           ><Icon
             name={themeChoice === 'auto' ? 'monitor' : themeChoice === 'light' ? 'sun' : 'moon'}
@@ -746,14 +753,14 @@
           onDeleteMeeting={(meetingId: string) => bridge.deleteMeeting(meetingId)}
           onArchiveMeeting={async (meetingId: string) => {
             await bridge.setMeetingArchived(meetingId, true);
-            announcement = 'Meeting archived. It is in Settings under Storage.';
+            announcement = $t.shell.meetingArchived;
           }}
           onArchiveProject={async (projectId: string) => {
             await bridge.setProjectArchived(projectId, true);
             // The project it was showing is gone from the list, so the view goes
             // with it rather than sitting on a project nothing can reach.
             navigate({ name: 'start' });
-            announcement = 'Project archived. It is in Settings under Storage.';
+            announcement = $t.shell.projectArchived;
           }}
         />
       {:else if route.name === 'meeting' && project && meeting}
@@ -833,10 +840,13 @@
               new TextEncoder().encode(rendered),
               `${meeting.title} transcript`,
               format === 'markdown' ? 'md' : 'txt',
-              format === 'markdown' ? 'Markdown' : 'Plain text',
+              format === 'markdown' ? 'Markdown' : $t.shell.formatPlainText,
             );
-            if (saved) announcement = 'Transcript exported';
-            else if (!isDesktop) announcement = 'Exporting needs the desktop application.';
+            if (saved) announcement = $t.shell.transcriptExported;
+            else if (!isDesktop)
+              announcement = $t.shell.exportNeedsDesktop(
+                format === 'markdown' ? 'Markdown' : $t.shell.formatPlainText,
+              );
           }}
           onLoadAudio={(meetingId: string) => bridge.getMeetingAudio(meetingId)}
           onFindIntroductions={(meetingId: string) => bridge.findIntroductions(meetingId)}

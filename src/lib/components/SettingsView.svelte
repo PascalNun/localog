@@ -34,10 +34,13 @@
 
   /// The three states the theme can be in, named. Automatic is first because it is
   /// what the application does unless somebody says otherwise.
-  const THEME_CHOICES: { id: 'auto' | 'light' | 'dark'; label: string; icon: IconName }[] = [
-    { id: 'auto', label: 'Automatic', icon: 'monitor' },
-    { id: 'light', label: 'Light', icon: 'sun' },
-    { id: 'dark', label: 'Dark', icon: 'moon' },
+  /// Reactive, not a constant. A constant reads the words once when the module
+  /// loads and goes on saying them after somebody changes the language — the same
+  /// fault the lifecycle labels and the header band names had.
+  $: THEME_CHOICES = [
+    { id: 'auto' as const, label: $t.settings.themeAutomatic, icon: 'monitor' as IconName },
+    { id: 'light' as const, label: $t.settings.themeLight, icon: 'sun' as IconName },
+    { id: 'dark' as const, label: $t.settings.themeDark, icon: 'moon' as IconName },
   ];
   export let onSetNextJobOutcome: (outcome: FakeJobOutcome) => Promise<void>;
   export let runtimeStatus: TranscriptionRuntimeStatus;
@@ -71,7 +74,8 @@
 
   /// The formats the protocol editor already exports, named as somebody would
   /// say them rather than as the code spells them.
-  const EXPORT_CHOICES: { id: ExportFormat; label: string }[] = [
+  let EXPORT_CHOICES: { id: ExportFormat; label: string }[];
+  $: EXPORT_CHOICES = [
     { id: 'pdf', label: $t.settings.formatPdf },
     { id: 'docx', label: $t.settings.formatWord },
     { id: 'markdown', label: $t.settings.formatMarkdown },
@@ -118,8 +122,11 @@
   /// 16 GB laptop was recommended a model measured at 20 figures against the
   /// baseline's 31.
   $: memoryGb = providerStatus?.machineMemoryGb ?? browserMemoryGb();
-  const memoryLabel = memoryGb
-    ? `${memoryGb} GB memory reported`
+  /// Reactive, and it was a `const` reading a `$:` value — which is assigned after
+  /// the initialisers run, so this captured `undefined` and the line always claimed
+  /// the conservative baseline even on a machine that had reported its memory.
+  $: memoryLabel = memoryGb
+    ? $t.settings.memoryReported(memoryGb)
     : $t.settings.conservativeBaseline;
 
   // Product language first: the user picks an outcome, not a model.
@@ -369,8 +376,8 @@
                   selectedProviderModel === recommendedInstalled.name}
               >
                 {selectedProviderModel === recommendedInstalled.name
-                  ? 'Selected'
-                  : 'Use this model'}
+                  ? $t.settings.modelSelected
+                  : $t.settings.useThisModel}
               </button>
             {:else}
               <span class="model-status">{$t.settings.notInstalledYet}</span>
@@ -412,7 +419,7 @@
                     class="quiet-action"
                     onclick={() => chooseProviderModel(installed.name)}
                     disabled={!providerStatus.serverReachable || selected}
-                    >{selected ? 'Selected' : 'Use model'}</button
+                    >{selected ? $t.settings.modelSelected : $t.settings.useModel}</button
                   >
                 {/if}
               </div>
@@ -420,7 +427,10 @@
           {/each}
         </div>
         {#if providerError}<p class="setting-error" role="alert">{providerError}</p>{/if}
-        <p class="setting-hint">{providerStatus.message}</p>
+        <!-- Through the funnel, so a code is rendered in the current language while
+             a sentence Rust still writes for itself passes through unchanged. Most of
+             what lands here is the second kind; see the note in PLAN.md. -->
+        <p class="setting-hint">{errorMessage(providerStatus.message)}</p>
         <div class="setting-actions">
           <button class="secondary-action" onclick={onRefreshProvider}
             >{$t.settings.checkInstalled}</button

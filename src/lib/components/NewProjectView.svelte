@@ -76,7 +76,11 @@
       <button type="button" class="secondary-action" onclick={onCancel}
         >{$t.newProject.cancel}</button
       ><button class="primary-action" type="submit" disabled={!name.trim() || submitting}
-        >{submitting ? 'Creating…' : returnToImport ? 'Create and continue' : 'Create project'}
+        >{submitting
+          ? $t.newProject.creating
+          : returnToImport
+            ? $t.newProject.createAndContinue
+            : $t.sidebar.createProject}
         <Icon name="arrow" /></button
       >
     </footer>

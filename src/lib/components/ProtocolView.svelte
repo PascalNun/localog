@@ -169,11 +169,13 @@
     readDocument();
   }
 
-  const BLOCK_FORMATS = [
-    { label: 'Paragraph', tag: 'p' },
-    { label: 'Heading 1', tag: 'h1' },
-    { label: 'Heading 2', tag: 'h2' },
-    { label: 'Heading 3', tag: 'h3' },
+  // The tag is the identifier and the label is the label, and only the second
+  // translates. Reactive for the same reason as REFINEMENTS below.
+  $: BLOCK_FORMATS = [
+    { label: $t.protocol.blockParagraph, tag: 'p' },
+    { label: $t.protocol.blockHeading1, tag: 'h1' },
+    { label: $t.protocol.blockHeading2, tag: 'h2' },
+    { label: $t.protocol.blockHeading3, tag: 'h3' },
   ];
 
   /// What the cursor is standing in, and where it is on screen.
@@ -361,7 +363,9 @@
     checked: boolean;
   } | null = null;
 
-  const REFINEMENTS = [
+  // Reactive, not a constant: a constant reads the dictionary once when the
+  // component is created and keeps saying it after the language changes.
+  $: REFINEMENTS = [
     {
       id: 'clarity',
       label: $t.protocol.improveClarity,
@@ -538,7 +542,8 @@
    * so twelve strings had to be kept saying the same thing by hand. Typed against
    * TableCommand, so a button for a command that does not exist will not compile.
    */
-  const TABLE_COMMANDS: { command: TableCommand; icon: IconName; label: string }[] = [
+  let TABLE_COMMANDS: { command: TableCommand; icon: IconName; label: string }[];
+  $: TABLE_COMMANDS = [
     { command: 'row-above', icon: 'row-add-above', label: $t.protocol.addRowAbove },
     { command: 'row-below', icon: 'row-add-below', label: $t.protocol.addRowBelow },
     { command: 'row-delete', icon: 'row-remove', label: $t.protocol.deleteRow },
@@ -656,7 +661,8 @@
   $: presetSummary =
     presets.length === 0 ? $t.protocol.noneSaved : $t.protocol.savedCount(presets.length);
 
-  const EXPORT_LABELS: Record<ExportFormat, string> = {
+  let EXPORT_LABELS: Record<ExportFormat, string>;
+  $: EXPORT_LABELS = {
     pdf: $t.protocol.exportPdf,
     docx: $t.protocol.exportWord,
     markdown: $t.protocol.exportMarkdown,
@@ -1262,10 +1268,10 @@
       <div class="editor-toolbar">
         <div class="editor-tools" aria-label={$t.protocol.editorTools}>
           <button class="text-action" onclick={() => editorCommand('undo')}
-            ><Icon name="undo" size={16} /><span class="sr-only">Undo</span></button
+            ><Icon name="undo" size={16} /><span class="sr-only">{$t.protocol.undo}</span></button
           >
           <button class="text-action" onclick={() => editorCommand('redo')}
-            ><Icon name="redo" size={16} /><span class="sr-only">Redo</span></button
+            ><Icon name="redo" size={16} /><span class="sr-only">{$t.protocol.redo}</span></button
           >
           <button class="text-action" onclick={() => (findOpen = !findOpen)}
             ><Icon name="search" size={15} /> {$t.protocol.find}</button
@@ -1293,11 +1299,11 @@
             class="text-action"
             class:chosen={showPages}
             aria-pressed={showPages}
-            title={showPages ? 'Hide page breaks' : 'Show page breaks'}
+            title={showPages ? $t.protocol.hidePageBreaks : $t.protocol.showPageBreaks}
             disabled={view !== 'document'}
             onclick={() => (showPages = !showPages)}
             ><Icon name="rule" size={15} /><span class="sr-only"
-              >{showPages ? 'Hide page breaks' : 'Show page breaks'}</span
+              >{showPages ? $t.protocol.hidePageBreaks : $t.protocol.showPageBreaks}</span
             ></button
           >
         </div>
@@ -1307,12 +1313,12 @@
             class:error={saveState === 'failed'}
             class="save-state"
             >{saveState === 'saving'
-              ? 'Saving…'
+              ? $t.protocol.saving
               : saveState === 'failed'
-                ? 'Autosave failed'
+                ? $t.protocol.autosaveFailed
                 : protocol.isDirty
-                  ? 'Working edits saved'
-                  : 'Revision saved'}</span
+                  ? $t.protocol.workingEditsSaved
+                  : $t.protocol.revisionSaved}</span
           >
           <div class="editor-menu">
             <button
@@ -1331,7 +1337,9 @@
                     moreOpen = false;
                   }}
                   ><Icon name="document" size={15} />
-                  {view === 'document' ? 'Markdown view' : 'Document view'}</button
+                  {view === 'document'
+                    ? $t.protocol.markdownView
+                    : $t.protocol.documentView}</button
                 >
                 <button
                   role="menuitem"
@@ -1366,7 +1374,7 @@
             /></label
           >
           <button class="secondary-action" onclick={findNext} disabled={matchCount === 0}
-            >Next</button
+            >{$t.protocol.next}</button
           >
           <label
             ><span class="sr-only">{$t.protocol.replaceWith}</span><input
@@ -1379,7 +1387,7 @@
             class="secondary-action"
             onclick={() => void previewReplace()}
             disabled={findQuery.trim() === '' || replaceBusy}
-            >{replaceBusy ? 'Looking…' : 'Replace all'}</button
+            >{replaceBusy ? $t.protocol.looking : $t.protocol.replaceAll}</button
           >
           <span class="find-count"
             >{findQuery.trim() === ''
@@ -1512,7 +1520,7 @@
               aria-expanded={refineOpen}
               onclick={() => (refineOpen = !refineOpen)}
               disabled={refineBusy !== ''}
-              >{refineBusy === '' ? 'Rewrite' : `${refineBusy}…`}</button
+              >{refineBusy === '' ? $t.protocol.rewrite : `${refineBusy}…`}</button
             >
             {#if refineOpen}
               <div class="refine-sheet" role="menu">
@@ -1535,7 +1543,7 @@
                         placeholder={$t.protocol.whatShouldChange}
                         onkeydown={(event) => {
                           if (event.key === 'Enter' && customInstruction.trim() !== '') {
-                            void refine(customInstruction.trim(), 'Rewriting');
+                            void refine(customInstruction.trim(), $t.protocol.rewriting);
                           }
                         }}
                       />
@@ -1578,8 +1586,8 @@
                 <Icon name="warning" size={15} />
                 <span
                   >{waiting.missingFigures.length === 1
-                    ? 'A figure the passage stated is missing from this rewrite'
-                    : `${waiting.missingFigures.length} figures the passage stated are missing from this rewrite`}:
+                    ? $t.protocol.figureMissingFromRewrite
+                    : $t.protocol.figuresMissingFromRewrite(waiting.missingFigures.length)}:
                   {waiting.missingFigures.join(', ')}.</span
                 >
               </p>
@@ -1696,10 +1704,10 @@
             <h3>{statusLabel}</h3>
             <p>
               {protocol.reviewState === 'changed_since_review'
-                ? 'The reviewed revision is preserved. These working edits have not been reviewed.'
+                ? $t.protocol.reviewedRevisionPreserved
                 : protocol.reviewState === 'reviewed'
-                  ? 'This exact immutable revision was marked reviewed.'
-                  : 'Generated content remains reviewable and editable.'}
+                  ? $t.protocol.thisRevisionReviewed
+                  : $t.protocol.generatedStaysEditable}
             </p>
             {#if protocol.isDirty}<button
                 class="secondary-action full-width"

@@ -132,7 +132,7 @@
               editingLanguage = true;
             }}
             aria-label={$t.meeting.changeLanguage}>{meetingLanguageLabel(meeting.language)}</button
-          >{/if} · {meeting.durationLabel ?? 'Duration pending'}
+          >{/if} · {meeting.durationLabel ?? $t.transcript.durationPending}
       </p>
       {#if languageError}<p class="form-error" role="alert">{languageError}</p>{/if}
     </div>
@@ -191,7 +191,7 @@
               {meeting.sourceByteCount === null
                 ? $t.meeting.syntheticFixture
                 : formatBytes(meeting.sourceByteCount)}<small
-                >{meeting.sourceMediaType ?? 'Browser preview'}</small
+                >{meeting.sourceMediaType ?? $t.meeting.browserPreview}</small
               >
             </dd>
           </div>
@@ -217,10 +217,10 @@
           </select>
           <small
             >{speakerChoice === 'estimate'
-              ? 'LocaLog groups the voices it hears and counts them. An estimate, and one you can replace with a number if it reads wrong.'
+              ? $t.meeting.speakersEstimateNote
               : speakerChoice
-                ? 'Your best estimate is enough — it is the number of voices LocaLog looks for. Too many can split one person in two, too few can put two people together.'
-                : 'The transcript keeps one speaker label.'}</small
+                ? $t.meeting.speakersCountNote
+                : $t.meeting.speakersTogetherNote}</small
           >
         </label>
         {#if speakerNeedsPreparation}

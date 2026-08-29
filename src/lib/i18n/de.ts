@@ -204,6 +204,7 @@ const failures = {
   },
   generationConfigUnreadable:
     'Dieser Vorgang wurde von einer früheren Version von LocaLog vorbereitet und kann nicht gelesen werden. Es wurde nichts übernommen, Ihr Transkript ist unverändert. Starten Sie die Erzeugung erneut.',
+  ollamaUnchecked: 'Ollama wurde noch nicht geprüft.',
   responseUnusable:
     'Das lokale Modell hat eine Antwort geliefert, die LocaLog nicht als Protokoll verwenden kann. Es wurde nichts übernommen, Ihr Transkript ist unverändert. Ein erneuter Versuch führt oft zum Ziel, da ein Modell jedes Mal anders antwortet.',
   recorderMissing:
@@ -229,6 +230,13 @@ export const de: Strings = {
   failures,
 
   settings: {
+    memoryReported: (gb: number) => `${gb} GB Arbeitsspeicher erkannt`,
+    themeAutomatic: 'Automatisch',
+    themeLight: 'Hell',
+    themeDark: 'Dunkel',
+    modelSelected: 'Gewählt',
+    useThisModel: 'Dieses Modell verwenden',
+    useModel: 'Modell verwenden',
     catalogueNote:
       'Der Katalog ist bewusst ausgewählt. LocaLog lädt keine Modelle im Stillen herunter und zeigt keinen beliebigen Modellmarkt. Neue Einträge werden erst wählbar, wenn Laufzeit, Lizenz, Speicherbedarf und Qualität auf Deutsch und Englisch geprüft sind.',
     managedCopiesNote:
@@ -400,6 +408,10 @@ export const de: Strings = {
   },
 
   progress: {
+    needsAttention: 'Braucht Aufmerksamkeit',
+    backgroundWork: 'Arbeit im Hintergrund',
+    cancellingSafely: 'Wird sicher abgebrochen …',
+    cancel: 'Abbrechen',
     speakerPassNote:
       'Dieser Durchgang liest die ganze Aufnahme, um Sprecherwechsel zu vergleichen. Bei langen Aufnahmen kann das einige Minuten dauern. Sie können jederzeit gefahrlos abbrechen.',
     latestRetained: 'Der letzte stabile Stand bleibt erhalten',
@@ -421,6 +433,8 @@ export const de: Strings = {
   },
 
   newProject: {
+    creating: 'Wird angelegt …',
+    createAndContinue: 'Anlegen und fortfahren',
     afterCreated:
       'Ein Protokollstil sowie die Namen und Begriffe dieser Arbeit lassen sich für das Projekt festlegen, sobald es angelegt ist. Die Namen sind eine Minute wert: Sie sind das, was eine Transkription nicht erraten kann.',
     eyebrow: 'Projekte',
@@ -438,6 +452,7 @@ export const de: Strings = {
   },
 
   appearance: {
+    font: 'Schrift',
     appliesToProject: (project: string) =>
       `Gilt für jedes Protokoll in ${project}, damit die Dokumente eines Hauses gleich aussehen. Es ändert, wie das Protokoll gesetzt ist, nie was darin steht — das ist der Stil darüber.`,
     bodySize: 'Schriftgröße',
@@ -482,6 +497,12 @@ export const de: Strings = {
   },
 
   meeting: {
+    browserPreview: 'Browser-Vorschau',
+    speakersEstimateNote:
+      'LocaLog fasst die gehörten Stimmen zusammen und zählt sie. Eine Schätzung — Sie können sie durch eine Zahl ersetzen, wenn sie nicht stimmt.',
+    speakersCountNote:
+      'Ihre beste Schätzung genügt — es ist die Zahl der Stimmen, nach denen LocaLog sucht. Zu viele können eine Person aufteilen, zu wenige zwei Personen zusammenlegen.',
+    speakersTogetherNote: 'Das Transkript behält eine einzige Sprecherbezeichnung.',
     importInterrupted:
       'LocaLog wurde geschlossen, bevor die verwaltete Kopie übernommen war. Die Besprechung bleibt ein Entwurf, und der Import kann gefahrlos wiederholt werden.',
     importCancelled:
@@ -550,6 +571,9 @@ export const de: Strings = {
   },
 
   newMeeting: {
+    meetingOverride: 'Abweichend für diese Besprechung',
+    preparing: 'Wird vorbereitet …',
+    bringingRecordingIn: 'Aufnahme wird übernommen …',
     noPerMeetingOverrides:
       'Abweichungen je Besprechung und die Wahl von Namen & Begriffen je Besprechung gibt es noch nicht.',
     chosenOnceNote:
@@ -624,6 +648,25 @@ export const de: Strings = {
   },
 
   transcript: {
+    autosaveFailed:
+      'Automatisches Speichern fehlgeschlagen — Ihr zuletzt gespeicherter Stand ist unversehrt',
+    correctCount: (count: number) => `${count} korrigieren`,
+    audioCouldNotLoad: 'Das Arbeitsaudio dieser Besprechung konnte nicht geladen werden.',
+    pauseAudio: 'Wiedergabe anhalten',
+    playAudio: 'Wiedergabe starten',
+    saving: 'Wird gespeichert …',
+    editsSaved: 'Änderungen gespeichert',
+    revisionSaved: 'Transkriptfassung gespeichert',
+    separationUnavailableHere:
+      'Die Sprechertrennung ist in dieser Installation noch nicht verfügbar. Sie können mit selbst vergebenen Bezeichnungen weiterarbeiten.',
+    rerunForSeparation:
+      'Transkribieren Sie erneut, um ein aktuelles Ergebnis der Sprechertrennung festzuhalten.',
+    separationUnavailableForRun:
+      'Für diesen Durchlauf war keine Sprechertrennung verfügbar. Sie können mit selbst vergebenen Bezeichnungen weiterarbeiten.',
+    nothingChangedYet: 'Noch nichts geändert',
+    readingOpening: 'Der Anfang wird gelesen …',
+    readWhoIsHere: 'Lesen, wer in dieser Besprechung ist',
+    correcting: 'Wird korrigiert …',
     durationPending: 'Dauer wird noch ermittelt',
     introducedThemselves: (count: number) => `${count} haben sich vorgestellt`,
     noNamesYet: (project: string) => `Noch keine Namen für ${project}`,
@@ -703,6 +746,11 @@ export const de: Strings = {
   },
 
   library: {
+    enterATerm: 'Geben Sie einen Begriff ein.',
+    reading: 'Wird gelesen …',
+    editTerm: 'Begriff bearbeiten',
+    inUse: 'In Verwendung',
+    notInUse: 'Nicht in Verwendung',
     instructionsGiven:
       'Das sind die Anweisungen, die das Modell erhält, in der Reihenfolge, in der es sie erhält',
     asShipped: ', genau so, wie dieser Stil ausgeliefert wurde',
@@ -787,9 +835,48 @@ export const de: Strings = {
     tryAgain: 'Erneut versuchen',
     preparingWorkspace: 'Lokaler Arbeitsbereich wird vorbereitet …',
     openNavigation: 'Navigation öffnen',
+
+    notSelected: 'Nicht gewählt',
+
+    jobNeedsDecision: 'Braucht Ihre Entscheidung',
+    jobReadyToContinue: 'Bereit zum Fortfahren',
+    jobCancelling: 'Wird sicher abgebrochen',
+
+    formatWordDocument: 'Word-Dokument',
+    formatPlainText: 'Reiner Text',
+    exportSaved: (format: string) => `Export als ${format} gespeichert`,
+    exportFailed: (format: string, why: string) => `Export als ${format} fehlgeschlagen: ${why}`,
+    exportPrepared: (format: string) => `Export als ${format} vorbereitet`,
+    exportNeedsDesktop: (format: string) =>
+      `Der Export als ${format} braucht die Desktop-Anwendung.`,
+
+    meetingArchived: 'Besprechung archiviert. Sie liegt in den Einstellungen unter Speicher.',
+    projectArchived: 'Projekt archiviert. Es liegt in den Einstellungen unter Speicher.',
+    transcriptExported: 'Transkript exportiert',
   },
 
   protocol: {
+    undo: 'Rückgängig',
+    redo: 'Wiederherstellen',
+    next: 'Weiter',
+    blockParagraph: 'Absatz',
+    blockHeading1: 'Überschrift 1',
+    blockHeading2: 'Überschrift 2',
+    blockHeading3: 'Überschrift 3',
+    figuresMissingFromRewrite: (count: number) =>
+      `${count} Zahlen, die in der Passage standen, fehlen in dieser Neuformulierung`,
+    markdownView: 'Markdown-Ansicht',
+    documentView: 'Dokumentansicht',
+    looking: 'Wird gesucht …',
+    replaceAll: 'Alle ersetzen',
+    rewrite: 'Neu formulieren',
+    rewriting: 'Wird neu formuliert',
+    figureMissingFromRewrite:
+      'Eine Zahl, die in der Passage stand, fehlt in dieser Neuformulierung',
+    reviewedRevisionPreserved:
+      'Die geprüfte Fassung bleibt erhalten. Diese Zwischenstände sind nicht geprüft.',
+    thisRevisionReviewed: 'Genau diese unveränderliche Fassung wurde als geprüft markiert.',
+    generatedStaysEditable: 'Erzeugte Inhalte bleiben prüfbar und bearbeitbar.',
     notFound: 'Nicht gefunden',
     matchCount: (count: number) => `${count} ${count === 1 ? 'Treffer' : 'Treffer'}`,
     replacedCount: (count: number) => ` · ${count} ersetzt`,
@@ -850,6 +937,12 @@ export const de: Strings = {
     fieldPageNumber: 'Seitenzahl',
     fieldPageOfCount: 'Seite n von m',
     fieldText: 'Eigener Text',
+    showPageBreaks: 'Seitenumbrüche anzeigen',
+    hidePageBreaks: 'Seitenumbrüche ausblenden',
+    saving: 'Wird gespeichert …',
+    autosaveFailed: 'Automatisches Speichern fehlgeschlagen',
+    workingEditsSaved: 'Änderungen zwischengespeichert',
+    revisionSaved: 'Fassung gespeichert',
     editorTools: 'Werkzeuge',
     find: 'Suchen',
     findInProtocol: 'Im Protokoll suchen',
@@ -963,6 +1056,19 @@ export const de: Strings = {
     themeAlwaysDark: 'Immer dunkel. Umschalten auf dem System folgen.',
     themeFollowingShort: 'Folgt dem System',
     resizeSidebar: 'Seitenleiste anpassen. Mit den Pfeiltasten ändern, mit Enter zurücksetzen.',
+    themeAlwaysLightShort: 'Dauerhaft hell',
+    themeAlwaysDarkShort: 'Dauerhaft dunkel',
+
+    importNeedsDecision: 'Der Import braucht Ihre Entscheidung',
+    needsAttention: 'Braucht Ihre Aufmerksamkeit',
+    importingRecording: 'Aufnahme wird übernommen',
+    transcribing: 'Wird transkribiert',
+    writingProtocol: 'Protokoll wird geschrieben',
+    working: 'Läuft',
+    workingEllipsis: 'Läuft …',
+    separatingSpeakers: 'Sprecher werden getrennt',
+    openMeetingNeedingAttention: 'Die Besprechung öffnen, die Aufmerksamkeit braucht',
+    openThisMeeting: 'Diese Besprechung öffnen',
   },
 
   start: {

@@ -19,8 +19,8 @@
   /// Each row, as the field it sets and the choices it offers. `bodySize` is a number
   /// and the rest are strings, which is the only reason the value is read back
   /// through the option list rather than used directly.
-  const ROWS = [
-    { key: 'font', label: 'Font', choices: APPEARANCE_CHOICES.font },
+  $: ROWS = [
+    { key: 'font', label: $t.appearance.font, choices: APPEARANCE_CHOICES.font },
     { key: 'bodySize', label: $t.appearance.bodySize, choices: APPEARANCE_CHOICES.bodySize },
     {
       key: 'headingScale',

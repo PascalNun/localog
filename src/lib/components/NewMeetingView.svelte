@@ -217,7 +217,7 @@
             </datalist><small
               >{selectedProject?.defaultLanguage === language
                 ? $t.newMeeting.projectDefault
-                : 'Meeting override'}</small
+                : $t.newMeeting.meetingOverride}</small
             ></label
           >
           <label
@@ -227,7 +227,7 @@
             ><small
               >{selectedProject?.defaultStyleId === styleId
                 ? $t.newMeeting.projectDefault
-                : 'Meeting override'}</small
+                : $t.newMeeting.meetingOverride}</small
             ></label
           >
           <p class="field-note">
@@ -254,8 +254,8 @@
         disabled={!projectId || (forRecording ? !title.trim() : !sourceName) || submitting}
         >{submitting
           ? forRecording
-            ? 'Preparing…'
-            : 'Bringing the recording in…'
+            ? $t.newMeeting.preparing
+            : $t.newMeeting.bringingRecordingIn
           : forRecording
             ? $t.newMeeting.createAndRecord
             : $t.newMeeting.createAndImport}
