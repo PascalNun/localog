@@ -162,14 +162,70 @@ pub(crate) fn whisper_command(
 /// to be prioritised rather than accumulated.
 const VOCABULARY_PROMPT_LIMIT: usize = 620;
 
-/// Build the initial prompt from a project's terms, most specific first, stopping
-/// before the runtime's limit.
+/// A sentence for the meeting's language to carry the terms, or none.
 ///
-/// Ordering matters more than volume. Measured against a real meeting, standard
-/// professional terminology was already transcribed correctly with no help, while
-/// every term the vocabulary actually corrected was a proper noun. Spending this
-/// budget on words the model already knows wastes it.
-pub(crate) fn vocabulary_prompt(terms: &[String]) -> Option<String> {
+/// **Why a sentence at all.** whisper's initial prompt is not a parameter list: it is
+/// text the model treats as the transcript that came before, and it was trained to
+/// continue speech rather than to read enumerations. So the same words in a sentence
+/// somebody could plausibly have said may prime the decoder better than the same
+/// words separated by commas — and if that holds, the scarce resource stops being
+/// slots and becomes wording.
+///
+/// **Unmeasured, and said plainly.** Nothing here has been run against real audio.
+/// The comparison is one meeting and two runs — `as_a_sentence` against
+/// `as_a_list` — counting how often each term comes back right.
+///
+/// **German and English only, on purpose.** Those are the two languages this
+/// product's audience and its evidence are in, and the two an experiment will be run
+/// in. A frame in a language nobody here can judge is a change with no evidence in
+/// either direction, and worse than that: the prompt is what whisper *continues*, so
+/// a frame in the wrong language would prime the wrong language outright. Everything
+/// else keeps the list, which at least has one data point behind it.
+struct SentenceFrame {
+    /// Up to and including the space before the first term.
+    opening: &'static str,
+    /// Between the last two terms, spaces included.
+    conjunction: &'static str,
+}
+
+impl SentenceFrame {
+    /// What the frame itself costs of the prompt budget, the full stop included.
+    fn cost(&self) -> usize {
+        self.opening.len() + self.conjunction.len() + 1
+    }
+
+    fn write(&self, terms: &[&str]) -> String {
+        let body = match terms {
+            [] => String::new(),
+            [only] => (*only).to_string(),
+            [rest @ .., last] => format!("{}{}{last}", rest.join(", "), self.conjunction),
+        };
+        format!("{}{body}.", self.opening)
+    }
+}
+
+fn sentence_frame(language_code: &str) -> Option<SentenceFrame> {
+    match language_code.trim().to_ascii_lowercase().as_str() {
+        "de" => Some(SentenceFrame {
+            opening: "In dieser Besprechung geht es um ",
+            conjunction: " und ",
+        }),
+        "en" => Some(SentenceFrame {
+            opening: "In this meeting we discuss ",
+            conjunction: " and ",
+        }),
+        // Including "auto": a frame has to name a language, and detection has not
+        // happened yet when this is built.
+        _ => None,
+    }
+}
+
+/// The terms that fit the budget, most specific first.
+///
+/// Ordering matters more than volume, and the ordering itself is under question — see
+/// the vocabulary section of `docs/PLAN.md`, where the claim this comment used to
+/// make is contradicted by a later measurement in the same repository.
+fn terms_within(terms: &[String], room: usize) -> Vec<&str> {
     let mut chosen: Vec<&str> = Vec::new();
     let mut length = 0;
     for term in terms {
@@ -178,16 +234,47 @@ pub(crate) fn vocabulary_prompt(terms: &[String]) -> Option<String> {
             continue;
         }
         let addition = term.len() + 2;
-        if length + addition > VOCABULARY_PROMPT_LIMIT {
+        if length + addition > room {
             continue;
         }
         length += addition;
         chosen.push(term);
     }
+    chosen
+}
+
+/// The terms as a bare comma-separated list — what was sent until 29 August 2026.
+///
+/// Kept as its own function rather than deleted, because it is the control arm: the
+/// sentence form replaces it on a hypothesis nobody has tested yet, and a comparison
+/// needs both.
+pub(crate) fn as_a_list(terms: &[String]) -> Option<String> {
+    let chosen = terms_within(terms, VOCABULARY_PROMPT_LIMIT);
     if chosen.is_empty() {
         return None;
     }
     Some(chosen.join(", "))
+}
+
+/// The terms inside a sentence of the meeting's language.
+pub(crate) fn as_a_sentence(terms: &[String], language_code: &str) -> Option<String> {
+    let Some(frame) = sentence_frame(language_code) else {
+        return as_a_list(terms);
+    };
+    // The frame is part of the prompt and so comes out of the same budget — about
+    // forty characters, which is roughly four terms. Reserved before the terms are
+    // chosen rather than discovered afterwards, so the whole prompt fits by
+    // construction instead of by luck.
+    let chosen = terms_within(terms, VOCABULARY_PROMPT_LIMIT.saturating_sub(frame.cost()));
+    if chosen.is_empty() {
+        return None;
+    }
+    Some(frame.write(&chosen))
+}
+
+/// Build the initial prompt from a project's terms.
+pub(crate) fn vocabulary_prompt(terms: &[String], language_code: &str) -> Option<String> {
+    as_a_sentence(terms, language_code)
 }
 
 /// Build the short working file the diariser listens to.
@@ -1057,10 +1144,14 @@ mod tests {
             .map(|value| value.to_string())
             .chain((0..200).map(|index| format!("Fuellbegriff{index:03}")))
             .collect();
-        let prompt = vocabulary_prompt(&terms).unwrap();
-        assert!(prompt.len() <= VOCABULARY_PROMPT_LIMIT);
+        let prompt = vocabulary_prompt(&terms, "de").unwrap();
+        assert!(
+            prompt.len() <= VOCABULARY_PROMPT_LIMIT,
+            "the sentence frame comes out of the same budget: {}",
+            prompt.len()
+        );
         // The terms supplied first are the ones that survive.
-        assert!(prompt.starts_with("NORVEK, Mustermann, Beispielhuber"));
+        assert!(prompt.contains("NORVEK, Mustermann, Beispielhuber"));
         assert!(!prompt.contains("Fuellbegriff199"));
     }
 
@@ -1068,11 +1159,79 @@ mod tests {
     fn vocabulary_prompt_skips_blanks_and_repeats() {
         let terms = ["NORVEK", "  ", "NORVEK", "MUSTER BAU"].map(str::to_string);
         assert_eq!(
-            vocabulary_prompt(&terms).as_deref(),
-            Some("NORVEK, MUSTER BAU")
+            vocabulary_prompt(&terms, "de").as_deref(),
+            Some("In dieser Besprechung geht es um NORVEK und MUSTER BAU.")
         );
-        assert_eq!(vocabulary_prompt(&[]), None);
-        assert_eq!(vocabulary_prompt(&["".to_string()]), None);
+        assert_eq!(vocabulary_prompt(&[], "de"), None);
+        assert_eq!(vocabulary_prompt(&["".to_string()], "de"), None);
+    }
+
+    /// The change of 29 August 2026, and the reason for it: whisper's initial prompt
+    /// is text the model treats as the transcript that came before, not a parameter
+    /// list, and it was trained to continue speech rather than to read enumerations.
+    ///
+    /// Untested against real audio. `as_a_list` is kept as the control arm.
+    #[test]
+    fn the_terms_arrive_inside_a_sentence_of_the_meetings_language() {
+        let terms = ["HOAI", "Halde", "Tragwerk"].map(str::to_string);
+
+        assert_eq!(
+            as_a_sentence(&terms, "de").as_deref(),
+            Some("In dieser Besprechung geht es um HOAI, Halde und Tragwerk.")
+        );
+        assert_eq!(
+            as_a_sentence(&terms, "en").as_deref(),
+            Some("In this meeting we discuss HOAI, Halde and Tragwerk.")
+        );
+        // The control arm, unchanged.
+        assert_eq!(
+            as_a_list(&terms).as_deref(),
+            Some("HOAI, Halde, Tragwerk")
+        );
+    }
+
+    #[test]
+    fn one_term_needs_no_conjunction_and_two_need_only_that() {
+        assert_eq!(
+            as_a_sentence(&["HOAI".to_string()], "de").as_deref(),
+            Some("In dieser Besprechung geht es um HOAI.")
+        );
+        assert_eq!(
+            as_a_sentence(&["HOAI".to_string(), "Halde".to_string()], "en").as_deref(),
+            Some("In this meeting we discuss HOAI and Halde.")
+        );
+    }
+
+    /// A frame in the wrong language would be worse than none: the prompt is what
+    /// whisper continues, so an English sentence on a Finnish meeting primes the
+    /// wrong language outright. Anything without a frame keeps the list, which is the
+    /// behaviour that has a measurement behind it.
+    #[test]
+    fn a_language_with_no_frame_keeps_the_list_it_had() {
+        let terms = ["HOAI".to_string(), "Halde".to_string()];
+        for language in ["fi", "ja", "auto", "", "zz"] {
+            assert_eq!(
+                as_a_sentence(&terms, language),
+                as_a_list(&terms),
+                "{language} has no frame and must be unchanged"
+            );
+        }
+    }
+
+    /// The frame is part of the prompt, so it must be reserved before the terms are
+    /// chosen rather than discovered to have overflowed afterwards.
+    #[test]
+    fn the_sentence_fits_the_budget_the_list_had_to() {
+        let terms: Vec<String> = (0..200).map(|index| format!("Begriff{index:03}")).collect();
+        for language in ["de", "en"] {
+            let prompt = as_a_sentence(&terms, language).unwrap();
+            assert!(
+                prompt.len() <= VOCABULARY_PROMPT_LIMIT,
+                "{language}: {} characters",
+                prompt.len()
+            );
+            assert!(prompt.ends_with('.'));
+        }
     }
 
     #[test]

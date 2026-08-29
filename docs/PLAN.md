@@ -1203,8 +1203,27 @@ mit dem Tragwerksplaner von HOAI und Frau Halde" — may prime far better per to
 than the same words separated by commas. If it does, the budget question changes
 shape entirely: the scarce resource stops being slots and becomes wording.
 
-This costs nothing to include in the four-arm experiment: run the thirty names as a
-list and as a sentence, and count.
+**Built on 29 August 2026, and unmeasured — which is the whole of what is owed here.**
+`vocabulary_prompt` now writes the terms into a sentence of the meeting's language:
+`In dieser Besprechung geht es um HOAI, Halde und Tragwerk.` The list form is
+kept as `as_a_list` rather than deleted, because it is the control arm and a
+comparison needs both. Neither has been run against real audio; nothing in this
+repository can, since the harnesses read an existing whisper JSON rather than
+producing one. **The comparison is one meeting and two runs, counting how often each
+term comes back right**, and it needs the reference recording.
+
+Three details of it are decisions rather than mechanics:
+
+- **German and English only.** A frame in a language nobody here can judge is a change
+  with no evidence in either direction, and worse: the prompt is what whisper
+  _continues_, so a frame in the wrong language primes the wrong language outright.
+  Every other language — and `auto`, which has no language to name yet — keeps the
+  list.
+- **The frame comes out of the same budget**, about forty characters or four terms,
+  and is reserved before the terms are chosen rather than discovered to have
+  overflowed afterwards.
+- **The claim that justified the old ordering is now marked as under question** in the
+  code as well as here, because it is the thing this experiment may overturn.
 
 ##### The ceiling, named so nobody goes looking for it later
 

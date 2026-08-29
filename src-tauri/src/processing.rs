@@ -1302,7 +1302,7 @@ fn execute_real_transcription(
     // A project's own names are what transcription cannot guess; supplying them
     // measurably corrects company and participant names throughout.
     let vocabulary_terms = repository.transcription_vocabulary(&job.meeting_id)?;
-    let vocabulary_prompt = media::vocabulary_prompt(&vocabulary_terms);
+    let vocabulary_prompt = media::vocabulary_prompt(&vocabulary_terms, &resolved.language_code);
     repository.record_transcription_vocabulary(&job.id, vocabulary_prompt.as_deref())?;
     report(70, "transcribing_audio")?;
     let output = runtime::run_process_with_progress(
