@@ -1170,6 +1170,49 @@ looked up — then twenty well-chosen words could pull a whole transcript toward
 field, and a preset is both cheap and powerful. The 16 August table hints at priming,
 because the list it describes is thirty proper nouns and yet two common nouns improved.
 
+##### The two are different jobs, and only one of them is about names
+
+Clarified with the owner, 29 August. **Names & terms is project-specific** — this
+client, these firms, these people — and it is also the half a language model can help
+with afterwards, which is what the correction pass now does. **Priming is about the
+field**, and it is not about names at all. Keeping them apart is the point: one is
+"who is in this project", the other is "what kind of language is about to be spoken".
+
+**whisper has no lookup, and this is worth stating plainly because it bounds every
+version of the idea.** `whisper_command` passes `--prompt` with
+`--carry-initial-prompt`, and that is the whole of the text conditioning whisper
+accepts — there is no lexicon, no bias list, no vocabulary file. The cap is the
+model's architecture rather than a setting: the decoder's text context is 448 tokens
+and the prompt may use half. So a domain prime cannot be given room of its own. It
+spends the same ~224 tokens the names do.
+
+That is the bad news. The good news is that it only matters if the prompt is a
+dictionary. **If priming is the mechanism, a prime does not need to be large** —
+twenty words that place the decoder in the field would leave thirty slots for names,
+and the two stop competing in any way that hurts.
+
+##### A second hypothesis, free to test alongside the first
+
+`vocabulary_prompt` joins the terms with `", "`, so what whisper receives is a bare
+comma-separated list. But whisper's initial prompt is not a parameter list — it is
+**text the model treats as the transcript that came before**, and the model was
+trained to continue speech, not to read enumerations.
+
+So a prompt written as a sentence of the meeting — "Besprechung zur Fassadenplanung
+mit dem Tragwerksplaner von HOAI und Frau Halde" — may prime far better per token
+than the same words separated by commas. If it does, the budget question changes
+shape entirely: the scarce resource stops being slots and becomes wording.
+
+This costs nothing to include in the four-arm experiment: run the thirty names as a
+list and as a sentence, and count.
+
+##### The ceiling, named so nobody goes looking for it later
+
+Past ~224 tokens there is exactly one lever, and it is not a prompt: **a domain-adapted
+model**. Fine-tuning whisper on the field's language is a second build of the engine
+rather than a setting, and it is the only thing that gets past the text context.
+Recorded as the boundary of this idea, not as a proposal.
+
 **The experiment that settles it** is one meeting and four arms: no vocabulary; the
 thirty proper nouns alone; thirty generic architecture terms alone, with no names; and
 both. If the third arm alone recovers the envelope and structural-engineering terms,
