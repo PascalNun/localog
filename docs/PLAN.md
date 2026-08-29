@@ -156,20 +156,50 @@ rule seriously. All four are fixed:
 
 ### Still open, found in the same pass
 
-1. **A short meeting gets no retry at all.** `plan_sections` returning one section
-   routes to `generate_in_one_pass`, which is one call, one parse, one validation,
-   and `?` — no fold-back, no fail-open. `generate_from_sections` has all three,
-   and commit 479d1f5 added them there with the measurement in its message: about
-   one draw in five arrives without a table. The same fault is still live on the
-   path short meetings take.
-2. **The retry budget does not cover a bad draw.** `attempt(...)?` sends a model
-   error straight out, so `ATTEMPTS_PER_STEP` protects only against a failed check,
-   not against the malformed answer `parse_structured` exists for.
-3. **`with_correction_or_keep` can lose the answer it exists to keep** — an error
-   on a later attempt discards a complete protocol that arrived on an earlier one,
-   at the step whose own comment calls it the most expensive to lose.
+1. ~~**A short meeting gets no retry at all.**~~ Fixed, 29 August 2026, and it was
+   worse than this entry said. The short path is the one somebody meets first — a
+   ten-minute recording made to try the application — and it was the only path with
+   no second chance, so the measured one draw in five without a table was corrected
+   on a real meeting and **failed the whole run here**. It now takes the same three
+   attempts with the same fed-back correction, and keeps what arrived with the same
+   note saying what is missing.
+
+   How it failed is the part worth keeping. `validate_protocol`'s message is written
+   as an instruction because it is fed back to the model — "End it with a markdown
+   table of two columns" — and on this path it went to the person instead. Every
+   other arm of the provider-error conversion carries a key the interface renders;
+   `InvalidResponse` passed its prose through, so a German user was shown an English
+   instruction addressed to them, telling them to do something only the model can do.
+   That is the identifier-and-label fault from the translation work in a third
+   costume: **one string with two consumers.** The prose stays where the model reads
+   it, and the person now gets a code.
+
+2. ~~**The retry budget does not cover a bad draw.**~~ and
+3. ~~**`with_correction_or_keep` can lose the answer it exists to keep.**~~ Both
+   fixed by the same three lines: the attempt's error is now matched rather than
+   `?`-ed, and an answer already in hand survives a retry that fails. The predicate
+   was already written — `is_a_bad_draw` — which is why the fix is small. It is also
+   why it is safe: a cancellation is an instruction and must be obeyed even with a
+   protocol in hand, and a missing model or a changed runtime fails the next attempt
+   identically, so both still travel out unchanged.
+
 4. **The evaluation harness hand-types the fourteen style instructions** that
    migration 9 writes into every workspace. Byte-identical today; nothing checks it.
+
+5. **A refusal was being reported as a failure.** Found while fixing the above, and
+   it is a category error with a consequence. `beyond_one_answer` decides before any
+   model call that a protocol of this meeting cannot fit in one answer — nothing has
+   failed and nothing was asked — and it raised `InvalidResponse` carrying a sentence
+   holding the two numbers a person needs. Folding that into a generic message would
+   have removed the only actionable thing about it, so it now has its own variant and
+   its own key, with the numbers as the detail, formatted in the reader's own locale.
+
+6. **The notes appended to a protocol are English, inside a document that may not
+   be.** `note_missing_table` writes `## No table of next steps` and
+   `append_gap_notice` writes `## Not covered by this protocol`, straight into a
+   German protocol. Not fixed here on purpose: this is the printed-header question
+   again — whether text that is _part of the document_ follows the interface's
+   language or the meeting's — and it is the owner's to answer once for both.
 
 ## What to do next, in order — 23 August 2026
 
@@ -840,7 +870,7 @@ the thing they describe rather than by remembering it.
   Three faults of the same shape turned up and are worth naming, because a fourth
   will look like them: **a string that is both an identifier and a label** reads as
   one thing until there is a second language, and then it is quietly two. Settings
-  sections (`section === 'General'` is never true when the tab says *Allgemein*),
+  sections (`section === 'General'` is never true when the tab says _Allgemein_),
   vocabulary categories, and export formats each needed the id separated from the
   label. Constants that read the dictionary at module level had the mirror-image
   fault: they captured English once and would still have said `Header` after a
@@ -865,6 +895,7 @@ the thing they describe rather than by remembering it.
   One correction to what stood here: this was never criterion 8 in `MVP.md`. That
   criterion asks for recorded German **and English quality evidence**, is untouched by
   this work, and is still open.
+
 - The application is not signed. It is ad-hoc signed, which runs here and is refused
   on anybody else's Mac, and there is no Developer ID on this machine. This is the
   whole of what stands between the current bundle and handing it to somebody. The

@@ -193,6 +193,13 @@ const failures = {
     'The Ollama runtime changed after this job was queued. Retry to resolve it again.',
   responseTooLarge: 'The local model response exceeded the safe limit and was not committed.',
   responseIncomplete: 'The local model stopped before returning a complete protocol.',
+  /** `expected/ceiling`, both in characters, straight from the arithmetic. */
+  protocolWouldNotFit: (sizes: string) => {
+    const [expected, ceiling] = sizes.split('/').map((n) => Number(n).toLocaleString('en-GB'));
+    return `This meeting is long enough that a protocol of it — roughly ${expected} characters — would not fit in one answer, which holds about ${ceiling}. Nothing was attempted, because this is arithmetic rather than a bad run and retrying would fail the same way. Choose a terser protocol style, or split the recording.`;
+  },
+  responseUnusable:
+    'The local model returned an answer LocaLog could not use as a protocol. Nothing was committed and your transcript is unchanged. Retrying often succeeds, because a model answers differently each time.',
   recorderMissing: 'No recorder is installed. LocaLog ships one; this build cannot find it.',
   recorderSilentAboutPermissions: 'The recorder did not say what it is allowed to do.',
   recorderCannotReportPermissions: 'This recorder cannot report what it is allowed to do.',

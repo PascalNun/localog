@@ -31,6 +31,14 @@ pub enum ProviderError {
     IncompleteResponse,
     /// The model accepted the work and then stopped sending anything.
     Stalled,
+    /// A protocol of this meeting cannot fit in one answer.
+    ///
+    /// Known before the first model call, so nothing has failed and nothing was
+    /// asked: this is a refusal, not a fault. It was an `InvalidResponse` until
+    /// 29 August 2026, which was a category error with a consequence — the two
+    /// numbers a person needs in order to act travelled as free prose in the one
+    /// variant whose prose is otherwise correction text written for a model.
+    BeyondOneAnswer { expected: usize, ceiling: usize },
 }
 
 impl ProviderError {
@@ -78,6 +86,11 @@ impl Display for ProviderError {
             Self::IncompleteResponse => {
                 write!(formatter, "the local model response was incomplete")
             }
+            Self::BeyondOneAnswer { expected, ceiling } => write!(
+                formatter,
+                "a protocol of this meeting is about {expected} characters and one \
+                 answer holds about {ceiling}"
+            ),
         }
     }
 }
@@ -265,6 +278,10 @@ struct PromptPayload<'a> {
     vocabulary_revision: &'a str,
     vocabulary: &'a [String],
     transcript: &'a [GenerationSegment],
+    /// What was wrong with the previous answer, on a retry only. Skipped when there
+    /// is none, so a first request is byte-for-byte what it has always been.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    correction: Option<&'a str>,
 }
 
 /// A meeting is longer than any context window, so long transcripts are condensed
@@ -595,9 +612,9 @@ impl OllamaProvider {
         // Said before the work starts rather than after three identical failures.
         // The person can shorten the recording, choose a terser style, or accept a
         // protocol that stops early — but only if they are told, and told now.
-        if let Some(warning) = beyond_one_answer(request) {
+        if let Some(refusal) = beyond_one_answer(request) {
             progress(19, "protocol_would_not_fit")?;
-            return Err(ProviderError::InvalidResponse(warning));
+            return Err(refusal);
         }
 
         let sections = plan_sections(request);
@@ -870,6 +887,14 @@ impl OllamaProvider {
     }
 
     /// Short meetings fit the window, so the protocol is written directly.
+    ///
+    /// It now gets the same three attempts, the same fed-back correction and the same
+    /// keep-what-arrived as the sectioned path. It had none of them until 29 August
+    /// 2026, which put the only unprotected path under the shortest meeting — the ten
+    /// minutes somebody records to try the application. The measured one draw in five
+    /// that omits the actions table was corrected or kept on a real meeting and failed
+    /// the whole run here, and it failed by showing the reader the correction text,
+    /// which is an instruction written for a model.
     fn generate_in_one_pass(
         &self,
         request: &GenerationRequest,
@@ -877,37 +902,53 @@ impl OllamaProvider {
         progress: &mut dyn FnMut(u64, &str) -> Result<()>,
     ) -> Result<String> {
         let instructions = with_density(request);
-        let payload = PromptPayload {
-            meeting_language: &request.meeting_language,
-            style_id: &request.style.id,
-            style_revision: &request.style.revision,
-            instructions: &instructions,
-            vocabulary_revision: &request.vocabulary_revision,
-            vocabulary: &request.vocabulary,
-            transcript: &request.transcript,
-        };
-        let generated = self.complete(
-            request,
-            Completion {
-                system: PROTOCOL_SYSTEM,
-                prompt: &encode_prompt(&payload)?,
-                format: protocol_schema(),
-                num_predict: output_allowance(request),
-                attempt: 0,
+        let (markdown, complete) = with_correction_or_keep(
+            |correction, attempt| {
+                let payload = PromptPayload {
+                    meeting_language: &request.meeting_language,
+                    style_id: &request.style.id,
+                    style_revision: &request.style.revision,
+                    instructions: &instructions,
+                    vocabulary_revision: &request.vocabulary_revision,
+                    vocabulary: &request.vocabulary,
+                    transcript: &request.transcript,
+                    correction,
+                };
+                let generated = self.complete(
+                    request,
+                    Completion {
+                        system: PROTOCOL_SYSTEM,
+                        prompt: &encode_prompt(&payload)?,
+                        format: protocol_schema(),
+                        num_predict: output_allowance(request),
+                        attempt,
+                    },
+                    cancelled,
+                    &mut |written| {
+                        progress(
+                            arrived(60, 76, written, output_allowance(request)),
+                            "generating_protocol",
+                        )
+                    },
+                )?;
+                let structured: StructuredProtocol = parse_structured(&generated)?;
+                Ok(tidy_protocol(&structured.protocol_markdown))
             },
-            cancelled,
-            &mut |written| {
-                progress(
-                    arrived(60, 76, written, output_allowance(request)),
-                    "generating_protocol",
-                )
+            |markdown: &String| {
+                validate_protocol(markdown, spoken_characters(request), &request.style)
             },
         )?;
-        let structured: StructuredProtocol = parse_structured(&generated)?;
-        let markdown = tidy_protocol(&structured.protocol_markdown);
-        validate_protocol(&markdown, spoken_characters(request), &request.style)?;
         progress(78, "validating_protocol")?;
-        Ok(markdown)
+
+        // An answer kept after every retry failed must still be a protocol, exactly as
+        // on the sectioned path: three tries without a table is a document with
+        // something missing, and three JSON dumps is not a document at all.
+        validate_markdown(&markdown, spoken_characters(request))?;
+        Ok(if complete {
+            markdown
+        } else {
+            note_missing_table(markdown)
+        })
     }
 
     /// A real meeting exceeds the window. Each section is condensed first, then the
@@ -2647,7 +2688,22 @@ fn with_correction_or_keep<T>(
     let mut correction: Option<String> = None;
     let mut last: Option<T> = None;
     for attempt_number in 0..ATTEMPTS_PER_STEP {
-        let answer = attempt(correction.as_deref(), attempt_number as u32)?;
+        let answer = match attempt(correction.as_deref(), attempt_number as u32) {
+            Ok(answer) => answer,
+            // A complete answer arrived on an earlier attempt and this retry went
+            // wrong. Keeping it is the whole purpose of this function, and `?` here
+            // discarded it — at the step whose own comment calls it the most expensive
+            // to lose, because the entire meeting has already been condensed by the
+            // time it runs. The trade is the same one the retry itself makes: an
+            // imperfect protocol beats no protocol.
+            //
+            // Only a bad draw is survivable this way. A cancellation is an instruction
+            // and must be obeyed; a missing model, a changed runtime or an unreachable
+            // server fails the next attempt identically, so there is nothing to keep
+            // trying for and the reason should reach the person unchanged.
+            Err(error) if last.is_some() && error.is_a_bad_draw() => break,
+            Err(error) => return Err(error),
+        };
         match check(&answer) {
             Ok(()) => return Ok((answer, true)),
             Err(problem) => {
@@ -2706,17 +2762,13 @@ const PROTOCOL_SHARE_OF_SPEECH: usize = 4;
 ///
 /// Measured at 8,192 tokens of context, where the window binds before this does: all
 /// three seeds failed identically. This is the same limit seen from the other end.
-fn beyond_one_answer(request: &GenerationRequest) -> Option<String> {
+fn beyond_one_answer(request: &GenerationRequest) -> Option<ProviderError> {
     let expected = spoken_characters(request) / PROTOCOL_SHARE_OF_SPEECH;
     let ceiling = output_allowance(request) as usize * CHARS_PER_OUTPUT_TOKEN;
     if expected <= ceiling {
         return None;
     }
-    Some(format!(
-        "This meeting is long enough that a protocol of it — roughly {expected} \
-         characters — would not fit in one answer, which holds about {ceiling}. \
-         The protocol would be cut off before the end."
-    ))
+    Some(ProviderError::BeyondOneAnswer { expected, ceiling })
 }
 
 /// How many characters the meeting itself holds, which is what a protocol of it is
@@ -3525,9 +3577,22 @@ mod tests {
         request.context_tokens = 40_960;
         request.maximum_output_tokens = 8_192;
 
-        let warning = beyond_one_answer(&request).expect("a meeting this long cannot fit");
-        assert!(warning.contains("would not fit in one answer"), "{warning}");
-        assert!(warning.contains("cut off"), "{warning}");
+        let Some(ProviderError::BeyondOneAnswer { expected, ceiling }) =
+            beyond_one_answer(&request)
+        else {
+            panic!("a meeting this long cannot fit in one answer");
+        };
+        // The numbers rather than the sentence. The sentence is the interface's to
+        // write now, and in whichever language it is in; what has to be right here is
+        // the arithmetic, and it is also the only part a person can act on — being
+        // told "too long" without them cannot say whether to trim a minute or half
+        // the meeting.
+        assert!(
+            expected > ceiling,
+            "{expected} characters wanted against a ceiling of {ceiling}"
+        );
+        // 8,192 tokens requested, and the window is wide enough not to bind first.
+        assert_eq!(ceiling, 8_192 * CHARS_PER_OUTPUT_TOKEN);
     }
 
     /// A bigger machine does not help, which is the point worth making to somebody
@@ -3898,6 +3963,156 @@ mod tests {
         assert!(status.server_reachable);
         assert!(status.selected_model_ready);
         assert_eq!(status.selected_model_digest.as_deref(), Some("sha256:test"));
+    }
+
+    /// The step `with_correction_or_keep` protects is the last one, after the whole
+    /// meeting has already been condensed. Losing a complete protocol there because a
+    /// *retry* went wrong is the one outcome it exists to prevent, and `?` on the
+    /// attempt did exactly that: the answer already in hand was dropped on the floor.
+    #[test]
+    fn an_answer_already_in_hand_survives_a_retry_that_fails() {
+        let mut tries = 0;
+        let (answer, within) = with_correction_or_keep(
+            |_correction, _attempt| {
+                tries += 1;
+                if tries == 1 {
+                    Ok("a whole protocol, lacking only its table".to_string())
+                } else {
+                    Err(ProviderError::Stalled)
+                }
+            },
+            |_: &String| Err(ProviderError::InvalidResponse("no table".into())),
+        )
+        .expect("the protocol from the first attempt is still a protocol");
+
+        assert_eq!(answer, "a whole protocol, lacking only its table");
+        assert!(!within, "and it is still reported as not what was asked for");
+        assert_eq!(tries, 2, "it stopped once the retry failed");
+    }
+
+    /// The exception, and it is not negotiable. Somebody pressed cancel, and handing
+    /// them a protocol anyway would be the application deciding it knew better.
+    #[test]
+    fn a_cancellation_is_obeyed_even_with_an_answer_in_hand() {
+        let mut tries = 0;
+        let outcome = with_correction_or_keep(
+            |_correction, _attempt| {
+                tries += 1;
+                if tries == 1 {
+                    Ok("a draft".to_string())
+                } else {
+                    Err(ProviderError::Cancelled)
+                }
+            },
+            |_: &String| Err(ProviderError::InvalidResponse("not yet".into())),
+        );
+        assert!(matches!(outcome, Err(ProviderError::Cancelled)));
+    }
+
+    /// Nothing in hand and the machine is wrong rather than the draw: the reason has
+    /// to reach the person unchanged. A missing model fails the next attempt
+    /// identically, so there is nothing to keep trying for.
+    #[test]
+    fn a_failure_with_nothing_to_keep_reports_why_it_failed() {
+        let outcome = with_correction_or_keep(
+            |_correction, _attempt| {
+                Err::<String, _>(ProviderError::ModelMissing("gemma4:12b".into()))
+            },
+            |_: &String| Ok(()),
+        );
+        assert!(matches!(outcome, Err(ProviderError::ModelMissing(_))));
+    }
+
+    /// One NDJSON line holding a whole answer, which is what Ollama streams.
+    fn one_streamed_answer(protocol: &str) -> String {
+        let payload = serde_json::json!({ "protocol_markdown": protocol }).to_string();
+        format!(
+            "{}\n",
+            serde_json::json!({ "response": payload, "done": true })
+        )
+    }
+
+    /// Serve at most `ATTEMPTS_PER_STEP` answers and report how many were actually
+    /// asked for. A connection that sends nothing ends the loop, so a regression that
+    /// asks fewer times fails the assertion instead of hanging the suite.
+    fn serve(listener: TcpListener, body: String) -> thread::JoinHandle<usize> {
+        thread::spawn(move || {
+            let mut served = 0;
+            for _ in 0..ATTEMPTS_PER_STEP {
+                let Ok((mut stream, _)) = listener.accept() else {
+                    break;
+                };
+                let mut buffer = [0_u8; 8192];
+                match stream.read(&mut buffer) {
+                    Ok(0) | Err(_) => break,
+                    Ok(_) => {}
+                }
+                served += 1;
+                write_http_response(&mut stream, body.as_bytes());
+            }
+            served
+        })
+    }
+
+    /// A meeting long enough to be worth 200 characters of protocol, which is the
+    /// floor `validate_markdown` puts under a plausible one.
+    const A_PROTOCOL: &str = "## Besprechung\n\nDie Fassade wurde besprochen und der         Tragwerksplaner hat den Stand der Bauteilplanung dargestellt. Offen bleibt die         Frage der Anschlusspunkte, die in der kommenden Woche geklärt werden soll. Der         Bauherr hat den Terminplan zur Kenntnis genommen und keine Einwände erhoben.";
+
+    /// The shortest meeting was the only path with no second chance: one call, one
+    /// parse, one validation, every one of them `?`. Measured, about one draw in five
+    /// omits the actions table — so a ten-minute recording, which is exactly what
+    /// somebody makes to try the application, failed outright one time in five while a
+    /// real meeting was corrected or kept.
+    #[test]
+    fn a_short_meeting_retries_a_draw_without_its_table_and_keeps_what_arrived() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let handle = serve(listener, one_streamed_answer(A_PROTOCOL));
+
+        let request = synthetic_request(4, 5);
+        let protocol = OllamaProvider::at_port(port)
+            .generate_in_one_pass(&request, &AtomicBool::new(false), &mut |_, _| Ok(()))
+            .expect("a protocol without its table is still a protocol");
+        let _ = std::net::TcpStream::connect(("127.0.0.1", port));
+
+        assert_eq!(
+            handle.join().unwrap(),
+            ATTEMPTS_PER_STEP,
+            "it should have asked again with the correction"
+        );
+        assert!(
+            protocol.contains("Anschlusspunkte"),
+            "and kept the meeting it was given: {protocol}"
+        );
+        assert!(
+            protocol.contains("No table of next steps"),
+            "while saying what is missing from it: {protocol}"
+        );
+    }
+
+    /// The other half, and the one that would notice an over-eager retry: a good draw
+    /// costs exactly one request and is returned untouched.
+    #[test]
+    fn a_short_meeting_whose_draw_is_good_is_asked_for_once() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let complete = format!(
+            "{A_PROTOCOL}\n\n| Aufgabe | Verantwortlich |\n| --- | --- |\n|              Anschlusspunkte klären | Prüfstelle |\n"
+        );
+        let handle = serve(listener, one_streamed_answer(&complete));
+
+        let request = synthetic_request(4, 5);
+        let protocol = OllamaProvider::at_port(port)
+            .generate_in_one_pass(&request, &AtomicBool::new(false), &mut |_, _| Ok(()))
+            .expect("a protocol with its table is accepted");
+        let _ = std::net::TcpStream::connect(("127.0.0.1", port));
+
+        assert_eq!(handle.join().unwrap(), 1, "one good answer is one request");
+        assert!(
+            !protocol.contains("No table of next steps"),
+            "and nothing is added to it: {protocol}"
+        );
+        assert!(protocol.contains("| Aufgabe | Verantwortlich |"));
     }
 
     fn write_http_response(stream: &mut std::net::TcpStream, body: &[u8]) {

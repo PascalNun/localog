@@ -355,10 +355,27 @@ fn provider_processing_error(error: provider::ProviderError) -> ProcessingError 
             code: "provider_unavailable",
             message: format!("ollamaRequestFailed:{message}"),
         },
-        provider::ProviderError::InvalidResponse(message) => ProcessingError::Runtime {
+        // The sentence is deliberately dropped rather than passed on. Every other arm
+        // here carries a key the interface renders; this one carried whatever prose
+        // raised it, and most of that prose is correction text addressed to the model
+        // — "End it with a markdown table of two columns" is an instruction the reader
+        // cannot act on, in English, in a German window. It stays in `Display`, which
+        // is the log, and the person is told what actually concerns them: the answer
+        // could not be used, and nothing was committed.
+        provider::ProviderError::InvalidResponse(_) => ProcessingError::Runtime {
             code: "provider_invalid_output",
-            message,
+            message: "responseUnusable".into(),
         },
+        // Not a failure: the meeting was measured against the answer ceiling before
+        // anything was asked. The two numbers travel with it because they are what
+        // makes it actionable — a person who is told only "too long" cannot tell
+        // whether to trim a minute or half the meeting.
+        provider::ProviderError::BeyondOneAnswer { expected, ceiling } => {
+            ProcessingError::Runtime {
+                code: "provider_beyond_one_answer",
+                message: format!("protocolWouldNotFit:{expected}/{ceiling}"),
+            }
+        }
         provider::ProviderError::ResponseTooLarge => ProcessingError::Runtime {
             code: "provider_response_too_large",
             message: "responseTooLarge".into(),

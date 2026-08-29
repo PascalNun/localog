@@ -198,6 +198,12 @@ const failures = {
     'Die Antwort des lokalen Modells hat die sichere Grenze überschritten und wurde nicht übernommen.',
   responseIncomplete:
     'Das lokale Modell hat abgebrochen, bevor ein vollständiges Protokoll vorlag.',
+  protocolWouldNotFit: (sizes: string) => {
+    const [expected, ceiling] = sizes.split('/').map((n) => Number(n).toLocaleString('de-DE'));
+    return `Diese Besprechung ist so lang, dass ein Protokoll davon — etwa ${expected} Zeichen — nicht in eine Antwort passt; darin ist Platz für ungefähr ${ceiling}. Es wurde nichts versucht, denn das ist eine Rechnung und kein misslungener Durchlauf: ein erneuter Versuch scheiterte genauso. Wählen Sie einen knapperen Protokollstil, oder teilen Sie die Aufnahme.`;
+  },
+  responseUnusable:
+    'Das lokale Modell hat eine Antwort geliefert, die LocaLog nicht als Protokoll verwenden kann. Es wurde nichts übernommen, Ihr Transkript ist unverändert. Ein erneuter Versuch führt oft zum Ziel, da ein Modell jedes Mal anders antwortet.',
   recorderMissing:
     'Es ist keine Aufnahmekomponente installiert. LocaLog liefert eine mit, dieser Build findet sie nicht.',
   recorderSilentAboutPermissions: 'Die Aufnahmekomponente hat nicht mitgeteilt, was sie darf.',
