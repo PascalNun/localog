@@ -4,7 +4,7 @@
   import SidebarResizeHandle from './SidebarResizeHandle.svelte';
   import { clock } from '../time';
   import { formatBytes } from '../bytes';
-  import { t } from '../i18n';
+  import { stageText, t } from '../i18n';
 
   export let projects: ProjectSummary[];
   export let route: AppRoute;
@@ -75,7 +75,8 @@
   }
 
   function jobDetail(job: ActiveJob) {
-    if (jobNeedsAttention || job.state === 'queued') return job.error?.title ?? job.stage;
+    if (jobNeedsAttention || job.state === 'queued')
+      return job.error?.title ?? stageText(job.stage);
     // Without a meeting name above it, the stage would be the only line, so the
     // work is named here instead of being lost.
     if (!activeJobMeeting) return `${stageLabel(job)} · ${progressLabel(job)}`;
@@ -86,7 +87,9 @@
   }
 
   function stageLabel(job: ActiveJob) {
-    return job.stage.toLowerCase().includes('speaker') ? $t.sidebar.separatingSpeakers : job.stage;
+    return job.stage.toLowerCase().includes('speaker')
+      ? $t.sidebar.separatingSpeakers
+      : stageText(job.stage);
   }
 
   function progressLabel(job: ActiveJob) {

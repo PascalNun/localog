@@ -400,6 +400,71 @@ export const de: Strings = {
       'Ein zurückgelegter Abschnitt verlässt das Dokument — was Sie lesen, ist also genau das, was exportiert wird. Er bleibt hier erhalten und kann zurückgeholt werden.',
   },
 
+  jobStages: {
+    transcriptSaved: 'Transkript gespeichert',
+    protocolSaved: 'Protokoll gespeichert',
+    importComplete: 'Übernahme abgeschlossen — Original unverändert',
+    processingCancelled: 'Die lokale Verarbeitung wurde abgebrochen — der stabile Stand bleibt',
+    processingInterrupted: 'Die lokale Verarbeitung wurde unterbrochen — der stabile Stand bleibt',
+    processingFailed: 'Die lokale Verarbeitung konnte nicht abschließen — der stabile Stand bleibt',
+
+    ready_to_import: 'Bereit, die Aufnahme zu übernehmen',
+    copying: 'Die Aufnahme wird übernommen',
+    stoppingSafely: 'Wird sicher beendet',
+    temporary_complete: 'Fast geschafft',
+    finalizing: 'Die Aufnahme wird sicher abgelegt',
+    duplicate_confirmation: 'Diese Aufnahme liegt möglicherweise schon hier',
+    completed: 'Die Aufnahme ist da',
+    cancelled: 'Übernahme abgebrochen — Original unverändert',
+    interrupted: 'Übernahme unterbrochen — Original unverändert',
+    failed: 'Übernahme konnte nicht abschließen — Original unverändert',
+    probing_media: 'Die Aufnahme wird angesehen',
+    normalizing_audio: 'Das Audio wird vorbereitet',
+    output_staged: 'Wird sicher gespeichert',
+
+    transcription_queued: 'Bereit zum Transkribieren',
+    checking_source: 'Die Aufnahme wird geprüft',
+    loading_transcription_model: 'Das Modell wird geladen',
+    transcribing_audio: 'Wird transkribiert',
+    separating_speakers: 'Die Sprecher werden unterschieden',
+    validating_transcript: 'Das Transkript wird gespeichert',
+    preparing_fake_transcriber: 'Wird vorbereitet',
+    transcribing_synthetic_segments: 'Transkriptabschnitte werden erzeugt',
+
+    generation_queued: 'Bereit, das Protokoll zu schreiben',
+    checking_transcript: 'Das Transkript wird geprüft',
+    resolving_protocol_inputs: 'Stil und Begriffe werden zusammengestellt',
+    condensing_transcript: 'Die Besprechung wird durchgelesen',
+    generating_protocol: 'Der Protokollentwurf wird geschrieben',
+    validating_protocol: 'Das Protokoll wird gespeichert',
+    reading_introductions: 'Es wird gelesen, wer sich vorgestellt hat',
+
+    protocol_would_not_fit: 'Diese Besprechung ist länger, als ein Durchgang fassen kann',
+    segments_no_subject_claimed: 'Ein Teil der Besprechung fiel unter kein Thema',
+    sections_over_their_length: 'Einige Abschnitte sind länger geraten als vorgesehen',
+
+    finding_subjects: (detail: string) =>
+      detail
+        ? `Es wird gesucht, worum es ging — Passage ${detail}`
+        : 'Es wird gesucht, worum es ging',
+    writing_section: (detail: string) =>
+      detail
+        ? `${detail} wird geschrieben`
+        : 'Das Protokoll wird Abschnitt für Abschnitt geschrieben',
+    joining_subjects: (detail: string) =>
+      detail
+        ? `Zusammengehörige Themen werden verbunden — ${detail} gefunden`
+        : 'Zusammengehörige Themen werden verbunden',
+    joined_subjects: (detail: string) =>
+      detail ? `Themen verbunden — ${detail}` : 'Themen verbunden',
+    joining_failed: (detail: string) =>
+      detail
+        ? `Die Themen konnten nicht verbunden werden — ${detail}`
+        : 'Die Themen konnten nicht verbunden werden',
+
+    working: 'Läuft',
+  },
+
   stages: {
     label: 'Schritte der Besprechung',
     source: 'Quelle',

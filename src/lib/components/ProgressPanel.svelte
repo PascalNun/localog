@@ -2,7 +2,7 @@
   import type { ActiveJob } from '../workflow/types';
   import Icon from './Icon.svelte';
   import { formatBytes } from '../bytes';
-  import { t } from '../i18n';
+  import { stageText, t } from '../i18n';
 
   export let job: ActiveJob;
   export let onCancel: () => Promise<void>;
@@ -24,7 +24,7 @@
         ? $t.progress.working
         : `${job.progress}%`;
   $: indeterminate = job.stage.toLowerCase().includes('speaker');
-  $: stageLabel = indeterminate ? $t.progress.separatingSpeakers : job.stage;
+  $: stageLabel = indeterminate ? $t.progress.separatingSpeakers : stageText(job.stage);
   $: continueLabel =
     job.kind === 'import'
       ? $t.progress.continueImport
@@ -71,7 +71,7 @@
     </div>
   {:else if job.state === 'completed'}
     <div class="progress-actions">
-      <span class="safe-note"><Icon name="check" size={15} /> {job.stage}</span>
+      <span class="safe-note"><Icon name="check" size={15} /> {stageText(job.stage)}</span>
     </div>
   {:else}
     <div class="progress-meter-wrap">

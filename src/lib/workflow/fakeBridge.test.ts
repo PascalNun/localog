@@ -242,7 +242,7 @@ describe('FakeWorkflowBridge', () => {
       progress: 42,
       progressBytes: 420,
       totalBytes: 1_000,
-      stage: 'Import was interrupted — original unchanged',
+      stage: 'interrupted',
       attempt: 1,
       error: {
         code: 'interrupted',

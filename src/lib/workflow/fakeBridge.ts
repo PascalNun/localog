@@ -199,10 +199,18 @@ function sampleTranscriptDocument(meetingId: string): TranscriptDocument {
   };
 }
 
+/**
+ * Stage **codes**, the same ones the pipeline reports, not the words for them.
+ *
+ * They were English labels until 29 August 2026, which stopped being right when the
+ * words moved to the dictionary: the preview then showed the fallback, "Working", for
+ * every step of every job. A fake that does not speak the real contract cannot show
+ * anybody what the application does.
+ */
 const jobStages: Record<JobKind, string[]> = {
-  import: ['Checking source', 'Copying original', 'Preparing working audio'],
-  transcription: ['Preparing local model', 'Transcribing audio', 'Writing transcript revision'],
-  generation: ['Preparing reviewed transcript', 'Generating draft', 'Writing protocol revision'],
+  import: ['checking_source', 'copying', 'normalizing_audio'],
+  transcription: ['loading_transcription_model', 'transcribing_audio', 'validating_transcript'],
+  generation: ['checking_transcript', 'generating_protocol', 'validating_protocol'],
 };
 
 const completionLifecycle: Record<JobKind, MeetingLifecycle> = {
@@ -456,7 +464,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     }
     if (await this.durable((store) => store.cancelProcessing(job.meetingId))) return;
     job.state = 'cancelling';
-    job.stage = 'Stopping local process safely';
+    job.stage = 'stoppingSafely';
     this.emit();
   }
 
@@ -1396,7 +1404,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       progress: 0,
       progressBytes: 0,
       totalBytes: null,
-      stage: 'Queued locally',
+      stage: kind === 'transcription' ? 'transcription_queued' : 'generation_queued',
       attempt,
       error: null,
       requiresDuplicateConfirmation: false,
@@ -1476,7 +1484,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     if (job.state === 'cancelling') {
       job.state = 'completed';
       job.outcome = 'cancelled';
-      job.stage = 'Cancelled — latest stable work retained';
+      job.stage = job.kind === 'import' ? 'cancelled' : 'processingCancelled';
       this.stopTimer();
       this.emit();
       return;
@@ -1486,7 +1494,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     job.progress = Math.min(100, job.progress + this.progressStep);
     const stages = jobStages[job.kind];
     const stageIndex = Math.min(stages.length - 1, Math.floor(job.progress / 34));
-    job.stage = stages[stageIndex] ?? 'Working locally';
+    job.stage = stages[stageIndex] ?? 'working';
 
     if (this.snapshot.nextJobOutcome === 'failure' && job.progress >= 45) {
       job.state = 'failed';

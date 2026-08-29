@@ -34,7 +34,7 @@
   import { FakeWorkflowBridge } from './lib/workflow/fakeBridge';
   import { createNativeWorkspaceStore } from './lib/workflow/workspaceStore';
   import { errorMessage } from './lib/errors';
-  import { startLanguage, t } from './lib/i18n';
+  import { stageText, startLanguage, t } from './lib/i18n';
   import { formatBytes } from './lib/bytes';
   import type {
     AppRoute,
@@ -405,7 +405,7 @@
     const job = nextSnapshot.activeJob;
     if (!job || job.state !== 'completed' || job.id === lastHandledJobId) return;
     lastHandledJobId = job.id;
-    announcement = job.stage;
+    announcement = stageText(job.stage);
     if (job.outcome !== 'succeeded') return;
     // Background completion must not pull someone away from a different meeting or view.
     if (routeMeetingId() !== job.meetingId) return;

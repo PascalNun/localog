@@ -2838,7 +2838,7 @@ fn job_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<JobSummary> {
         progress_bytes: progress_bytes as u64,
         total_bytes: total_bytes.map(|value| value as u64),
         requires_duplicate_confirmation: stage == "duplicate_confirmation",
-        stage: job_stage_label(&row.get::<_, String>(2)?, &stage, state),
+        stage: job_stage_code(&row.get::<_, String>(2)?, &stage, state),
         attempt: row.get::<_, i64>(7)? as u32,
         error,
     })
@@ -2947,116 +2947,44 @@ fn import_job_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ImportJobRec
     })
 }
 
-/// What a person is told the application is doing.
+/// Which stage a person is being shown, as a code rather than as words.
 ///
-/// These are read by someone waiting, not by someone reading the code, so they
-/// are written in the words that person would use. A revision, a snapshot and a
-/// committed source are real things in here and mean nothing out there; a line
-/// that says "validating the transcript revision" has described the machine to
-/// somebody who wanted to know about their meeting.
+/// It held sixty-two arms of English prose until 29 August 2026, and that prose was
+/// the line somebody watches for the quarter of an hour a protocol takes — so it was
+/// the largest thing in the application still speaking one language. The words are in
+/// the dictionary now, under `jobStages`, along with the reasoning about how they are
+/// written that used to live here.
 ///
-/// Reassurance is not repeated, and not only because it crowds out the one thing
-/// the reader did not already know. Saying a thing that is always true invites the
-/// reader to wonder when it might not be: a line that says work is happening
-/// locally implies that somewhere there is a run that would not, and the promise
-/// starts manufacturing the doubt it was meant to answer. That the work is local
-/// and that an imported file leaves the original alone belong in the interface
-/// once, stated plainly, where they can be trusted rather than repeated.
-///
-/// Failure is the exception. When something has gone wrong, that the original is
-/// untouched stops being a boast and becomes the answer to the question being
-/// asked.
-fn job_stage_label(kind: &str, stage: &str, state: JobState) -> String {
+/// Almost everything passes through as reported. Only two things are decided here,
+/// because only these depend on something the interface cannot see: what "completed"
+/// means for each kind of job, and that a copy being cancelled is stopping rather
+/// than copying.
+fn job_stage_code(kind: &str, stage: &str, state: JobState) -> String {
+    // The four the lifecycle decides rather than the work, and the only ones whose
+    // wording depends on which kind of job it was.
     if stage == "completed" {
         return match kind {
-            "transcription" => "Transcript saved".to_string(),
-            "generation" => "Protocol saved".to_string(),
-            _ => "Import complete — original unchanged".to_string(),
-        };
-    }
-    if stage == "cancelled" && kind != "import" {
-        return "Local processing was cancelled — stable work retained".to_string();
-    }
-    if stage == "interrupted" && kind != "import" {
-        return "Local processing was interrupted — stable work retained".to_string();
-    }
-    if stage == "failed" && kind != "import" {
-        return "Local processing could not finish — stable work retained".to_string();
-    }
-    // A stage may carry a live detail after a colon, so that a step lasting minutes
-    // can say where it has got to instead of showing the same words throughout.
-    let (stage, detail) = match stage.split_once(':') {
-        Some((code, detail)) => (code, Some(detail)),
-        None => (stage, None),
-    };
-    match (stage, state) {
-        ("finding_subjects", _) => match detail {
-            Some(detail) => format!("Finding what was discussed — passage {detail}"),
-            None => "Finding what was discussed".to_string(),
-        },
-        // The next three belong to write_by_topic, which is written and tested but
-        // #[cfg(test)] — no shipped path emits them, so nobody has seen these words
-        // yet. Kept so that wiring that path in does not leave it saying "Working".
-        ("writing_section", _) => match detail {
-            Some(detail) => format!("Writing {detail}"),
-            None => "Writing the protocol section by section".to_string(),
-        },
-        ("reading_introductions", _) => "Reading who introduced themselves".to_string(),
-        // Three notices the generator raises about its own result. They are brief —
-        // the run carries straight on, or stops — but "Working" told a person nothing
-        // at the two moments most worth seeing.
-        ("protocol_would_not_fit", _) => {
-            "This meeting is longer than one pass can hold".to_string()
+            "transcription" => "transcriptSaved",
+            "generation" => "protocolSaved",
+            _ => "importComplete",
         }
-        ("segments_no_subject_claimed", _) => {
-            "Some of the meeting fell outside every subject".to_string()
-        }
-        ("sections_over_their_length", _) => "Some sections came out longer than asked".to_string(),
-        ("joining_failed", _) => match detail {
-            Some(detail) => format!("Subjects could not be joined — {detail}"),
-            None => "Subjects could not be joined".to_string(),
-        },
-        ("joined_subjects", _) => match detail {
-            Some(detail) => format!("Joined subjects — {detail}"),
-            None => "Joined subjects".to_string(),
-        },
-        ("joining_subjects", _) => match detail {
-            Some(detail) => format!("Joining subjects that belong together — {detail} found"),
-            None => "Joining subjects that belong together".to_string(),
-        },
-        ("ready_to_import", _) => "Ready to bring the recording in".to_string(),
-        ("copying", JobState::Cancelling) => "Stopping safely".to_string(),
-        ("copying", _) => "Bringing the recording in".to_string(),
-        ("temporary_complete", _) => "Nearly there".to_string(),
-        ("finalizing", _) => "Putting the recording away safely".to_string(),
-        ("duplicate_confirmation", _) => "This recording may already be here".to_string(),
-        ("completed", _) => "Recording is in".to_string(),
-        ("cancelled", _) => "Import cancelled — original unchanged".to_string(),
-        ("interrupted", _) => "Import was interrupted — original unchanged".to_string(),
-        ("failed", _) => "Import could not finish — original unchanged".to_string(),
-        ("transcription_queued", _) => "Ready to transcribe".to_string(),
-        ("checking_source", _) => "Checking the recording".to_string(),
-        ("preparing_fake_transcriber", _) => "Getting ready".to_string(),
-        ("transcribing_synthetic_segments", _) => "Creating transcript segments".to_string(),
-        ("validating_transcript", _) => "Saving the transcript".to_string(),
-        ("generation_queued", _) => "Ready to write the protocol".to_string(),
-        ("checking_transcript", _) => "Checking the transcript".to_string(),
-        ("resolving_protocol_inputs", _) => "Gathering the style and the vocabulary".to_string(),
-        ("generating_protocol", _) => "Writing the protocol draft".to_string(),
-        ("validating_protocol", _) => "Saving the protocol".to_string(),
-        ("output_staged", _) => "Saving safely".to_string(),
-        // Real transcription stages; without these every step read "Preparing local import".
-        ("probing_media", _) => "Looking at the recording".to_string(),
-        ("normalizing_audio", _) => "Preparing the audio".to_string(),
-        ("loading_transcription_model", _) => "Loading the model".to_string(),
-        ("transcribing_audio", _) => "Transcribing".to_string(),
-        // A meeting longer than the model's window is condensed section by section first.
-        ("condensing_transcript", _) => "Reading the meeting through".to_string(),
-        ("separating_speakers", _) => "Telling the speakers apart".to_string(),
-        _ => "Working".to_string(),
+        .to_string();
     }
+    if kind != "import" {
+        match stage {
+            "cancelled" => return "processingCancelled".to_string(),
+            "interrupted" => return "processingInterrupted".to_string(),
+            "failed" => return "processingFailed".to_string(),
+            _ => {}
+        }
+    }
+    // The one stage whose words depend on what the job is doing rather than on where
+    // it has got to. Everything else travels as it was reported.
+    if stage == "copying" && state == JobState::Cancelling {
+        return "stoppingSafely".to_string();
+    }
+    stage.to_string()
 }
-
 fn job_error_summary(code: &str, stored_message: Option<&str>) -> JobErrorSummary {
     let (title, default_detail) = match code {
         "interrupted" => (
@@ -3409,109 +3337,11 @@ mod tests {
 
     /// Every stage the pipeline reports has words for it.
     ///
-    /// Nothing connects the string a step reports to the arm that turns it into a
-    /// sentence, and the two are in different files. `writing_subject` was renamed
-    /// to `writing_section` and the label was not, so the longest phase of writing
-    /// a protocol showed "Working" — the fallback — while three shorter notices
-    /// about the result showed nothing at all. Two more arms named stages that no
-    /// commit ever emitted.
-    ///
-    /// Read as text for the same reason the recording contract is: the ends are in
-    /// different files and there is no type between them.
-    #[test]
-    fn every_stage_the_pipeline_reports_has_words_for_it() {
-        /// The source with its test-gated items removed.
-        ///
-        /// Without this the scan reads stages only the evaluation harness emits and
-        /// demands words for steps a person can never see. It did: three of the five
-        /// labels added when this test was written — writing_section,
-        /// segments_no_subject_claimed, sections_over_their_length — belong to
-        /// write_by_topic, which is #[cfg(test)] and does not ship. The commit that
-        /// added them said the longest phase of writing a protocol showed "Working";
-        /// nobody ever saw it, because that phase is not wired into the application.
-        fn shipped(source: &str) -> String {
-            let mut kept = String::with_capacity(source.len());
-            let mut rest = source;
-            while let Some(at) = rest.find("#[cfg(test)]") {
-                kept.push_str(&rest[..at]);
-                let after = &rest[at..];
-                // Skip to the end of the gated item, by matching its braces.
-                let Some(open) = after.find('{') else { break };
-                let mut depth = 0usize;
-                let mut end = None;
-                for (offset, character) in after[open..].char_indices() {
-                    if character == '{' {
-                        depth += 1;
-                    } else if character == '}' {
-                        depth -= 1;
-                        if depth == 0 {
-                            end = Some(open + offset + 1);
-                            break;
-                        }
-                    }
-                }
-                match end {
-                    Some(stop) => rest = &after[stop..],
-                    None => break,
-                }
-            }
-            kept.push_str(rest);
-            kept
-        }
-
-        fn reported(source: &str) -> Vec<String> {
-            let mut found = Vec::new();
-            for opening in ["progress(", "report("] {
-                let mut rest = source;
-                while let Some(at) = rest.find(opening) {
-                    rest = &rest[at + opening.len()..];
-                    let Some(head) = rest.get(..120) else {
-                        continue;
-                    };
-                    // The stage is the argument after the percentage, and the
-                    // percentage may be an expression rather than a number.
-                    let Some((_, tail)) = head.split_once(", \"") else {
-                        continue;
-                    };
-                    if let Some((code, _)) = tail.split_once('"') {
-                        if !code.is_empty()
-                            && code
-                                .chars()
-                                .all(|character| character.is_ascii_lowercase() || character == '_')
-                        {
-                            found.push(code.to_string());
-                        }
-                    }
-                }
-            }
-            found
-        }
-
-        let labels = include_str!("storage.rs");
-        let opening = labels
-            .find("fn job_stage_label")
-            .expect("the labels are in this file");
-        let arms = &labels[opening
-            ..labels[opening..]
-                .find("\nfn job_error_summary")
-                .map(|at| opening + at)
-                .expect("the label function ends")];
-
-        let mut missing = Vec::new();
-        for source in [include_str!("provider.rs"), include_str!("processing.rs")] {
-            for stage in reported(&shipped(source)) {
-                if !arms.contains(&format!("(\"{stage}\"")) {
-                    missing.push(stage);
-                }
-            }
-        }
-        missing.sort();
-        missing.dedup();
-        assert!(
-            missing.is_empty(),
-            "these stages are reported but have no words, so they read as \"Working\": {missing:?}"
-        );
-    }
+    // The guard that used to stand here — every stage the pipeline reports has
+    // words for it — moved to `src/lib/i18n/jobStages.test.ts` on 29 August 2026,
+    // when the words moved to the dictionary. It reads these same Rust sources and
+    // checks the codes against the real dictionary object rather than against the
+    // text of a function, which is a stronger check than the one it replaced.
 
     fn project_input() -> NewProjectInput {
         NewProjectInput {
@@ -3995,29 +3825,55 @@ mod tests {
         assert_eq!(density("style-decision-log"), Some(ProtocolDensity::Terse));
     }
 
-    /// A step that runs for minutes has to say where it has got to. The status
-    /// line is the only place the reader is told anything at all while work is
-    /// happening, so a stage may carry a live detail and the label must use it.
+    /// A step that runs for minutes has to say where it has got to, so a stage may
+    /// carry a live detail after a colon. This side must pass that through whole —
+    /// the words, and the reading of the detail, are the interface's.
     #[test]
-    fn a_stage_can_report_where_it_has_got_to() {
+    fn a_stage_reaches_the_interface_with_its_detail_intact() {
         let running = JobState::Running;
         assert_eq!(
-            job_stage_label("generation", "finding_subjects:3 of 13", running),
-            "Finding what was discussed — passage 3 of 13"
+            job_stage_code("generation", "finding_subjects:3 of 13", running),
+            "finding_subjects:3 of 13"
         );
         assert_eq!(
-            job_stage_label("generation", "joining_subjects:41", running),
-            "Joining subjects that belong together — 41 found"
+            job_stage_code("generation", "finding_subjects", running),
+            "finding_subjects"
         );
-        // Without a detail it still reads as a sentence rather than a code.
         assert_eq!(
-            job_stage_label("generation", "finding_subjects", running),
-            "Finding what was discussed"
+            job_stage_code("transcription", "transcribing_audio", running),
+            "transcribing_audio"
         );
-        // Stages that carry no detail are untouched.
+    }
+
+    /// The two this side genuinely has to decide, because they depend on something
+    /// the interface cannot see: which kind of job finished, and that a copy being
+    /// cancelled is stopping rather than copying.
+    #[test]
+    fn the_stages_that_depend_on_the_kind_of_job_are_resolved_here() {
+        let running = JobState::Running;
         assert_eq!(
-            job_stage_label("transcription", "transcribing_audio", running),
-            "Transcribing"
+            job_stage_code("transcription", "completed", running),
+            "transcriptSaved"
+        );
+        assert_eq!(
+            job_stage_code("generation", "completed", running),
+            "protocolSaved"
+        );
+        assert_eq!(
+            job_stage_code("import", "completed", running),
+            "importComplete"
+        );
+        assert_eq!(
+            job_stage_code("import", "copying", JobState::Cancelling),
+            "stoppingSafely"
+        );
+        assert_eq!(job_stage_code("import", "copying", running), "copying");
+        // An import says its own thing about the original being untouched, so these
+        // three are the import's rather than the general ones.
+        assert_eq!(job_stage_code("import", "cancelled", running), "cancelled");
+        assert_eq!(
+            job_stage_code("generation", "cancelled", running),
+            "processingCancelled"
         );
     }
 

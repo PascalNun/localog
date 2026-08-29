@@ -399,6 +399,103 @@ export const en = {
       'A section set aside leaves the document, so what you read is still exactly what is exported. It is kept here and can be put back.',
   },
 
+  /**
+   * What a person is told the application is doing, while it is doing it.
+   *
+   * This is the line somebody watches for the quarter of an hour a protocol takes, and
+   * it lived in Rust as sixty-two arms of English prose until 29 August 2026 — the
+   * largest thing in the application still speaking one language. The reasoning below
+   * came with it, because it is about how these are written rather than about where.
+   *
+   * These are read by someone waiting, not by someone reading the code, so they are
+   * written in the words that person would use. A revision, a snapshot and a committed
+   * source are real things in the application and mean nothing outside it; a line
+   * saying "validating the transcript revision" has described the machine to somebody
+   * who wanted to know about their meeting.
+   *
+   * **Reassurance is not repeated**, and not only because it crowds out the one thing
+   * the reader did not already know. Saying a thing that is always true invites the
+   * reader to wonder when it might not be: a line saying work is happening locally
+   * implies that somewhere there is a run that would not, and the promise starts
+   * manufacturing the doubt it was meant to answer. That the work is local, and that an
+   * imported file leaves the original alone, belong in the interface once, stated
+   * plainly, where they can be trusted rather than repeated.
+   *
+   * Failure is the exception. When something has gone wrong, that the original is
+   * untouched stops being a boast and becomes the answer to the question being asked.
+   *
+   * A value taking a string is a stage that can say where it has got to: a step lasting
+   * minutes must not show the same words throughout.
+   */
+  jobStages: {
+    // What the lifecycle decides rather than the work.
+    transcriptSaved: 'Transcript saved',
+    protocolSaved: 'Protocol saved',
+    importComplete: 'Import complete — original unchanged',
+    processingCancelled: 'Local processing was cancelled — stable work retained',
+    processingInterrupted: 'Local processing was interrupted — stable work retained',
+    processingFailed: 'Local processing could not finish — stable work retained',
+
+    // Bringing a recording in.
+    ready_to_import: 'Ready to bring the recording in',
+    copying: 'Bringing the recording in',
+    stoppingSafely: 'Stopping safely',
+    temporary_complete: 'Nearly there',
+    finalizing: 'Putting the recording away safely',
+    duplicate_confirmation: 'This recording may already be here',
+    completed: 'Recording is in',
+    cancelled: 'Import cancelled — original unchanged',
+    interrupted: 'Import was interrupted — original unchanged',
+    failed: 'Import could not finish — original unchanged',
+    probing_media: 'Looking at the recording',
+    normalizing_audio: 'Preparing the audio',
+    output_staged: 'Saving safely',
+
+    // Transcribing it.
+    transcription_queued: 'Ready to transcribe',
+    checking_source: 'Checking the recording',
+    loading_transcription_model: 'Loading the model',
+    transcribing_audio: 'Transcribing',
+    separating_speakers: 'Telling the speakers apart',
+    validating_transcript: 'Saving the transcript',
+    preparing_fake_transcriber: 'Getting ready',
+    transcribing_synthetic_segments: 'Creating transcript segments',
+
+    // Writing the protocol.
+    generation_queued: 'Ready to write the protocol',
+    checking_transcript: 'Checking the transcript',
+    resolving_protocol_inputs: 'Gathering the style and the vocabulary',
+    condensing_transcript: 'Reading the meeting through',
+    generating_protocol: 'Writing the protocol draft',
+    validating_protocol: 'Saving the protocol',
+    reading_introductions: 'Reading who introduced themselves',
+
+    // What the generator says about its own result. Brief — the run carries straight
+    // on, or stops — but "Working" told a person nothing at the moments most worth
+    // seeing.
+    protocol_would_not_fit: 'This meeting is longer than one pass can hold',
+    segments_no_subject_claimed: 'Some of the meeting fell outside every subject',
+    sections_over_their_length: 'Some sections came out longer than asked',
+
+    // Dividing a meeting into subjects. Compiled for evaluation only today; the words
+    // are kept so that wiring the path in does not leave it saying "Working".
+    finding_subjects: (detail: string) =>
+      detail ? `Finding what was discussed — passage ${detail}` : 'Finding what was discussed',
+    writing_section: (detail: string) =>
+      detail ? `Writing ${detail}` : 'Writing the protocol section by section',
+    joining_subjects: (detail: string) =>
+      detail
+        ? `Joining subjects that belong together — ${detail} found`
+        : 'Joining subjects that belong together',
+    joined_subjects: (detail: string) =>
+      detail ? `Joined subjects — ${detail}` : 'Joined subjects',
+    joining_failed: (detail: string) =>
+      detail ? `Subjects could not be joined — ${detail}` : 'Subjects could not be joined',
+
+    /** Anything with no words of its own. */
+    working: 'Working',
+  },
+
   stages: {
     label: 'Meeting stages',
     source: 'Source',

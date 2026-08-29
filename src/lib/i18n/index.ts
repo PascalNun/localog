@@ -134,3 +134,28 @@ export function isFailureCode(raw: string): boolean {
   const code = raw.includes(':') ? raw.slice(0, raw.indexOf(':')) : raw;
   return Object.prototype.hasOwnProperty.call(get(t).failures, code);
 }
+
+/**
+ * The words for a job stage, in the language the interface is in.
+ *
+ * The same shape as `failureText` and for the same reason: the backend says *which*
+ * stage, and the interface says it in words. A stage may carry a live detail after a
+ * colon — `finding_subjects:3 of 13` — because a step lasting minutes must not show
+ * the same words throughout, and the detail is split on the *first* colon so that a
+ * detail containing one arrives whole.
+ *
+ * A code with no words falls back to "Working", which is what it always did. That is
+ * a real fallback rather than a theoretical one: a stage was once renamed on one side
+ * and not the other, and the longest phase of writing a protocol read "Working" for
+ * weeks. `jobStages.test.ts` is what stops that happening again.
+ */
+export function stageText(raw: string): string {
+  const at = raw.indexOf(':');
+  const code = at === -1 ? raw : raw.slice(0, at);
+  const detail = at === -1 ? '' : raw.slice(at + 1);
+  const stages = get(t).jobStages as Record<string, unknown>;
+  const found = stages[code];
+  if (typeof found === 'function') return (found as (value: string) => string)(detail);
+  if (typeof found === 'string') return found;
+  return stages.working as string;
+}
