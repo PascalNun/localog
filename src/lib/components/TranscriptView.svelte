@@ -19,6 +19,7 @@
   import StageRail from './StageRail.svelte';
   import { errorMessage } from '../errors';
   import { t } from '../i18n';
+  import { formatMeetingDate } from '../protocol/document';
 
   export let project: ProjectSummary;
   export let meeting: MeetingSummary;
@@ -419,7 +420,10 @@
     <div>
       <p class="breadcrumb">{project.name} <span>›</span> {meeting.title}</p>
       <h1 tabindex="-1">{$t.transcript.heading}</h1>
-      <p>{meeting.occurredAt} · {meeting.durationLabel ?? 'Duration pending'}</p>
+      <p>
+        {formatMeetingDate(meeting.occurredAt, $t)} ·
+        {meeting.durationLabel ?? $t.transcript.durationPending}
+      </p>
     </div>
     <div class="transcript-header-actions">
       <select

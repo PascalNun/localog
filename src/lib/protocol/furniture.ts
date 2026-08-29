@@ -12,6 +12,7 @@
  */
 
 import type { FurnitureField, FurnitureRow, PageFurniture } from '../workflow/types';
+import type { Strings } from '../i18n';
 
 export interface DocumentFacts {
   projectName: string;
@@ -21,21 +22,61 @@ export interface DocumentFacts {
   protocolStatus: string;
 }
 
-/** What a field is called where somebody is choosing between them. */
-export const FURNITURE_FIELDS: { kind: FurnitureField['kind']; label: string }[] = [
-  { kind: 'projectName', label: 'Project name' },
-  { kind: 'meetingTitle', label: 'Meeting title' },
-  { kind: 'meetingDate', label: 'Meeting date' },
-  { kind: 'documentType', label: 'Document type' },
-  { kind: 'protocolStatus', label: 'Status' },
-  { kind: 'pageNumber', label: 'Page number' },
-  { kind: 'pageOfCount', label: 'Page n of m' },
-  { kind: 'text', label: 'Custom text' },
+/**
+ * Every kind of value a header or footer line can hold.
+ *
+ * The identifiers, and only the identifiers. These are stored in a project's
+ * furniture and read back from an edited line, so they are the schema and never
+ * translate — a header somebody builds in German has to still resolve in English.
+ * The words for them live in the dictionary and are looked up separately.
+ */
+const FIELD_KINDS: FurnitureField['kind'][] = [
+  'projectName',
+  'meetingTitle',
+  'meetingDate',
+  'documentType',
+  'protocolStatus',
+  'pageNumber',
+  'pageOfCount',
+  'text',
 ];
 
-export function fieldLabel(field: FurnitureField): string {
-  if (field.kind === 'text') return field.value || 'Custom text';
-  return FURNITURE_FIELDS.find((known) => known.kind === field.kind)?.label ?? field.kind;
+function labelFor(kind: FurnitureField['kind'], words: Strings): string {
+  const f = words.protocol;
+  switch (kind) {
+    case 'projectName':
+      return f.fieldProjectName;
+    case 'meetingTitle':
+      return f.fieldMeetingTitle;
+    case 'meetingDate':
+      return f.fieldMeetingDate;
+    case 'documentType':
+      return f.fieldDocumentType;
+    case 'protocolStatus':
+      return f.fieldProtocolStatus;
+    case 'pageNumber':
+      return f.fieldPageNumber;
+    case 'pageOfCount':
+      return f.fieldPageOfCount;
+    case 'text':
+      return f.fieldText;
+  }
+}
+
+/**
+ * What each field is called, where somebody is choosing between them.
+ *
+ * A function of the dictionary rather than a constant, because a constant reads the
+ * words once when the module loads and goes on saying them after the language
+ * changes. That is the same fault the lifecycle labels and the band names had.
+ */
+export function furnitureFields(words: Strings): { kind: FurnitureField['kind']; label: string }[] {
+  return FIELD_KINDS.map((kind) => ({ kind, label: labelFor(kind, words) }));
+}
+
+export function fieldLabel(field: FurnitureField, words: Strings): string {
+  if (field.kind === 'text') return field.value || words.protocol.fieldText;
+  return labelFor(field.kind, words);
 }
 
 /**
@@ -118,13 +159,13 @@ export function furnitureIsEmpty(furniture: PageFurniture): boolean {
  * nobody meant. What it reads as is its label, not a syntax: nobody should have to
  * learn that `{{seite}}` means anything.
  */
-export function lineHtml(fields: FurnitureField[]): string {
+export function lineHtml(fields: FurnitureField[], words: Strings): string {
   return fields
     .map((field) =>
       field.kind === 'text'
         ? escapeForLine(field.value)
         : `<span class="furniture-value" contenteditable="false" data-kind="${field.kind}">` +
-          `${escapeForLine(fieldLabel(field))}</span>`,
+          `${escapeForLine(fieldLabel(field, words))}</span>`,
     )
     .join('');
 }
@@ -162,7 +203,7 @@ export function fieldsFromLine(parts: LinePart[]): FurnitureField[] {
   return fields;
 }
 
-const KNOWN_KINDS: Set<string> = new Set(FURNITURE_FIELDS.map((choice) => choice.kind));
+const KNOWN_KINDS: Set<string> = new Set<string>(FIELD_KINDS);
 
 /** Only the three characters that would otherwise end the run of text. */
 function escapeForLine(text: string): string {

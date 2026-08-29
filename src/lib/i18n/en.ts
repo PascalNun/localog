@@ -216,6 +216,13 @@ const failures = {
 };
 
 export const en = {
+  /**
+   * What `Intl` should be told, for dates and numbers. On the dictionary rather
+   * than derived from the language id, because `en` alone gives American date
+   * order and this product's English is British.
+   */
+  locale: 'en-GB',
+
   failures,
 
   /** The screen somebody sees before there is anything to open. */
@@ -607,6 +614,8 @@ export const en = {
   },
 
   transcript: {
+    /** Beside a meeting's date, before its length has been worked out. */
+    durationPending: 'Duration pending',
     introducedThemselves: (count: number) => `${count} introduced themselves`,
     noNamesYet: (project: string) => `No names yet for ${project}`,
     speltAsHeard:
@@ -808,9 +817,19 @@ export const en = {
       '. The draft leaves an owner out rather than guessing at one, so this may be exactly what the meeting decided — and it is far cheaper to put a name to it now than at the next meeting.',
     editor: 'Protocol editor',
     markdownBacked: 'Markdown backed',
+    /** Printed in the page header, as the kind of document this is. */
+    documentType: 'Protocol',
     statusDraft: 'Draft',
     statusReviewed: 'Reviewed',
     statusChanged: 'Changed since review',
+    fieldProjectName: 'Project name',
+    fieldMeetingTitle: 'Meeting title',
+    fieldMeetingDate: 'Meeting date',
+    fieldDocumentType: 'Document type',
+    fieldProtocolStatus: 'Status',
+    fieldPageNumber: 'Page number',
+    fieldPageOfCount: 'Page n of m',
+    fieldText: 'Custom text',
     editorTools: 'Editor tools',
     find: 'Find',
     findInProtocol: 'Find in protocol',

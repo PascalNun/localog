@@ -222,6 +222,8 @@ const failures = {
 };
 
 export const de: Strings = {
+  locale: 'de-DE',
+
   failures,
 
   settings: {
@@ -620,6 +622,7 @@ export const de: Strings = {
   },
 
   transcript: {
+    durationPending: 'Dauer wird noch ermittelt',
     introducedThemselves: (count: number) => `${count} haben sich vorgestellt`,
     noNamesYet: (project: string) => `Noch keine Namen für ${project}`,
     speltAsHeard:
@@ -825,9 +828,18 @@ export const de: Strings = {
       '. Der Entwurf lässt die Zuordnung lieber offen, als sie zu raten — es kann also genau so beschlossen worden sein. Und einen Namen dazuzuschreiben ist jetzt weit billiger als in der nächsten Besprechung.',
     editor: 'Protokolleditor',
     markdownBacked: 'auf Markdown gestützt',
+    documentType: 'Protokoll',
     statusDraft: 'Entwurf',
     statusReviewed: 'Geprüft',
     statusChanged: 'Seit der Prüfung geändert',
+    fieldProjectName: 'Projektname',
+    fieldMeetingTitle: 'Titel der Besprechung',
+    fieldMeetingDate: 'Datum der Besprechung',
+    fieldDocumentType: 'Art des Dokuments',
+    fieldProtocolStatus: 'Stand',
+    fieldPageNumber: 'Seitenzahl',
+    fieldPageOfCount: 'Seite n von m',
+    fieldText: 'Eigener Text',
     editorTools: 'Werkzeuge',
     find: 'Suchen',
     findInProtocol: 'Im Protokoll suchen',

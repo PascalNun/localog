@@ -20,7 +20,7 @@
     SPEAKER_SEPARATION_UNREADY,
   } from './lib/workflow/types';
   import { buildDocx } from './lib/protocol/docx';
-  import { documentFacts } from './lib/protocol/document';
+  import { documentFacts, formatMeetingDate } from './lib/protocol/document';
   import type { ProtocolDocument } from './lib/protocol/document';
   import { printProtocol } from './lib/protocol/print';
   import { transcriptToMarkdown, transcriptToText } from './lib/protocol/transcriptExport';
@@ -573,11 +573,13 @@
     const project = snapshot.projects.find((candidate) => candidate.id === meeting.projectId);
     const exported: ProtocolDocument = {
       title: meeting.title,
-      subtitle: [project?.name, meeting.occurredAt].filter(Boolean).join(' · '),
+      subtitle: [project?.name, formatMeetingDate(meeting.occurredAt, $t)]
+        .filter(Boolean)
+        .join(' · '),
       markdown: protocol.markdown,
       appearance: project?.appearance ?? DEFAULT_APPEARANCE,
       furniture: project?.furniture ?? EMPTY_FURNITURE,
-      facts: documentFacts(project, meeting, protocol),
+      facts: documentFacts(project, meeting, protocol, $t),
     };
 
     // The PDF is the document printed, not a second rendering of it, so it needs

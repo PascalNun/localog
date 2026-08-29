@@ -8,6 +8,7 @@
   import Icon from './Icon.svelte';
   import { errorMessage } from '../errors';
   import { t } from '../i18n';
+  import { formatMeetingDate } from '../protocol/document';
 
   export let project: ProjectSummary;
   export let meetings: MeetingSummary[];
@@ -65,10 +66,9 @@
     else onNavigate({ name: 'meeting', meetingId: meeting.id });
   }
 
-  const formatDate = (value: string) =>
-    new Intl.DateTimeFormat('en', { day: '2-digit', month: 'short', year: 'numeric' }).format(
-      new Date(`${value}T12:00:00`),
-    );
+  // Was its own `Intl` call pinned to `'en'`, so a German window listed its meetings
+  // in English. One formatter now, and it reads the language like everything else.
+  $: formatDate = (value: string) => formatMeetingDate(value, $t, 'short');
 </script>
 
 <main class="workspace" id="main-content">

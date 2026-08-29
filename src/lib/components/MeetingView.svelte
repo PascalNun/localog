@@ -21,6 +21,7 @@
   // the same two files read 46 MB here and 43 MB in Settings.
   import { formatModelSize } from '../models/modelSize';
   import { t } from '../i18n';
+  import { formatMeetingDate } from '../protocol/document';
 
   export let project: ProjectSummary;
   export let meeting: MeetingSummary;
@@ -110,7 +111,7 @@
           >{/if}
       </div>
       <p class="meeting-language-line">
-        {meeting.occurredAt} ·
+        {formatMeetingDate(meeting.occurredAt, $t)} ·
         {#if editingLanguage}<input
             bind:value={languageDraft}
             list="meeting-view-languages"

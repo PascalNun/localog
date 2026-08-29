@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fieldsFromLine, lineHtml, resolveRow } from './furniture';
+import { en } from '../i18n/en';
 import type { FurnitureField } from '../workflow/types';
 
 const facts = {
@@ -53,7 +54,7 @@ describe('what an output cannot answer', () => {
 
 describe('editing a slot as a line', () => {
   it('writes the values as objects and the rest as characters', () => {
-    const html = lineHtml([text('Seite '), { kind: 'pageNumber' }, text(' von 12')]);
+    const html = lineHtml([text('Seite '), { kind: 'pageNumber' }, text(' von 12')], en);
     expect(html).toBe(
       'Seite <span class="furniture-value" contenteditable="false" data-kind="pageNumber">' +
         'Page number</span> von 12',
@@ -86,6 +87,6 @@ describe('editing a slot as a line', () => {
   });
 
   it('escapes what would otherwise end the run of text', () => {
-    expect(lineHtml([text('a < b & c')])).toBe('a &lt; b &amp; c');
+    expect(lineHtml([text('a < b & c')], en)).toBe('a &lt; b &amp; c');
   });
 });

@@ -23,6 +23,7 @@
   } from '../models/modelCatalog';
   import { formatModelSize } from '../models/modelSize';
   import { INTERFACE_LANGUAGES, chooseLanguage, language, t } from '../i18n';
+  import { formatMeetingDate } from '../protocol/document';
   import Icon from './Icon.svelte';
   import type { IconName } from './Icon.svelte';
 
@@ -703,7 +704,8 @@
               {#each archived.meetings as meeting (meeting.id)}
                 <li>
                   <span
-                    ><strong>{meeting.title}</strong><small>Meeting · {meeting.occurredAt}</small
+                    ><strong>{meeting.title}</strong><small
+                      >{$t.settings.meeting} · {formatMeetingDate(meeting.occurredAt, $t)}</small
                     ></span
                   >
                   <button class="text-action" onclick={() => void unarchiveMeeting(meeting.id)}>

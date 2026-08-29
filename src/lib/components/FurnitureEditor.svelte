@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { FURNITURE_FIELDS, fieldsFromLine, lineHtml } from '../protocol/furniture';
+  import { furnitureFields, fieldsFromLine, lineHtml } from '../protocol/furniture';
   import type { FurnitureField, FurnitureRow, PageFurniture } from '../workflow/types';
   import { t } from '../i18n';
 
@@ -38,11 +38,11 @@
   /// start. It is refreshed only when the value changes from somewhere else, and
   /// never while the caret is in it.
   function line(node: HTMLElement, fields: FurnitureField[]) {
-    node.innerHTML = lineHtml(fields);
+    node.innerHTML = lineHtml(fields, $t);
     return {
       update(next: FurnitureField[]) {
         if (document.activeElement === node) return;
-        const wanted = lineHtml(next);
+        const wanted = lineHtml(next, $t);
         if (node.innerHTML !== wanted) node.innerHTML = wanted;
       },
     };
@@ -61,7 +61,7 @@
 
   function insert(node: HTMLElement, kind: string) {
     node.focus();
-    const choice = FURNITURE_FIELDS.find((each) => each.kind === kind);
+    const choice = furnitureFields($t).find((each) => each.kind === kind);
     if (!choice) return;
     // At the caret, so a value lands where somebody is writing rather than at the
     // end of the line.
@@ -125,7 +125,7 @@
               }}
             >
               <option value="">{$t.furniture.insert}</option>
-              {#each FURNITURE_FIELDS.filter((choice) => choice.kind !== 'text') as choice (choice.kind)}
+              {#each furnitureFields($t).filter((choice) => choice.kind !== 'text') as choice (choice.kind)}
                 <option value={choice.kind}>{choice.label}</option>
               {/each}
             </select>

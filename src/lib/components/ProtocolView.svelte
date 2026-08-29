@@ -22,7 +22,7 @@
   } from '../protocol/appearance';
   import { fieldLabel, furnitureIsEmpty, resolveRow } from '../protocol/furniture';
   import { diffWords, isUnchanged, type Change } from '../protocol/diff';
-  import { documentFacts } from '../protocol/document';
+  import { documentFacts, reviewStateLabel } from '../protocol/document';
   import { findInSource } from '../protocol/source';
   import { clockFromMillis } from '../time';
   import { errorMessage } from '../errors';
@@ -876,7 +876,7 @@
   /// Every tool surveyed either shows the header in place on the page or shows
   /// nothing at all until export; this costs almost nothing, because the gap is
   /// already drawn and was already carrying a list of field names.
-  $: facts = documentFacts(project, meeting, protocol);
+  $: facts = documentFacts(project, meeting, protocol, $t);
   $: pageCount = pageEdges.length + 1;
   $: bandAt = (at: number, band: 'header' | 'footer') => {
     const row = furniture[band];
@@ -942,7 +942,9 @@
         .join(' · ');
 
   function describeRow(row: FurnitureRow) {
-    return [...row.left, ...row.centre, ...row.right].map(fieldLabel).join(', ');
+    return [...row.left, ...row.centre, ...row.right]
+      .map((field) => fieldLabel(field, $t))
+      .join(', ');
   }
 
   const ZOOM_STEPS = [0.8, 0.9, 1, 1.1, 1.25, 1.5];
@@ -966,19 +968,12 @@
         : '')
     : '';
 
-  /// The status as the inspector says it, in the interface's language.
+  /// The status, said the same way in the inspector and in the printed header.
   ///
-  /// Deliberately not `reviewStateLabel`, which is still used by `documentFacts`
-  /// for the header printed on the page. That one is part of the document rather
-  /// than part of the application, and which language it should be in — the
-  /// interface's, or the meeting's — is the decision still open on the board
-  /// beside the ISO date.
-  $: statusLabel =
-    protocol.reviewState === 'reviewed'
-      ? $t.protocol.statusReviewed
-      : protocol.reviewState === 'changed_since_review'
-        ? $t.protocol.statusChanged
-        : $t.protocol.statusDraft;
+  /// This was a local copy of `reviewStateLabel` while the printed header's language
+  /// was undecided. It is decided — the document follows the interface — so there is
+  /// one function again, which is what stops the two from drifting a third time.
+  $: statusLabel = reviewStateLabel(protocol.reviewState, $t);
 
   /// Let the document be as long as it is, and let the page do the scrolling.
   ///
