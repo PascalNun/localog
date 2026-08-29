@@ -1147,10 +1147,33 @@ was wrong about most of it — checked against the code on 29 August 2026.**
   not decoration: it is the order `transcription_vocabulary` trims in when the list
   outgrows the transcriber's short prompt. Written in the same transaction as the
   project, so a refused term leaves no project behind.
-- **5 is not built** — the small model over the few words substitution cannot settle.
-  The build order in the design says to do the deterministic pass first and then see
-  whether the leftover is worth a model, and that question can now actually be asked
-  of a real meeting.
+- **5 is built** — 29 August 2026, and with a caveat about the gate it was supposed
+  to wait for. One request per unsettled word, each carrying one sentence and the
+  project's list; a few hundred characters of window, seconds rather than minutes.
+
+  The safety of the stage is one line of code rather than a paragraph of prompt: **a
+  suggestion is discarded unless it contains a term the project lists.** That is what
+  makes "it cannot invent a name nobody entered" a property of the application instead
+  of an instruction a model may ignore. Four more rules go with it, each one a way an
+  answer has been wrong in this project before — an unchanged answer, a sentence
+  offered as a spelling, a correction to a word the passage does not contain, and an
+  empty list to build from.
+
+  A proposal opens the same review a candidate does. Not a shorter one: every
+  occurrence is still shown in context and can still be declined one at a time,
+  because a suggestion from a model has earned no more trust than a word somebody
+  typed, and arguably less.
+
+  **The gate was not honoured, and that is a deliberate choice worth recording.** The
+  design says to run the deterministic pass on a few meetings first, because if the
+  leftover is consistently three-ish words a person fixes them faster than the
+  suggestion could be built. That measurement still has not been made — it needs real
+  meetings, and this session had none. What was built instead is `unsettled`, which
+  _is_ that measurement: it reports exactly what substitution could not reach, and it
+  is worth having whether or not the model pass earns its place. If a few real
+  meetings show two or three words left, the honest conclusion is to keep `unsettled`
+  and drop the asking.
+
 - **1b is built** — 29 August 2026. The protocol's own notes are harvested into the
   candidate list, which is the only one of the three sources that can catch a name the
   transcriber was _confident_ about.
