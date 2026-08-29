@@ -2,6 +2,7 @@ import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { open, save } from '@tauri-apps/plugin-dialog';
+import { strings } from '../i18n';
 import type {
   ActiveJob,
   MeetingSummary,
@@ -282,8 +283,28 @@ class TauriWorkspaceStore implements WorkspaceStore {
     });
   }
 
+  /**
+   * The notes travel with the request rather than living in the backend.
+   *
+   * They are the only words the generator writes that end up in the finished
+   * document, and Rust does not know which language the application is in — so it
+   * decides *that* a note is needed and the dictionary says it. Read here rather
+   * than subscribed to, because what matters is the language at the moment the job
+   * was queued: the protocol is written once and committed.
+   */
   startGeneration(meetingId: string, failRequested: boolean): Promise<void> {
-    return invoke('start_generation', { meetingId, failRequested });
+    const words = strings().protocol;
+    return invoke('start_generation', {
+      meetingId,
+      failRequested,
+      documentNotes: {
+        missingTableHeading: words.noteMissingTableHeading,
+        missingTableBody: words.noteMissingTableBody,
+        gapsHeading: words.noteGapsHeading,
+        oneGap: words.noteOneGap,
+        severalGaps: words.noteSeveralGaps,
+      },
+    });
   }
 
   cancelProcessing(meetingId: string): Promise<void> {

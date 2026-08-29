@@ -747,11 +747,15 @@ async fn start_generation(
     coordinator: State<'_, JobCoordinatorState>,
     meeting_id: String,
     fail_requested: bool,
+    // The words for the notes a protocol may have to carry about itself. They come
+    // from the interface because they are printed into a document somebody reads,
+    // and this side does not know which language the application is in.
+    document_notes: provider::DocumentNotes,
 ) -> Result<(), String> {
     let root = storage.root.clone();
     let (job, snapshot) = with_repository_root(root.clone(), {
         let meeting_id = meeting_id.clone();
-        move |root| processing::queue_generation(root, &meeting_id, fail_requested)
+        move |root| processing::queue_generation(root, &meeting_id, fail_requested, &document_notes)
     })
     .await?;
     let _ = app.emit("workspace://changed", snapshot);

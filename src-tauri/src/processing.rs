@@ -198,6 +198,14 @@ struct GenerationRequest<'a> {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 struct QueuedGenerationConfig {
+    /// The words for the notes a protocol may have to carry about itself, supplied
+    /// by the interface when the job was queued.
+    ///
+    /// Deliberately not defaulted. A job queued by an earlier build has no notes,
+    /// and defaulting them to empty would print a bare `##` with nothing under it
+    /// into somebody's document. Failing to read the config instead says so and
+    /// leaves the transcript untouched, and starting the job again supplies them.
+    document_notes: provider::DocumentNotes,
     model: String,
     model_digest: String,
     runtime_version: String,
@@ -730,6 +738,7 @@ pub(crate) fn queue_generation(
     root: &Path,
     meeting_id: &str,
     fail_requested: bool,
+    notes: &provider::DocumentNotes,
 ) -> StorageResult<(ProcessingJobRecord, WorkspaceSnapshot)> {
     let mut repository = WorkspaceRepository::open(root)?;
     ensure_no_active_processing(&repository.connection)?;
@@ -747,7 +756,7 @@ pub(crate) fn queue_generation(
         .ok_or(StorageError::MissingMeeting)?;
     let protocol_inputs = repository.protocol_inputs(meeting_id)?;
     let (provider_name, runtime_version, model_digest, settings_json, runtime_config_json) =
-        generation_metadata(&repository, &protocol_inputs, use_synthetic_adapters())?;
+        generation_metadata(&repository, &protocol_inputs, notes, use_synthetic_adapters())?;
     let job_id = new_id("job");
     let revision_id = new_id("protocol");
     let final_relative_path = meeting_root(&project_id, meeting_id)
@@ -793,6 +802,7 @@ pub(crate) fn queue_generation(
 fn generation_metadata(
     repository: &WorkspaceRepository,
     inputs: &storage::ResolvedProtocolInputs,
+    notes: &provider::DocumentNotes,
     use_fake: bool,
 ) -> StorageResult<(&'static str, String, String, String, Option<String>)> {
     /// What the run was actually asked for, as the record of it.
@@ -859,6 +869,7 @@ fn generation_metadata(
         .map(|candidate| candidate.size)
         .unwrap_or_default();
     let config = QueuedGenerationConfig {
+        document_notes: notes.clone(),
         model: model.clone(),
         model_digest: model_digest.clone(),
         runtime_version: runtime_version.clone(),
@@ -1083,7 +1094,7 @@ fn execute_generation(
             .and_then(|value| {
                 serde_json::from_str(value).map_err(|_| ProcessingError::Runtime {
                     code: "provider_invalid",
-                    message: "The saved protocol provider configuration is invalid.".into(),
+                    message: "generationConfigUnreadable".into(),
                 })
             })?;
         let request = provider::GenerationRequest {
@@ -1103,6 +1114,7 @@ fn execute_generation(
             temperature_milli: config.temperature_milli,
             context_tokens: config.context_tokens,
             maximum_output_tokens: config.maximum_output_tokens,
+            document_notes: config.document_notes,
         };
         // Annotated so the closure is general over the borrow: a stage may now be a
         // string built at the moment it is reported, not only a literal.
@@ -2275,7 +2287,7 @@ pub(crate) fn retry_job(
     let generation_snapshot = if kind == "generation" {
         let inputs = repository.protocol_inputs(meeting_id)?;
         Some((
-            generation_metadata(&repository, &inputs, use_synthetic_adapters())?,
+            generation_metadata(&repository, &inputs, &Default::default(), use_synthetic_adapters())?,
             inputs.style.revision,
             inputs.vocabulary_revision,
         ))
@@ -3301,7 +3313,7 @@ mod tests {
     fn a_queued_generation_job_stores_each_value_in_its_own_column() {
         let fixture = Fixture::source_ready();
         fixture.transcribe();
-        let (generation, _) = queue_generation(&fixture.root, &fixture.meeting_id, false).unwrap();
+        let (generation, _) = queue_generation(&fixture.root, &fixture.meeting_id, false, &provider::DocumentNotes::english_for_harnesses()).unwrap();
 
         let repository = WorkspaceRepository::open(&fixture.root).unwrap();
         let (style_revision, vocabulary_revision): (Option<String>, Option<String>) = repository
@@ -3414,7 +3426,7 @@ mod tests {
             .unwrap();
         assert!(edited.transcripts[&fixture.meeting_id].is_dirty);
 
-        let (generation, _) = queue_generation(&fixture.root, &fixture.meeting_id, false).unwrap();
+        let (generation, _) = queue_generation(&fixture.root, &fixture.meeting_id, false, &provider::DocumentNotes::english_for_harnesses()).unwrap();
         let committed_input = generation.input_revision_id.clone().unwrap();
         assert_ne!(committed_input, transcript.base_revision_id);
         run_job(
@@ -3475,7 +3487,7 @@ mod tests {
     fn export_reads_verified_working_protocol_without_mutating_lifecycle() {
         let fixture = Fixture::source_ready();
         fixture.transcribe();
-        let (generation, _) = queue_generation(&fixture.root, &fixture.meeting_id, false).unwrap();
+        let (generation, _) = queue_generation(&fixture.root, &fixture.meeting_id, false, &provider::DocumentNotes::english_for_harnesses()).unwrap();
         run_job(
             &fixture.root,
             &generation.id,
@@ -3592,7 +3604,7 @@ mod tests {
             MeetingLifecycle::TranscriptReady
         );
 
-        let (generation, _) = queue_generation(&fixture.root, &fixture.meeting_id, true).unwrap();
+        let (generation, _) = queue_generation(&fixture.root, &fixture.meeting_id, true, &provider::DocumentNotes::english_for_harnesses()).unwrap();
         assert_eq!(
             run_job(
                 &fixture.root,
@@ -3636,7 +3648,7 @@ mod tests {
     fn restoring_an_older_protocol_creates_a_new_draft_revision() {
         let fixture = Fixture::source_ready();
         fixture.transcribe();
-        let (job, _) = queue_generation(&fixture.root, &fixture.meeting_id, false).unwrap();
+        let (job, _) = queue_generation(&fixture.root, &fixture.meeting_id, false, &provider::DocumentNotes::english_for_harnesses()).unwrap();
         run_job(
             &fixture.root,
             &job.id,

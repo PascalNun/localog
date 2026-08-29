@@ -296,7 +296,12 @@ fn runs_the_whole_pipeline_on_a_real_meeting() {
     drop(repository);
 
     println!("stage 3 — protocol");
-    let (generation, _) = processing::queue_generation(root, &meeting.id, false).unwrap();
+    let (generation, _) = processing::queue_generation(
+        root,
+        &meeting.id,
+        false,
+        &crate::provider::DocumentNotes::english_for_harnesses(),
+    ).unwrap();
     drive(root, &generation.id, "generation");
 
     let repository = WorkspaceRepository::open(root).unwrap();
@@ -368,7 +373,12 @@ fn generates_from_an_existing_workspace() {
     }
     drop(repository);
 
-    let (generation, _) = processing::queue_generation(&root, &meeting_id, false).unwrap();
+    let (generation, _) = processing::queue_generation(
+        &root,
+        &meeting_id,
+        false,
+        &crate::provider::DocumentNotes::english_for_harnesses(),
+    ).unwrap();
     drive(&root, &generation.id, "generation");
 
     let repository = WorkspaceRepository::open(&root).unwrap();
@@ -425,6 +435,7 @@ fn finds_the_topics_of_a_real_meeting() {
         .find(|candidate| candidate.name == model_name)
         .expect("the requested model is not installed");
     let request = GenerationRequest {
+            document_notes: crate::provider::DocumentNotes::english_for_harnesses(),
         model: model.name.clone(),
         model_digest: model.digest.clone(),
         runtime_version: provider.version().expect("ollama must be running"),

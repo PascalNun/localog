@@ -198,6 +198,8 @@ const failures = {
     const [expected, ceiling] = sizes.split('/').map((n) => Number(n).toLocaleString('en-GB'));
     return `This meeting is long enough that a protocol of it — roughly ${expected} characters — would not fit in one answer, which holds about ${ceiling}. Nothing was attempted, because this is arithmetic rather than a bad run and retrying would fail the same way. Choose a terser protocol style, or split the recording.`;
   },
+  generationConfigUnreadable:
+    'This job was prepared by an earlier version of LocaLog and cannot be read. Nothing was committed and your transcript is unchanged. Start the generation again.',
   responseUnusable:
     'The local model returned an answer LocaLog could not use as a protocol. Nothing was committed and your transcript is unchanged. Retrying often succeeds, because a model answers differently each time.',
   recorderMissing: 'No recorder is installed. LocaLog ships one; this build cannot find it.',
@@ -817,6 +819,20 @@ export const en = {
       '. The draft leaves an owner out rather than guessing at one, so this may be exactly what the meeting decided — and it is far cheaper to put a name to it now than at the next meeting.',
     editor: 'Protocol editor',
     markdownBacked: 'Markdown backed',
+    /**
+     * What LocaLog writes into a protocol when the document has to admit something
+     * about itself. Printed in the document, so they follow the interface's language
+     * the way the page header does, and they are whole sentences because a language
+     * that orders the parts differently cannot be served by assembling fragments.
+     */
+    noteMissingTableHeading: 'No table of next steps',
+    noteMissingTableBody:
+      'This protocol was written three times and none of them ended with a table of agreed tasks and their owners. Any actions the meeting agreed are described in the sections above but are not collected here.',
+    noteGapsHeading: 'Not covered by this protocol',
+    noteOneGap:
+      'One stretch of the recording could not be read, and nothing above describes it. The recording itself is complete and it can still be listened to.',
+    noteSeveralGaps:
+      'Several stretches of the recording could not be read, and nothing above describes them. The recording itself is complete and these stretches can still be listened to.',
     /** Printed in the page header, as the kind of document this is. */
     documentType: 'Protocol',
     statusDraft: 'Draft',

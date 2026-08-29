@@ -106,6 +106,7 @@ fn does_the_model_follow_the_style() {
             continue;
         };
         let request = GenerationRequest {
+            document_notes: crate::provider::DocumentNotes::english_for_harnesses(),
             model: model.name.clone(),
             model_digest: model.digest.clone(),
             runtime_version: runtime_version.clone(),
@@ -358,6 +359,7 @@ fn does_attribution_improve_the_protocol() {
             seen.len()
         };
         let request = GenerationRequest {
+            document_notes: crate::provider::DocumentNotes::english_for_harnesses(),
             model: model.name.clone(),
             model_digest: model.digest.clone(),
             runtime_version: runtime_version.clone(),
@@ -459,6 +461,7 @@ fn generates_a_protocol_from_a_real_transcript() {
         .expect("requested model is not installed");
 
     let request = GenerationRequest {
+            document_notes: crate::provider::DocumentNotes::english_for_harnesses(),
         model: model.name.clone(),
         model_digest: model.digest.clone(),
         runtime_version,
@@ -708,6 +711,7 @@ fn does_writing_by_topic_stay_in_proportion() {
         .expect("the model must be installed");
 
     let request = GenerationRequest {
+            document_notes: crate::provider::DocumentNotes::english_for_harnesses(),
         model: model.name.clone(),
         model_digest: model.digest.clone(),
         runtime_version,
@@ -790,6 +794,7 @@ fn who_introduced_themselves() {
         .expect("the model must be installed");
 
     let request = GenerationRequest {
+            document_notes: crate::provider::DocumentNotes::english_for_harnesses(),
         model: model.name.clone(),
         model_digest: model.digest.clone(),
         runtime_version,

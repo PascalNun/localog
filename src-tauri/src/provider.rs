@@ -209,6 +209,62 @@ impl From<&crate::domain::TranscriptSegment> for GenerationSegment {
     }
 }
 
+/// The words LocaLog adds to a protocol when it has to say something about the
+/// document itself.
+///
+/// Supplied by the interface rather than written here, and that is the whole point.
+/// These are the only strings this module produces that a person reads in a finished
+/// document, and the backend does not know which language the application is in.
+/// Rust decides *that* a note is needed — three attempts produced no table, this
+/// stretch of the meeting could not be read — and the interface supplies the words,
+/// exactly as it does for every failure code.
+///
+/// Whole sentences rather than fragments, for the reason the dictionary gives: a
+/// language that puts the parts in a different order cannot be served by assembling
+/// them here. That is also why one gap and several gaps are two sentences instead of
+/// a noun and a pronoun chosen separately.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentNotes {
+    /// Heading for the note saying the protocol has no table of next steps.
+    pub missing_table_heading: String,
+    /// The paragraph under it.
+    pub missing_table_body: String,
+    /// Heading for the list of stretches the protocol does not cover.
+    pub gaps_heading: String,
+    /// The paragraph above that list, when exactly one stretch is missing.
+    pub one_gap: String,
+    /// The same, when more than one is.
+    pub several_gaps: String,
+}
+
+#[cfg(test)]
+impl DocumentNotes {
+    /// English notes, for the harnesses.
+    ///
+    /// Here and not in the product because the product's words come from the
+    /// dictionary. These exist so an evaluation run produces a protocol that reads
+    /// like a real one — empty notes would print a bare `##` and nothing under it,
+    /// which is worse output to score than either the real thing or no note at all.
+    pub(crate) fn english_for_harnesses() -> Self {
+        Self {
+            missing_table_heading: "No table of next steps".into(),
+            missing_table_body: "This protocol was written three times and none of them ended \
+                 with a table of agreed tasks and their owners. Any actions the meeting agreed \
+                 are described in the sections above but are not collected here."
+                .into(),
+            gaps_heading: "Not covered by this protocol".into(),
+            one_gap: "One stretch of the recording could not be read, and nothing above \
+                 describes it. The recording itself is complete and it can still be listened to."
+                .into(),
+            several_gaps: "Several stretches of the recording could not be read, and nothing \
+                 above describes them. The recording itself is complete and these stretches can \
+                 still be listened to."
+                .into(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct GenerationRequest {
     pub model: String,
@@ -223,6 +279,8 @@ pub struct GenerationRequest {
     pub temperature_milli: u16,
     pub context_tokens: u32,
     pub maximum_output_tokens: u32,
+    /// What to say if the document has to admit something about itself.
+    pub document_notes: DocumentNotes,
 }
 
 #[derive(Debug, Deserialize)]
@@ -947,7 +1005,7 @@ impl OllamaProvider {
         Ok(if complete {
             markdown
         } else {
-            note_missing_table(markdown)
+            note_missing_table(markdown, &request.document_notes)
         })
     }
 
@@ -1334,12 +1392,12 @@ impl OllamaProvider {
         let markdown = if complete {
             markdown
         } else {
-            note_missing_table(markdown)
+            note_missing_table(markdown, &request.document_notes)
         };
         // Said again at the foot of the document, because the note asking for the
         // hole to be described is an instruction to a model and instructions to
         // models are sometimes not followed. This part does not depend on one.
-        Ok(append_gap_notice(markdown, &gaps))
+        Ok(append_gap_notice(markdown, &gaps, &request.document_notes))
     }
 
     /// Combine a group of consecutive notes into one, preserving their content.
@@ -1989,13 +2047,12 @@ impl Gap {
 /// The reader is the one who can do something about it — they were at the meeting and
 /// the model was not — but only if they are told. A protocol that quietly omits the
 /// part somebody acts on reads exactly like one that had no actions to record.
-fn note_missing_table(markdown: String) -> String {
+fn note_missing_table(markdown: String, notes: &DocumentNotes) -> String {
     format!(
-        "{}\n\n---\n\n## No table of next steps\n\nThis protocol was written three \
-         times and none of them ended with a table of agreed tasks and their owners. \
-         Any actions the meeting agreed are described in the sections above but are \
-         not collected here.\n",
-        markdown.trim_end()
+        "{}\n\n---\n\n## {}\n\n{}\n",
+        markdown.trim_end(),
+        notes.missing_table_heading,
+        notes.missing_table_body
     )
 }
 
@@ -2005,22 +2062,20 @@ fn note_missing_table(markdown: String) -> String {
 /// A protocol that silently omits a quarter of an hour reads exactly like one that
 /// covers everything, and the reader has no way to tell them apart. This is the
 /// difference between the two.
-fn append_gap_notice(markdown: String, gaps: &[Gap]) -> String {
+fn append_gap_notice(markdown: String, gaps: &[Gap], notes: &DocumentNotes) -> String {
     if gaps.is_empty() {
         return markdown;
     }
     let listed: Vec<String> = gaps.iter().map(Gap::as_notice).collect();
     format!(
-        "{}\n\n---\n\n## Not covered by this protocol\n\n\
-         {} of the recording could not be read, and nothing above describes {}. \
-         The recording itself is complete and these stretches can still be listened to.\n\n{}\n",
+        "{}\n\n---\n\n## {}\n\n{}\n\n{}\n",
         markdown.trim_end(),
+        notes.gaps_heading,
         if gaps.len() == 1 {
-            "One stretch"
+            &notes.one_gap
         } else {
-            "Several stretches"
+            &notes.several_gaps
         },
-        if gaps.len() == 1 { "it" } else { "them" },
         listed.join("\n")
     )
 }
@@ -2149,6 +2204,7 @@ mod what_reaches_the_model {
 
     fn request(density: ProtocolDensity, instructions: Vec<String>) -> GenerationRequest {
         GenerationRequest {
+            document_notes: Default::default(),
             model: "test".into(),
             model_digest: String::new(),
             runtime_version: String::new(),
@@ -2409,6 +2465,7 @@ pub(crate) fn sizing_probe(context_tokens: u32, maximum_output_tokens: u32) -> (
         })
         .collect();
     let request = GenerationRequest {
+        document_notes: Default::default(),
         model: "probe".into(),
         model_digest: "probe".into(),
         runtime_version: "probe".into(),
@@ -3677,7 +3734,7 @@ mod tests {
     #[test]
     fn a_protocol_that_never_grew_its_table_is_kept_and_says_so() {
         let without = "# Protokoll\n\n## 1. Fassade\n\nEs wurde besprochen.";
-        let noted = note_missing_table(without.into());
+        let noted = note_missing_table(without.into(), &DocumentNotes::english_for_harnesses());
 
         assert!(
             noted.starts_with("# Protokoll"),
@@ -3688,6 +3745,50 @@ mod tests {
             noted.contains("written three times"),
             "and says why: {noted}"
         );
+    }
+
+    /// The notes are the only words this module writes that a person reads in a
+    /// finished document, and they come from the interface for the same reason every
+    /// failure sentence does: this side does not know which language the application
+    /// is in. A German set has to produce a German note with nothing English left in
+    /// it — the test that would have caught these strings being hard-coded.
+    #[test]
+    fn the_notes_a_document_carries_are_written_in_the_words_it_was_given() {
+        let german = DocumentNotes {
+            missing_table_heading: "Keine Tabelle der nächsten Schritte".into(),
+            missing_table_body: "Dieses Protokoll wurde dreimal geschrieben.".into(),
+            gaps_heading: "Nicht in diesem Protokoll enthalten".into(),
+            one_gap: "Ein Abschnitt der Aufnahme konnte nicht ausgewertet werden.".into(),
+            several_gaps: "Mehrere Abschnitte konnten nicht ausgewertet werden.".into(),
+        };
+
+        let noted = note_missing_table("# Protokoll\n\nInhalt.".into(), &german);
+        assert!(noted.contains("## Keine Tabelle der nächsten Schritte"));
+        assert!(noted.contains("Dieses Protokoll wurde dreimal geschrieben."));
+        assert!(
+            !noted.contains("next steps") && !noted.contains("three times"),
+            "nothing of the English is left: {noted}"
+        );
+
+        // Singular and plural are two whole sentences rather than a noun and a
+        // pronoun picked apart, because the parts do not line up between languages.
+        let one = Gap {
+            from_ms: 60_000,
+            to_ms: 90_000,
+            reason: "unreadable".into(),
+        };
+        let two = Gap {
+            from_ms: 120_000,
+            to_ms: 150_000,
+            reason: "unreadable".into(),
+        };
+        let single = append_gap_notice("# Protokoll".into(), std::slice::from_ref(&one), &german);
+        assert!(single.contains("Ein Abschnitt der Aufnahme"));
+        assert!(single.contains("1:00 – 1:30"), "and where it was: {single}");
+
+        let several = append_gap_notice("# Protokoll".into(), &[one, two], &german);
+        assert!(several.contains("Mehrere Abschnitte"));
+        assert!(!several.contains("Ein Abschnitt der Aufnahme"));
     }
 
     /// A kept answer still has to be a protocol. Three JSON dumps are not a document
@@ -3746,7 +3847,10 @@ mod tests {
     #[test]
     fn a_protocol_with_no_gaps_is_left_exactly_as_written() {
         let markdown = "# Protokoll\n\n## 1. Thema\n\nInhalt.\n".to_string();
-        assert_eq!(append_gap_notice(markdown.clone(), &[]), markdown);
+        assert_eq!(
+            append_gap_notice(markdown.clone(), &[], &DocumentNotes::english_for_harnesses()),
+            markdown
+        );
     }
 
     /// The failure this exists to prevent: fifteen minutes missing from a document
@@ -3758,7 +3862,11 @@ mod tests {
             to_ms: 2_400_000,
             reason: "the model stopped answering".into(),
         }];
-        let out = append_gap_notice("# Protokoll\n\nInhalt.".into(), &gaps);
+        let out = append_gap_notice(
+            "# Protokoll\n\nInhalt.".into(),
+            &gaps,
+            &DocumentNotes::english_for_harnesses(),
+        );
 
         assert!(
             out.starts_with("# Protokoll"),
@@ -3784,7 +3892,11 @@ mod tests {
                 reason: "b".into(),
             },
         ];
-        let out = append_gap_notice("# P".into(), &gaps);
+        let out = append_gap_notice(
+            "# P".into(),
+            &gaps,
+            &DocumentNotes::english_for_harnesses(),
+        );
         assert!(out.contains("0:00 – 1:00"));
         assert!(out.contains("1:00:00 – 1:02:00"), "past an hour: {out}");
         assert!(out.contains("Several stretches"));
@@ -3858,6 +3970,7 @@ mod tests {
 
     fn synthetic_request(segments: usize, words_each: usize) -> GenerationRequest {
         GenerationRequest {
+            document_notes: DocumentNotes::english_for_harnesses(),
             model: "test".into(),
             model_digest: "digest".into(),
             runtime_version: "0".into(),

@@ -202,6 +202,8 @@ const failures = {
     const [expected, ceiling] = sizes.split('/').map((n) => Number(n).toLocaleString('de-DE'));
     return `Diese Besprechung ist so lang, dass ein Protokoll davon — etwa ${expected} Zeichen — nicht in eine Antwort passt; darin ist Platz für ungefähr ${ceiling}. Es wurde nichts versucht, denn das ist eine Rechnung und kein misslungener Durchlauf: ein erneuter Versuch scheiterte genauso. Wählen Sie einen knapperen Protokollstil, oder teilen Sie die Aufnahme.`;
   },
+  generationConfigUnreadable:
+    'Dieser Vorgang wurde von einer früheren Version von LocaLog vorbereitet und kann nicht gelesen werden. Es wurde nichts übernommen, Ihr Transkript ist unverändert. Starten Sie die Erzeugung erneut.',
   responseUnusable:
     'Das lokale Modell hat eine Antwort geliefert, die LocaLog nicht als Protokoll verwenden kann. Es wurde nichts übernommen, Ihr Transkript ist unverändert. Ein erneuter Versuch führt oft zum Ziel, da ein Modell jedes Mal anders antwortet.',
   recorderMissing:
@@ -828,6 +830,14 @@ export const de: Strings = {
       '. Der Entwurf lässt die Zuordnung lieber offen, als sie zu raten — es kann also genau so beschlossen worden sein. Und einen Namen dazuzuschreiben ist jetzt weit billiger als in der nächsten Besprechung.',
     editor: 'Protokolleditor',
     markdownBacked: 'auf Markdown gestützt',
+    noteMissingTableHeading: 'Keine Tabelle der nächsten Schritte',
+    noteMissingTableBody:
+      'Dieses Protokoll wurde dreimal geschrieben, und keiner der Durchläufe endete mit einer Tabelle der vereinbarten Aufgaben und ihrer Verantwortlichen. Was die Besprechung vereinbart hat, steht in den Abschnitten oben, ist hier aber nicht zusammengefasst.',
+    noteGapsHeading: 'Nicht in diesem Protokoll enthalten',
+    noteOneGap:
+      'Ein Abschnitt der Aufnahme konnte nicht ausgewertet werden, und nichts oben beschreibt ihn. Die Aufnahme selbst ist vollständig und kann weiterhin abgehört werden.',
+    noteSeveralGaps:
+      'Mehrere Abschnitte der Aufnahme konnten nicht ausgewertet werden, und nichts oben beschreibt sie. Die Aufnahme selbst ist vollständig, diese Abschnitte können weiterhin abgehört werden.',
     documentType: 'Protokoll',
     statusDraft: 'Entwurf',
     statusReviewed: 'Geprüft',

@@ -91,6 +91,10 @@ pub(crate) fn refine_passage(
     ))?;
 
     let request = provider::GenerationRequest {
+        // Nothing here writes a protocol, so no note about a document is reachable
+        // from this path. Empty rather than English, so that if one ever does become
+        // reachable it is visibly missing instead of quietly in the wrong language.
+        document_notes: Default::default(),
         model,
         model_digest: status.selected_model_digest.unwrap_or_default(),
         runtime_version: status.runtime_version.unwrap_or_else(|| "unknown".into()),
@@ -204,6 +208,10 @@ pub(crate) fn find_introductions(
     let model_digest = status.selected_model_digest.unwrap_or_default();
 
     let request = provider::GenerationRequest {
+        // Nothing here writes a protocol, so no note about a document is reachable
+        // from this path. Empty rather than English, so that if one ever does become
+        // reachable it is visibly missing instead of quietly in the wrong language.
+        document_notes: Default::default(),
         model,
         model_digest,
         runtime_version: status.runtime_version.unwrap_or_else(|| "unknown".into()),
