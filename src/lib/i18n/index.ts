@@ -24,6 +24,7 @@ import { es } from './es';
 import { it } from './it';
 import { ja } from './ja';
 import { ko } from './ko';
+import { zh } from './zh';
 import type { Strings } from './en';
 
 export type { Strings };
@@ -43,6 +44,7 @@ export const INTERFACE_LANGUAGES = [
   { id: 'it', label: 'Italiano', strings: it },
   { id: 'ja', label: '日本語', strings: ja },
   { id: 'ko', label: '한국어', strings: ko },
+  { id: 'zh', label: '简体中文', strings: zh },
 ] as const;
 
 export type LanguageId = (typeof INTERFACE_LANGUAGES)[number]['id'];
