@@ -3988,24 +3988,22 @@ mod tests {
         let file = fs::File::create(&model).unwrap();
         file.set_len(77_691_713).unwrap();
         drop(file);
-        // Something that genuinely runs and prints a line, because the metadata
-        // reads a version by executing it — a file that merely exists is not
-        // enough, which is what a first attempt at fixing this for Windows got
-        // wrong on both platforms at once.
+        // Cargo's own binary, which is the one program guaranteed to be on any
+        // machine running this test — cargo is what started it, and it sets its
+        // own absolute path in the environment.
         //
-        // `where.exe` rather than `cmd.exe`: given an argument it does not know it
-        // complains and exits, where cmd may open a shell and wait. Found through
-        // SystemRoot rather than assumed at C:\Windows, because the system drive
-        // is not always C.
-        let executable = if cfg!(windows) {
-            std::path::PathBuf::from(
-                std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string()),
-            )
-            .join("System32")
-            .join("where.exe")
-        } else {
-            std::path::PathBuf::from("/bin/echo")
-        };
+        // Three things are needed and each ruled out an earlier attempt. The path
+        // must be absolute and exist, which is all `validate_config` asks. It must
+        // *run*, because the metadata reads a version by executing it, so a file
+        // the test creates is not enough. And it must exit zero, because a version
+        // that exits non-zero is discarded — which is what `where.exe --version`
+        // does, and why the second attempt failed on Windows as well.
+        //
+        // `/bin/echo` worked here for the same reasons and only ever by luck of
+        // the platform this was written on.
+        let executable = std::path::PathBuf::from(
+            std::env::var("CARGO").expect("cargo sets its own path for a test it runs"),
+        );
         let repository = WorkspaceRepository::open(root).unwrap();
         repository
             .write_setting(
