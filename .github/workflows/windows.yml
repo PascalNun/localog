@@ -43,8 +43,13 @@ jobs:
       # for the target they are written for, and nothing on a Mac can compile
       # them: cross-checking dies in a C build script for a crypto dependency.
       #
-      # Deliberately before the sidecars. If the Rust does not build for Windows
-      # there is no point spending half an hour finding out whether FFmpeg does.
+      # This can run before the sidecars only because the bundle config is named
+      # tauri.win-bundle.conf.json rather than tauri.windows.conf.json. Tauri
+      # merges a platform-named config automatically, and its build script then
+      # resolves externalBin at compile time — so the obvious name makes the crate
+      # unbuildable until six binaries exist, which is the wrong order for finding
+      # out whether the crate builds at all. macOS already passes its bundle
+      # config explicitly for the same reason; this now matches it.
       - name: Compile the crate for Windows
         run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets
 
