@@ -39,16 +39,16 @@ describe('exporting a transcript', () => {
   it('writes who spoke, when, and what, in reading order', () => {
     const text = transcriptToText(
       transcript([
-        segment({ id: 'a', startMs: 12_000, speaker: 'Fachplanung', text: 'We start.' }),
-        segment({ id: 'b', startMs: 91_000, speaker: 'Prüfstelle', text: 'Agreed.' }),
+        segment({ id: 'a', startMs: 12_000, speaker: 'Rovelli', text: 'We start.' }),
+        segment({ id: 'b', startMs: 91_000, speaker: 'Solvane', text: 'Agreed.' }),
       ]),
       context,
     );
     expect(text).toContain('Jour fixe');
     expect(text).toContain('Beispielquartier · 2026-08-27');
-    expect(text).toContain('[0:12] Fachplanung: We start.');
+    expect(text).toContain('[0:12] Rovelli: We start.');
     // Past a minute the clock keeps counting rather than restarting.
-    expect(text).toContain('[1:31] Prüfstelle: Agreed.');
+    expect(text).toContain('[1:31] Solvane: Agreed.');
     expect(text.indexOf('We start.')).toBeLessThan(text.indexOf('Agreed.'));
   });
 

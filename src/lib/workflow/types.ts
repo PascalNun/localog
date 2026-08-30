@@ -92,7 +92,7 @@ export interface ProposedCorrection {
  * Somebody who said their own name near the start of a meeting.
  *
  * The spelling is the transcript's, however wrong — that is what makes the list
- * useful. Somebody who was there recognises "Person A" at once, and the
+ * useful. Somebody who was there recognises "Torben Appelrath" at once, and the
  * wrong spelling is what a correction has to match to find it.
  */
 export interface Introduction {

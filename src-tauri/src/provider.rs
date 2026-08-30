@@ -426,7 +426,7 @@ pub(crate) struct ProposedCorrection {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Introduction {
     /// The name exactly as the transcript spells it, however wrongly. Wrong is the
-    /// point: a person recognises "Person A" as themselves at once, and the
+    /// point: a person recognises "Torben Appelrath" as themselves at once, and the
     /// spelling has to match the transcript for a correction to find it.
     pub heard: String,
     /// What they said they do, where they said it.
@@ -1174,14 +1174,14 @@ impl OllamaProvider {
     /// reference meeting, ten of the twelve people its written protocol names
     /// introduce themselves inside eight minutes.
     ///
-    /// Every name comes back wrong on a first meeting — "Person A",
-    /// "Person B", "Johannes Halle von Kau, drei" — and that is what makes this
+    /// Every name comes back wrong on a first meeting — "Torben Appelrath",
+    /// "Matthias Grewe", "Johannes Wald von Kau, drei" — and that is what makes this
     /// work. Somebody who was there recognises each one instantly and is correcting
     /// a list rather than composing one, and the wrong spelling is what a correction
     /// has to match to find it in the transcript.
     ///
     /// It also reaches errors the candidate extractor cannot: that offers words the
-    /// transcriber was unsure of, and it was perfectly confident about "Person C".
+    /// transcriber was unsure of, and it was perfectly confident about "Katrin".
     /// Ask about one word, in its own sentence, and keep the answer only if the list
     /// could have produced it.
     ///
@@ -1192,8 +1192,8 @@ impl OllamaProvider {
     /// `Clusterwohnenheit` may become `Clusterwohneinheit`, because `Cluster` is
     /// listed; nothing can turn it into a firm nobody has ever typed.
     ///
-    /// The window is one sentence. Deciding whether `Halle` is a surname or the word
-    /// for a cross needs the sentence it is in and nothing else, which makes this the
+    /// The window is one sentence. Deciding whether `Wald` is a surname or the word
+    /// for a forest needs the sentence it is in and nothing else, which makes this the
     /// one stage in the pipeline where a long context is provably unnecessary — and
     /// so the one that costs seconds rather than minutes.
     pub(crate) fn propose_correction(
@@ -2670,7 +2670,7 @@ fn introductions_schema() -> serde_json::Value {
                 "items": {
                     "type": "object",
                     // All three required, because a name alone is not always enough
-                    // to recognise: "Person C" could be anybody, and "Person C, die
+                    // to recognise: "Katrin" could be anybody, and "Katrin, die
                     // Planung Haus B und Fassadenplanung macht" is one person. Left
                     // optional first, and the model then returned none of them.
                     "required": ["heard", "role", "context"],
@@ -3952,8 +3952,8 @@ mod tests {
         fn listed() -> Vec<String> {
             vec![
                 "Cluster".to_string(),
-                "Halde".to_string(),
-                "HOAI".to_string(),
+                "Waldt".to_string(),
+                "AVENTOR".to_string(),
             ]
         }
 
@@ -3993,16 +3993,15 @@ mod tests {
         #[test]
         fn an_ordinary_word_may_still_be_corrected_to_a_listed_name() {
             assert!(
-                accept_correction("Halle", "Herr Halle übernimmt das.", "Halde", &listed())
-                    .is_some()
+                accept_correction("Wald", "Herr Wald übernimmt das.", "Waldt", &listed()).is_some()
             );
         }
 
         #[test]
         fn an_empty_or_unchanged_answer_is_no_answer() {
-            assert!(accept_correction("Halle", "Herr Halle.", "", &listed()).is_none());
-            assert!(accept_correction("Halle", "Herr Halle.", "   ", &listed()).is_none());
-            assert!(accept_correction("Halde", "Herr Halde.", "kreutz", &listed()).is_none());
+            assert!(accept_correction("Wald", "Herr Wald.", "", &listed()).is_none());
+            assert!(accept_correction("Wald", "Herr Wald.", "   ", &listed()).is_none());
+            assert!(accept_correction("Waldt", "Herr Waldt.", "waldt", &listed()).is_none());
         }
 
         /// Models explain when they are asked to answer, and a paragraph offered as a
@@ -4011,9 +4010,9 @@ mod tests {
         fn a_sentence_is_not_a_spelling() {
             assert!(
                 accept_correction(
-                    "Halle",
-                    "Herr Halle übernimmt das.",
-                    "This is probably Halde, the surname of the engineer",
+                    "Wald",
+                    "Herr Wald übernimmt das.",
+                    "This is probably Waldt, the surname of the engineer",
                     &listed(),
                 )
                 .is_none()
@@ -4024,14 +4023,12 @@ mod tests {
         /// and a correction to a word the passage does not contain would find nothing.
         #[test]
         fn a_word_the_passage_does_not_contain_is_refused() {
-            assert!(
-                accept_correction("Halle", "Die Fassade bleibt.", "Halde", &listed()).is_none()
-            );
+            assert!(accept_correction("Wald", "Die Fassade bleibt.", "Waldt", &listed()).is_none());
         }
 
         #[test]
         fn nothing_is_offered_when_the_project_lists_nothing() {
-            assert!(accept_correction("Halle", "Herr Halle.", "Halde", &[]).is_none());
+            assert!(accept_correction("Wald", "Herr Wald.", "Waldt", &[]).is_none());
         }
     }
 
@@ -4490,7 +4487,7 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
         let complete = format!(
-            "{A_PROTOCOL}\n\n| Aufgabe | Verantwortlich |\n| --- | --- |\n|              Anschlusspunkte klären | Prüfstelle |\n"
+            "{A_PROTOCOL}\n\n| Aufgabe | Verantwortlich |\n| --- | --- |\n|              Anschlusspunkte klären | Solvane |\n"
         );
         let handle = serve(listener, one_streamed_answer(&complete));
 

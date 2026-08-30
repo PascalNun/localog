@@ -235,7 +235,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     projects: [
       {
         id: 'project-harbor-canopy',
-        name: 'Halle 4 Study',
+        name: 'Riverside Pavilion Study',
         description: 'Synthetic demonstration project for the Phase 0 shell.',
         meetingCount: initialMeetings.length,
         defaultLanguage: 'English',
@@ -800,19 +800,19 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     // Shaped like a first meeting: the spellings are what the transcriber heard.
     return [
       {
-        heard: 'Person A',
+        heard: 'Torben Appelrath',
         role: 'Projektleitung in der Planung',
-        context: 'Ich kann gerne anfangen, ich mache die Projektleitung-Person A…',
+        context: 'Ich kann gerne anfangen, ich mache die Projektleitung-Torben Appelrath…',
       },
       {
-        heard: 'Person C',
+        heard: 'Katrin',
         role: 'Planung und Versadenplanung für Gebäude A, C und D',
-        context: 'Person C, ich mache hier mit meinen Kollegen zusammen die Planung…',
+        context: 'Katrin, ich mache hier mit meinen Kollegen zusammen die Planung…',
       },
       {
-        heard: 'Person B',
-        role: 'Bauphysik, Bauphysik',
-        context: 'Person B, der Name. Wir betreuen die Bauphysik…',
+        heard: 'Jonas Röttger',
+        role: 'Büro HKR, Bauphysik',
+        context: 'Jonas Röttger, der Name. Wir betreuen die Bauphysik…',
       },
     ];
   }
@@ -823,15 +823,15 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       // One of them stands for the class only the protocol's own notes can reach: a
       // spelling the transcriber was perfectly confident about and wrong.
       {
-        heard: 'Klinker-Nord',
+        heard: 'Falkenstein-Weide',
         occurrences: 5,
-        context: '…agreed with Klinker-Nord at the last review…',
+        context: '…agreed with Falkenstein-Weide at the last review…',
         questioned: true,
       },
       {
-        heard: 'Prüfstelle',
+        heard: 'Solvane',
         occurrences: 7,
-        context: '…confirmed with Prüfstelle before the review…',
+        context: '…confirmed with Solvane before the review…',
         questioned: false,
       },
       {
@@ -841,9 +841,9 @@ export class FakeWorkflowBridge implements WorkflowBridge {
         questioned: false,
       },
       {
-        heard: 'Fachplanung',
+        heard: 'Rovelli',
         occurrences: 3,
-        context: '…Fachplanung will circulate both items…',
+        context: '…Rovelli will circulate both items…',
         questioned: false,
       },
       {
@@ -867,9 +867,9 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     // reaches almost everything, and what remains is a word whose mis-hearing varied.
     return [
       {
-        heard: 'Halle',
-        suggested: 'Halde',
-        passage: 'Herr Halle übernimmt die Tragwerksplanung.',
+        heard: 'Wald',
+        suggested: 'Waldt',
+        passage: 'Herr Wald übernimmt die Tragwerksplanung.',
       },
     ];
   }

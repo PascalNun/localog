@@ -11,46 +11,46 @@ const fields = (over: Partial<Record<NameKind, string>> = {}): Record<NameKind, 
 
 describe('splitting the names somebody typed', () => {
   it('takes commas, semicolons and line breaks', () => {
-    expect(parseNames('Halde, Fachplanung; Prüfstelle\nVermessung')).toEqual([
-      'Halde',
-      'Fachplanung',
-      'Prüfstelle',
-      'Vermessung',
+    expect(parseNames('Waldt, Rovelli; Solvane\nNorrbo')).toEqual([
+      'Waldt',
+      'Rovelli',
+      'Solvane',
+      'Norrbo',
     ]);
   });
 
   /**
-   * The one that would quietly ruin this. A person is "Halde" and a client is
-   * "Klinker-Nord"; splitting on spaces would put half-names into the initial
+   * The one that would quietly ruin this. A person is "Anna Waldt" and a client is
+   * "Falkenstein-Weide"; splitting on spaces would put half-names into the initial
    * prompt, which biases the transcriber towards a fragment.
    */
   it('never splits a name on its spaces', () => {
-    expect(parseNames('Halde, Halle 4, Klinker-Nord')).toEqual([
-      'Halde',
+    expect(parseNames('Anna Waldt, Halle 4, Falkenstein-Weide')).toEqual([
+      'Anna Waldt',
       'Halle 4',
-      'Klinker-Nord',
+      'Falkenstein-Weide',
     ]);
   });
 
   it('survives the punctuation people actually leave behind', () => {
-    expect(parseNames('  HOAI ,, Tragwerk ,  ')).toEqual(['HOAI', 'Tragwerk']);
+    expect(parseNames('  AVENTOR ,, Tragwerk ,  ')).toEqual(['AVENTOR', 'Tragwerk']);
     expect(parseNames('')).toEqual([]);
     expect(parseNames('   \n  ')).toEqual([]);
   });
 
   it('keeps a repeat once, spelled the way it was typed first', () => {
     // Not a mistake to report: somebody who writes a name twice meant it once.
-    expect(parseNames('HOAI, hoai, Hoai')).toEqual(['HOAI']);
+    expect(parseNames('AVENTOR, aventor, Aventor')).toEqual(['AVENTOR']);
   });
 });
 
 describe('the names from the whole form', () => {
   it('takes each name’s category from the field it was typed into', () => {
     expect(
-      namesFromFields(fields({ Person: 'Halde', Organisation: 'HOAI', Project: 'Halle 4' })),
+      namesFromFields(fields({ Person: 'Waldt', Organisation: 'AVENTOR', Project: 'Halle 4' })),
     ).toEqual([
-      { term: 'Halde', category: 'Person' },
-      { term: 'HOAI', category: 'Organisation' },
+      { term: 'Waldt', category: 'Person' },
+      { term: 'AVENTOR', category: 'Organisation' },
       { term: 'Halle 4', category: 'Project' },
     ]);
   });
@@ -65,8 +65,8 @@ describe('the names from the whole form', () => {
       fields({
         'Technical term': 'Tragwerk',
         Project: 'Halle 4',
-        Organisation: 'HOAI',
-        Person: 'Halde',
+        Organisation: 'AVENTOR',
+        Person: 'Waldt',
       }),
     );
     expect(all.map((name) => name.category)).toEqual([
@@ -80,8 +80,8 @@ describe('the names from the whole form', () => {
   it('stores a name typed into two fields once, under the first of them', () => {
     // Storing it twice would spend part of the transcriber's short prompt saying
     // one thing twice.
-    const all = namesFromFields(fields({ Person: 'Prüfstelle', Organisation: 'prüfstelle' }));
-    expect(all).toEqual([{ term: 'Prüfstelle', category: 'Person' }]);
+    const all = namesFromFields(fields({ Person: 'Solvane', Organisation: 'solvane' }));
+    expect(all).toEqual([{ term: 'Solvane', category: 'Person' }]);
   });
 
   it('returns nothing for a form nobody filled in', () => {

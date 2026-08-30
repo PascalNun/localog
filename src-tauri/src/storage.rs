@@ -4019,15 +4019,15 @@ mod tests {
                         category: "Technical term".into(),
                     },
                     crate::domain::NewProjectName {
-                        term: "Halde".into(),
+                        term: "Anna Waldt".into(),
                         category: "Person".into(),
                     },
                     crate::domain::NewProjectName {
-                        term: "HOAI".into(),
+                        term: "AVENTOR".into(),
                         category: "Organisation".into(),
                     },
                     crate::domain::NewProjectName {
-                        term: "hoai".into(),
+                        term: "aventor".into(),
                         category: "Organisation".into(),
                     },
                 ],
@@ -4053,8 +4053,8 @@ mod tests {
         assert_eq!(
             terms,
             vec![
-                "Halde".to_string(),
-                "HOAI".to_string(),
+                "Anna Waldt".to_string(),
+                "AVENTOR".to_string(),
                 "Tragwerk".to_string()
             ],
             "people first, then organisations, then general terms — and the repeat once"
@@ -4070,7 +4070,7 @@ mod tests {
         let refused = repository.create_project(NewProjectInput {
             names: vec![
                 crate::domain::NewProjectName {
-                    term: "Halde".into(),
+                    term: "Anna Waldt".into(),
                     category: "Person".into(),
                 },
                 crate::domain::NewProjectName {

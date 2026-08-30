@@ -16,7 +16,7 @@
  * Commas, semicolons and line breaks, because those are what people type into a box
  * of names and none of them is worth correcting somebody about.
  *
- * **Never spaces.** A person is "Halde", a client is "Klinker-Nord", a
+ * **Never spaces.** A person is "Anna Waldt", a client is "Falkenstein-Weide", a
  * project is "Halle 4". Splitting on spaces would turn every one of those into
  * fragments, and a fragment in the initial prompt is worse than nothing: it biases
  * the transcriber towards half a name.
