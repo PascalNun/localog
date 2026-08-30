@@ -1182,7 +1182,7 @@
   ///
   /// The case that asks for this is a firm or a person named wrongly throughout, and
   /// a literal replace is not enough for it: German writes the interior of a compound
-  /// in lower case, so `Falkenstein` hides inside `falkensteiner` and a plain replace
+  /// in lower case, so `Klinker` hides inside `klinkerfassade` and a plain replace
   /// walks past it. The rule that finds both is the one the transcript corrections
   /// already use, and it is called rather than copied — a second copy would be a
   /// second answer.

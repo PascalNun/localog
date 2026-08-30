@@ -36,7 +36,7 @@ impl Correction {
     /// anybody noticing it was two rules rather than one.
     ///
     /// Only for words that are capitalised rather than shouted. Lowering the first
-    /// letter of `AVENTOR` would produce `aVENTOR`, and an abbreviation never appears
+    /// letter of `HOAI` would produce `tGA`, and an abbreviation never appears
     /// inside a compound in that form anyway.
     fn forms(&self) -> Vec<(String, String)> {
         let mut forms = vec![(self.wrong.clone(), self.right.clone())];
@@ -225,7 +225,7 @@ pub(crate) struct Unsettled {
     /// The sentence around it, and nothing more.
     ///
     /// The whole segment, which averages about seven seconds of speech. Deciding
-    /// whether `Wald` is a surname or the word for a forest needs one sentence, not
+    /// whether `Halle` is a surname or the word for a forest needs one sentence, not
     /// eighty minutes — this is the one stage in the pipeline where a long context is
     /// provably unnecessary.
     pub passage: String,
@@ -297,7 +297,7 @@ pub(crate) fn unsettled(
 /// foot of a draft, about the client's own name:
 ///
 /// ```text
-/// [Note: The term "Falkenstein-Weide" is used in the source text; it is unclear if
+/// [Note: The term "Klinker-Nord" is used in the source text; it is unclear if
 /// this refers to a specific project name or location.]
 /// ```
 ///
@@ -427,7 +427,7 @@ fn words(text: &str) -> Vec<(usize, &str)> {
 /// One place a correction would apply, with enough of its sentence to judge it.
 ///
 /// The judging matters. Some wrong spellings are also ordinary words: a participant
-/// at the reference meeting is called Waldt, and the transcriber wrote `Wald`,
+/// at the reference meeting is called Halde, and the transcriber wrote `Halle`,
 /// which is the German for forest. Every occurrence there happened to be the person,
 /// and that will not always hold — so this exists to be looked at before anything is
 /// replaced.
@@ -484,7 +484,7 @@ pub(crate) fn preview(segments: &[TranscriptSegment], corrections: &[Correction]
 /// Apply only the occurrences somebody kept.
 ///
 /// This is the one the ambiguous cases need. A participant at the reference meeting
-/// is called Waldt and the transcriber wrote `Wald`, which is also the German for
+/// is called Halde and the transcriber wrote `Halle`, which is also the German for
 /// forest; correcting every occurrence would eventually turn a stretch of woodland
 /// into a structural engineer. Declining the correction whole is no use either, because
 /// then the three that are the person stay wrong.
@@ -571,43 +571,42 @@ mod replacing_a_name_in_a_protocol {
     /// The reason this does not use a plain find and replace.
     ///
     /// German writes the interior of a compound in lower case, so a firm called
-    /// Falkenstein appears inside "falkensteiner" — and a literal replace walks past it.
+    /// Klinker appears inside "klinkerfassade" — and a literal replace walks past it.
     /// The rule is the transcript corrections' own, over prose rather than segments.
     #[test]
     fn catches_the_compound_form_as_well_as_the_name() {
-        let text = "Falkenstein plant den Umbau. Das falkensteiner Team ist zuständig.";
-        let (found, written) = replace_in_text(text, "Falkenstein", "Nordenstadt");
+        let text = "Klinker wird nachbestellt. Die klinkerfassade bleibt unverändert.";
+        let (found, written) = replace_in_text(text, "Klinker", "Riemchen");
         assert_eq!(found.len(), 2);
         assert_eq!(
             written,
-            "Nordenstadt plant den Umbau. Das nordenstadter Team ist zuständig."
+            "Riemchen wird nachbestellt. Die riemchenfassade bleibt unverändert."
         );
     }
 
-    /// Lowering the first letter of an abbreviation would produce aVENTOR, and an
+    /// Lowering the first letter of an abbreviation would produce tGA, and an
     /// abbreviation never appears inside a compound that way.
     #[test]
     fn leaves_an_abbreviation_in_capitals_alone() {
-        let (found, written) = replace_in_text("AVENTOR und aventor", "AVENTOR", "IBC");
+        let (found, written) = replace_in_text("HOAI und hoai", "HOAI", "IBC");
         assert_eq!(found.len(), 1);
-        assert_eq!(written, "IBC und aventor");
+        assert_eq!(written, "IBC und hoai");
     }
 
     #[test]
     fn reports_the_line_and_the_words_around_each_change() {
-        let text = "# Protokoll\n\nFrau Bauleitung von Falkenstein nannte die Frist.";
-        let (found, _) = replace_in_text(text, "Falkenstein", "Nordenstadt");
+        let text = "# Protokoll\n\nDie Bauleitung hat Klinker nachbestellt.";
+        let (found, _) = replace_in_text(text, "Klinker", "Riemchen");
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].line, 3);
         assert!(found[0].context.contains("Bauleitung"));
-        assert_eq!(found[0].matched, "Falkenstein");
-        assert_eq!(found[0].replacement, "Nordenstadt");
+        assert_eq!(found[0].matched, "Klinker");
+        assert_eq!(found[0].replacement, "Riemchen");
     }
 
     #[test]
     fn changes_every_occurrence_on_a_line() {
-        let (found, written) =
-            replace_in_text("Falkenstein, Falkenstein, Falkenstein", "Falkenstein", "X");
+        let (found, written) = replace_in_text("Klinker, Klinker, Klinker", "Klinker", "X");
         assert_eq!(found.len(), 3);
         assert_eq!(written, "X, X, X");
     }
@@ -615,23 +614,23 @@ mod replacing_a_name_in_a_protocol {
     #[test]
     fn leaves_a_document_without_the_name_exactly_as_it_was() {
         let text = "Nichts hier trägt den Namen.\nAuch hier nicht.";
-        let (found, written) = replace_in_text(text, "Falkenstein", "Nordenstadt");
+        let (found, written) = replace_in_text(text, "Klinker", "Nordenstadt");
         assert!(found.is_empty());
         assert_eq!(written, text);
     }
 
     #[test]
     fn does_nothing_for_an_empty_search() {
-        let (found, written) = replace_in_text("Falkenstein", "  ", "X");
+        let (found, written) = replace_in_text("Klinker", "  ", "X");
         assert!(found.is_empty());
-        assert_eq!(written, "Falkenstein");
+        assert_eq!(written, "Klinker");
     }
 
     /// Line endings are the document's, and a replace must not rewrite them.
     #[test]
     fn keeps_the_shape_of_the_document() {
-        let text = "Eins\n\nFalkenstein\n\nDrei";
-        let (_, written) = replace_in_text(text, "Falkenstein", "Zwei");
+        let text = "Eins\n\nKlinker\n\nDrei";
+        let (_, written) = replace_in_text(text, "Klinker", "Zwei");
         assert_eq!(written, "Eins\n\nZwei\n\nDrei");
     }
 }
@@ -717,17 +716,17 @@ mod tests {
         let segments = vec![
             doubted("a", "Das Trakwerk liegt darüber.", &["Trakwerk"]),
             doubted("b", "Das Trakwerk bleibt so.", &["Trakwerk"]),
-            doubted("c", "Herr Wald übernimmt das.", &["Wald"]),
+            doubted("c", "Halle übernimmt das.", &["Halle"]),
         ];
         let offered = name_candidates(&segments, "");
         assert_eq!(offered.len(), 1, "Trakwerk is the deterministic one");
 
         let left = unsettled(&segments, &offered);
         assert_eq!(left.len(), 1, "{left:?}");
-        assert_eq!(left[0].heard, "Wald");
+        assert_eq!(left[0].heard, "Halle");
         assert_eq!(left[0].segment_id, "c");
         assert_eq!(
-            left[0].passage, "Herr Wald übernimmt das.",
+            left[0].passage, "Halle übernimmt das.",
             "the sentence it sits in, and nothing else"
         );
     }
@@ -738,8 +737,8 @@ mod tests {
             doubted("a", "Die Nukera liefert.", &["Nukera"]),
             doubted(
                 "b",
-                "Nukera bestätigt, und Norrbo auch.",
-                &["Nukera", "Norrbo"],
+                "Nukera bestätigt, und Vermessung auch.",
+                &["Nukera", "Vermessung"],
             ),
         ];
         let left = unsettled(&segments, &[]);
@@ -747,7 +746,7 @@ mod tests {
             left.iter()
                 .map(|word| word.heard.as_str())
                 .collect::<Vec<_>>(),
-            vec!["Nukera", "Norrbo"]
+            vec!["Nukera", "Vermessung"]
         );
     }
 
@@ -784,17 +783,17 @@ mod tests {
     #[test]
     fn a_name_the_transcriber_was_sure_of_is_found_in_the_protocols_own_note() {
         let segments = vec![
-            doubted("a", "Falkenstein-Weide hat zugestimmt.", &[]),
-            doubted("b", "Der Termin mit Falkenstein-Weide steht.", &[]),
+            doubted("a", "Klinker-Nord hat zugestimmt.", &[]),
+            doubted("b", "Der Termin mit Klinker-Nord steht.", &[]),
         ];
         let protocol = "## Beschluss\n\nEs bleibt dabei.\n\n[Note: The term \
-             \"Falkenstein-Weide\" is used in the source text; it is unclear if this \
+             \"Klinker-Nord\" is used in the source text; it is unclear if this \
              refers to a specific project name or location.]";
 
         let found = name_candidates(&segments, protocol);
 
         assert_eq!(found.len(), 1, "{found:?}");
-        assert_eq!(found[0].heard, "Falkenstein-Weide");
+        assert_eq!(found[0].heard, "Klinker-Nord");
         assert_eq!(
             found[0].occurrences, 2,
             "counted in the transcript, not the note"
@@ -803,7 +802,7 @@ mod tests {
             found[0].questioned,
             "and shown as the model's doubt, not whisper's"
         );
-        assert!(found[0].context.contains("Falkenstein-Weide"));
+        assert!(found[0].context.contains("Klinker-Nord"));
     }
 
     /// The reason it is read by punctuation. A note written in German shares no words
@@ -853,8 +852,8 @@ mod tests {
         // A markdown link is not an aside, and a quoted clause is not a name.
         let markdown = "See [the note](https://example.invalid/\"x\") and \
              [Note: \"the entire discussion of the facade was hard to follow\"] and \
-             [Note: \"ab\" is short] and [Note: \"AVENTOR\" is unfamiliar.]";
-        assert_eq!(names_the_protocol_questioned(markdown), vec!["AVENTOR"]);
+             [Note: \"ab\" is short] and [Note: \"HOAI\" is unfamiliar.]";
+        assert_eq!(names_the_protocol_questioned(markdown), vec!["HOAI"]);
     }
 
     #[test]
@@ -924,22 +923,22 @@ mod tests {
         assert_eq!(found.len(), 1, "{found:?}");
     }
 
-    /// An abbreviation must not be lowered into a compound form. `AVENTOR` would
-    /// become `aVENTOR`, and no German compound carries an abbreviation that way.
+    /// An abbreviation must not be lowered into a compound form. `HOAI` would
+    /// become `tGA`, and no German compound carries an abbreviation that way.
     #[test]
     fn an_abbreviation_is_corrected_only_in_the_form_it_is_written() {
         let mut segments = vec![
-            segment("a", 0, "Aventor liefert das System."),
+            segment("a", 0, "Hoai liefert das System."),
             segment("b", 1000, "Die EFB-Grenze ist erreicht."),
         ];
         let counts = apply(
             &mut segments,
-            &[correction("Aventor", "AVENTOR"), correction("EFB", "IFB")],
+            &[correction("Hoai", "HOAI"), correction("EFB", "IFB")],
         );
         assert_eq!(counts, vec![1, 1]);
-        assert_eq!(segments[0].text, "AVENTOR liefert das System.");
+        assert_eq!(segments[0].text, "HOAI liefert das System.");
         assert_eq!(segments[1].text, "Die IFB-Grenze ist erreicht.");
-        assert!(!segments[0].text.contains("aVENTOR"));
+        assert!(!segments[0].text.contains("tGA"));
     }
 
     #[test]
@@ -953,24 +952,24 @@ mod tests {
     #[test]
     fn only_the_occurrences_somebody_kept_are_changed() {
         let mut segments = vec![
-            segment("a", 5000, "Jetzt fehlen noch Herr Wald und Frau Hallstedt."),
-            segment("b", 9000, "Am Wald vorbei geht es zur Baustelle."),
+            segment("a", 5000, "Der Aushub geht auf die Halle."),
+            segment("b", 9000, "An der Halle vorbei geht es zur Baustelle."),
         ];
-        let found = preview(&segments, &[correction("Wald", "Waldt")]);
+        let found = preview(&segments, &[correction("Halle", "Halde")]);
         assert_eq!(found.len(), 2);
 
-        // The person is kept; the woodland is not.
+        // The tip is corrected; the building of the same name is not.
         let kept: Vec<Match> = found
             .into_iter()
-            .filter(|found| found.context.contains("Herr"))
+            .filter(|found| found.context.contains("Aushub"))
             .collect();
         assert_eq!(apply_kept(&mut segments, &kept), 1);
 
+        assert_eq!(segments[0].text, "Der Aushub geht auf die Halde.");
         assert_eq!(
-            segments[0].text,
-            "Jetzt fehlen noch Herr Waldt und Frau Hallstedt."
+            segments[1].text,
+            "An der Halle vorbei geht es zur Baustelle."
         );
-        assert_eq!(segments[1].text, "Am Wald vorbei geht es zur Baustelle.");
     }
 
     /// Replacing one occurrence must not move the ones not yet replaced.
@@ -986,10 +985,10 @@ mod tests {
     /// where the review found them.
     #[test]
     fn a_longer_replacement_does_not_disturb_earlier_matches() {
-        let mut segments = vec![segment("a", 0, "Aventor und Aventor.")];
-        let found = preview(&segments, &[correction("Aventor", "AVENTOR GmbH")]);
+        let mut segments = vec![segment("a", 0, "Hoai und Hoai.")];
+        let found = preview(&segments, &[correction("Hoai", "HOAI GmbH")]);
         assert_eq!(apply_kept(&mut segments, &found), 2);
-        assert_eq!(segments[0].text, "AVENTOR GmbH und AVENTOR GmbH.");
+        assert_eq!(segments[0].text, "HOAI GmbH und HOAI GmbH.");
     }
 
     /// If the transcript was edited after the review was shown, the stale match is
@@ -1019,16 +1018,16 @@ mod tests {
             segment(
                 "a",
                 5000,
-                "Jetzt fehlen noch Herr Wald und Frau Hallstedt im Termin.",
+                "Jetzt fehlen noch Halle und die Bauphysik im Termin.",
             ),
-            segment("b", 9000, "Am Wald vorbei geht es zur Baustelle."),
+            segment("b", 9000, "Am Halle vorbei geht es zur Baustelle."),
         ];
-        let found = preview(&segments, &[correction("Wald", "Waldt")]);
+        let found = preview(&segments, &[correction("Halle", "Halde")]);
 
         assert_eq!(found.len(), 2);
-        assert!(found[0].context.contains("Herr Wald"), "{:?}", found[0]);
+        assert!(found[0].context.contains("Halle"), "{:?}", found[0]);
         assert!(
-            found[1].context.contains("Am Wald vorbei"),
+            found[1].context.contains("Am Halle vorbei"),
             "{:?}",
             found[1]
         );
@@ -1040,15 +1039,12 @@ mod tests {
     #[test]
     fn matches_are_ordered_as_the_recording_runs() {
         let segments = vec![
-            segment("late", 9000, "Aventor liefert."),
+            segment("late", 9000, "Hoai liefert."),
             segment("early", 1000, "Klaster im Norden."),
         ];
         let found = preview(
             &segments,
-            &[
-                correction("Aventor", "AVENTOR"),
-                correction("Klaster", "Cluster"),
-            ],
+            &[correction("Hoai", "HOAI"), correction("Klaster", "Cluster")],
         );
         assert_eq!(found[0].start_ms, 1000);
         assert_eq!(found[1].start_ms, 9000);
@@ -1105,8 +1101,8 @@ pub(crate) struct TextMatch {
 ///
 /// The same rule the transcript corrections use, over prose rather than segments:
 /// a capitalised name is looked for in its compound form as well, because German
-/// writes the interior of a compound in lower case and a firm called `Falkenstein`
-/// appears inside `falkensteiner` untouched by a literal replace.
+/// writes the interior of a compound in lower case and a firm called `Klinker`
+/// appears inside `klinkerfassade` untouched by a literal replace.
 ///
 /// Returns what would change and the text it would become, and stores nothing. The
 /// caller decides whether to keep it.

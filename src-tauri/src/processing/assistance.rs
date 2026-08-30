@@ -510,7 +510,7 @@ mod refine_against_the_real_model {
 
         let passage = "Die Anpassungen im 2. Obergeschoss im Bereich der Lüftung wurden \
                        aufgrund von Änderungen seitens der Architekten vorgenommen. Die \
-                       betroffene Fläche beträgt 148,5 m². Herr Planung hat zugesagt, die \
+                       betroffene Fläche beträgt 148,5 m². die Planung hat zugesagt, die \
                        Kostenspanne bis zum 12. September 2026 zu nennen.";
         let refined = super::refine_passage(root, &meeting.id, passage, "Say this in fewer words.")
             .expect("the passage is rewritten");

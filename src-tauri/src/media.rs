@@ -1173,32 +1173,29 @@ mod tests {
     /// Untested against real audio. `as_a_list` is kept as the control arm.
     #[test]
     fn the_terms_arrive_inside_a_sentence_of_the_meetings_language() {
-        let terms = ["AVENTOR", "Anna Waldt", "Tragwerk"].map(str::to_string);
+        let terms = ["HOAI", "Halde", "Tragwerk"].map(str::to_string);
 
         assert_eq!(
             as_a_sentence(&terms, "de").as_deref(),
-            Some("In dieser Besprechung geht es um AVENTOR, Anna Waldt und Tragwerk.")
+            Some("In dieser Besprechung geht es um HOAI, Halde und Tragwerk.")
         );
         assert_eq!(
             as_a_sentence(&terms, "en").as_deref(),
-            Some("In this meeting we discuss AVENTOR, Anna Waldt and Tragwerk.")
+            Some("In this meeting we discuss HOAI, Halde and Tragwerk.")
         );
         // The control arm, unchanged.
-        assert_eq!(
-            as_a_list(&terms).as_deref(),
-            Some("AVENTOR, Anna Waldt, Tragwerk")
-        );
+        assert_eq!(as_a_list(&terms).as_deref(), Some("HOAI, Halde, Tragwerk"));
     }
 
     #[test]
     fn one_term_needs_no_conjunction_and_two_need_only_that() {
         assert_eq!(
-            as_a_sentence(&["AVENTOR".to_string()], "de").as_deref(),
-            Some("In dieser Besprechung geht es um AVENTOR.")
+            as_a_sentence(&["HOAI".to_string()], "de").as_deref(),
+            Some("In dieser Besprechung geht es um HOAI.")
         );
         assert_eq!(
-            as_a_sentence(&["AVENTOR".to_string(), "Waldt".to_string()], "en").as_deref(),
-            Some("In this meeting we discuss AVENTOR and Waldt.")
+            as_a_sentence(&["HOAI".to_string(), "Halde".to_string()], "en").as_deref(),
+            Some("In this meeting we discuss HOAI and Halde.")
         );
     }
 
@@ -1208,7 +1205,7 @@ mod tests {
     /// behaviour that has a measurement behind it.
     #[test]
     fn a_language_with_no_frame_keeps_the_list_it_had() {
-        let terms = ["AVENTOR".to_string(), "Waldt".to_string()];
+        let terms = ["HOAI".to_string(), "Halde".to_string()];
         for language in ["fi", "ja", "auto", "", "zz"] {
             assert_eq!(
                 as_a_sentence(&terms, language),

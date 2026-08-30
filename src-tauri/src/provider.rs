@@ -426,7 +426,7 @@ pub(crate) struct ProposedCorrection {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Introduction {
     /// The name exactly as the transcript spells it, however wrongly. Wrong is the
-    /// point: a person recognises "Torben Appelrath" as themselves at once, and the
+    /// point: a person recognises "Person A" as themselves at once, and the
     /// spelling has to match the transcript for a correction to find it.
     pub heard: String,
     /// What they said they do, where they said it.
@@ -1174,14 +1174,14 @@ impl OllamaProvider {
     /// reference meeting, ten of the twelve people its written protocol names
     /// introduce themselves inside eight minutes.
     ///
-    /// Every name comes back wrong on a first meeting — "Torben Appelrath",
-    /// "Matthias Grewe", "Johannes Wald von Kau, drei" — and that is what makes this
+    /// Every name comes back wrong on a first meeting — "Person A",
+    /// "Person B", "Johannes Halle von Kau, drei" — and that is what makes this
     /// work. Somebody who was there recognises each one instantly and is correcting
     /// a list rather than composing one, and the wrong spelling is what a correction
     /// has to match to find it in the transcript.
     ///
     /// It also reaches errors the candidate extractor cannot: that offers words the
-    /// transcriber was unsure of, and it was perfectly confident about "Katrin".
+    /// transcriber was unsure of, and it was perfectly confident about "Person C".
     /// Ask about one word, in its own sentence, and keep the answer only if the list
     /// could have produced it.
     ///
@@ -1192,7 +1192,7 @@ impl OllamaProvider {
     /// `Clusterwohnenheit` may become `Clusterwohneinheit`, because `Cluster` is
     /// listed; nothing can turn it into a firm nobody has ever typed.
     ///
-    /// The window is one sentence. Deciding whether `Wald` is a surname or the word
+    /// The window is one sentence. Deciding whether `Halle` is a surname or the word
     /// for a forest needs the sentence it is in and nothing else, which makes this the
     /// one stage in the pipeline where a long context is provably unnecessary — and
     /// so the one that costs seconds rather than minutes.
@@ -2454,11 +2454,11 @@ mod the_table_a_style_asks_for {
     const BODY: &str = "# Protokoll der Sitzung\n\n## 1. Fassade\n\nDie Ausführung wurde \
         besprochen und die betroffene Fläche von 148,5 m² im zweiten Obergeschoss \
         bestätigt. Die Anpassungen im Bereich der Lüftung wurden aufgrund von \
-        Änderungen seitens der Architekten vorgenommen, und Herr Planung hat zugesagt, \
+        Änderungen seitens der Architekten vorgenommen, und die Planung hat zugesagt, \
         die Kostenspanne bis zum 12. September 2026 zu nennen.\n";
 
     const TABLE: &str = "\n## 2. Nächste Schritte\n\n| Aufgabe | Verantwortlich |\n\
-        | --- | --- |\n| Angebot einholen | Frau Bauleitung |\n";
+        | --- | --- |\n| Angebot einholen | die Bauleitung |\n";
 
     /// The check now reads what the style requires rather than what it is called,
     /// which is what makes a duplicated style behave like the one it was copied from.
@@ -2526,7 +2526,10 @@ mod tidying_a_rewrite {
     #[test]
     fn keeps_emphasis_the_passage_already_had() {
         assert_eq!(
-            tidy_refinement("Frau **Bauleitung** nennt es.", "Frau **Bauleitung** sagt es."),
+            tidy_refinement(
+                "Frau **Bauleitung** nennt es.",
+                "Frau **Bauleitung** sagt es."
+            ),
             "Frau **Bauleitung** nennt es."
         );
     }
@@ -2670,7 +2673,7 @@ fn introductions_schema() -> serde_json::Value {
                 "items": {
                     "type": "object",
                     // All three required, because a name alone is not always enough
-                    // to recognise: "Katrin" could be anybody, and "Katrin, die
+                    // to recognise: "Person C" could be anybody, and "Person C, die
                     // Planung Haus B und Fassadenplanung macht" is one person. Left
                     // optional first, and the model then returned none of them.
                     "required": ["heard", "role", "context"],
@@ -3952,8 +3955,8 @@ mod tests {
         fn listed() -> Vec<String> {
             vec![
                 "Cluster".to_string(),
-                "Waldt".to_string(),
-                "AVENTOR".to_string(),
+                "Halde".to_string(),
+                "HOAI".to_string(),
             ]
         }
 
@@ -3993,15 +3996,15 @@ mod tests {
         #[test]
         fn an_ordinary_word_may_still_be_corrected_to_a_listed_name() {
             assert!(
-                accept_correction("Wald", "Herr Wald übernimmt das.", "Waldt", &listed()).is_some()
+                accept_correction("Halle", "Halle übernimmt das.", "Halde", &listed()).is_some()
             );
         }
 
         #[test]
         fn an_empty_or_unchanged_answer_is_no_answer() {
-            assert!(accept_correction("Wald", "Herr Wald.", "", &listed()).is_none());
-            assert!(accept_correction("Wald", "Herr Wald.", "   ", &listed()).is_none());
-            assert!(accept_correction("Waldt", "Herr Waldt.", "waldt", &listed()).is_none());
+            assert!(accept_correction("Halle", "Halle.", "", &listed()).is_none());
+            assert!(accept_correction("Halle", "Halle.", "   ", &listed()).is_none());
+            assert!(accept_correction("Halde", "Halde.", "halde", &listed()).is_none());
         }
 
         /// Models explain when they are asked to answer, and a paragraph offered as a
@@ -4010,9 +4013,9 @@ mod tests {
         fn a_sentence_is_not_a_spelling() {
             assert!(
                 accept_correction(
-                    "Wald",
-                    "Herr Wald übernimmt das.",
-                    "This is probably Waldt, the surname of the engineer",
+                    "Halle",
+                    "Halle übernimmt das.",
+                    "This is probably Halde, the surname of the engineer",
                     &listed(),
                 )
                 .is_none()
@@ -4023,12 +4026,14 @@ mod tests {
         /// and a correction to a word the passage does not contain would find nothing.
         #[test]
         fn a_word_the_passage_does_not_contain_is_refused() {
-            assert!(accept_correction("Wald", "Die Fassade bleibt.", "Waldt", &listed()).is_none());
+            assert!(
+                accept_correction("Halle", "Die Fassade bleibt.", "Halde", &listed()).is_none()
+            );
         }
 
         #[test]
         fn nothing_is_offered_when_the_project_lists_nothing() {
-            assert!(accept_correction("Wald", "Herr Wald.", "Waldt", &[]).is_none());
+            assert!(accept_correction("Halle", "Halle.", "Halde", &[]).is_none());
         }
     }
 
@@ -4487,7 +4492,7 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
         let complete = format!(
-            "{A_PROTOCOL}\n\n| Aufgabe | Verantwortlich |\n| --- | --- |\n|              Anschlusspunkte klären | Solvane |\n"
+            "{A_PROTOCOL}\n\n| Aufgabe | Verantwortlich |\n| --- | --- |\n|              Anschlusspunkte klären | Prüfstelle |\n"
         );
         let handle = serve(listener, one_streamed_answer(&complete));
 

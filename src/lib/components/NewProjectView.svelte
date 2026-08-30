@@ -90,28 +90,24 @@
       <legend>{$t.newProject.namesHeading}</legend>
       <p class="names-lead">{$t.newProject.namesLead}</p>
       <label
-        ><span>{$t.newProject.namesPeople}</span><input
-          bind:value={names.Person}
-          placeholder={$t.newProject.namesPeoplePlaceholder}
-        /><small>{$t.newProject.namesPeopleHint}</small></label
+        ><span>{$t.newProject.namesPeople}</span><input bind:value={names.Person} /><small
+          >{$t.newProject.namesPeopleHint}</small
+        ></label
       >
       <label
         ><span>{$t.newProject.namesOrganisations}</span><input
           bind:value={names.Organisation}
-          placeholder={$t.newProject.namesOrganisationsPlaceholder}
         /><small>{$t.newProject.namesOrganisationsHint}</small></label
       >
       <label
-        ><span>{$t.newProject.namesProject}</span><input
-          bind:value={names.Project}
-          placeholder={$t.newProject.namesProjectPlaceholder}
-        /><small>{$t.newProject.namesProjectHint}</small></label
+        ><span>{$t.newProject.namesProject}</span><input bind:value={names.Project} /><small
+          >{$t.newProject.namesProjectHint}</small
+        ></label
       >
       <label
-        ><span>{$t.newProject.namesTerms}</span><input
-          bind:value={names['Technical term']}
-          placeholder={$t.newProject.namesTermsPlaceholder}
-        /><small>{$t.newProject.namesTermsHint}</small></label
+        ><span>{$t.newProject.namesTerms}</span><input bind:value={names['Technical term']} /><small
+          >{$t.newProject.namesTermsHint}</small
+        ></label
       >
       <p class="names-note">{$t.newProject.namesNote}</p>
     </fieldset>

@@ -724,17 +724,13 @@ export const es: Strings = {
       'Una transcripción no puede adivinar un nombre que nunca ha oído. Darlos ahora es el minuto más útil que puede dedicar a este proyecto: un nombre mal oído se repite en cada acta hecha a partir de esa grabación, y ningún paso posterior lo recupera.',
     namesPeople: 'Personas',
     namesPeopleHint: 'Quienes es probable que asistan, o a quienes se mencione en una reunión.',
-    namesPeoplePlaceholder: 'Anna Waldt, Solvane, Rovelli',
     namesOrganisations: 'Empresas y clientes',
     namesOrganisationsHint: 'La propiedad, los demás técnicos, los proveedores.',
-    namesOrganisationsPlaceholder: 'AVENTOR, Falkenstein-Weide',
     namesProject: 'Este proyecto',
     namesProjectHint: 'Cómo se llaman el proyecto, la parcela o el edificio.',
-    namesProjectPlaceholder: 'Riverside Pavilion, Halle 4',
     namesTerms: 'Cualquier otra cosa que convenga escribir bien',
     namesTermsHint:
       'Las palabras propias de este trabajo que una transcripción general no conocería.',
-    namesTermsPlaceholder: 'Tragwerk, Clusterwohnung',
     namesNote:
       'Sepárelos con comas. Todo es opcional y nada es definitivo: puede añadir y corregir términos cuando quiera en Nombres y términos, y una corrección hecha durante la revisión de una transcripción también se conserva aquí.',
     creating: 'Creando…',

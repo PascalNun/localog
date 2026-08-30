@@ -342,7 +342,7 @@ mod tests {
 
 | Aufgabe | Verantwortlich |
 | --- | --- |
-| Brandschutzklappen abstimmen | Herr Bauleitung |
+| Brandschutzklappen abstimmen | Bauleitung |
 | Heizlastberechnung nachreichen |  |
 | Angebot einholen | - |
 ";
@@ -430,8 +430,8 @@ mod tests {
         let protocol = "\
 | Aufgabe | Verantwortlich |
 | --- | --- |
-| Termin bestätigen | Frau Planung |
-| Unterlagen prüfen | Herr Bauphysik |
+| Termin bestätigen | Planung |
+| Unterlagen prüfen | Bauphysik |
 ";
         assert!(unowned_tasks(protocol).is_empty());
     }

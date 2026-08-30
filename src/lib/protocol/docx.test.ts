@@ -93,7 +93,7 @@ describe('building a Word document', () => {
       '',
       '| Aufgabe | Verantwortlich |',
       '| --- | --- |',
-      '| Angebot einholen | Frau Bauleitung |',
+      '| Angebot einholen | die Bauleitung |',
     ].join('\n'),
     appearance: DEFAULT_APPEARANCE,
   };

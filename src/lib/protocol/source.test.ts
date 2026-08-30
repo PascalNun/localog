@@ -2,20 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { distinctiveWords, findInSource } from './source';
 
 const segments = [
-  { id: 's1', startMs: 0, speaker: 'Frau Bauleitung', text: 'Guten Morgen, wir fangen an.' },
+  { id: 's1', startMs: 0, speaker: 'die Bauleitung', text: 'Guten Morgen, wir fangen an.' },
   {
     id: 's2',
     startMs: 62_000,
-    speaker: 'Herr Planung',
+    speaker: 'die Planung',
     text: 'Die betroffene Fläche beträgt 148,5 m² im zweiten Obergeschoss.',
   },
   {
     id: 's3',
     startMs: 130_000,
-    speaker: 'Frau Bauleitung',
+    speaker: 'die Bauleitung',
     text: 'Die Heizlastberechnung liegt bis KW 38 vor, die Kosten etwa 4.200 Euro.',
   },
-  { id: 's4', startMs: 190_000, speaker: 'Herr Planung', text: 'Ja, das sehe ich auch so.' },
+  { id: 's4', startMs: 190_000, speaker: 'die Planung', text: 'Ja, das sehe ich auch so.' },
 ];
 
 describe('the words worth searching on', () => {

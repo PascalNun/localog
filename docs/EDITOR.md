@@ -556,8 +556,8 @@ and should be right everywhere. Three different problems hide in that, and they 
 three different answers.
 
 **A literal replace is not enough**, and this project already knew why. German writes
-the interior of a compound in lower case, so a firm called `Falkenstein` sits inside
-`falkensteiner` and a plain find-and-replace walks straight past it. The transcript
+the interior of a compound in lower case, so a firm called `Klinker` sits inside
+`klinkerfassade` and a plain find-and-replace walks straight past it. The transcript
 corrections learned that months ago and have carried the rule since. The protocol's
 replace now **calls that rule** rather than carrying a copy of it: a second copy
 would be a second answer, and they would drift.
@@ -572,7 +572,7 @@ the contextual rewrite on a selection is for. Three tiers, and the editor now ha
 three: literal find, name-aware replace, and a model on a passage.
 
 `⌘F` opens find, `Escape` closes it. Seven tests on the rule, including the compound
-form, the abbreviation left alone (`AVENTOR` must not become `aVENTOR`), and the
+form, the abbreviation left alone (`HOAI` must not become `tGA`), and the
 document's own line endings surviving untouched.
 
 ## Export templates — done, 20 August

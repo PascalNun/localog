@@ -740,17 +740,13 @@ export const it: Strings = {
       'Una trascrizione non può indovinare un nome che non ha mai sentito. Darglieli ora è il minuto più utile che possa dedicare a questo progetto: un nome capito male si ripete in ogni verbale tratto da quella registrazione, e nessun passaggio successivo lo recupera.',
     namesPeople: 'Persone',
     namesPeopleHint: 'Chi sarà probabilmente presente, o verrà nominato in riunione.',
-    namesPeoplePlaceholder: 'Anna Waldt, Solvane, Rovelli',
     namesOrganisations: 'Imprese e committenti',
     namesOrganisationsHint: 'La committenza, gli altri professionisti, i fornitori.',
-    namesOrganisationsPlaceholder: 'AVENTOR, Falkenstein-Weide',
     namesProject: 'Questo progetto',
     namesProjectHint: 'Come si chiamano il progetto, il lotto o l’edificio.',
-    namesProjectPlaceholder: 'Riverside Pavilion, Halle 4',
     namesTerms: 'Tutto il resto che vale la pena scrivere bene',
     namesTermsHint:
       'Le parole proprie di questo lavoro che una trascrizione generica non conoscerebbe.',
-    namesTermsPlaceholder: 'Tragwerk, Clusterwohnung',
     namesNote:
       'Li separi con virgole. È tutto facoltativo e nulla è definitivo: può aggiungere e correggere termini quando vuole in Nomi e termini, e una correzione fatta durante la revisione di una trascrizione viene conservata anche qui.',
     creating: 'Creazione…',

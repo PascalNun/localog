@@ -6,7 +6,7 @@ const protocol = [
   '',
   '## 1. Teilnehmende',
   '',
-  'Frau Bauleitung, Herr Planung.',
+  'die Bauleitung, die Planung.',
   '',
   '## 2. Fassade',
   '',
@@ -58,7 +58,7 @@ describe('rearranging the sections', () => {
     const titles = readSections(moved).map((section) => section.title);
     expect(titles).toEqual(['2. Fassade', '1. Teilnehmende', '3. Nächste Schritte']);
     expect(moved).toContain('2.1 Offene Fragen');
-    expect(moved).toContain('Frau Bauleitung, Herr Planung.');
+    expect(moved).toContain('die Bauleitung, die Planung.');
   });
 
   it('moves a section up', () => {

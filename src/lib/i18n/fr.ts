@@ -745,17 +745,13 @@ export const fr: Strings = {
       'Une transcription ne peut pas deviner un nom qu’elle n’a jamais entendu. Les donner maintenant est la minute la plus utile que vous puissiez consacrer à ce projet : un nom mal entendu se retrouve tel quel dans chaque compte rendu tiré de cet enregistrement, et aucune étape ultérieure ne le rattrape.',
     namesPeople: 'Personnes',
     namesPeopleHint: 'Celles qui seront sans doute présentes, ou citées en réunion.',
-    namesPeoplePlaceholder: 'Anna Waldt, Solvane, Rovelli',
     namesOrganisations: 'Entreprises et maîtres d’ouvrage',
     namesOrganisationsHint: 'Le maître d’ouvrage, les autres intervenants, les fournisseurs.',
-    namesOrganisationsPlaceholder: 'AVENTOR, Falkenstein-Weide',
     namesProject: 'Ce projet',
     namesProjectHint: 'Le nom du projet, du terrain ou du bâtiment.',
-    namesProjectPlaceholder: 'Riverside Pavilion, Halle 4',
     namesTerms: 'Tout ce qui mérite d’être bien orthographié',
     namesTermsHint:
       'Les mots propres à ce travail qu’une transcription générale ne connaîtrait pas.',
-    namesTermsPlaceholder: 'Tragwerk, Clusterwohnung',
     namesNote:
       'Séparez-les par des virgules. Tout est facultatif et rien n’est définitif : vous pouvez compléter et corriger à tout moment dans Noms et termes, et une correction faite pendant la relecture d’une transcription y est également conservée.',
     creating: 'Création…',

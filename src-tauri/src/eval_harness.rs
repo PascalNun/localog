@@ -590,7 +590,7 @@ fn formal_minutes_style() -> GenerationStyle {
 /// without anybody noticing.
 ///
 ///   LOCALOG_CORRECTIONS_TRANSCRIPT=… \
-///   LOCALOG_CORRECTIONS="Klaster=Cluster,Aventor=AVENTOR" \
+///   LOCALOG_CORRECTIONS="Klaster=Cluster,Hoai=HOAI" \
 ///     cargo test --lib -- --ignored --nocapture what_the_corrections_change
 #[test]
 #[ignore = "requires a real transcript"]

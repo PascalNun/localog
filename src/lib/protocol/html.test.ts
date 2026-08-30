@@ -27,10 +27,10 @@ describe('reading an edited document back to Markdown', () => {
       'Frau ',
       node('STRONG', ['Bauleitung']),
       ' und ',
-      node('EM', ['Herr Planung']),
+      node('EM', ['die Planung']),
       '.',
     ]);
-    expect(toMarkdown(root(paragraph))).toBe('Frau **Bauleitung** und *Herr Planung*.\n');
+    expect(toMarkdown(root(paragraph))).toBe('Frau **Bauleitung** und *die Planung*.\n');
   });
 
   /// What a browser actually leaves behind, rather than what we would have written.
@@ -63,10 +63,10 @@ describe('reading an edited document back to Markdown', () => {
   it('writes a table back as a table', () => {
     const table = node('TABLE', [
       node('THEAD', [node('TR', [node('TH', ['Aufgabe']), node('TH', ['Verantwortlich'])])]),
-      node('TBODY', [node('TR', [node('TD', ['Angebot']), node('TD', ['Frau Bauleitung'])])]),
+      node('TBODY', [node('TR', [node('TD', ['Angebot']), node('TD', ['die Bauleitung'])])]),
     ]);
     expect(toMarkdown(root(table))).toBe(
-      '| Aufgabe | Verantwortlich |\n| --- | --- |\n| Angebot | Frau Bauleitung |\n',
+      '| Aufgabe | Verantwortlich |\n| --- | --- |\n| Angebot | die Bauleitung |\n',
     );
   });
 
@@ -147,7 +147,7 @@ describe('going out and coming back', () => {
       '',
       '| Aufgabe | Verantwortlich |',
       '| --- | --- |',
-      '| Angebot einholen | Frau Bauleitung |',
+      '| Angebot einholen | die Bauleitung |',
     ].join('\n');
 
     // renderMarkdown produces the HTML the editor shows; parsing it back is what

@@ -38,13 +38,13 @@ describe('reading a protocol into blocks', () => {
 
   it('reads the action table the formal style ends with', () => {
     const blocks = readBlocks(
-      '| Aufgabe | Verantwortlich |\n| --- | --- |\n| Angebot einholen | Frau Bauleitung |',
+      '| Aufgabe | Verantwortlich |\n| --- | --- |\n| Angebot einholen | die Bauleitung |',
     );
     expect(blocks).toEqual([
       {
         kind: 'table',
         head: ['Aufgabe', 'Verantwortlich'],
-        rows: [['Angebot einholen', 'Frau Bauleitung']],
+        rows: [['Angebot einholen', 'die Bauleitung']],
       },
     ]);
   });
@@ -115,19 +115,19 @@ describe('rendering a whole protocol', () => {
         '',
         '## 1. Teilnehmende',
         '',
-        'Frau Bauleitung, Herr Planung.',
+        'die Bauleitung, die Planung.',
         '',
         '## 2. Nächste Schritte',
         '',
         '| Aufgabe | Verantwortlich |',
         '| --- | --- |',
-        '| Angebot einholen | Frau Bauleitung |',
+        '| Angebot einholen | die Bauleitung |',
       ].join('\n'),
     );
     expect(html).toContain('<h1>Protokoll der Sitzung</h1>');
     expect(html).toContain('<h2>1. Teilnehmende</h2>');
     expect(html).toContain('<th>Aufgabe</th>');
-    expect(html).toContain('<td>Frau Bauleitung</td>');
+    expect(html).toContain('<td>die Bauleitung</td>');
     expect(html).not.toContain('|');
   });
 

@@ -1330,13 +1330,13 @@ comma-separated list. But whisper's initial prompt is not a parameter list — i
 trained to continue speech, not to read enumerations.
 
 So a prompt written as a sentence of the meeting — "Besprechung zur Fassadenplanung
-mit dem Tragwerksplaner von AVENTOR und Frau Waldt" — may prime far better per token
+mit dem Tragwerksplaner von HOAI und Halde" — may prime far better per token
 than the same words separated by commas. If it does, the budget question changes
 shape entirely: the scarce resource stops being slots and becomes wording.
 
 **Built on 29 August 2026, and unmeasured — which is the whole of what is owed here.**
 `vocabulary_prompt` now writes the terms into a sentence of the meeting's language:
-`In dieser Besprechung geht es um AVENTOR, Anna Waldt und Tragwerk.` The list form is
+`In dieser Besprechung geht es um HOAI, Halde und Tragwerk.` The list form is
 kept as `as_a_list` rather than deleted, because it is the control arm and a
 comparison needs both. Neither has been run against real audio; nothing in this
 repository can, since the harnesses read an existing whisper JSON rather than
@@ -1465,7 +1465,7 @@ were the behaviour.
 which words it was unsure of, and the transcript view already has a panel for them.
 For the reference meeting that panel says **322 to check** out of 675 segments, which
 is not a task anybody starts. But the words it flags do contain the mis-heard names —
-`Trakwerk`, `Klasterwohnung`, `Nukera`, `Norrbo`.
+`Trakwerk`, `Klasterwohnung`, `Nukera`, `Vermessung`.
 
 Keeping only words the transcriber was unsure of _every_ time it heard them, heard at
 least twice, gives **six candidates** for an eighty-minute meeting, of which two or
@@ -1481,7 +1481,7 @@ before trusting the protocol, which is an argument for keeping them.
 **1b. The protocol model already flags names the transcriber was sure about.** Found
 by accident, 16 August 2026, reading the foot of a draft:
 
-> [Note: The term "Falkenstein-Weide" is used in the source text; it is unclear if this
+> [Note: The term "Klinker-Nord" is used in the source text; it is unclear if this
 > refers to a specific project name or location.]
 
 That is the client's name, mis-heard. Unprompted, the model noticed the word behaves
@@ -1518,7 +1518,7 @@ seven-minute re-transcription with the larger model achieved:
 | Term     | Before | After replacement | (`medium` + vocabulary) |
 | -------- | -----: | ----------------: | ----------------------: |
 | Cluster  |      0 |            **40** |                      40 |
-| AVENTOR  |      0 |            **16** |                      35 |
+| HOAI     |      0 |            **16** |                      35 |
 | Tragwerk |      0 |             **5** |                       6 |
 | Fassade  |     19 |            **30** |                      50 |
 
@@ -1531,7 +1531,7 @@ No model, instant, and auditable: the change can be shown and undone, which a mo
 pass over the whole transcript cannot offer.
 
 **4. The replacement must be reviewable, because some wrong spellings are real words.**
-`Wald` should be `Waldt`, a participant's surname — and _Wald_ is the German word
+`Halle` should be `Halde`, a participant's surname — and _Halle_ is the German word
 for forest. In this meeting all three occurrences are the person, so replacing blind
 would have been safe; that will not always hold. Show the matches in context and let
 them be deselected.
@@ -1539,7 +1539,7 @@ them be deselected.
 **5. Only then, a small model, on what is left.** Three ragged words per meeting is
 where substitution cannot help, because the mis-hearing itself varied and there is no
 consistent stem to catch. This is the one stage in the pipeline where a long context
-is provably unnecessary: deciding whether `Wald` is a person or a forest needs one
+is provably unnecessary: deciding whether `Halle` is a person or a forest needs one
 sentence, not eighty minutes. So it is a small model, a few hundred characters of
 window, and only for passages the deterministic pass could not settle — seconds of
 work, not minutes.

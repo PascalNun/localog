@@ -45,9 +45,9 @@ const SAME_IN_BOTH = new Set([
   'Organisation',
   'Export',
   // Placeholder examples, which are names rather than words.
-  'Anna Waldt, Solvane, Rovelli',
-  'AVENTOR, Falkenstein-Weide',
-  'Riverside Pavilion, Halle 4',
+  'Halde, Prüfstelle, Fachplanung',
+  'HOAI, Klinker-Nord',
+  'Halle 4, Halle 4',
   'Tragwerk, Clusterwohnung',
 ]);
 

@@ -47,8 +47,8 @@ describe('showing what a rewrite changed', () => {
   });
 
   it('can be put back together into either side exactly', () => {
-    const before = 'Herr Planung nennt die Kostenspanne bis zum 12. September 2026.';
-    const after = 'Die Kostenspanne wird von Herrn Planung bis zum 12. September 2026 genannt.';
+    const before = 'die Planung nennt die Kostenspanne bis zum 12. September 2026.';
+    const after = 'Die Kostenspanne wird von die Planung bis zum 12. September 2026 genannt.';
     const changes = diffWords(before, after);
     expect(rebuild(changes, 'before')).toBe(before);
     expect(rebuild(changes, 'after')).toBe(after);

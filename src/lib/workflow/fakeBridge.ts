@@ -163,7 +163,7 @@ No final assembly decision was made in this meeting.
 
 | Task | Responsible |
 | --- | --- |
-| Prepare the acoustic note and updated cost range before Thursday | Priya |
+| Prepare the acoustic note and updated cost range before Thursday | die Bauleitung |
 | Carry both viable options into the next review | |
 `,
   styleId: 'style-formal',
@@ -235,7 +235,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     projects: [
       {
         id: 'project-harbor-canopy',
-        name: 'Riverside Pavilion Study',
+        name: 'Halle 4 Study',
         description: 'Synthetic demonstration project for the Phase 0 shell.',
         meetingCount: initialMeetings.length,
         defaultLanguage: 'English',
@@ -797,54 +797,20 @@ export class FakeWorkflowBridge implements WorkflowBridge {
 
   async findIntroductions(meetingId: string): Promise<Introduction[]> {
     if (this.workspaceStore) return this.workspaceStore.findIntroductions(meetingId);
-    // Shaped like a first meeting: the spellings are what the transcriber heard.
-    return [
-      {
-        heard: 'Torben Appelrath',
-        role: 'Projektleitung in der Planung',
-        context: 'Ich kann gerne anfangen, ich mache die Projektleitung-Torben Appelrath…',
-      },
-      {
-        heard: 'Katrin',
-        role: 'Planung und Versadenplanung für Gebäude A, C und D',
-        context: 'Katrin, ich mache hier mit meinen Kollegen zusammen die Planung…',
-      },
-      {
-        heard: 'Jonas Röttger',
-        role: 'Büro HKR, Bauphysik',
-        context: 'Jonas Röttger, der Name. Wir betreuen die Bauphysik…',
-      },
-    ];
+    // Empty, which is a state the screen has to handle anyway. The preview does not
+    // need a cast of people to demonstrate a list of them.
+    return [];
   }
 
   async findNameCandidates(meetingId: string): Promise<NameCandidate[]> {
     if (this.workspaceStore) return this.workspaceStore.findNameCandidates(meetingId);
+    // Words the transcriber mangled, which is what this screen is for.
     return [
-      // One of them stands for the class only the protocol's own notes can reach: a
-      // spelling the transcriber was perfectly confident about and wrong.
-      {
-        heard: 'Falkenstein-Weide',
-        occurrences: 5,
-        context: '…agreed with Falkenstein-Weide at the last review…',
-        questioned: true,
-      },
-      {
-        heard: 'Solvane',
-        occurrences: 7,
-        context: '…confirmed with Solvane before the review…',
-        questioned: false,
-      },
       {
         heard: 'Junktion',
         occurrences: 4,
-        context: '…the Junktion detail remains serviceable…',
-        questioned: false,
-      },
-      {
-        heard: 'Rovelli',
-        occurrences: 3,
-        context: '…Rovelli will circulate both items…',
-        questioned: false,
+        context: '…das Junktion-Detail bleibt wartbar…',
+        questioned: true,
       },
       {
         heard: 'ansonst',
@@ -863,15 +829,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
 
   async proposeCorrections(meetingId: string): Promise<ProposedCorrection[]> {
     if (this.workspaceStore) return this.workspaceStore.proposeCorrections(meetingId);
-    // One, because that is what the measurement suggests is left: substitution
-    // reaches almost everything, and what remains is a word whose mis-hearing varied.
-    return [
-      {
-        heard: 'Wald',
-        suggested: 'Waldt',
-        passage: 'Herr Wald übernimmt die Tragwerksplanung.',
-      },
-    ];
+    return [{ heard: 'Halle', suggested: 'Halde', passage: 'Die Halle wird im Mai geliefert.' }];
   }
 
   async previewCorrection(
