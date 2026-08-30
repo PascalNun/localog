@@ -312,6 +312,34 @@ struct StreamChunk {
     done_reason: String,
 }
 
+/// What one line of a Server-Sent Events stream means.
+enum Event<'a> {
+    /// A blank line, a comment, or a field this does not read.
+    Nothing,
+    /// `data: [DONE]`, which closes the stream and is not JSON.
+    Finished,
+    /// The JSON after `data: `.
+    Payload(&'a str),
+}
+
+/// Read one SSE line.
+///
+/// Deliberately small. The full specification has event types, ids and retry
+/// hints, and this stream uses none of them: every record is a `data:` line and
+/// the last one says `[DONE]`. Parsing only what is sent keeps a surprise in the
+/// stream visible as a parse failure rather than silently absorbed.
+fn sent_event(line: &str) -> Event<'_> {
+    let line = line.trim_end_matches(['\r', '\n']);
+    let Some(payload) = line.strip_prefix("data:") else {
+        return Event::Nothing;
+    };
+    let payload = payload.trim_start();
+    if payload == "[DONE]" {
+        return Event::Finished;
+    }
+    Event::Payload(payload)
+}
+
 #[derive(Debug, Deserialize)]
 struct StructuredProtocol {
     protocol_markdown: String,
@@ -462,6 +490,64 @@ struct OllamaRequest<'a> {
     keep_alive: &'static str,
 }
 
+/// What `llama-server` is given, in the OpenAI shape it also speaks.
+///
+/// `/v1/chat/completions` rather than the native `/completion`, because it applies
+/// the model's own chat template. Handing an instruct model a bare prompt without
+/// the turns it was trained on produces worse output for no reason, and the
+/// template differs per model, which is not a thing this side should know.
+#[derive(Serialize)]
+struct ChatRequest<'a> {
+    messages: Vec<ChatMessage<'a>>,
+    stream: bool,
+    seed: u64,
+    temperature: f64,
+    /// The OpenAI name for what Ollama calls `num_predict`.
+    max_tokens: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    response_format: Option<ResponseFormat>,
+}
+
+#[derive(Serialize)]
+struct ChatMessage<'a> {
+    role: &'static str,
+    content: &'a str,
+}
+
+/// Schema-constrained JSON, which the server enforces by sampling against a
+/// grammar it derives from the schema — so a malformed answer is not possible
+/// rather than merely unlikely.
+#[derive(Serialize)]
+struct ResponseFormat {
+    #[serde(rename = "type")]
+    kind: &'static str,
+    schema: serde_json::Value,
+}
+
+/// One Server-Sent Event from `/v1/chat/completions`.
+#[derive(Debug, Deserialize)]
+struct ChatChunk {
+    #[serde(default)]
+    choices: Vec<ChatChoice>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ChatChoice {
+    #[serde(default)]
+    delta: ChatDelta,
+    /// "stop" when the model finished, "length" when it hit the token cap — the
+    /// same distinction Ollama draws with `done_reason`, and it matters for the
+    /// same reason: a schema-constrained answer cut off is unparseable.
+    #[serde(default)]
+    finish_reason: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatDelta {
+    #[serde(default)]
+    content: String,
+}
+
 #[derive(Serialize)]
 struct OllamaOptions {
     seed: u64,
@@ -495,7 +581,22 @@ pub struct Spend {
     pub model_millis: u64,
 }
 
+/// Which local generation runtime is on the other end.
+///
+/// Two, because the application now ships one and somebody may already run the
+/// other. They differ in exactly two places — how a request is written and how a
+/// stream is read — and in nothing above that: the retries, the corrections, the
+/// validation and the prompts are the same work whichever answers.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Backend {
+    /// A machine-wide daemon somebody installed.
+    Ollama,
+    /// `llama-server`, bundled and started by this application.
+    Llama,
+}
+
 pub struct OllamaProvider {
+    backend: Backend,
     base_url: String,
     calls: AtomicUsize,
     prompt_chars: AtomicUsize,
@@ -527,6 +628,18 @@ impl OllamaProvider {
         Self::with_url(format!("http://127.0.0.1:{port}"))
     }
 
+    /// A provider talking to a `llama-server` this application started.
+    pub fn llama_at(base_url: String) -> Self {
+        Self {
+            backend: Backend::Llama,
+            ..Self::with_url(base_url)
+        }
+    }
+
+    pub fn backend(&self) -> Backend {
+        self.backend
+    }
+
     fn with_url(base_url: String) -> Self {
         let config = ureq::Agent::config_builder()
             .timeout_global(Some(Duration::from_secs(30)))
@@ -541,6 +654,7 @@ impl OllamaProvider {
             .max_redirects(0)
             .build();
         Self {
+            backend: Backend::Ollama,
             base_url,
             generation_agent: generation_config.into(),
             agent: config.into(),
@@ -1642,6 +1756,13 @@ impl OllamaProvider {
         // Whether the answer is prose or a JSON document, asked before the format
         // is handed to the request body.
         let prose = call.format.is_null();
+        // Taken before the Ollama body consumes it, so both shapes can be written
+        // from the same call without one of them cloning a schema it will not use.
+        let schema = if prose {
+            None
+        } else {
+            Some(call.format.clone())
+        };
         let call_prompt_chars = call.prompt.len() + call.system.len();
         let started = Instant::now();
         let body = OllamaRequest {
@@ -1671,11 +1792,39 @@ impl OllamaProvider {
             // seconds against the fourteen minutes a generation takes.
             keep_alive: "0",
         };
-        let response = self
-            .generation_agent
-            .post(format!("{}/api/generate", self.base_url))
-            .send_json(&body)
-            .map_err(http_error)?;
+        let response = match self.backend {
+            Backend::Ollama => self
+                .generation_agent
+                .post(format!("{}/api/generate", self.base_url))
+                .send_json(&body)
+                .map_err(http_error)?,
+            Backend::Llama => {
+                let chat = ChatRequest {
+                    messages: vec![
+                        ChatMessage {
+                            role: "system",
+                            content: call.system,
+                        },
+                        ChatMessage {
+                            role: "user",
+                            content: call.prompt,
+                        },
+                    ],
+                    stream: true,
+                    seed: body.options.seed,
+                    temperature: body.options.temperature,
+                    max_tokens: body.options.num_predict,
+                    response_format: schema.map(|schema| ResponseFormat {
+                        kind: "json_object",
+                        schema,
+                    }),
+                };
+                self.generation_agent
+                    .post(format!("{}/v1/chat/completions", self.base_url))
+                    .send_json(&chat)
+                    .map_err(http_error)?
+            }
+        };
         let reader = response.into_parts().1.into_reader();
         let mut reader = BufReader::new(reader);
         let mut line = String::new();
@@ -1711,9 +1860,47 @@ impl OllamaProvider {
             // One JSON object per line, and the provider escapes what it sends. The
             // model's own answer is the thing that needs repairing, and that is done
             // where it is parsed rather than here.
-            let chunk: StreamChunk = serde_json::from_str(line.trim()).map_err(|error| {
-                ProviderError::InvalidResponse(truncate(&error.to_string(), MESSAGE_LIMIT))
-            })?;
+            //
+            // `llama-server` speaks Server-Sent Events instead: blank lines between
+            // records, every payload prefixed `data: `, and a final `[DONE]` that is
+            // a marker rather than JSON. Reading it as NDJSON would fail on the very
+            // first blank line.
+            let chunk = match self.backend {
+                Backend::Ollama => {
+                    let chunk: StreamChunk =
+                        serde_json::from_str(line.trim()).map_err(|error| {
+                            ProviderError::InvalidResponse(truncate(
+                                &error.to_string(),
+                                MESSAGE_LIMIT,
+                            ))
+                        })?;
+                    chunk
+                }
+                Backend::Llama => match sent_event(&line) {
+                    // A blank line or a comment carries nothing and is not the end.
+                    Event::Nothing => continue,
+                    Event::Finished => break,
+                    Event::Payload(payload) => {
+                        let chat: ChatChunk = serde_json::from_str(payload).map_err(|error| {
+                            ProviderError::InvalidResponse(truncate(
+                                &error.to_string(),
+                                MESSAGE_LIMIT,
+                            ))
+                        })?;
+                        let choice = chat.choices.into_iter().next().unwrap_or(ChatChoice {
+                            delta: ChatDelta::default(),
+                            finish_reason: None,
+                        });
+                        let finish = choice.finish_reason.unwrap_or_default();
+                        StreamChunk {
+                            response: choice.delta.content,
+                            thinking: String::new(),
+                            done: !finish.is_empty(),
+                            done_reason: finish,
+                        }
+                    }
+                },
+            };
             last_chunk = Instant::now();
             generated.push_str(if chunk.response.is_empty() {
                 &chunk.thinking
@@ -4217,7 +4404,7 @@ mod tests {
         }
     }
 
-    fn synthetic_request(segments: usize, words_each: usize) -> GenerationRequest {
+    pub(super) fn synthetic_request(segments: usize, words_each: usize) -> GenerationRequest {
         GenerationRequest {
             document_notes: DocumentNotes::english_for_harnesses(),
             model: "test".into(),
@@ -4518,5 +4705,120 @@ mod tests {
         )
         .unwrap();
         stream.write_all(body).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod reading_a_sent_event {
+    use super::*;
+
+    #[test]
+    fn a_data_line_yields_its_json() {
+        let Event::Payload(payload) = sent_event("data: {\"a\":1}\n") else {
+            panic!("a data line carries a payload");
+        };
+        assert_eq!(payload, "{\"a\":1}");
+    }
+
+    /// The end marker is not JSON, and reading it as JSON is how a stream that
+    /// finished correctly turns into a parse failure.
+    #[test]
+    fn the_end_marker_is_not_parsed() {
+        assert!(matches!(sent_event("data: [DONE]\n"), Event::Finished));
+    }
+
+    /// Blank lines separate records in this format. Treating one as a record is
+    /// what would break on the very first gap.
+    #[test]
+    fn a_blank_line_is_not_a_record() {
+        for line in ["\n", "\r\n", "", ": a comment\n"] {
+            assert!(matches!(sent_event(line), Event::Nothing), "{line:?}");
+        }
+    }
+
+    /// Some servers omit the space after the colon. Both are the same record.
+    #[test]
+    fn the_space_after_the_colon_is_optional() {
+        let Event::Payload(tight) = sent_event("data:{\"a\":1}") else {
+            panic!("no space is still a data line");
+        };
+        assert_eq!(tight, "{\"a\":1}");
+    }
+}
+
+#[cfg(test)]
+mod against_a_chat_completions_server {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::thread;
+
+    /// A stream that arrives the way `llama-server` actually sends one: a `data:`
+    /// line per record, blank lines between them, and `[DONE]` at the end.
+    fn sse_body() -> String {
+        [
+            "data: {\"choices\":[{\"delta\":{\"content\":\"## Protokoll\"}}]}",
+            "",
+            "data: {\"choices\":[{\"delta\":{\"content\":\"\\n\\nEs wurde \"}}]}",
+            "",
+            "data: {\"choices\":[{\"delta\":{\"content\":\"entschieden.\"},\"finish_reason\":\"stop\"}]}",
+            "",
+            "data: [DONE]",
+            "",
+        ]
+        .join("\n")
+    }
+
+    fn serve(body: String) -> u16 {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            // Drain the request first: answering and closing while the body is
+            // still being written loses the connection, which cost an afternoon
+            // once already.
+            let mut buffer = [0_u8; 8192];
+            let _ = stream.read(&mut buffer);
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            )
+            .unwrap();
+            stream.write_all(body.as_bytes()).unwrap();
+        });
+        port
+    }
+
+    /// The whole branch, end to end: the request goes out in the chat shape and
+    /// the Server-Sent Events come back assembled into one answer.
+    #[test]
+    fn a_streamed_answer_is_assembled_from_its_events() {
+        let port = serve(sse_body());
+        let provider = OllamaProvider::llama_at(format!("http://127.0.0.1:{port}"));
+        assert_eq!(provider.backend(), Backend::Llama);
+
+        let request = super::tests::synthetic_request(2, 3);
+        let cancelled = AtomicBool::new(false);
+        let mut ticks = 0;
+        let answer = provider
+            .complete(
+                &request,
+                Completion {
+                    system: "system",
+                    prompt: "prompt",
+                    format: serde_json::Value::Null,
+                    num_predict: 128,
+                    attempt: 0,
+                },
+                &cancelled,
+                &mut |_| {
+                    ticks += 1;
+                    Ok(())
+                },
+            )
+            .expect("the events assemble into an answer");
+
+        assert_eq!(answer, "## Protokoll\n\nEs wurde entschieden.");
     }
 }
