@@ -51,8 +51,13 @@ jobs:
             ~/.cargo/git
             src-tauri/target
             vendor
-          key: linux-${{ hashFiles('src-tauri/Cargo.lock', 'scripts/build-*-sidecar.sh') }}
-          restore-keys: linux-
+          # The runner image is in the key, not just the lockfile. Without it a
+          # target directory built on 24.04 was restored onto 22.04 and the
+          # compile failed with "can't find crate for tauri" — an error that says
+          # nothing about the actual cause, which was a different toolchain's
+          # artifacts sitting in the same directory.
+          key: linux-2204-${{ hashFiles('src-tauri/Cargo.lock', 'scripts/build-*-sidecar.sh') }}
+          restore-keys: linux-2204-
 
       - run: npm ci
 

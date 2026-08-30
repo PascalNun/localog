@@ -23,6 +23,7 @@ else
 fi
 
 bash "$here/scripts/build-whisper-sidecar.sh"
+bash "$here/scripts/build-llama-sidecar.sh"
 bash "$here/scripts/build-sherpa-sidecar.sh"
 bash "$here/scripts/build-embedding-sidecar.sh"
 bash "$here/scripts/build-ffmpeg-sidecar.sh"

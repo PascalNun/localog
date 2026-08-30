@@ -4,6 +4,7 @@
     "targets": ["deb", "appimage"],
     "externalBin": [
       "binaries/localog-whisper",
+      "binaries/localog-llama-server",
       "binaries/localog-speaker-diarization",
       "binaries/localog-speaker-embedding",
       "binaries/localog-ffmpeg",
