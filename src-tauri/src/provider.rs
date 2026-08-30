@@ -588,7 +588,6 @@ pub struct Spend {
 /// stream is read — and in nothing above that: the retries, the corrections, the
 /// validation and the prompts are the same work whichever answers.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[allow(dead_code)]
 pub enum Backend {
     /// A machine-wide daemon somebody installed.
     Ollama,
@@ -621,7 +620,6 @@ pub struct OllamaProvider {
 /// disk or not — neither needs a server to be up to answer, so a fresh
 /// installation can be told exactly what it still needs before anything is
 /// started.
-#[allow(dead_code)]
 pub fn bundled_status(root: &std::path::Path, selected_model: Option<String>) -> OllamaStatus {
     let executable = crate::llama::server_path();
     let models: Vec<ModelDescriptor> = crate::models::generation_models(root)
@@ -675,7 +673,6 @@ pub fn bundled_status(root: &std::path::Path, selected_model: Option<String>) ->
 ///
 /// Asked rather than assumed: the build is pinned in the script, and a binary
 /// that is not the pinned one is worth being able to see.
-#[allow(dead_code)]
 fn runtime_version(executable: &std::path::Path) -> Option<String> {
     let output = std::process::Command::new(executable)
         .arg("--version")
@@ -711,7 +708,6 @@ impl OllamaProvider {
     }
 
     /// A provider talking to a `llama-server` this application started.
-    #[allow(dead_code)]
     pub fn llama_at(base_url: String) -> Self {
         Self {
             backend: Backend::Llama,
@@ -719,7 +715,9 @@ impl OllamaProvider {
         }
     }
 
-    #[allow(dead_code)]
+    /// Which runtime this provider talks to. Only the tests ask; the branches
+    /// that care read `self.backend` directly.
+    #[cfg(test)]
     pub fn backend(&self) -> Backend {
         self.backend
     }

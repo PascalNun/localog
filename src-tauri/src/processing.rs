@@ -207,6 +207,23 @@ struct GenerationRequest<'a> {
     transcript: &'a TranscriptArtifact,
 }
 
+/// Which runtime a queued job was resolved against.
+///
+/// Recorded with the job rather than decided when it runs, because a job queued
+/// while a model was installed should not quietly change engine because somebody
+/// removed it in the meantime — the record of how a protocol was produced is part
+/// of what makes it a record.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+enum GenerationRuntime {
+    /// A daemon somebody installed. The default, because a job queued by a build
+    /// that had no other option must still read as the thing it was.
+    #[default]
+    Ollama,
+    /// The runtime this application ships and starts for itself.
+    Bundled,
+}
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 struct QueuedGenerationConfig {
     /// The words for the notes a protocol may have to carry about itself, supplied
@@ -217,6 +234,10 @@ struct QueuedGenerationConfig {
     /// into somebody's document. Failing to read the config instead says so and
     /// leaves the transcript untouched, and starting the job again supplies them.
     document_notes: provider::DocumentNotes,
+    /// Defaulted, unlike the notes above: an older job genuinely was an Ollama
+    /// job, so reading one as such is correct rather than a guess.
+    #[serde(default)]
+    runtime: GenerationRuntime,
     model: String,
     model_digest: String,
     runtime_version: String,
@@ -762,6 +783,7 @@ pub(crate) fn queue_generation(
     let protocol_inputs = repository.protocol_inputs(meeting_id)?;
     let (provider_name, runtime_version, model_digest, settings_json, runtime_config_json) =
         generation_metadata(
+            root,
             &repository,
             &protocol_inputs,
             notes,
@@ -810,6 +832,7 @@ pub(crate) fn queue_generation(
 }
 
 fn generation_metadata(
+    root: &Path,
     repository: &WorkspaceRepository,
     inputs: &storage::ResolvedProtocolInputs,
     notes: &provider::DocumentNotes,
@@ -850,32 +873,70 @@ fn generation_metadata(
             None,
         ));
     }
-    let selected_model = repository
-        .read_setting("generation.ollamaModel")?
-        .filter(|value| !value.is_empty());
-    let status = provider::OllamaProvider::loopback().status(selected_model);
-    if !status.server_reachable {
-        return Err(StorageError::InvalidData("providerNeededForGeneration"));
-    }
-    let model = status
-        .selected_model
-        .ok_or(StorageError::InvalidData("providerModelRequired"))?;
-    let model_digest = status
-        .selected_model_digest
-        .ok_or(StorageError::InvalidData("ollamaModelGone"))?;
-    let runtime_version = status
-        .runtime_version
-        .unwrap_or_else(|| "unknown".to_string());
-    // The model's own size, which with the machine's memory decides how much
-    // context it can be given without spilling onto the CPU.
-    let model_bytes = status
-        .models
-        .iter()
-        .find(|candidate| candidate.name == model)
-        .map(|candidate| candidate.size)
-        .unwrap_or_default();
+    // What LocaLog brought, if it is here. Preferred without being forced: it is
+    // the answer for almost everybody, and nothing has to be started or installed
+    // for it to work. Ollama remains for a machine that has one and no model of
+    // ours, and for somebody who chose it.
+    let bundled = models::generation_models(root)
+        .into_iter()
+        .find(|model| model.installed)
+        .filter(|_| crate::llama::server_path().is_some());
+
+    let (runtime, model, model_digest, runtime_version, model_bytes) = match bundled {
+        Some(model) => {
+            let status = provider::bundled_status(root, Some(model.model_id.clone()));
+            (
+                GenerationRuntime::Bundled,
+                model.model_id.clone(),
+                // The catalogue's checksum. Ollama answers with a digest of its
+                // own and this is the same promise kept the same way: the file
+                // that produced a protocol can be named exactly.
+                models::terms(root, &model.model_id)
+                    .map(|terms| terms.licence)
+                    .unwrap_or_default(),
+                status
+                    .runtime_version
+                    .unwrap_or_else(|| "bundled".to_string()),
+                model.byte_count,
+            )
+        }
+        None => {
+            let selected_model = repository
+                .read_setting("generation.ollamaModel")?
+                .filter(|value| !value.is_empty());
+            let status = provider::OllamaProvider::loopback().status(selected_model);
+            if !status.server_reachable {
+                return Err(StorageError::InvalidData("providerNeededForGeneration"));
+            }
+            let model = status
+                .selected_model
+                .ok_or(StorageError::InvalidData("providerModelRequired"))?;
+            let model_digest = status
+                .selected_model_digest
+                .ok_or(StorageError::InvalidData("ollamaModelGone"))?;
+            let runtime_version = status
+                .runtime_version
+                .unwrap_or_else(|| "unknown".to_string());
+            // The model's own size, which with the machine's memory decides how
+            // much context it can be given without spilling onto the CPU.
+            let model_bytes = status
+                .models
+                .iter()
+                .find(|candidate| candidate.name == model)
+                .map(|candidate| candidate.size)
+                .unwrap_or_default();
+            (
+                GenerationRuntime::Ollama,
+                model,
+                model_digest,
+                runtime_version,
+                model_bytes,
+            )
+        }
+    };
     let config = QueuedGenerationConfig {
         document_notes: notes.clone(),
+        runtime,
         model: model.clone(),
         model_digest: model_digest.clone(),
         runtime_version: runtime_version.clone(),
@@ -895,6 +956,10 @@ fn generation_metadata(
             .collect(),
         seed: GENERATION_SEED,
         temperature_milli: GENERATION_TEMPERATURE_MILLI,
+        // Decided here, before anything is started. With the bundled runtime this
+        // is not advice: it becomes the --ctx-size the server is launched with,
+        // so a width the machine cannot afford is refused rather than discovered
+        // while it swaps.
         context_tokens: affordable_context(
             &provider::OllamaProvider::loopback(),
             &model,
@@ -1128,9 +1193,40 @@ fn execute_generation(
                 other => provider::ProviderError::Unavailable(other.to_string()),
             })
         };
-        provider::OllamaProvider::loopback()
-            .generate(&request, cancellation, &mut provider_progress)
-            .map_err(provider_processing_error)?
+        match config.runtime {
+            GenerationRuntime::Ollama => provider::OllamaProvider::loopback()
+                .generate(&request, cancellation, &mut provider_progress)
+                .map_err(provider_processing_error)?,
+            GenerationRuntime::Bundled => {
+                let model = models::generation_model_path(root, Some(&request.model)).ok_or(
+                    ProcessingError::Runtime {
+                        code: "provider_model_missing",
+                        message: "generationModelNotDownloaded".into(),
+                    },
+                )?;
+                // Started here and stopped when this scope ends, which is what
+                // makes the memory question answerable: nothing is resident
+                // before a protocol is asked for, and nothing stays resident
+                // afterwards for a transcription to compete with.
+                //
+                // The width was decided when the job was queued, from this
+                // machine's memory and this model's size. It is a launch flag
+                // rather than a request option, so a server that starts at all
+                // is a server that fits.
+                let server = crate::llama::start(&crate::llama::ServerRequest {
+                    model,
+                    context_tokens: request.context_tokens,
+                    gpu_layers: None,
+                })
+                .map_err(|failure| ProcessingError::Runtime {
+                    code: "provider_unavailable",
+                    message: failure.code(),
+                })?;
+                provider::OllamaProvider::llama_at(server.base_url().to_string())
+                    .generate(&request, cancellation, &mut provider_progress)
+                    .map_err(provider_processing_error)?
+            }
+        }
     };
     if markdown.trim().is_empty() || markdown.len() > 5_000_000 {
         return Err(ProcessingError::InvalidOutput);
@@ -2292,6 +2388,7 @@ pub(crate) fn retry_job(
         let inputs = repository.protocol_inputs(meeting_id)?;
         Some((
             generation_metadata(
+                root,
                 &repository,
                 &inputs,
                 &Default::default(),
@@ -3983,6 +4080,58 @@ mod tests {
                 &cancellation,
             )
             .unwrap()
+        );
+    }
+}
+
+#[cfg(test)]
+mod choosing_a_generation_runtime {
+    use super::*;
+
+    /// A job queued before LocaLog brought its own runtime is an Ollama job, and
+    /// must still read as one. Defaulting is right here and wrong for the document
+    /// notes above it: an absent runtime genuinely was Ollama, where absent notes
+    /// were never empty ones.
+    #[test]
+    fn a_config_without_a_runtime_reads_as_ollama() {
+        let older = serde_json::json!({
+            "document_notes": provider::DocumentNotes::default(),
+            "model": "qwen3.5:4b",
+            "model_digest": "sha256:x",
+            "runtime_version": "0.30.10",
+            "meeting_language": "German",
+            "style": {
+                "id": "style-formal",
+                "revision": "1",
+                "density": "comprehensive",
+                "instructions": [],
+                "expectations": [],
+            },
+            "vocabulary_revision": "1",
+            "vocabulary": [],
+            "seed": 42,
+            "temperature_milli": 100,
+            "context_tokens": 16384,
+            "maximum_output_tokens": 2048,
+        });
+        let config: QueuedGenerationConfig =
+            serde_json::from_value(older).expect("an older config still reads");
+        assert_eq!(config.runtime, GenerationRuntime::Ollama);
+    }
+
+    /// The runtime travels with the job. A protocol's record of how it was made is
+    /// part of what makes it a record, so removing a model after queueing must not
+    /// quietly change the engine a queued job runs on.
+    #[test]
+    fn the_runtime_survives_the_round_trip() {
+        for runtime in [GenerationRuntime::Ollama, GenerationRuntime::Bundled] {
+            let written = serde_json::to_string(&runtime).expect("serialises");
+            let read: GenerationRuntime = serde_json::from_str(&written).expect("reads back");
+            assert_eq!(read, runtime);
+        }
+        assert_eq!(
+            serde_json::to_string(&GenerationRuntime::Bundled).unwrap(),
+            "\"bundled\""
         );
     }
 }
