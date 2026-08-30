@@ -100,7 +100,9 @@ describe('choosing the language to start in', () => {
   });
 
   it('takes the first system language it speaks, not the first it is given', () => {
-    expect(preferredLanguage(null, ['ja-JP', 'de-DE', 'en-US'])).toBe('de');
+    // Polish rather than Japanese, which this used to say: an example of a language
+    // the application does not speak has to keep being one.
+    expect(preferredLanguage(null, ['pl-PL', 'de-DE', 'en-US'])).toBe('de');
   });
 });
 
