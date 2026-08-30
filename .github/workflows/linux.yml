@@ -9,7 +9,11 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Not ubuntu-latest, deliberately. A binary cannot run against an older glibc
+    # than it was linked with, and latest (24.04) links 2.39 — which rules out
+    # Debian 12, Ubuntu 22.04 and RHEL 9, a large part of installed Linux. Building
+    # on the older base costs nothing and the result runs on everything newer.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
