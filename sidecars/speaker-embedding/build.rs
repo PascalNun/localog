@@ -40,9 +40,22 @@ fn main() {
                 println!("cargo:rustc-link-lib=framework={framework}");
             }
         } else if cfg!(target_os = "windows") {
-            // Nothing. MSVC records the runtime it needs in the object files
-            // themselves, and naming one here would be asking the linker for a
-            // library that does not exist under that name.
+            // MSVC records the *C++ runtime* in its object files, which is why no
+            // equivalent of stdc++ is named here. It does not record the system
+            // libraries onnxruntime calls into, and the linker asked for four ETW
+            // symbols by name before anybody thought about it:
+            // EventRegister, EventWriteTransfer, EventSetInformation and
+            // EventUnregister, all of them advapi32.
+            //
+            // The rest are the ones onnxruntime is known to want on Windows —
+            // COM, shell paths, symbol lookup, file versions. Naming a system
+            // library nothing calls costs nothing: the import is simply unused.
+            // Discovering one at a time costs a forty-minute build each.
+            for library in [
+                "advapi32", "ole32", "oleaut32", "uuid", "shlwapi", "dbghelp", "version",
+            ] {
+                println!("cargo:rustc-link-lib=dylib={library}");
+            }
         } else {
             println!("cargo:rustc-link-lib=dylib=stdc++");
         }
