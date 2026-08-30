@@ -271,6 +271,45 @@ export const en = {
 
   failures,
 
+  /**
+   * The languages a meeting can be in, and the words for the two file dialogs
+   * macOS draws on this application's behalf.
+   *
+   * Keyed by what is *stored* — `German`, never `Deutsch` — because that value is
+   * handed to the transcription runtime and written into the database. The key is
+   * the identifier and the value is the label, which is the split this project has
+   * now had to make five times. A language somebody typed that is not listed here
+   * is shown exactly as they typed it.
+   */
+  meetingLanguages: {
+    English: 'English',
+    German: 'German',
+    French: 'French',
+    Spanish: 'Spanish',
+    Italian: 'Italian',
+    Dutch: 'Dutch',
+    Portuguese: 'Portuguese',
+    Polish: 'Polish',
+    Danish: 'Danish',
+    Swedish: 'Swedish',
+    Norwegian: 'Norwegian',
+    Finnish: 'Finnish',
+    Czech: 'Czech',
+    Turkish: 'Turkish',
+    Japanese: 'Japanese',
+    Korean: 'Korean',
+    Chinese: 'Chinese',
+    Arabic: 'Arabic',
+    Ukrainian: 'Ukrainian',
+  },
+  dialog: {
+    detectFromRecording: 'Detect from the recording',
+    chooseRecording: 'Choose a meeting recording',
+    audioAndVideo: 'Audio and video',
+    plainText: 'Plain text',
+    exportTitle: (title: string) => `Export ${title}`,
+  },
+
   /** The screen somebody sees before there is anything to open. */
   /** The settings screen. */
   settings: {
@@ -333,6 +372,46 @@ export const en = {
     european: 'European',
     checkInstalled: 'Check installed models',
     curatedModels: 'Curated protocol models',
+    /**
+     * The words for the model catalogue, which now holds only facts. Keyed by the
+     * entry's id, and the id is a closed union, so a model added to the catalogue
+     * without a sentence here does not compile.
+     */
+    modelDescription: {
+      'gemma4-12b':
+        'The most accurate and the steadiest of the measured models: it kept 27 to 31 of a meeting’s 35 figures across three runs, where the next best kept as few as 6. Slower — about fourteen minutes for an eighty-minute meeting.',
+      'ministral-8b':
+        'Measured on a German meeting at three settings and wrote a usable protocol at one of them: the others produced a two-line stub and a JSON document where markdown was asked for. Kept as the European candidate, not yet an alternative to the baseline.',
+      'qwen3.5-4b':
+        'The fastest measured model, at about five minutes for an eighty-minute meeting, and the choice where memory is short. It never produced the table of next steps the formal style asks for.',
+      'ministral-3b': 'The first European candidate for the weakest supported Mac.',
+      'granite4.1-8b':
+        'Measured on a German meeting at three settings and kept 22, 19 and 6 of its 35 stated figures on identical input. A run that loses five sixths of what a meeting stated is not a tool for producing a record, so it is not recommended.',
+      'llama-8b': 'A later comparison slot for a verified Llama release.',
+    },
+    modelOrigin: {
+      international: 'International open model',
+      european: 'European model',
+    },
+    modelLicence: {
+      apache2: 'Apache 2.0',
+      gemma: 'Gemma terms of use',
+      modelSpecific: 'Model-specific',
+    },
+    modelLanguage: {
+      de: 'German',
+      en: 'English',
+      ja: 'Japanese',
+      more: 'many more',
+    },
+    modelStatus: {
+      installed: 'Installed',
+      notInstalled: 'Not installed',
+      plannedCandidate: 'Planned candidate',
+    },
+    modelSizeInstalled: (gb: string) => `about ${gb} GB installed`,
+    modelSizeSmall: 'small edge model',
+    modelSizeLarger: 'larger local model',
     useAnotherModel: 'Use another installed model',
     installedModel: 'Installed model',
     chooseInstalledModel: 'Choose an installed model',

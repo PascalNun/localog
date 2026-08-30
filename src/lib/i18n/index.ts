@@ -120,6 +120,18 @@ export function startLanguage() {
 }
 
 /**
+ * A list said the way the current language says one.
+ *
+ * “German and English”, “Deutsch und Englisch”, 「ドイツ語と英語」. The conjunction
+ * and the separators differ, and `Intl` already knows every one of them, so this
+ * asks rather than storing an eighth glue string that would still be wrong for a
+ * language nobody has added yet.
+ */
+export function listOf(items: string[]): string {
+  return new Intl.ListFormat(get(t).locale, { style: 'long', type: 'conjunction' }).format(items);
+}
+
+/**
  * The sentence for something that failed in the backend.
  *
  * Rust returns a key — `missingProject`, or `backupDamaged:projects/a.wav` —

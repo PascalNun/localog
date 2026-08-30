@@ -977,6 +977,30 @@ the thing they describe rather than by remembering it.
   because the diagnostic names the port and the reason and is the only part of that
   row anybody can act on when starting Ollama was not the answer.
 
+  **And what the Rust sweep did not cover, found the same day by opening the
+  application in French rather than by searching it.** Three surfaces were still
+  English on screens a professional reaches in the first minute:
+
+  - **The model catalogue**, which was prose stored as data — a description, a
+    size, an origin, a licence and a list of languages per entry, none of which any
+    dictionary could reach. It now holds facts (`installedGb: 3.4`,
+    `origin: 'european'`, `languages: ['de', 'en', 'more']`) and the words are keyed
+    by the model's id. The id is a closed union, so a model added without a
+    description does not compile.
+  - **The meeting-language picker**, which offered nineteen languages by their
+    English names. This one is not only a translation: the value is handed to the
+    transcription runtime and written into the database, so the list shows
+    _Allemand_ and stores `German`. Getting that wrong would not have looked like a
+    translation fault — it would have transcribed the meeting in the wrong language.
+  - **The two file dialogs macOS draws on this application's behalf**, whose titles
+    and filter names it is handed.
+
+  The identifier-and-label split appeared twice more while this landed, which makes
+  five. The badge beside a model name was drawn by comparing `originLabel` against
+  the literal `'European model'`, and the note under the meeting-language field by
+  comparing the field's text against the project's stored default. Both would have
+  gone quiet — not wrong, quiet — the moment the label was translated.
+
 - The application is not signed. It is ad-hoc signed, which runs here and is refused
   on anybody else's Mac, and there is no Developer ID on this machine. This is the
   whole of what stands between the current bundle and handing it to somebody. The

@@ -232,6 +232,36 @@ export const zh: Strings = {
 
   failures,
 
+  /** 参见 en.ts 中的说明：键是保存下来的值。 */
+  meetingLanguages: {
+    English: '英语',
+    German: '德语',
+    French: '法语',
+    Spanish: '西班牙语',
+    Italian: '意大利语',
+    Dutch: '荷兰语',
+    Portuguese: '葡萄牙语',
+    Polish: '波兰语',
+    Danish: '丹麦语',
+    Swedish: '瑞典语',
+    Norwegian: '挪威语',
+    Finnish: '芬兰语',
+    Czech: '捷克语',
+    Turkish: '土耳其语',
+    Japanese: '日语',
+    Korean: '韩语',
+    Chinese: '中文',
+    Arabic: '阿拉伯语',
+    Ukrainian: '乌克兰语',
+  },
+  dialog: {
+    detectFromRecording: '根据录音自动判断',
+    chooseRecording: '选择会议录音',
+    audioAndVideo: '音频与视频',
+    plainText: '纯文本',
+    exportTitle: (title: string) => `导出${title}`,
+  },
+
   settings: {
     memoryReported: (gb: number) => `检测到 ${gb} GB 内存`,
     themeAutomatic: '自动',
@@ -289,6 +319,42 @@ export const zh: Strings = {
     european: '欧洲出品',
     checkInstalled: '检查已安装的模型',
     curatedModels: '甄选的纪要模型',
+    /** 参见 en.ts 中的说明。 */
+    modelDescription: {
+      'gemma4-12b':
+        '在测得的模型中最准确、也最稳定：三次运行保留了会议 35 个数字里的 27 到 31 个，而次优者最少只保留 6 个。速度较慢——80 分钟的会议约需 14 分钟。',
+      'ministral-8b':
+        '在一场德语会议上以三种设置测得，其中一种写出了可用的会议纪要：另两种给出两行的残稿，以及在要求 Markdown 处返回的 JSON 文档。作为欧洲出品的候选保留，尚不能替代基准。',
+      'qwen3.5-4b':
+        '测得最快的模型，80 分钟的会议约需 5 分钟，内存吃紧时可选它。但它从未生成正式体例所要求的后续事项表。',
+      'ministral-3b': '面向所支持的最低配 Mac 的第一个欧洲出品候选。',
+      'granite4.1-8b':
+        '在一场德语会议上以三种设置测得，输入完全相同，却分别保留了所述 35 个数字中的 22 个、19 个和 6 个。丢掉会上所述六分之五的运行，不是用来留存记录的工具，因此不推荐。',
+      'llama-8b': '为经过验证的 Llama 版本预留的比较位置。',
+    },
+    modelOrigin: {
+      international: '国际开放模型',
+      european: '欧洲出品的模型',
+    },
+    modelLicence: {
+      apache2: 'Apache 2.0',
+      gemma: 'Gemma 使用条款',
+      modelSpecific: '视模型而定',
+    },
+    modelLanguage: {
+      de: '德语',
+      en: '英语',
+      ja: '日语',
+      more: '以及其他多种',
+    },
+    modelStatus: {
+      installed: '已安装',
+      notInstalled: '未安装',
+      plannedCandidate: '计划中的候选',
+    },
+    modelSizeInstalled: (gb: string) => `安装后约 ${gb} GB`,
+    modelSizeSmall: '适合本机的小模型',
+    modelSizeLarger: '较大的本地模型',
     useAnotherModel: '使用另一个已安装的模型',
     installedModel: '已安装的模型',
     chooseInstalledModel: '选择已安装的模型',

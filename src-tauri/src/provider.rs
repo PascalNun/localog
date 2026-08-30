@@ -3378,7 +3378,7 @@ mod tests {
         let corrections: RefCell<Vec<Option<String>>> = RefCell::new(Vec::new());
         let attempts = RefCell::new(0);
         let answer = with_correction(
-            |correction, attempt| {
+            |correction, _attempt| {
                 corrections
                     .borrow_mut()
                     .push(correction.map(str::to_string));
@@ -3834,7 +3834,7 @@ mod tests {
     fn a_section_that_will_not_shorten_is_kept_rather_than_lost() {
         let mut tries = 0;
         let (answer, within) = with_correction_or_keep(
-            |_correction, attempt| {
+            |_correction, _attempt| {
                 tries += 1;
                 Ok("x".repeat(1_922))
             },
@@ -3854,7 +3854,7 @@ mod tests {
     fn a_section_that_shortens_when_asked_reports_success() {
         let mut tries = 0;
         let (answer, within) = with_correction_or_keep(
-            |_correction, attempt| {
+            |_correction, _attempt| {
                 tries += 1;
                 Ok("x".repeat(if tries == 1 { 9_000 } else { 900 }))
             },

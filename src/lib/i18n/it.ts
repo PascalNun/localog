@@ -252,6 +252,36 @@ export const it: Strings = {
 
   failures,
 
+  /** Si veda la nota in en.ts: la chiave è il valore salvato. */
+  meetingLanguages: {
+    English: 'Inglese',
+    German: 'Tedesco',
+    French: 'Francese',
+    Spanish: 'Spagnolo',
+    Italian: 'Italiano',
+    Dutch: 'Olandese',
+    Portuguese: 'Portoghese',
+    Polish: 'Polacco',
+    Danish: 'Danese',
+    Swedish: 'Svedese',
+    Norwegian: 'Norvegese',
+    Finnish: 'Finlandese',
+    Czech: 'Ceco',
+    Turkish: 'Turco',
+    Japanese: 'Giapponese',
+    Korean: 'Coreano',
+    Chinese: 'Cinese',
+    Arabic: 'Arabo',
+    Ukrainian: 'Ucraino',
+  },
+  dialog: {
+    detectFromRecording: 'Rilevare dalla registrazione',
+    chooseRecording: 'Scegliere la registrazione di una riunione',
+    audioAndVideo: 'Audio e video',
+    plainText: 'Testo semplice',
+    exportTitle: (title: string) => `Esportare ${title}`,
+  },
+
   settings: {
     memoryReported: (gb: number) => `${gb} GB di memoria rilevati`,
     themeAutomatic: 'Automatico',
@@ -312,6 +342,42 @@ export const it: Strings = {
     european: 'Europeo',
     checkInstalled: 'Verifica i modelli installati',
     curatedModels: 'Modelli per i verbali selezionati',
+    /** Si veda la nota in en.ts. */
+    modelDescription: {
+      'gemma4-12b':
+        'Il più accurato e il più costante fra i modelli misurati: su tre esecuzioni ha conservato da 27 a 31 delle 35 cifre di una riunione, dove il successivo è sceso a 6. Più lento: circa quattordici minuti per una riunione di ottanta minuti.',
+      'ministral-8b':
+        'Misurato su una riunione in tedesco con tre impostazioni, ha scritto un verbale utilizzabile con una di esse: le altre hanno prodotto un abbozzo di due righe e un documento JSON dove era richiesto il markdown. Resta il candidato europeo, non ancora un’alternativa al riferimento.',
+      'qwen3.5-4b':
+        'Il modello misurato più veloce, circa cinque minuti per una riunione di ottanta minuti, e la scelta quando la memoria è poca. Non ha mai prodotto la tabella dei prossimi passi che lo stile formale richiede.',
+      'ministral-3b': 'Il primo candidato europeo per il Mac meno potente fra quelli supportati.',
+      'granite4.1-8b':
+        'Misurato su una riunione in tedesco con tre impostazioni, ha conservato 22, 19 e 6 delle 35 cifre dette, a parità di ingresso. Un’esecuzione che perde cinque sesti di quanto è stato detto non è uno strumento per tenere un verbale, perciò non è consigliato.',
+      'llama-8b': 'Un posto di confronto riservato a una versione di Llama verificata.',
+    },
+    modelOrigin: {
+      international: 'Modello aperto internazionale',
+      european: 'Modello europeo',
+    },
+    modelLicence: {
+      apache2: 'Apache 2.0',
+      gemma: 'Condizioni d’uso di Gemma',
+      modelSpecific: 'Specifica del modello',
+    },
+    modelLanguage: {
+      de: 'tedesco',
+      en: 'inglese',
+      ja: 'giapponese',
+      more: 'e molte altre',
+    },
+    modelStatus: {
+      installed: 'Installato',
+      notInstalled: 'Non installato',
+      plannedCandidate: 'Candidato previsto',
+    },
+    modelSizeInstalled: (gb: string) => `circa ${gb} GB installato`,
+    modelSizeSmall: 'modello piccolo per la macchina',
+    modelSizeLarger: 'modello locale più grande',
     useAnotherModel: 'Usa un altro modello installato',
     installedModel: 'Modello installato',
     chooseInstalledModel: 'Scegli un modello installato',

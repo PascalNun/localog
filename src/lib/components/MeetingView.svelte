@@ -8,7 +8,12 @@
     SpeakerSeparationStatus,
   } from '../workflow/types';
   import { SPEAKER_SEPARATION_UNREADY } from '../workflow/types';
-  import { COMMON_MEETING_LANGUAGES, meetingLanguageLabel } from '../workflow/languages';
+  import {
+    COMMON_MEETING_LANGUAGES,
+    meetingLanguageField,
+    meetingLanguageLabel,
+    meetingLanguageValue,
+  } from '../workflow/languages';
   import Icon from './Icon.svelte';
   import ProgressPanel from './ProgressPanel.svelte';
   import StageRail from './StageRail.svelte';
@@ -50,7 +55,7 @@
   // there were, and a number says how many spoke.
   let speakerChoice = '';
   let editingLanguage = false;
-  let languageDraft = meeting.language;
+  let languageDraft = meetingLanguageField(meeting.language);
   let languageError = '';
   $: relevantJob = job?.meetingId === meeting.id ? job : null;
   $: transcriptionUnavailable = Boolean(relevantJob && relevantJob.state !== 'completed');
@@ -82,7 +87,7 @@
   async function saveLanguage() {
     languageError = '';
     try {
-      await onUpdateLanguage(languageDraft);
+      await onUpdateLanguage(meetingLanguageValue(languageDraft));
       editingLanguage = false;
     } catch (error) {
       languageError = errorMessage(error);
@@ -117,7 +122,8 @@
             list="meeting-view-languages"
             aria-label={$t.meeting.languageLabel}
           /><datalist id="meeting-view-languages">
-            {#each COMMON_MEETING_LANGUAGES as language (language)}<option value={language}
+            {#each COMMON_MEETING_LANGUAGES as choice (choice)}<option
+                value={$t.meetingLanguages[choice]}
               ></option>{/each}
           </datalist><button class="text-action" onclick={saveLanguage}
             >{$t.meeting.saveLanguage}</button
@@ -128,7 +134,7 @@
             class="inline-setting"
             disabled={transcriptionUnavailable}
             onclick={() => {
-              languageDraft = meeting.language;
+              languageDraft = meetingLanguageField(meeting.language);
               editingLanguage = true;
             }}
             aria-label={$t.meeting.changeLanguage}>{meetingLanguageLabel(meeting.language)}</button

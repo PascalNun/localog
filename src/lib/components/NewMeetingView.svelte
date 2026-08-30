@@ -5,7 +5,11 @@
     ProtocolStyle,
     SourceSelection,
   } from '../workflow/types';
-  import { COMMON_MEETING_LANGUAGES, DETECT_LANGUAGE_LABEL } from '../workflow/languages';
+  import {
+    COMMON_MEETING_LANGUAGES,
+    meetingLanguageField,
+    meetingLanguageValue,
+  } from '../workflow/languages';
   import Icon from './Icon.svelte';
   import { errorMessage } from '../errors';
   import { t } from '../i18n';
@@ -33,7 +37,16 @@
   let occurredAt = new Date().toISOString().slice(0, 10);
   let sourceName = '';
   let sourcePath: string | null = null;
-  let language = projects.find((project) => project.id === projectId)?.defaultLanguage ?? '';
+  /**
+   * What the field shows, which is the language named in the reader's language.
+   * `language` below is the identifier it means, and is what everything else uses:
+   * the comparison against the project's default was made against the field once,
+   * and quietly stopped matching the moment the field held a translated name.
+   */
+  let languageText = meetingLanguageField(
+    projects.find((project) => project.id === projectId)?.defaultLanguage,
+  );
+  $: language = meetingLanguageValue(languageText);
   let styleId =
     projects.find((project) => project.id === projectId)?.defaultStyleId ?? styles[0]?.id ?? '';
   let submitting = false;
@@ -50,7 +63,7 @@
 
   function useProjectDefaults() {
     if (!selectedProject) return;
-    language = selectedProject.defaultLanguage;
+    languageText = meetingLanguageField(selectedProject.defaultLanguage);
     styleId = selectedProject.defaultStyleId;
   }
 
@@ -208,11 +221,12 @@
           >
           <label
             ><span>{$t.newMeeting.language}</span><input
-              bind:value={language}
+              bind:value={languageText}
               list="meeting-languages"
-              placeholder={DETECT_LANGUAGE_LABEL}
+              placeholder={$t.dialog.detectFromRecording}
             /><datalist id="meeting-languages">
-              {#each COMMON_MEETING_LANGUAGES as language (language)}<option value={language}
+              {#each COMMON_MEETING_LANGUAGES as choice (choice)}<option
+                  value={$t.meetingLanguages[choice]}
                 ></option>{/each}
             </datalist><small
               >{selectedProject?.defaultLanguage === language

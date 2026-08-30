@@ -84,7 +84,7 @@ export async function printProtocol(
   }
 
   if (typeof window === 'undefined' || typeof window.print !== 'function') {
-    throw new Error('This window cannot print.');
+    throw new Error('printDialogUnavailable');
   }
   window.print();
 }

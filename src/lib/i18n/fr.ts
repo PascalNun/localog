@@ -260,6 +260,36 @@ export const fr: Strings = {
 
   failures,
 
+  /** Voir la note dans en.ts : la clé est la valeur enregistrée. */
+  meetingLanguages: {
+    English: 'Anglais',
+    German: 'Allemand',
+    French: 'Français',
+    Spanish: 'Espagnol',
+    Italian: 'Italien',
+    Dutch: 'Néerlandais',
+    Portuguese: 'Portugais',
+    Polish: 'Polonais',
+    Danish: 'Danois',
+    Swedish: 'Suédois',
+    Norwegian: 'Norvégien',
+    Finnish: 'Finnois',
+    Czech: 'Tchèque',
+    Turkish: 'Turc',
+    Japanese: 'Japonais',
+    Korean: 'Coréen',
+    Chinese: 'Chinois',
+    Arabic: 'Arabe',
+    Ukrainian: 'Ukrainien',
+  },
+  dialog: {
+    detectFromRecording: 'Détecter d’après l’enregistrement',
+    chooseRecording: 'Choisir un enregistrement de réunion',
+    audioAndVideo: 'Audio et vidéo',
+    plainText: 'Texte brut',
+    exportTitle: (title: string) => `Exporter ${title}`,
+  },
+
   settings: {
     memoryReported: (gb: number) => `${gb} Go de mémoire détectés`,
     themeAutomatic: 'Automatique',
@@ -321,6 +351,42 @@ export const fr: Strings = {
     european: 'Européen',
     checkInstalled: 'Vérifier les modèles installés',
     curatedModels: 'Modèles de compte rendu retenus',
+    /** Voir la note dans en.ts. */
+    modelDescription: {
+      'gemma4-12b':
+        'Le plus exact et le plus régulier des modèles mesurés : sur trois exécutions, il a conservé 27 à 31 des 35 chiffres d’une réunion, là où le suivant est descendu à 6. Plus lent — environ quatorze minutes pour une réunion de quatre-vingts minutes.',
+      'ministral-8b':
+        'Mesuré sur une réunion en allemand à trois réglages ; il a rédigé un compte rendu utilisable à l’un d’eux : les autres ont produit une ébauche de deux lignes et un document JSON là où du markdown était demandé. Conservé comme candidat européen, pas encore une solution de rechange à la référence.',
+      'qwen3.5-4b':
+        'Le modèle mesuré le plus rapide — environ cinq minutes pour une réunion de quatre-vingts minutes — et le choix quand la mémoire est limitée. Il n’a jamais produit le tableau des prochaines étapes que le style formel demande.',
+      'ministral-3b': 'Le premier candidat européen pour le Mac le moins puissant pris en charge.',
+      'granite4.1-8b':
+        'Mesuré sur une réunion en allemand à trois réglages, il a conservé 22, 19 puis 6 des 35 chiffres énoncés, à entrée identique. Une exécution qui perd cinq sixièmes de ce qui a été dit n’est pas un outil pour tenir un compte rendu : il n’est donc pas recommandé.',
+      'llama-8b': 'Une place de comparaison réservée à une version de Llama vérifiée.',
+    },
+    modelOrigin: {
+      international: 'Modèle ouvert international',
+      european: 'Modèle européen',
+    },
+    modelLicence: {
+      apache2: 'Apache 2.0',
+      gemma: 'Conditions d’utilisation Gemma',
+      modelSpecific: 'Propre au modèle',
+    },
+    modelLanguage: {
+      de: 'allemand',
+      en: 'anglais',
+      ja: 'japonais',
+      more: 'et bien d’autres',
+    },
+    modelStatus: {
+      installed: 'Installé',
+      notInstalled: 'Non installé',
+      plannedCandidate: 'Candidat prévu',
+    },
+    modelSizeInstalled: (gb: string) => `environ ${gb} Go une fois installé`,
+    modelSizeSmall: 'petit modèle embarqué',
+    modelSizeLarger: 'modèle local plus grand',
     useAnotherModel: 'Utiliser un autre modèle installé',
     installedModel: 'Modèle installé',
     chooseInstalledModel: 'Choisir un modèle installé',

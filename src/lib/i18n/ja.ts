@@ -242,6 +242,36 @@ export const ja: Strings = {
 
   failures,
 
+  /** en.ts の注記を参照。キーは保存される値です。 */
+  meetingLanguages: {
+    English: '英語',
+    German: 'ドイツ語',
+    French: 'フランス語',
+    Spanish: 'スペイン語',
+    Italian: 'イタリア語',
+    Dutch: 'オランダ語',
+    Portuguese: 'ポルトガル語',
+    Polish: 'ポーランド語',
+    Danish: 'デンマーク語',
+    Swedish: 'スウェーデン語',
+    Norwegian: 'ノルウェー語',
+    Finnish: 'フィンランド語',
+    Czech: 'チェコ語',
+    Turkish: 'トルコ語',
+    Japanese: '日本語',
+    Korean: '韓国語',
+    Chinese: '中国語',
+    Arabic: 'アラビア語',
+    Ukrainian: 'ウクライナ語',
+  },
+  dialog: {
+    detectFromRecording: '録音から判定する',
+    chooseRecording: '会議の録音を選ぶ',
+    audioAndVideo: '音声と動画',
+    plainText: 'テキスト',
+    exportTitle: (title: string) => `${title} を書き出す`,
+  },
+
   settings: {
     memoryReported: (gb: number) => `メモリ${gb}GBを検出`,
     themeAutomatic: '自動',
@@ -300,6 +330,42 @@ export const ja: Strings = {
     european: '欧州製',
     checkInstalled: 'インストール済みのモデルを確認',
     curatedModels: '選定済みの議事録モデル',
+    /** en.ts の注記を参照。 */
+    modelDescription: {
+      'gemma4-12b':
+        '測定したモデルのなかで最も正確で、最も安定しています。3 回の実行で、会議に出てきた 35 個の数値のうち 27 〜 31 を残しました。次点は 6 まで落ちています。速度は遅く、80 分の会議でおよそ 14 分かかります。',
+      'ministral-8b':
+        'ドイツ語の会議で 3 通りの設定を試し、そのうち 1 つで使える議事録を書きました。残りは 2 行の書きかけと、Markdown を求めたところに JSON を返したものです。欧州製の候補として残していますが、基準に代わるものではまだありません。',
+      'qwen3.5-4b':
+        '測定したなかで最も速く、80 分の会議でおよそ 5 分です。メモリが少ないときの選択肢になります。ただし、形式的なスタイルが求める「次の一手」の表を一度も出しませんでした。',
+      'ministral-3b': '対応するなかで最も非力な Mac に向けた、はじめての欧州製の候補です。',
+      'granite4.1-8b':
+        'ドイツ語の会議で 3 通りの設定を試し、同じ入力に対して、述べられた 35 個の数値のうち 22 個、19 個、6 個を残しました。話された内容の六分の五を落とす実行は記録を残す道具ではないため、おすすめしません。',
+      'llama-8b': '検証済みの Llama が出たときのための、比較用の枠です。',
+    },
+    modelOrigin: {
+      international: '国際的なオープンモデル',
+      european: '欧州製のモデル',
+    },
+    modelLicence: {
+      apache2: 'Apache 2.0',
+      gemma: 'Gemma の利用条件',
+      modelSpecific: 'モデルごとの条件',
+    },
+    modelLanguage: {
+      de: 'ドイツ語',
+      en: '英語',
+      ja: '日本語',
+      more: 'ほか多数',
+    },
+    modelStatus: {
+      installed: 'インストール済み',
+      notInstalled: '未インストール',
+      plannedCandidate: '今後の候補',
+    },
+    modelSizeInstalled: (gb: string) => `インストール時およそ ${gb} GB`,
+    modelSizeSmall: '端末向けの小さなモデル',
+    modelSizeLarger: '大きめのローカルモデル',
     useAnotherModel: '別のインストール済みモデルを使う',
     installedModel: 'インストール済みモデル',
     chooseInstalledModel: 'インストール済みモデルを選ぶ',

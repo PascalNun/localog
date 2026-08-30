@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { NewProjectInput } from '../workflow/types';
-  import { COMMON_MEETING_LANGUAGES, DETECT_LANGUAGE_LABEL } from '../workflow/languages';
+  import { COMMON_MEETING_LANGUAGES, meetingLanguageValue } from '../workflow/languages';
   import Icon from './Icon.svelte';
   import { errorMessage } from '../errors';
   import { t } from '../i18n';
@@ -37,7 +37,14 @@
     submitting = true;
     submitError = '';
     try {
-      await onCreate({ name, description, defaultLanguage, names: namesFromFields(names) });
+      await onCreate({
+        name,
+        description,
+        // The field holds the language named in the reader's language; what is
+        // stored is the identifier the transcription runtime is handed.
+        defaultLanguage: meetingLanguageValue(defaultLanguage),
+        names: namesFromFields(names),
+      });
     } catch (error) {
       submitError = errorMessage(error);
       submitting = false;
@@ -72,9 +79,10 @@
       ><span>{$t.newProject.defaultLanguage}</span><input
         bind:value={defaultLanguage}
         list="project-languages"
-        placeholder={DETECT_LANGUAGE_LABEL}
+        placeholder={$t.dialog.detectFromRecording}
       /><datalist id="project-languages">
-        {#each COMMON_MEETING_LANGUAGES as language (language)}<option value={language}
+        {#each COMMON_MEETING_LANGUAGES as language (language)}<option
+            value={$t.meetingLanguages[language]}
           ></option>{/each}
       </datalist><small>{$t.newProject.defaultLanguageDetail}</small></label
     >

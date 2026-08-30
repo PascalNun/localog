@@ -18,11 +18,12 @@
     GENERATION_MODEL_CATALOG,
     browserMemoryGb,
     installedProviderModel,
-    modelStatusLabel,
+    modelStatus,
     recommendationFor,
   } from '../models/modelCatalog';
+  import type { GenerationModelEntry } from '../models/modelCatalog';
   import { formatModelSize } from '../models/modelSize';
-  import { INTERFACE_LANGUAGES, chooseLanguage, language, t } from '../i18n';
+  import { INTERFACE_LANGUAGES, chooseLanguage, language, listOf, t } from '../i18n';
   import { formatMeetingDate } from '../protocol/document';
   import Icon from './Icon.svelte';
   import type { IconName } from './Icon.svelte';
@@ -122,6 +123,20 @@
   /// 16 GB laptop was recommended a model measured at 20 figures against the
   /// baseline's 31.
   $: memoryGb = providerStatus?.machineMemoryGb ?? browserMemoryGb();
+
+  /**
+   * What a model occupies, said in words the catalogue does not hold.
+   *
+   * A measured size where there is one, and the class of model where there is
+   * not — which is honest about the difference between 3.4 GB and "a larger local
+   * model", and was previously a sentence stored beside the facts.
+   */
+  function modelSize(entry: GenerationModelEntry): string {
+    if (entry.installedGb !== null) {
+      return $t.settings.modelSizeInstalled(entry.installedGb.toLocaleString($t.locale));
+    }
+    return entry.tier === 'baseline' ? $t.settings.modelSizeSmall : $t.settings.modelSizeLarger;
+  }
   /// Reactive, and it was a `const` reading a `$:` value — which is assigned after
   /// the initialisers run, so this captured `undefined` and the line always claimed
   /// the conservative baseline even on a machine that had reported its memory.
@@ -360,10 +375,10 @@
           <div>
             <p class="model-kicker">{$t.settings.recommendedForMachine}</p>
             <h3>{modelRecommendation.entry.name}</h3>
-            <p>{modelRecommendation.entry.description}</p>
+            <p>{$t.settings.modelDescription[modelRecommendation.entry.id]}</p>
             <div class="model-meta">
-              <span>{modelRecommendation.entry.originLabel}</span>
-              <span>{modelRecommendation.entry.licenseLabel}</span>
+              <span>{$t.settings.modelOrigin[modelRecommendation.entry.origin]}</span>
+              <span>{$t.settings.modelLicence[modelRecommendation.entry.licence]}</span>
               <span>{memoryLabel}</span>
             </div>
           </div>
@@ -396,24 +411,35 @@
                   {#if entry.status === 'baseline'}<span class="model-badge"
                       >{$t.settings.baseline}</span
                     >{/if}
-                  {#if entry.originLabel === 'European model'}<span class="model-badge quiet"
+                  {#if entry.origin === 'european'}<span class="model-badge quiet"
                       >{$t.settings.european}</span
                     >{/if}
                 </div>
-                <p>{entry.description}</p>
+                <p>{$t.settings.modelDescription[entry.id]}</p>
                 <div class="model-meta">
-                  <span>{entry.sizeLabel}</span>
-                  <span>{entry.licenseLabel}</span>
-                  <span>{entry.languages.slice(0, 3).join(' · ')}</span>
+                  <span>{modelSize(entry)}</span>
+                  <span>{$t.settings.modelLicence[entry.licence]}</span>
+                  <span
+                    >{entry.languages
+                      .slice(0, 3)
+                      .map((code) => $t.settings.modelLanguage[code])
+                      .join(' · ')}</span
+                  >
                 </div>
                 <p class="model-evaluation">
                   {entry.testedLanguages.length
-                    ? $t.settings.evaluatedIn(entry.testedLanguages.join(' and '))
+                    ? $t.settings.evaluatedIn(
+                        listOf(
+                          entry.testedLanguages.map((code) => $t.settings.modelLanguage[code]),
+                        ),
+                      )
                     : $t.settings.evaluationPending}
                 </p>
               </div>
               <div class="model-card-action">
-                <span class="model-status">{modelStatusLabel(entry, installed)}</span>
+                <span class="model-status"
+                  >{$t.settings.modelStatus[modelStatus(entry, installed)]}</span
+                >
                 {#if installed}
                   <button
                     class="quiet-action"

@@ -7,20 +7,65 @@ import type { ProtocolProviderModel } from '../workflow/types';
  * shown before they are downloadable so the user can see the planned path,
  * while selection still requires a verified model already exposed by the
  * active provider.
+ *
+ * ## Facts here, words in the dictionary
+ *
+ * Every entry once carried its own prose — a description, a size, an origin, a
+ * licence, a list of languages — and on 30 August 2026 a French interface showed
+ * all of it in English, because prose stored as data is prose no dictionary can
+ * reach. What stays here is what is true in any language: which model this is,
+ * what it needs, what was measured. The sentences live under `settings.model*`
+ * and are keyed by the `id` below.
+ *
+ * `origin` is the clearest case of why. It used to be the string
+ * `'European model'`, and the badge beside a model name was drawn by comparing
+ * against that string — an identifier and a label in one value, which is the
+ * fault this project has now found five times. Translating the label would have
+ * silently stopped the badge appearing.
  */
+
+/**
+ * Every model the catalogue holds, as a closed set.
+ *
+ * A union rather than `string` so that the words for a model are checked the way
+ * every other string is: `settings.modelDescription[entry.id]` does not compile
+ * until each id here has a sentence, which is what stops a new entry shipping as
+ * a blank card.
+ */
+export type GenerationModelId =
+  'gemma4-12b' | 'ministral-8b' | 'qwen3.5-4b' | 'ministral-3b' | 'granite4.1-8b' | 'llama-8b';
+
+/** A language a model claims, or `more` for "and many others". */
+export type ModelLanguage = 'de' | 'en' | 'ja' | 'more';
+
+/** Where a model comes from, as a fact rather than as the words for it. */
+export type ModelOrigin = 'international' | 'european';
+
+/** Which licence a model is offered under. */
+export type ModelLicence = 'apache2' | 'gemma' | 'modelSpecific';
+
+/** What the picker can say about a model right now. */
+export type ModelStatus = 'installed' | 'notInstalled' | 'plannedCandidate';
+
 export interface GenerationModelEntry {
-  id: string;
+  id: GenerationModelId;
+  /** The model's own name, which is a product name and the same everywhere. */
   name: string;
   family: string;
   providerNames: string[];
   tier: 'baseline' | 'standard' | 'larger';
   minimumMemoryGb: number;
-  sizeLabel: string;
-  languages: string[];
-  testedLanguages: string[];
-  originLabel: string;
-  licenseLabel: string;
-  description: string;
+  /**
+   * What it occupies once installed, where that has been measured. Null where it
+   * has not, and the picker then says which class of model it is instead of
+   * inventing a number.
+   */
+  installedGb: number | null;
+  languages: ModelLanguage[];
+  /** The languages it has been evaluated in *here*, which is a shorter list. */
+  testedLanguages: ModelLanguage[];
+  origin: ModelOrigin;
+  licence: ModelLicence;
   status: 'baseline' | 'candidate' | 'planned';
 }
 
@@ -39,13 +84,11 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     providerNames: ['gemma4:12b'],
     tier: 'standard',
     minimumMemoryGb: 16,
-    sizeLabel: 'about 8 GB installed',
-    languages: ['German', 'English', 'many more'],
-    testedLanguages: ['German'],
-    originLabel: 'International open model',
-    licenseLabel: 'Gemma terms of use',
-    description:
-      'The most accurate and the steadiest of the measured models: it kept 27 to 31 of a meeting’s 35 figures across three runs, where the next best kept as few as 6. Slower — about fourteen minutes for an eighty-minute meeting.',
+    installedGb: 8,
+    languages: ['de', 'en', 'more'],
+    testedLanguages: ['de'],
+    origin: 'international',
+    licence: 'gemma',
     status: 'baseline',
   },
   {
@@ -55,13 +98,11 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     providerNames: ['ministral-3:8b', 'ministral-3:8b-instruct-2512-q4_K_M'],
     tier: 'standard',
     minimumMemoryGb: 16,
-    sizeLabel: 'larger local model',
-    languages: ['German', 'English', 'Japanese', 'many more'],
-    testedLanguages: ['German'],
-    originLabel: 'European model',
-    licenseLabel: 'Apache 2.0',
-    description:
-      'Measured on a German meeting at three settings and wrote a usable protocol at one of them: the others produced a two-line stub and a JSON document where markdown was asked for. Kept as the European candidate, not yet an alternative to the baseline.',
+    installedGb: null,
+    languages: ['de', 'en', 'ja', 'more'],
+    testedLanguages: ['de'],
+    origin: 'european',
+    licence: 'apache2',
     status: 'candidate',
   },
   {
@@ -71,13 +112,11 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     providerNames: ['qwen3.5:4b'],
     tier: 'baseline',
     minimumMemoryGb: 8,
-    sizeLabel: 'about 3.4 GB installed',
-    languages: ['German', 'English', 'many more'],
-    testedLanguages: ['German'],
-    originLabel: 'International open model',
-    licenseLabel: 'Apache 2.0',
-    description:
-      'The fastest measured model, at about five minutes for an eighty-minute meeting, and the choice where memory is short. It never produced the table of next steps the formal style asks for.',
+    installedGb: 3.4,
+    languages: ['de', 'en', 'more'],
+    testedLanguages: ['de'],
+    origin: 'international',
+    licence: 'apache2',
     status: 'candidate',
   },
   {
@@ -87,12 +126,11 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     providerNames: ['ministral-3:3b', 'ministral-3:3b-instruct-2512-q4_K_M'],
     tier: 'baseline',
     minimumMemoryGb: 8,
-    sizeLabel: 'small edge model',
-    languages: ['German', 'English', 'Japanese', 'many more'],
+    installedGb: null,
+    languages: ['de', 'en', 'ja', 'more'],
     testedLanguages: [],
-    originLabel: 'European model',
-    licenseLabel: 'Apache 2.0',
-    description: 'The first European candidate for the weakest supported Mac.',
+    origin: 'european',
+    licence: 'apache2',
     status: 'candidate',
   },
   {
@@ -102,13 +140,11 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     providerNames: ['granite4.1:8b'],
     tier: 'standard',
     minimumMemoryGb: 16,
-    sizeLabel: 'about 5.3 GB installed',
-    languages: ['German', 'English'],
-    testedLanguages: ['German'],
-    originLabel: 'International open model',
-    licenseLabel: 'Apache 2.0',
-    description:
-      'Measured on a German meeting at three settings and kept 22, 19 and 6 of its 35 stated figures on identical input. A run that loses five sixths of what a meeting stated is not a tool for producing a record, so it is not recommended.',
+    installedGb: 5.3,
+    languages: ['de', 'en'],
+    testedLanguages: ['de'],
+    origin: 'international',
+    licence: 'apache2',
     status: 'candidate',
   },
   {
@@ -118,12 +154,11 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     providerNames: [],
     tier: 'standard',
     minimumMemoryGb: 16,
-    sizeLabel: 'larger local model',
-    languages: ['German', 'English'],
+    installedGb: null,
+    languages: ['de', 'en'],
     testedLanguages: [],
-    originLabel: 'International open model',
-    licenseLabel: 'Model-specific',
-    description: 'A later comparison slot for a verified Llama release.',
+    origin: 'international',
+    licence: 'modelSpecific',
     status: 'planned',
   },
 ];
@@ -180,11 +215,12 @@ export function recommendationFor(
   return { entry: fallback, installed: installedProviderModel(fallback, models) };
 }
 
-export function modelStatusLabel(
+/** Which of the three things the picker can say about this model is true. */
+export function modelStatus(
   entry: GenerationModelEntry,
   installed: ProtocolProviderModel | null,
-): string {
-  if (installed) return 'Installed';
-  if (entry.status === 'planned') return 'Planned candidate';
-  return 'Not installed';
+): ModelStatus {
+  if (installed) return 'installed';
+  if (entry.status === 'planned') return 'plannedCandidate';
+  return 'notInstalled';
 }

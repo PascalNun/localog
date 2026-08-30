@@ -235,6 +235,36 @@ export const ko: Strings = {
 
   failures,
 
+  /** en.ts의 설명을 참고하십시오. 키는 저장되는 값입니다. */
+  meetingLanguages: {
+    English: '영어',
+    German: '독일어',
+    French: '프랑스어',
+    Spanish: '스페인어',
+    Italian: '이탈리아어',
+    Dutch: '네덜란드어',
+    Portuguese: '포르투갈어',
+    Polish: '폴란드어',
+    Danish: '덴마크어',
+    Swedish: '스웨덴어',
+    Norwegian: '노르웨이어',
+    Finnish: '핀란드어',
+    Czech: '체코어',
+    Turkish: '튀르키예어',
+    Japanese: '일본어',
+    Korean: '한국어',
+    Chinese: '중국어',
+    Arabic: '아랍어',
+    Ukrainian: '우크라이나어',
+  },
+  dialog: {
+    detectFromRecording: '녹음에서 자동 판별',
+    chooseRecording: '회의 녹음 선택',
+    audioAndVideo: '오디오와 동영상',
+    plainText: '일반 텍스트',
+    exportTitle: (title: string) => `${title} 내보내기`,
+  },
+
   settings: {
     memoryReported: (gb: number) => `메모리 ${gb}GB 확인됨`,
     themeAutomatic: '자동',
@@ -293,6 +323,42 @@ export const ko: Strings = {
     european: '유럽산',
     checkInstalled: '설치된 모델 확인',
     curatedModels: '선별된 회의록 모델',
+    /** en.ts의 설명을 참고하십시오. */
+    modelDescription: {
+      'gemma4-12b':
+        '측정한 모델 가운데 가장 정확하고 가장 안정적입니다. 세 차례 실행에서 회의에 나온 수치 35개 가운데 27~31개를 지켰고, 그다음 모델은 6개까지 떨어졌습니다. 다만 느립니다. 80분짜리 회의에 약 14분이 걸립니다.',
+      'ministral-8b':
+        '독일어 회의에서 세 가지 설정으로 측정했고, 그중 하나에서 쓸 만한 회의록을 썼습니다. 나머지는 두 줄짜리 초안과, 마크다운을 요구한 자리에 JSON 문서를 내놓았습니다. 유럽산 후보로 남겨 두었을 뿐, 아직 기준을 대신할 것은 아닙니다.',
+      'qwen3.5-4b':
+        '측정한 모델 가운데 가장 빠릅니다. 80분짜리 회의에 약 5분이 걸리며, 메모리가 부족할 때의 선택지입니다. 다만 정식 서식이 요구하는 다음 단계 표를 한 번도 만들어 내지 못했습니다.',
+      'ministral-3b': '지원하는 Mac 가운데 가장 사양이 낮은 기기를 위한 첫 유럽산 후보입니다.',
+      'granite4.1-8b':
+        '독일어 회의에서 세 가지 설정으로 측정했으며, 같은 입력에 대해 언급된 수치 35개 가운데 22개, 19개, 6개를 남겼습니다. 말한 내용의 6분의 5를 잃는 실행은 기록을 남기는 도구가 아니므로 권하지 않습니다.',
+      'llama-8b': '검증된 Llama 판본이 나올 때를 위한 비교용 자리입니다.',
+    },
+    modelOrigin: {
+      international: '국제 공개 모델',
+      european: '유럽산 모델',
+    },
+    modelLicence: {
+      apache2: 'Apache 2.0',
+      gemma: 'Gemma 이용 약관',
+      modelSpecific: '모델별 조건',
+    },
+    modelLanguage: {
+      de: '독일어',
+      en: '영어',
+      ja: '일본어',
+      more: '그 밖에 다수',
+    },
+    modelStatus: {
+      installed: '설치됨',
+      notInstalled: '설치되지 않음',
+      plannedCandidate: '예정된 후보',
+    },
+    modelSizeInstalled: (gb: string) => `설치 시 약 ${gb} GB`,
+    modelSizeSmall: '기기에서 돌리는 작은 모델',
+    modelSizeLarger: '더 큰 로컬 모델',
     useAnotherModel: '다른 설치된 모델 사용',
     installedModel: '설치된 모델',
     chooseInstalledModel: '설치된 모델 선택',

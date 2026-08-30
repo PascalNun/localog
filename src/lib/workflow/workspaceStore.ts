@@ -227,10 +227,10 @@ class TauriWorkspaceStore implements WorkspaceStore {
     const path = await open({
       multiple: false,
       directory: false,
-      title: 'Choose a meeting recording',
+      title: strings().dialog.chooseRecording,
       filters: [
         {
-          name: 'Audio and video',
+          name: strings().dialog.audioAndVideo,
           extensions: [
             'wav',
             'mp3',
@@ -672,10 +672,13 @@ class TauriWorkspaceStore implements WorkspaceStore {
   ): Promise<boolean> {
     const extension = format === 'markdown' ? 'md' : 'txt';
     const destination = await save({
-      title: `Export ${title}`,
+      title: strings().dialog.exportTitle(title),
       defaultPath: `${safeFileName(title)}.${extension}`,
       filters: [
-        { name: format === 'markdown' ? 'Markdown' : 'Plain text', extensions: [extension] },
+        {
+          name: format === 'markdown' ? 'Markdown' : strings().dialog.plainText,
+          extensions: [extension],
+        },
       ],
     });
     if (!destination) return false;
@@ -690,7 +693,7 @@ class TauriWorkspaceStore implements WorkspaceStore {
     formatName: string,
   ): Promise<boolean> {
     const destination = await save({
-      title: `Export ${title}`,
+      title: strings().dialog.exportTitle(title),
       defaultPath: `${safeFileName(title)}.${extension}`,
       filters: [{ name: formatName, extensions: [extension] }],
     });

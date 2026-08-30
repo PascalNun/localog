@@ -269,6 +269,36 @@ export const de: Strings = {
 
   failures,
 
+  /** Siehe die Anmerkung in en.ts: nach dem gespeicherten Wert geschlüsselt. */
+  meetingLanguages: {
+    English: 'Englisch',
+    German: 'Deutsch',
+    French: 'Französisch',
+    Spanish: 'Spanisch',
+    Italian: 'Italienisch',
+    Dutch: 'Niederländisch',
+    Portuguese: 'Portugiesisch',
+    Polish: 'Polnisch',
+    Danish: 'Dänisch',
+    Swedish: 'Schwedisch',
+    Norwegian: 'Norwegisch',
+    Finnish: 'Finnisch',
+    Czech: 'Tschechisch',
+    Turkish: 'Türkisch',
+    Japanese: 'Japanisch',
+    Korean: 'Koreanisch',
+    Chinese: 'Chinesisch',
+    Arabic: 'Arabisch',
+    Ukrainian: 'Ukrainisch',
+  },
+  dialog: {
+    detectFromRecording: 'Aus der Aufnahme erkennen',
+    chooseRecording: 'Aufnahme einer Besprechung wählen',
+    audioAndVideo: 'Audio und Video',
+    plainText: 'Nur Text',
+    exportTitle: (title: string) => `${title} exportieren`,
+  },
+
   settings: {
     memoryReported: (gb: number) => `${gb} GB Arbeitsspeicher erkannt`,
     themeAutomatic: 'Automatisch',
@@ -329,6 +359,42 @@ export const de: Strings = {
     european: 'Europäisch',
     checkInstalled: 'Installierte Modelle prüfen',
     curatedModels: 'Ausgewählte Protokollmodelle',
+    /** Siehe die Anmerkung in en.ts. */
+    modelDescription: {
+      'gemma4-12b':
+        'Das genaueste und beständigste der gemessenen Modelle: Über drei Läufe hat es 27 bis 31 der 35 Zahlen einer Besprechung erhalten, wo das nächstbeste auf nur 6 kam. Langsamer — etwa vierzehn Minuten für eine achtzigminütige Besprechung.',
+      'ministral-8b':
+        'An einer deutschen Besprechung mit drei Einstellungen gemessen und bei einer davon ein brauchbares Protokoll geschrieben: die anderen ergaben einen zweizeiligen Rumpf und ein JSON-Dokument, wo Markdown verlangt war. Bleibt als europäischer Kandidat, noch keine Alternative zur Grundlage.',
+      'qwen3.5-4b':
+        'Das schnellste gemessene Modell, etwa fünf Minuten für eine achtzigminütige Besprechung, und die Wahl, wenn der Speicher knapp ist. Die Tabelle der nächsten Schritte, die der formale Stil verlangt, hat es nie erzeugt.',
+      'ministral-3b': 'Der erste europäische Kandidat für den schwächsten unterstützten Mac.',
+      'granite4.1-8b':
+        'An einer deutschen Besprechung mit drei Einstellungen gemessen und bei identischer Eingabe 22, 19 und 6 der 35 genannten Zahlen erhalten. Ein Lauf, der fünf Sechstel des Gesagten verliert, ist kein Werkzeug, um eine Aufzeichnung zu erstellen, und wird deshalb nicht empfohlen.',
+      'llama-8b': 'Ein späterer Vergleichsplatz für eine geprüfte Llama-Veröffentlichung.',
+    },
+    modelOrigin: {
+      international: 'Internationales offenes Modell',
+      european: 'Europäisches Modell',
+    },
+    modelLicence: {
+      apache2: 'Apache 2.0',
+      gemma: 'Gemma-Nutzungsbedingungen',
+      modelSpecific: 'Modellabhängig',
+    },
+    modelLanguage: {
+      de: 'Deutsch',
+      en: 'Englisch',
+      ja: 'Japanisch',
+      more: 'viele weitere',
+    },
+    modelStatus: {
+      installed: 'Installiert',
+      notInstalled: 'Nicht installiert',
+      plannedCandidate: 'Geplanter Kandidat',
+    },
+    modelSizeInstalled: (gb: string) => `etwa ${gb} GB installiert`,
+    modelSizeSmall: 'kleines Modell für das Gerät',
+    modelSizeLarger: 'größeres lokales Modell',
     useAnotherModel: 'Ein anderes installiertes Modell verwenden',
     installedModel: 'Installiertes Modell',
     chooseInstalledModel: 'Ein installiertes Modell wählen',
