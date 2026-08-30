@@ -127,6 +127,21 @@ fn affordable_context(
     /// window cannot hold the folded notes and a whole protocol at once, so a run
     /// ends with the answer cut off. A guess has to be a width that works.
     const WHEN_UNREPORTED: u32 = 16_384;
+    let supported = provider
+        .model_context_length(model)
+        .unwrap_or(WHEN_UNREPORTED)
+        .min(MEASURED_AFFORDABLE);
+    context_within(supported, model_bytes, machine_bytes)
+}
+
+/// How much of a width the machine can actually hold, with no provider involved.
+///
+/// Separated from the probe above because the probe made the arithmetic untestable
+/// without a running Ollama — and worse, untestably *wrong*: with nothing to ask,
+/// `supported` falls to 16,384, which is also the floor, so the result is 16,384
+/// whatever the memory. The test that claimed to check this passed only on a
+/// machine that happened to have Ollama running, and a clean Linux runner said so.
+fn context_within(supported: u32, model_bytes: u64, machine_bytes: u64) -> u32 {
     /// `mistral-nemo` spends about 170 KB of key-value cache per token where Qwen
     /// spends about 32. The larger is used for every model, because a context that
     /// turns out to fit easily is a smaller disappointment than one that does not
@@ -142,10 +157,6 @@ fn affordable_context(
     /// does, which makes slow the right way to be wrong.
     const LEAST_USEFUL: u32 = 16_384;
 
-    let supported = provider
-        .model_context_length(model)
-        .unwrap_or(WHEN_UNREPORTED)
-        .min(MEASURED_AFFORDABLE);
     if machine_bytes == 0 || model_bytes == 0 {
         return supported;
     }
@@ -3044,18 +3055,21 @@ mod tests {
         let eight_gb = 8 * 1024 * 1024 * 1024u64;
         let nemo = 7_100_000_000u64;
         let qwen = 3_400_000_000u64;
-        // No Ollama is needed: an unreachable provider reports no context length and
-        // the arithmetic still applies to the fallback.
-        let provider = provider::OllamaProvider::loopback();
+        // The arithmetic on its own, with no provider to ask. This used to call
+        // through the probe and claim in a comment that none was needed; it was
+        // wrong, and passed only where Ollama happened to be running. With nothing
+        // to ask, the supported width falls to the floor and every model gets the
+        // same answer whatever the machine has.
+        let widest = 40_960;
 
-        let for_nemo = affordable_context(&provider, "mistral-nemo:latest", nemo, sixteen_gb);
-        let for_qwen = affordable_context(&provider, "qwen3.5:4b", qwen, sixteen_gb);
+        let for_nemo = context_within(widest, nemo, sixteen_gb);
+        let for_qwen = context_within(widest, qwen, sixteen_gb);
         assert!(
             for_nemo < for_qwen,
             "the larger model must be given less: {for_nemo} vs {for_qwen}"
         );
 
-        let cramped = affordable_context(&provider, "mistral-nemo:latest", nemo, eight_gb);
+        let cramped = context_within(widest, nemo, eight_gb);
         assert!(
             cramped <= for_nemo,
             "less memory must never buy more context"
@@ -3067,11 +3081,10 @@ mod tests {
             "and never fall below a width measured to work: {cramped}"
         );
 
-        // What cannot be established is not guessed at.
-        assert_eq!(
-            affordable_context(&provider, "qwen3.5:4b", qwen, 0),
-            affordable_context(&provider, "qwen3.5:4b", 0, sixteen_gb),
-        );
+        // What cannot be established is not guessed at: an unknown machine and an
+        // unknown model size both fall back to the supported width, unchanged.
+        assert_eq!(context_within(widest, qwen, 0), widest);
+        assert_eq!(context_within(widest, 0, sixteen_gb), widest);
     }
 
     /// Token shapes taken from real whisper `--output-json-full` output, with the

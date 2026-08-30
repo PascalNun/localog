@@ -1286,8 +1286,22 @@ mod tests {
                 .iter()
                 .any(|a| a.starts_with("--clustering.cluster-threshold"))
         );
-        assert!(args.iter().any(|a| a == "--segmentation.provider=coreml"));
-        assert!(args.iter().any(|a| a == "--embedding.provider=coreml"));
+        // Core ML where it exists and CPU everywhere else, which is the rule the
+        // command follows. Asserting one platform's answer made this fail on Linux
+        // against code that was doing exactly what it was written to do.
+        let accelerator = if cfg!(target_os = "macos") {
+            "coreml"
+        } else {
+            "cpu"
+        };
+        assert!(
+            args.iter()
+                .any(|a| *a == format!("--segmentation.provider={accelerator}"))
+        );
+        assert!(
+            args.iter()
+                .any(|a| *a == format!("--embedding.provider={accelerator}"))
+        );
         assert!(
             args.iter()
                 .any(|a| a.starts_with("--segmentation.num-threads="))
