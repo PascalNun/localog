@@ -65,10 +65,18 @@ if [[ "$target_triple" == *apple-darwin ]]; then
 fi
 
 build_dir="$source_dir/build-localog-$target_triple"
-# LLAMA_CURL=OFF deliberately. The server links libcurl to fetch models itself,
-# which is both a dependency the packaged binary should not carry and a second
-# way to download a model — and downloading models, with the licence shown and
-# recorded, is the application's job rather than the runtime's.
+# Two things off deliberately, and both default to ON.
+#
+# LLAMA_CURL: the server links libcurl to fetch models itself, which is both a
+# dependency the packaged binary should not carry and a second way to download a
+# model — and downloading a model, with its licence shown and recorded, is the
+# application's job rather than the runtime's.
+#
+# LLAMA_OPENSSL: the server offers HTTPS, which costs a link against whatever
+# OpenSSL the build machine happens to have. The first build of this took
+# Homebrew's, at a path no other Mac has, and the check at the end of this script
+# is what caught it. Nothing here needs TLS: the only thing that ever talks to
+# this server is the application on the same machine, over the loopback.
 cmake -S "$source_dir" -B "$build_dir" \
   -DCMAKE_BUILD_TYPE=Release \
   -DBUILD_SHARED_LIBS=OFF \
@@ -77,6 +85,7 @@ cmake -S "$source_dir" -B "$build_dir" \
   -DLLAMA_BUILD_TOOLS=ON \
   -DLLAMA_BUILD_SERVER=ON \
   -DLLAMA_CURL=OFF \
+  -DLLAMA_OPENSSL=OFF \
   "$metal_flag"
 cmake --build "$build_dir" --config Release \
   --target llama-server \
