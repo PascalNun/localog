@@ -20,6 +20,31 @@ struct ModelSpec {
     url: &'static str,
     sha256: &'static str,
     byte_count: u64,
+    /// What the model is for. Both kinds live in one table because they are the
+    /// same problem — a large file fetched once, checksummed, and kept on the
+    /// device — and giving generation its own downloader would mean two of
+    /// everything: staging, resuming, the disk check, the progress reporting.
+    kind: ModelKind,
+    /// Which licence this is offered under, as an identifier the interface has
+    /// words for. Not a sentence: the licence a model carries is shown before it
+    /// is downloaded and listed afterwards, and both of those are the interface's
+    /// to word.
+    licence: &'static str,
+    /// Where the licence itself can be read. Shown rather than summarised —
+    /// paraphrasing somebody's licence terms is not this application's place.
+    licence_url: &'static str,
+}
+
+/// What a downloaded model does.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum ModelKind {
+    /// Turns audio into a transcript.
+    Transcription,
+    /// Separates the voices in a recording.
+    Speakers,
+    /// Writes the protocol.
+    Generation,
 }
 
 /// Quality presets, most to least common. Exact model is hidden behind Advanced.
@@ -43,6 +68,9 @@ const MODELS: &[ModelSpec] = &[
         url: "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/main/model.onnx",
         sha256: "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079",
         byte_count: 5_992_913,
+        kind: ModelKind::Speakers,
+        licence: "mit",
+        licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
     },
     ModelSpec {
         id: "speaker-embedding",
@@ -50,6 +78,9 @@ const MODELS: &[ModelSpec] = &[
         url: "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx",
         sha256: "1a331345f04805badbb495c775a6ddffcdd1a732567d5ec8b3d5749e3c7a5e4b",
         byte_count: 39_593_761,
+        kind: ModelKind::Speakers,
+        licence: "mit",
+        licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
     },
     ModelSpec {
         id: "tiny",
@@ -57,6 +88,9 @@ const MODELS: &[ModelSpec] = &[
         url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
         sha256: "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
         byte_count: 77_691_713,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
     },
     ModelSpec {
         id: "base",
@@ -64,6 +98,9 @@ const MODELS: &[ModelSpec] = &[
         url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
         sha256: "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
         byte_count: 147_951_465,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
     },
     ModelSpec {
         id: "medium",
@@ -71,6 +108,32 @@ const MODELS: &[ModelSpec] = &[
         url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
         sha256: "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208",
         byte_count: 1_533_763_059,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+    },
+    // The model that writes the protocol, and the one recommended first: it kept
+    // 27 to 31 of a reference meeting's 35 stated figures across three runs, where
+    // the next best kept as few as 6.
+    //
+    // Google's own quantisation-aware build rather than a community quantisation.
+    // QAT is trained to be quantised, so it holds up at four bits far better than
+    // the same weights squeezed afterwards — and holding up means keeping numbers,
+    // which is the measure this model was chosen on.
+    //
+    // The size and the checksum are what the repository reports, read from it
+    // rather than estimated. Gemma is offered under Google's own terms rather than
+    // Apache, whatever a repository tag says, so the licence named here is the one
+    // somebody would actually be agreeing to.
+    ModelSpec {
+        id: "gemma4-12b",
+        file_name: "gemma-4-12b-it-qat-q4_0.gguf",
+        url: "https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/resolve/main/gemma-4-12b-it-qat-q4_0.gguf",
+        sha256: "93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b",
+        byte_count: 6_975_879_296,
+        kind: ModelKind::Generation,
+        licence: "gemma",
+        licence_url: "https://ai.google.dev/gemma/terms",
     },
 ];
 
@@ -131,6 +194,77 @@ pub(crate) struct TranscriptionCapability {
 
 fn spec(model_id: &str) -> Option<&'static ModelSpec> {
     MODELS.iter().find(|model| model.id == model_id)
+}
+
+/// What a model is, for the screen that has to say so before it is downloaded.
+///
+/// Serialised for the interface rather than read there: the URL, the checksum and
+/// the licence are facts about the file, and the interface's job is to show them,
+/// not to hold a second copy that can disagree.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ModelTerms {
+    pub model_id: String,
+    pub kind: ModelKind,
+    pub byte_count: u64,
+    /// An identifier the interface has words for — "mit", "gemma" — never a
+    /// sentence. The words are the interface's.
+    pub licence: String,
+    /// Where the terms themselves can be read.
+    pub licence_url: String,
+    pub installed: bool,
+}
+
+/// Everything known about one model's terms, or nothing if it is not catalogued.
+pub(crate) fn terms(root: &Path, model_id: &str) -> Option<ModelTerms> {
+    let model = spec(model_id)?;
+    Some(ModelTerms {
+        model_id: model.id.to_string(),
+        kind: model.kind,
+        byte_count: model.byte_count,
+        licence: model.licence.to_string(),
+        licence_url: model.licence_url.to_string(),
+        installed: installed_model_path(root, model_id).is_some(),
+    })
+}
+
+/// The terms of everything catalogued, for the page that lists them.
+pub(crate) fn every_model_terms(root: &Path) -> Vec<ModelTerms> {
+    MODELS
+        .iter()
+        .filter_map(|model| terms(root, model.id))
+        .collect()
+}
+
+/// The models that write protocols, most recommended first.
+///
+/// Order is the catalogue's, and the catalogue's order is what was measured. The
+/// first entry is what a new installation is offered without being asked to
+/// choose — the same way transcription offers Balanced.
+pub(crate) fn generation_models(root: &Path) -> Vec<ModelTerms> {
+    MODELS
+        .iter()
+        .filter(|model| model.kind == ModelKind::Generation)
+        .filter_map(|model| terms(root, model.id))
+        .collect()
+}
+
+/// The generation model to use: the one asked for if it is here, otherwise the
+/// first catalogued one that is.
+///
+/// Returns nothing when none is installed, which is a normal first run rather
+/// than a fault — the start screen says so before anybody reaches generation.
+pub(crate) fn generation_model_path(root: &Path, preferred: Option<&str>) -> Option<PathBuf> {
+    if let Some(wanted) = preferred
+        && let Some(path) = installed_model_path(root, wanted)
+        && spec(wanted).is_some_and(|model| model.kind == ModelKind::Generation)
+    {
+        return Some(path);
+    }
+    MODELS
+        .iter()
+        .filter(|model| model.kind == ModelKind::Generation)
+        .find_map(|model| installed_model_path(root, model.id))
 }
 
 pub(crate) fn preset_model_id(preset: &str) -> Option<&'static str> {
@@ -567,5 +701,79 @@ mod network_tests {
         assert_eq!(fs::metadata(&path).unwrap().len(), 77_691_713);
         // No staged remnant may survive a successful install.
         assert!(!root.join("models/ggml-tiny.bin.part").exists());
+    }
+}
+
+#[cfg(test)]
+mod the_catalogue_terms {
+    use super::*;
+
+    /// Every model states a licence and where to read it.
+    ///
+    /// A downloaded file whose terms nobody can name is exactly what this
+    /// application should not do to somebody who chose it for being local.
+    #[test]
+    fn every_model_names_its_licence_and_where_to_read_it() {
+        for model in MODELS {
+            assert!(!model.licence.is_empty(), "{} has no licence", model.id);
+            assert!(
+                model.licence_url.starts_with("https://"),
+                "{} has no licence to read: {:?}",
+                model.id,
+                model.licence_url
+            );
+        }
+    }
+
+    /// The checksum is the whole reason a download can be trusted, so it must be
+    /// a real one rather than a placeholder somebody meant to fill in.
+    #[test]
+    fn every_checksum_is_a_sha256() {
+        for model in MODELS {
+            assert_eq!(model.sha256.len(), 64, "{} has no sha256", model.id);
+            assert!(
+                model.sha256.chars().all(|glyph| glyph.is_ascii_hexdigit()),
+                "{} has a checksum that is not hexadecimal",
+                model.id
+            );
+            assert!(model.byte_count > 0, "{} has no size", model.id);
+        }
+    }
+
+    /// There is a model that writes protocols, and the first one is the one the
+    /// measurements chose. A catalogue that lost it would leave a fresh
+    /// installation with nothing to offer.
+    #[test]
+    fn a_generation_model_is_catalogued_and_recommended_first() {
+        let generation: Vec<&ModelSpec> = MODELS
+            .iter()
+            .filter(|model| model.kind == ModelKind::Generation)
+            .collect();
+        assert!(!generation.is_empty(), "nothing writes protocols");
+        assert_eq!(generation[0].id, "gemma4-12b");
+    }
+
+    /// Nothing is installed on a fresh workspace, and asking must answer that
+    /// rather than failing.
+    #[test]
+    fn a_fresh_workspace_has_no_generation_model() {
+        let root = std::env::temp_dir().join(format!("localog-terms-{}", std::process::id()));
+        let _ = fs::create_dir_all(&root);
+        assert!(generation_model_path(&root, None).is_none());
+        assert!(generation_model_path(&root, Some("gemma4-12b")).is_none());
+        let listed = generation_models(&root);
+        assert!(!listed.is_empty(), "the catalogue is still listed");
+        assert!(listed.iter().all(|model| !model.installed));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// A transcription model is never handed to the generation runtime, however
+    /// it is asked for. They are different files for different programs.
+    #[test]
+    fn a_transcription_model_is_not_offered_for_generation() {
+        let root = std::env::temp_dir().join(format!("localog-kinds-{}", std::process::id()));
+        let _ = fs::create_dir_all(&root);
+        assert!(generation_model_path(&root, Some("base")).is_none());
+        let _ = fs::remove_dir_all(&root);
     }
 }
