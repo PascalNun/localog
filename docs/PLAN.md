@@ -952,6 +952,31 @@ the thing they describe rather than by remembering it.
   the tool stops finding anything is worth writing down.** The check that actually
   closed it was the running application in German, screen by screen, not a grep.
 
+  **And a third correction, 30 August, which is the last one this entry should need.**
+  Twenty-three sentences were still being written by Rust: twenty-two inside
+  `StorageError::InvalidData`, whose payload travels to the screen unchanged, and the
+  five states of the Ollama row in Settings. They survived both earlier sweeps for the
+  same reason the first sweep missed the attributes — `rustfmt` puts a long literal on
+  its own line, so a search reading `InvalidData("…")` sees three lines and no string.
+  One more turned up that no sweep could have found: `providerNeededForCorrections` is
+  raised by the correction pass and was never written down in any language, so it
+  would have reached the screen as its own identifier.
+
+  What is different this time is that the count is no longer a claim. Two guards check
+  it: every code the backend raises must have English words, and no English sentence
+  may still be sitting where a code belongs. Both were confirmed to fail on the fault
+  they describe before being kept, and the second one is what found
+  `providerNeededForCorrections` — on its first run, which is how these usually
+  announce themselves.
+
+  One thing that had to be decided rather than translated: the Ollama row carries a
+  transport failure — `connection refused (os error 61)` — and that is a `Display`
+  string, which this project keeps in English on the grounds that Display is for logs.
+  It stays English here too, but deliberately and in a named place: the code renders
+  the guidance in the reader's language and appends the diagnostic after a colon,
+  because the diagnostic names the port and the reason and is the only part of that
+  row anybody can act on when starting Ollama was not the answer.
+
 - The application is not signed. It is ad-hoc signed, which runs here and is refused
   on anybody else's Mac, and there is no Developer ID on this machine. This is the
   whole of what stands between the current bundle and handing it to somebody. The

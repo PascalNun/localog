@@ -1,7 +1,6 @@
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { chooseLanguage, jobErrorDetail, jobErrorTitle, stageText } from './index';
+import { pipelineSources, shipped } from './rustSource';
 import { en } from './en';
 
 /**
@@ -16,36 +15,6 @@ import { en } from './en';
  * it checks the codes against the real dictionary object rather than against source
  * text that happened to contain them.
  */
-const RUST = join(process.cwd(), 'src-tauri', 'src');
-
-/** The source with its test-gated items removed, so unshipped stages do not count. */
-function shipped(source: string): string {
-  let kept = '';
-  let rest = source;
-  for (;;) {
-    const at = rest.indexOf('#[cfg(test)]');
-    if (at === -1) break;
-    kept += rest.slice(0, at);
-    const after = rest.slice(at);
-    const open = after.indexOf('{');
-    if (open === -1) break;
-    let depth = 0;
-    let end = -1;
-    for (let offset = open; offset < after.length; offset += 1) {
-      if (after[offset] === '{') depth += 1;
-      else if (after[offset] === '}') {
-        depth -= 1;
-        if (depth === 0) {
-          end = offset + 1;
-          break;
-        }
-      }
-    }
-    if (end === -1) break;
-    rest = after.slice(end);
-  }
-  return kept + rest;
-}
 
 /**
  * Every stage code this can see the pipeline reporting.
@@ -74,29 +43,11 @@ function reported(source: string): string[] {
   return found;
 }
 
-/**
- * The files a stage can be reported from: the pipeline and the provider it drives.
- *
- * Not every Rust file. `lib.rs` names its Tauri event channels the same way a stage
- * with a detail is written — `job:{meeting_id}` — and reading it made this guard fail
- * on two event names. The command layer does not report stages; the pipeline does.
- */
-function rustSources(): string[] {
-  const files = [
-    join(RUST, 'provider.rs'),
-    join(RUST, 'processing.rs'),
-    ...readdirSync(join(RUST, 'processing'))
-      .filter((name) => name.endsWith('.rs'))
-      .map((name) => join(RUST, 'processing', name)),
-  ];
-  return files.map((path) => readFileSync(path, 'utf8'));
-}
-
 describe('every stage the pipeline reports', () => {
   it('has words for it, so none of them reads as “Working”', () => {
     const known = new Set(Object.keys(en.jobStages));
     const missing = new Set<string>();
-    for (const source of rustSources()) {
+    for (const source of pipelineSources()) {
       for (const stage of reported(shipped(source))) {
         if (!known.has(stage)) missing.add(stage);
       }

@@ -83,6 +83,8 @@ const failures = {
   providerNeededForPassage: 'Start your existing Ollama installation before changing a passage.',
   providerNeededForOpening:
     'Start your existing Ollama installation before reading the introductions.',
+  providerNeededForCorrections:
+    'Start your existing Ollama installation before checking these spellings.',
   providerModelRequired: 'Choose an installed Ollama model in Settings → Protocol generation.',
 
   // Validation and storage failures found while writing the codes down.
@@ -216,6 +218,47 @@ const failures = {
   workingAudioFormatWrong: (what: string) =>
     `The speaker pass needs 16 kHz mono 16-bit audio, and this is ${what}.`,
   notEnoughSpace: (what: string) => `Not enough space for this model (${what}).`,
+
+  // Sentences the Rust side was still writing for itself, found on 30 August 2026
+  // by re-reading the thing rather than trusting the count. Twenty-two of them: in
+  // `StorageError::InvalidData`, whose payload travels to the screen verbatim, and
+  // in the Ollama row in Settings. Every one reached a French or Japanese reader in
+  // English. They survived the August sweeps for the reason every leftover has
+  // survived one — the earlier search read a multi-line call as three lines and
+  // never saw the string sitting inside it.
+  settingInvalid: 'That runtime setting cannot be stored.',
+  meetingTitleRequiredToRecord: 'Give the meeting a title. There is no file to take one from.',
+  importSourceGone: 'Choose the original file again before retrying this import.',
+  termProjectRequired: 'Choose the project this term belongs to.',
+  termAlreadyPresent: 'That term is already listed here.',
+  sourceRecordingRequired: 'Choose the source recording again.',
+  managedPathInvalid: 'The path to that stored file is invalid.',
+  documentChecksumFailed: 'A saved document did not pass its local integrity check.',
+  transcriptOutputInvalid:
+    'The transcription produced something LocaLog cannot read as a transcript.',
+  speakerCountOutOfRange: 'The expected number of speakers must be between 2 and 64.',
+  sourceNotCommitted: 'Commit the meeting source before transcribing it.',
+  providerNeededForGeneration:
+    'Start your existing Ollama installation before generating a protocol.',
+  exportDestinationInvalid: 'Choose a valid export destination.',
+  exportFileExists:
+    'Choose a new filename. An existing file is never overwritten without being asked.',
+  exportFolderMissing: 'The selected export folder is not available.',
+  processingBusy: 'Another local job is already running. Wait for it, or cancel it first.',
+  ffmpegMissingForRecording: 'FFmpeg is needed to finish a recording and could not be found.',
+
+  // The Ollama row in Settings, which says what the local runtime is doing. Three
+  // of these five are not failures at all; they live here because this is the
+  // dictionary the funnel reads, and a second one holding five keys would draw a
+  // distinction nothing else in the application draws.
+  ollamaNotRunning: (detail: string) =>
+    `Start your existing Ollama installation, then refresh.${detail ? ` ${detail}` : ''}`,
+  ollamaModelsUnreadable: (detail: string) =>
+    `Ollama is running but did not say which models are installed.${detail ? ` ${detail}` : ''}`,
+  ollamaReadyNoModel: 'Ollama is ready. Select an installed model to generate protocols.',
+  ollamaModelReady: 'The selected local model is ready.',
+  ollamaSelectedModelMissing:
+    'The selected model is not installed. Choose another already installed model.',
 };
 
 export const en = {

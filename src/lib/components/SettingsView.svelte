@@ -427,9 +427,10 @@
           {/each}
         </div>
         {#if providerError}<p class="setting-error" role="alert">{providerError}</p>{/if}
-        <!-- Through the funnel, so a code is rendered in the current language while
-             a sentence Rust still writes for itself passes through unchanged. Most of
-             what lands here is the second kind; see the note in PLAN.md. -->
+        <!-- Through the funnel, like every other sentence the backend used to write
+             for itself. As of 30 August this row is codes all the way down: five of
+             them, two carrying the transport failure after a colon so that the
+             guidance is translated and the diagnostic is not lost. -->
         <p class="setting-hint">{errorMessage(providerStatus.message)}</p>
         <div class="setting-actions">
           <button class="secondary-action" onclick={onRefreshProvider}

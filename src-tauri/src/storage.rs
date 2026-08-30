@@ -665,9 +665,7 @@ impl WorkspaceRepository {
 
     pub(crate) fn write_setting(&self, key: &str, value: &str) -> Result<()> {
         if key.len() > 128 || value.len() > 32_768 || key.contains('\0') || value.contains('\0') {
-            return Err(StorageError::InvalidData(
-                "The local runtime setting is invalid.",
-            ));
+            return Err(StorageError::InvalidData("settingInvalid"));
         }
         self.connection.execute(
             "INSERT INTO app_settings (key, value, updated_at_ms) VALUES (?1, ?2, ?3)
@@ -805,9 +803,7 @@ impl WorkspaceRepository {
         let title = if !input.title.trim().is_empty() {
             required_text(&input.title, 240, "meetingTitleTooLong")?
         } else if to_record {
-            return Err(StorageError::InvalidData(
-                "Give the meeting a title. There is no file to take one from.",
-            ));
+            return Err(StorageError::InvalidData("meetingTitleRequiredToRecord"));
         } else {
             title_from_source(&source_name)
         };
@@ -1121,9 +1117,7 @@ impl WorkspaceRepository {
         let job = self.import_job_for_meeting(meeting_id)?;
         let duplicate_resume = job.stage == "duplicate_confirmation" && allow_duplicate;
         if job.source_path.as_os_str().is_empty() {
-            return Err(StorageError::InvalidData(
-                "The original source must be selected again.",
-            ));
+            return Err(StorageError::InvalidData("importSourceGone"));
         }
         let next_stage = if duplicate_resume {
             "temporary_complete"
@@ -1414,9 +1408,12 @@ impl WorkspaceRepository {
         let category = required_text(&input.category, 64, "categoryRequired")?;
         let project_id = match input.scope.as_str() {
             "Global" => None,
-            "Project" => Some(input.project_id.clone().ok_or(StorageError::InvalidData(
-                "Choose the project this term belongs to.",
-            ))?),
+            "Project" => Some(
+                input
+                    .project_id
+                    .clone()
+                    .ok_or(StorageError::InvalidData("termProjectRequired"))?,
+            ),
             _ => return Err(StorageError::InvalidData("scopeInvalid")),
         };
         let clash: Option<String> = self
@@ -1432,9 +1429,7 @@ impl WorkspaceRepository {
             )
             .optional()?;
         if clash.is_some() {
-            return Err(StorageError::InvalidData(
-                "That term is already in this vocabulary.",
-            ));
+            return Err(StorageError::InvalidData("termAlreadyPresent"));
         }
         let now = unix_time_millis();
         match &input.id {
@@ -3031,9 +3026,7 @@ fn source_name(value: &str) -> Result<String> {
 }
 
 fn required_source_path(value: Option<&str>) -> Result<String> {
-    let value = value.ok_or(StorageError::InvalidData(
-        "Choose the source recording again.",
-    ))?;
+    let value = value.ok_or(StorageError::InvalidData("sourceRecordingRequired"))?;
     let path = required_text(value, 32_768, "sourceRecordingInvalid")?;
     if !Path::new(&path).is_absolute() {
         return Err(StorageError::InvalidData("sourceRecordingInvalid"));
@@ -3047,15 +3040,11 @@ fn relative_path_text(path: &Path) -> Result<String> {
             .components()
             .any(|component| matches!(component, std::path::Component::ParentDir))
     {
-        return Err(StorageError::InvalidData(
-            "The managed source path is invalid.",
-        ));
+        return Err(StorageError::InvalidData("managedPathInvalid"));
     }
     path.to_str()
         .map(ToOwned::to_owned)
-        .ok_or(StorageError::InvalidData(
-            "The managed source path is invalid.",
-        ))
+        .ok_or(StorageError::InvalidData("managedPathInvalid"))
 }
 
 pub(crate) fn managed_relative_path(path: &Path) -> Result<String> {
@@ -3071,9 +3060,7 @@ fn read_verified_artifact(root: &Path, relative_path: &str, checksum: &str) -> R
     relative_path_text(relative)?;
     let bytes = fs::read(root.join(relative))?;
     if checksum_bytes(&bytes) != checksum {
-        return Err(StorageError::InvalidData(
-            "A saved document did not pass its local integrity check.",
-        ));
+        return Err(StorageError::InvalidData("documentChecksumFailed"));
     }
     Ok(bytes)
 }
@@ -3087,9 +3074,7 @@ pub(crate) fn validate_transcript_artifact(
         || artifact.segments.is_empty()
         || artifact.segments.len() > 100_000
     {
-        return Err(StorageError::InvalidData(
-            "The transcript output is invalid.",
-        ));
+        return Err(StorageError::InvalidData("transcriptOutputInvalid"));
     }
     let mut previous_end = 0;
     let mut identifiers = std::collections::HashSet::new();
@@ -3102,9 +3087,7 @@ pub(crate) fn validate_transcript_artifact(
             || segment.text.trim().is_empty()
             || segment.text.chars().count() > 20_000
         {
-            return Err(StorageError::InvalidData(
-                "The transcript output is invalid.",
-            ));
+            return Err(StorageError::InvalidData("transcriptOutputInvalid"));
         }
         previous_end = segment.end_ms;
     }

@@ -573,16 +573,22 @@ impl OllamaProvider {
         let version = match self.version() {
             Ok(version) => version,
             Err(error) => {
-                status.message = "Start your existing Ollama installation, then refresh.".into();
-                status.message.push(' ');
-                status.message.push_str(&truncate(&error.to_string(), 220));
+                // A code and a detail, split on the first colon, like every other
+                // sentence this side used to write for itself. The guidance is the
+                // interface's to word; the detail is the transport failure verbatim,
+                // because it names the port and the reason and is the only part of
+                // this a person can act on when the guidance is not enough.
+                status.message = format!("ollamaNotRunning:{}", truncate(&error.to_string(), 220));
                 return status;
             }
         };
         let models = match self.installed_models() {
             Ok(models) => models,
             Err(error) => {
-                status.message = truncate(&error.to_string(), MESSAGE_LIMIT);
+                status.message = format!(
+                    "ollamaModelsUnreadable:{}",
+                    truncate(&error.to_string(), MESSAGE_LIMIT)
+                );
                 status.runtime_version = Some(version);
                 return status;
             }
@@ -599,11 +605,11 @@ impl OllamaProvider {
         });
         status.selected_model_ready = status.selected_model_digest.is_some();
         status.message = if status.selected_model.is_none() {
-            "Ollama is ready. Select an installed model to generate protocols.".into()
+            "ollamaReadyNoModel".into()
         } else if status.selected_model_ready {
-            "The selected local model is ready.".into()
+            "ollamaModelReady".into()
         } else {
-            "The selected model is not installed. Choose another already installed model.".into()
+            "ollamaSelectedModelMissing".into()
         };
         status
     }

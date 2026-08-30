@@ -72,6 +72,7 @@ const failures = {
   openingNotRead: '회의 도입부를 읽지 못했습니다.',
   providerNeededForPassage: '대목을 고쳐 쓰기 전에 사용 중인 Ollama를 실행하십시오.',
   providerNeededForOpening: '자기소개를 읽기 전에 사용 중인 Ollama를 실행하십시오.',
+  providerNeededForCorrections: '이 표기를 확인하기 전에 사용 중인 Ollama를 실행하십시오.',
   providerModelRequired: '설정 → 회의록 생성에서 설치된 Ollama 모델을 선택하십시오.',
 
   styleNotMigrated: '스타일을 이전하지 못했습니다.',
@@ -197,6 +198,36 @@ const failures = {
   workingAudioFormatWrong: (what: string) =>
     `화자 처리에는 16kHz 모노 16비트 오디오가 필요하지만 이것은 ${what}입니다.`,
   notEnoughSpace: (what: string) => `이 모델을 받기에 공간이 부족합니다(${what}).`,
+
+  // en.ts의 설명을 참고하십시오. Rust 쪽이 아직 직접 쓰고 있던 문장들입니다.
+  settingInvalid: '해당 실행 설정은 저장할 수 없습니다.',
+  meetingTitleRequiredToRecord: '회의에 제목을 붙이십시오. 제목을 가져올 파일이 없습니다.',
+  importSourceGone: '이 가져오기를 다시 시도하기 전에 원본 파일을 다시 선택하십시오.',
+  termProjectRequired: '이 용어가 속한 프로젝트를 선택하십시오.',
+  termAlreadyPresent: '해당 용어는 이미 여기에 있습니다.',
+  sourceRecordingRequired: '원본 녹음을 다시 선택하십시오.',
+  managedPathInvalid: '저장된 해당 파일의 경로가 올바르지 않습니다.',
+  documentChecksumFailed: '저장된 문서가 로컬 무결성 검사를 통과하지 못했습니다.',
+  transcriptOutputInvalid: '전사 결과를 LocaLog가 전사본으로 읽을 수 없습니다.',
+  speakerCountOutOfRange: '예상 화자 수는 2에서 64 사이여야 합니다.',
+  sourceNotCommitted: '전사하기 전에 회의 원본을 확정하십시오.',
+  providerNeededForGeneration: '회의록을 생성하기 전에 사용 중인 Ollama를 실행하십시오.',
+  exportDestinationInvalid: '올바른 내보내기 위치를 선택하십시오.',
+  exportFileExists: '다른 파일 이름을 선택하십시오. 기존 파일을 묻지 않고 덮어쓰지는 않습니다.',
+  exportFolderMissing: '선택한 내보내기 폴더를 사용할 수 없습니다.',
+  processingBusy: '다른 로컬 작업이 이미 실행 중입니다. 끝날 때까지 기다리거나 먼저 취소하십시오.',
+  ffmpegMissingForRecording: '녹음을 마무리하려면 FFmpeg가 필요하지만 찾지 못했습니다.',
+
+  // 설정의 Ollama 행. en.ts의 설명을 참고하십시오.
+  ollamaNotRunning: (detail: string) =>
+    `사용 중인 Ollama를 실행한 다음 새로 고치십시오.${detail ? ` ${detail}` : ''}`,
+  ollamaModelsUnreadable: (detail: string) =>
+    `Ollama는 실행 중이지만 어떤 모델이 설치되어 있는지 알려 주지 않았습니다.${detail ? ` ${detail}` : ''}`,
+  ollamaReadyNoModel:
+    'Ollama가 준비되었습니다. 회의록을 생성할 모델을 설치된 것 중에서 선택하십시오.',
+  ollamaModelReady: '선택한 로컬 모델이 준비되었습니다.',
+  ollamaSelectedModelMissing:
+    '선택한 모델이 설치되어 있지 않습니다. 이미 설치된 다른 모델을 선택하십시오.',
 };
 
 export const ko: Strings = {

@@ -69,6 +69,7 @@ const failures = {
   openingNotRead: 'No se ha podido leer el comienzo de la reunión.',
   providerNeededForPassage: 'Inicie su instalación de Ollama antes de reformular un pasaje.',
   providerNeededForOpening: 'Inicie su instalación de Ollama antes de leer las presentaciones.',
+  providerNeededForCorrections: 'Inicie su instalación de Ollama antes de comprobar estas grafías.',
   providerModelRequired: 'Elija un modelo de Ollama instalado en Ajustes → Generación del acta.',
 
   styleNotMigrated: 'No se ha podido migrar un estilo.',
@@ -204,6 +205,38 @@ const failures = {
   workingAudioFormatWrong: (what: string) =>
     `La pasada de intervinientes necesita audio de 16 kHz mono de 16 bits, y este es ${what}.`,
   notEnoughSpace: (what: string) => `No hay espacio suficiente para este modelo (${what}).`,
+
+  // Véase la nota en en.ts: frases que la parte Rust seguía escribiendo por su cuenta.
+  settingInvalid: 'Ese ajuste de ejecución no se puede guardar.',
+  meetingTitleRequiredToRecord: 'Dé un título a la reunión. No hay ningún archivo del que tomarlo.',
+  importSourceGone: 'Elija de nuevo el archivo original antes de reintentar esta importación.',
+  termProjectRequired: 'Elija el proyecto al que pertenece este término.',
+  termAlreadyPresent: 'Ese término ya figura aquí.',
+  sourceRecordingRequired: 'Elija de nuevo la grabación de origen.',
+  managedPathInvalid: 'La ruta a ese archivo guardado no es válida.',
+  documentChecksumFailed:
+    'Un documento guardado no ha superado su comprobación local de integridad.',
+  transcriptOutputInvalid:
+    'La transcripción ha producido algo que LocaLog no puede leer como transcripción.',
+  speakerCountOutOfRange: 'El número previsto de intervinientes debe estar entre 2 y 64.',
+  sourceNotCommitted: 'Confirme el origen de la reunión antes de transcribirla.',
+  providerNeededForGeneration: 'Inicie su instalación de Ollama antes de generar un acta.',
+  exportDestinationInvalid: 'Elija un destino de exportación válido.',
+  exportFileExists:
+    'Elija un nombre de archivo nuevo. Un archivo existente nunca se sobrescribe sin preguntar.',
+  exportFolderMissing: 'La carpeta de exportación elegida no está disponible.',
+  processingBusy: 'Ya hay otra tarea local en curso. Espere a que termine, o cancélela primero.',
+  ffmpegMissingForRecording:
+    'FFmpeg hace falta para finalizar una grabación y no se ha encontrado.',
+
+  // La fila de Ollama en los ajustes. Véase la nota en en.ts.
+  ollamaNotRunning: (detail: string) =>
+    `Inicie su instalación de Ollama y luego actualice.${detail ? ` ${detail}` : ''}`,
+  ollamaModelsUnreadable: (detail: string) =>
+    `Ollama está en marcha pero no ha dicho qué modelos hay instalados.${detail ? ` ${detail}` : ''}`,
+  ollamaReadyNoModel: 'Ollama está listo. Elija un modelo instalado para generar actas.',
+  ollamaModelReady: 'El modelo local elegido está listo.',
+  ollamaSelectedModelMissing: 'El modelo elegido no está instalado. Elija otro que ya lo esté.',
 };
 
 export const es: Strings = {

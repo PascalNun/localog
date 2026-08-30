@@ -76,6 +76,7 @@ const failures = {
   openingNotRead: '会議の冒頭を読み取れませんでした。',
   providerNeededForPassage: '箇所を書き直す前に、お使いのOllamaを起動してください。',
   providerNeededForOpening: '自己紹介を読み取る前に、お使いのOllamaを起動してください。',
+  providerNeededForCorrections: 'これらの表記を確かめる前に、お使いの Ollama を起動してください。',
   providerModelRequired: '設定 → 議事録の生成で、インストール済みのOllamaモデルを選んでください。',
 
   styleNotMigrated: 'スタイルを移行できませんでした。',
@@ -202,6 +203,38 @@ const failures = {
   workingAudioFormatWrong: (what: string) =>
     `話者処理には16kHzモノラル16ビットの音声が必要ですが、これは${what}です。`,
   notEnoughSpace: (what: string) => `このモデルには空き容量が足りません（${what}）。`,
+
+  // en.ts の注記を参照。Rust 側がまだ自分で書いていた文です。
+  settingInvalid: 'その実行時の設定は保存できません。',
+  meetingTitleRequiredToRecord:
+    '会議にタイトルを付けてください。タイトルを取れるファイルがありません。',
+  importSourceGone: 'この読み込みをやり直す前に、元のファイルをもう一度選んでください。',
+  termProjectRequired: 'この用語が属するプロジェクトを選んでください。',
+  termAlreadyPresent: 'その用語はすでにここにあります。',
+  sourceRecordingRequired: '元の録音をもう一度選んでください。',
+  managedPathInvalid: '保存されているそのファイルへのパスが不正です。',
+  documentChecksumFailed: '保存された文書がローカルの整合性チェックを通りませんでした。',
+  transcriptOutputInvalid: '文字起こしの結果を、LocaLog は文字起こしとして読み取れませんでした。',
+  speakerCountOutOfRange: '想定する話者の人数は 2 〜 64 の範囲で指定してください。',
+  sourceNotCommitted: '文字起こしの前に、会議の元データを確定してください。',
+  providerNeededForGeneration: '議事録を生成する前に、お使いの Ollama を起動してください。',
+  exportDestinationInvalid: '有効な書き出し先を選んでください。',
+  exportFileExists:
+    '別のファイル名を選んでください。既存のファイルを断りなく上書きすることはありません。',
+  exportFolderMissing: '選ばれた書き出し先のフォルダが利用できません。',
+  processingBusy: '別のローカル処理がすでに実行中です。終わるまで待つか、先に中止してください。',
+  ffmpegMissingForRecording: '録音を仕上げるには FFmpeg が必要ですが、見つかりませんでした。',
+
+  // 設定の Ollama の行。en.ts の注記を参照。
+  ollamaNotRunning: (detail: string) =>
+    `お使いの Ollama を起動してから、再確認してください。${detail ? ` ${detail}` : ''}`,
+  ollamaModelsUnreadable: (detail: string) =>
+    `Ollama は動いていますが、どのモデルが入っているかを返しませんでした。${detail ? ` ${detail}` : ''}`,
+  ollamaReadyNoModel:
+    'Ollama の準備ができました。議事録を生成するモデルを、インストール済みのものから選んでください。',
+  ollamaModelReady: '選ばれているローカルモデルの準備ができています。',
+  ollamaSelectedModelMissing:
+    '選ばれているモデルはインストールされていません。すでに入っている別のモデルを選んでください。',
 };
 
 export const ja: Strings = {

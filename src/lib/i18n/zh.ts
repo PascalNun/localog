@@ -75,6 +75,7 @@ const failures = {
   openingNotRead: '未能读取会议开头。',
   providerNeededForPassage: '改写段落前，请先启动您已安装的 Ollama。',
   providerNeededForOpening: '读取自我介绍前，请先启动您已安装的 Ollama。',
+  providerNeededForCorrections: '核对这些写法前，请先启动您已安装的 Ollama。',
   providerModelRequired: '请在“设置 → 纪要生成”中选择已安装的 Ollama 模型。',
 
   styleNotMigrated: '某个样式未能迁移。',
@@ -196,6 +197,34 @@ const failures = {
   workingAudioFormatWrong: (what: string) =>
     `说话人处理需要 16 kHz 单声道 16 位音频，而这是 ${what}。`,
   notEnoughSpace: (what: string) => `空间不足以存放该模型（${what}）。`,
+
+  // 参见 en.ts 中的说明：这些是 Rust 端此前仍自行撰写的句子。
+  settingInvalid: '该运行设置无法保存。',
+  meetingTitleRequiredToRecord: '请为会议取一个标题。没有可从中取用标题的文件。',
+  importSourceGone: '重试此次导入前，请重新选择原始文件。',
+  termProjectRequired: '请选择该术语所属的项目。',
+  termAlreadyPresent: '该术语已在此列出。',
+  sourceRecordingRequired: '请重新选择源录音。',
+  managedPathInvalid: '该已存文件的路径无效。',
+  documentChecksumFailed: '某个已保存的文档未通过本地完整性校验。',
+  transcriptOutputInvalid: '转写产生的结果，LocaLog 无法作为转写稿读取。',
+  speakerCountOutOfRange: '预计的发言人数须在 2 到 64 之间。',
+  sourceNotCommitted: '转写前请先确认会议的源文件。',
+  providerNeededForGeneration: '生成会议纪要前，请先启动您已安装的 Ollama。',
+  exportDestinationInvalid: '请选择有效的导出位置。',
+  exportFileExists: '请另选文件名。已存在的文件绝不会未经询问被覆盖。',
+  exportFolderMissing: '所选的导出文件夹不可用。',
+  processingBusy: '已有另一项本地任务在运行。请等待其完成，或先将其取消。',
+  ffmpegMissingForRecording: '完成录音需要 FFmpeg，但未能找到。',
+
+  // 设置中的 Ollama 一行。参见 en.ts 中的说明。
+  ollamaNotRunning: (detail: string) =>
+    `请启动您已安装的 Ollama，然后重新检查。${detail ? ` ${detail}` : ''}`,
+  ollamaModelsUnreadable: (detail: string) =>
+    `Ollama 正在运行，但未告知已安装哪些模型。${detail ? ` ${detail}` : ''}`,
+  ollamaReadyNoModel: 'Ollama 已就绪。请从已安装的模型中选择一个，用于生成会议纪要。',
+  ollamaModelReady: '所选的本地模型已就绪。',
+  ollamaSelectedModelMissing: '所选模型未安装。请另选一个已安装的模型。',
 };
 
 export const zh: Strings = {

@@ -1377,7 +1377,10 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       selectedModel: null,
       selectedModelDigest: null,
       selectedModelReady: false,
-      message: 'Ollama is available as an optional local provider for development.',
+      // A code, because the backend it stands in for returns one. A sentence here
+      // would read correctly in the browser preview and hide the fact that the real
+      // row is translated.
+      message: 'ollamaNotRunning',
       machineMemoryGb: null,
     };
   }

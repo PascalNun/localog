@@ -71,6 +71,8 @@ const failures = {
     'Avvii la sua installazione di Ollama prima di far riformulare un passaggio.',
   providerNeededForOpening:
     'Avvii la sua installazione di Ollama prima di leggere le presentazioni.',
+  providerNeededForCorrections:
+    'Avvii la sua installazione di Ollama prima di verificare queste grafie.',
   providerModelRequired:
     'Scelga un modello Ollama installato in Impostazioni → Generazione del verbale.',
 
@@ -211,6 +213,38 @@ const failures = {
   workingAudioFormatWrong: (what: string) =>
     `La passata sugli interlocutori ha bisogno di audio 16 kHz mono a 16 bit, e questo è ${what}.`,
   notEnoughSpace: (what: string) => `Spazio insufficiente per questo modello (${what}).`,
+
+  // Si veda la nota in en.ts: frasi che la parte Rust scriveva ancora da sé.
+  settingInvalid: 'Questa impostazione di esecuzione non può essere salvata.',
+  meetingTitleRequiredToRecord: 'Dia un titolo alla riunione. Non c’è alcun file da cui ricavarlo.',
+  importSourceGone: 'Scelga di nuovo il file originale prima di ritentare questa importazione.',
+  termProjectRequired: 'Scelga il progetto a cui appartiene questo termine.',
+  termAlreadyPresent: 'Questo termine è già presente qui.',
+  sourceRecordingRequired: 'Scelga di nuovo la registrazione di partenza.',
+  managedPathInvalid: 'Il percorso di questo file salvato non è valido.',
+  documentChecksumFailed: 'Un documento salvato non ha superato il controllo locale di integrità.',
+  transcriptOutputInvalid:
+    'La trascrizione ha prodotto qualcosa che LocaLog non può leggere come trascrizione.',
+  speakerCountOutOfRange: 'Il numero previsto di interlocutori deve essere compreso tra 2 e 64.',
+  sourceNotCommitted: 'Confermi la fonte della riunione prima di trascriverla.',
+  providerNeededForGeneration: 'Avvii la sua installazione di Ollama prima di generare un verbale.',
+  exportDestinationInvalid: 'Scelga una destinazione di esportazione valida.',
+  exportFileExists:
+    'Scelga un nuovo nome di file. Un file esistente non viene mai sovrascritto senza chiedere.',
+  exportFolderMissing: 'La cartella di esportazione scelta non è disponibile.',
+  processingBusy:
+    'È già in corso un’altra attività locale. Attenda che finisca, oppure la annulli prima.',
+  ffmpegMissingForRecording: 'FFmpeg serve per completare una registrazione e non è stato trovato.',
+
+  // La riga di Ollama nelle impostazioni. Si veda la nota in en.ts.
+  ollamaNotRunning: (detail: string) =>
+    `Avvii la sua installazione di Ollama, poi aggiorni.${detail ? ` ${detail}` : ''}`,
+  ollamaModelsUnreadable: (detail: string) =>
+    `Ollama è in funzione ma non ha indicato quali modelli sono installati.${detail ? ` ${detail}` : ''}`,
+  ollamaReadyNoModel: 'Ollama è pronto. Scelga un modello installato per generare verbali.',
+  ollamaModelReady: 'Il modello locale scelto è pronto.',
+  ollamaSelectedModelMissing:
+    'Il modello scelto non è installato. Ne scelga un altro già installato.',
 };
 
 export const it: Strings = {

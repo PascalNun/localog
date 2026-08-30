@@ -77,6 +77,8 @@ const failures = {
     'Starten Sie Ihre vorhandene Ollama-Installation, bevor Sie eine Passage ändern.',
   providerNeededForOpening:
     'Starten Sie Ihre vorhandene Ollama-Installation, bevor Sie die Vorstellungsrunde lesen.',
+  providerNeededForCorrections:
+    'Starten Sie Ihre vorhandene Ollama-Installation, bevor Sie diese Schreibweisen prüfen.',
   providerModelRequired:
     'Wählen Sie in den Einstellungen unter „Protokollerzeugung“ ein installiertes Ollama-Modell.',
 
@@ -222,6 +224,44 @@ const failures = {
   workingAudioFormatWrong: (what: string) =>
     `Die Sprechererkennung braucht 16 kHz, mono, 16 Bit — vorliegend ist ${what}.`,
   notEnoughSpace: (what: string) => `Nicht genug Platz für dieses Modell (${what}).`,
+
+  // Siehe die Anmerkung in en.ts: Sätze, die die Rust-Seite noch selbst schrieb.
+  settingInvalid: 'Diese Laufzeiteinstellung kann nicht gespeichert werden.',
+  meetingTitleRequiredToRecord:
+    'Geben Sie der Besprechung einen Titel. Es gibt keine Datei, aus der einer übernommen werden könnte.',
+  importSourceGone:
+    'Wählen Sie die ursprüngliche Datei erneut, bevor Sie diesen Import wiederholen.',
+  termProjectRequired: 'Wählen Sie das Projekt, zu dem dieser Begriff gehört.',
+  termAlreadyPresent: 'Dieser Begriff steht hier bereits.',
+  sourceRecordingRequired: 'Wählen Sie die Quellaufnahme erneut.',
+  managedPathInvalid: 'Der Pfad zu dieser gespeicherten Datei ist ungültig.',
+  documentChecksumFailed:
+    'Ein gespeichertes Dokument hat seine lokale Integritätsprüfung nicht bestanden.',
+  transcriptOutputInvalid:
+    'Die Transkription hat etwas erzeugt, das LocaLog nicht als Transkript lesen kann.',
+  speakerCountOutOfRange: 'Die erwartete Anzahl der Sprecher muss zwischen 2 und 64 liegen.',
+  sourceNotCommitted: 'Übernehmen Sie die Quelle der Besprechung, bevor Sie sie transkribieren.',
+  providerNeededForGeneration:
+    'Starten Sie Ihre vorhandene Ollama-Installation, bevor Sie ein Protokoll erzeugen.',
+  exportDestinationInvalid: 'Wählen Sie ein gültiges Exportziel.',
+  exportFileExists:
+    'Wählen Sie einen neuen Dateinamen. Eine vorhandene Datei wird nie ungefragt überschrieben.',
+  exportFolderMissing: 'Der gewählte Exportordner ist nicht verfügbar.',
+  processingBusy:
+    'Es läuft bereits eine andere lokale Aufgabe. Warten Sie sie ab oder brechen Sie sie zuerst ab.',
+  ffmpegMissingForRecording:
+    'FFmpeg wird gebraucht, um eine Aufnahme abzuschließen, und wurde nicht gefunden.',
+
+  // Die Ollama-Zeile in den Einstellungen. Siehe die Anmerkung in en.ts.
+  ollamaNotRunning: (detail: string) =>
+    `Starten Sie Ihre vorhandene Ollama-Installation und aktualisieren Sie dann.${detail ? ` ${detail}` : ''}`,
+  ollamaModelsUnreadable: (detail: string) =>
+    `Ollama läuft, hat aber nicht mitgeteilt, welche Modelle installiert sind.${detail ? ` ${detail}` : ''}`,
+  ollamaReadyNoModel:
+    'Ollama ist bereit. Wählen Sie ein installiertes Modell, um Protokolle zu erzeugen.',
+  ollamaModelReady: 'Das gewählte lokale Modell ist bereit.',
+  ollamaSelectedModelMissing:
+    'Das gewählte Modell ist nicht installiert. Wählen Sie ein anderes, bereits installiertes Modell.',
 };
 
 export const de: Strings = {

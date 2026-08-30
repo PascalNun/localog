@@ -455,9 +455,7 @@ pub(crate) fn queue_transcription_with_expected(
     if let Some(count) = speakers.count()
         && !(2..=64).contains(&count)
     {
-        return Err(StorageError::InvalidData(
-            "Expected speakers must be between 2 and 64.",
-        ));
+        return Err(StorageError::InvalidData("speakerCountOutOfRange"));
     }
     let mut repository = WorkspaceRepository::open(root)?;
     ensure_no_active_processing(&repository.connection)?;
@@ -478,9 +476,7 @@ pub(crate) fn queue_transcription_with_expected(
         lifecycle.as_str(),
         "source_ready" | "transcript_ready" | "protocol_draft" | "reviewed"
     ) {
-        return Err(StorageError::InvalidData(
-            "Commit the meeting source before transcription.",
-        ));
+        return Err(StorageError::InvalidData("sourceNotCommitted"));
     }
 
     let job_id = new_id("job");
@@ -848,18 +844,14 @@ fn generation_metadata(
         .filter(|value| !value.is_empty());
     let status = provider::OllamaProvider::loopback().status(selected_model);
     if !status.server_reachable {
-        return Err(StorageError::InvalidData(
-            "Start your existing Ollama installation before generating a protocol.",
-        ));
+        return Err(StorageError::InvalidData("providerNeededForGeneration"));
     }
     let model = status
         .selected_model
         .ok_or(StorageError::InvalidData("providerModelRequired"))?;
     let model_digest = status
         .selected_model_digest
-        .ok_or(StorageError::InvalidData(
-            "The selected Ollama model is no longer installed. Choose another model.",
-        ))?;
+        .ok_or(StorageError::InvalidData("ollamaModelGone"))?;
     let runtime_version = status
         .runtime_version
         .unwrap_or_else(|| "unknown".to_string());
@@ -2435,22 +2427,16 @@ pub(crate) fn write_export(destination: &str, contents: &[u8]) -> StorageResult<
         || destination.to_string_lossy().contains('\0')
         || destination.file_name().is_none()
     {
-        return Err(StorageError::InvalidData(
-            "Choose a valid export destination.",
-        ));
+        return Err(StorageError::InvalidData("exportDestinationInvalid"));
     }
     if destination.exists() {
-        return Err(StorageError::InvalidData(
-            "Choose a new export filename; existing files are not overwritten automatically.",
-        ));
+        return Err(StorageError::InvalidData("exportFileExists"));
     }
-    let parent = destination.parent().ok_or(StorageError::InvalidData(
-        "Choose a valid export destination.",
-    ))?;
+    let parent = destination
+        .parent()
+        .ok_or(StorageError::InvalidData("exportDestinationInvalid"))?;
     if !parent.is_dir() {
-        return Err(StorageError::InvalidData(
-            "The selected export folder is not available.",
-        ));
+        return Err(StorageError::InvalidData("exportFolderMissing"));
     }
     let temporary = parent.join(format!(
         ".{}.localog-export-{}",
@@ -2579,9 +2565,7 @@ fn ensure_no_active_processing(connection: &rusqlite::Connection) -> StorageResu
         .optional()?
         .is_some();
     if active {
-        return Err(StorageError::InvalidData(
-            "Another local processing job is already active.",
-        ));
+        return Err(StorageError::InvalidData("processingBusy"));
     }
     Ok(())
 }
@@ -2600,9 +2584,7 @@ fn ensure_no_other_active_processing(
         .optional()?
         .is_some();
     if active {
-        return Err(StorageError::InvalidData(
-            "Another local processing job is already active.",
-        ));
+        return Err(StorageError::InvalidData("processingBusy"));
     }
     Ok(())
 }
@@ -2781,9 +2763,8 @@ pub(crate) fn finish_recording(
     microphone_path: &Path,
 ) -> StorageResult<WorkspaceSnapshot> {
     let repository = WorkspaceRepository::open(root)?;
-    let ffmpeg = find_tool("ffmpeg").ok_or(StorageError::InvalidData(
-        "FFmpeg is needed to finish a recording and could not be found.",
-    ))?;
+    let ffmpeg =
+        find_tool("ffmpeg").ok_or(StorageError::InvalidData("ffmpegMissingForRecording"))?;
 
     let combined = system_path.with_file_name(format!("{recording_id}.wav"));
     crate::media::combine_tracks(
@@ -3575,7 +3556,7 @@ mod tests {
 
         assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 1);
         assert!(results.iter().any(|result| {
-            matches!(result, Err(StorageError::InvalidData(message)) if message.contains("already active"))
+            matches!(result, Err(StorageError::InvalidData(code)) if *code == "processingBusy")
         }));
         let snapshot = WorkspaceRepository::open(&fixture.root)
             .unwrap()
