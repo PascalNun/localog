@@ -16,10 +16,16 @@ set -euo pipefail
 
 here="$(cd "$(dirname "$0")/.." && pwd)"
 
+# Two recorders, and the split is the capability rather than the language. macOS
+# taps a single application's audio through Core Audio, which is what makes a
+# recording of the call rather than of everything the machine is playing. Windows
+# and Linux have no equivalent, so theirs captures the output as a whole — one
+# crate for both, because WASAPI loopback and a PipeWire monitor source are the
+# same shape once something has abstracted them.
 if [[ "$(uname -s)" == "Darwin" ]]; then
   bash "$here/scripts/build-recorder-sidecar.sh"
 else
-  echo "Not Darwin: skipping the recorder. This build will import recordings but not make them."
+  bash "$here/scripts/build-recorder-portable-sidecar.sh"
 fi
 
 bash "$here/scripts/build-whisper-sidecar.sh"

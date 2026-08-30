@@ -3,6 +3,7 @@
   "bundle": {
     "targets": ["nsis"],
     "externalBin": [
+      "binaries/localog-record-meeting",
       "binaries/localog-whisper",
       "binaries/localog-llama-server",
       "binaries/localog-speaker-diarization",

@@ -1,0 +1,21 @@
+[package]
+name = "localog-record-meeting"
+version = "0.0.0"
+publish = false
+license = "GPL-3.0-or-later"
+edition = "2024"
+
+# One dependency, and it is the whole reason this crate exists rather than two.
+# Capturing what the speakers are playing is WASAPI on Windows and a monitor
+# source on Linux; cpal is the same code for both, and for the microphone on
+# each. Writing the WAV is forty-four bytes of header and is done here.
+[dependencies]
+cpal = "0.15"
+
+[[bin]]
+name = "localog-record-meeting"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+strip = true
