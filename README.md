@@ -1,10 +1,10 @@
 # LocaLog
 
-### Local AI that turns meeting recordings into clear, reviewable protocols.
+### Local-first AI for turning meeting recordings into protocols.
 
-LocaLog is a local-first desktop application for people who need a useful written record after a meeting, but cannot send the conversation to a cloud AI service.
+LocaLog is a desktop application for people who need a written record after a meeting, but cannot send the conversation to a cloud AI service.
 
-You import an audio or video recording, review the local transcript, and ask a local language model to prepare a protocol draft. The draft remains editable and provisional until a person has checked it. Projects and meetings keep the recording, transcript, protocol, and export together so the work does not disappear into a folder of unrelated files.
+You import an audio or video recording, review the local transcript, and use a local language model to prepare a protocol draft. You can edit the draft before exporting it. Projects and meetings keep the recording, transcript, protocol, and exports together.
 
 The protocol is the point of the product. Transcription is the reviewable source that makes a reliable protocol possible.
 
@@ -17,13 +17,13 @@ _The current shell uses synthetic project data. These screenshots show the visua
 
 ## Why LocaLog exists
 
-Meeting recordings can contain personal information, internal decisions, client details, and material that is not allowed to leave an organisation's controlled environment. LocaLog is designed around that reality:
+Meeting recordings can contain personal information, internal decisions, client details, and material that should not leave an organisation's controlled environment. LocaLog is designed around that:
 
 - meeting content stays on the device through the core workflow;
 - no LocaLog account, cloud workspace, telemetry, or hosted AI service is required;
-- generated text is visible, editable, and never silently treated as the final record;
+- generated text is visible and editable before it becomes an exported record;
 - projects and meetings provide context for every recording and document;
-- the interface is meant to feel like a calm professional writing tool, not a chatbot or model dashboard.
+- the interface is designed as a writing and review tool, not a chatbot or model dashboard.
 
 The project is open source under [GPL-3.0-or-later](LICENSE). macOS is the first development and validation platform. Windows and Linux remain intended platforms, with operating-system-specific work kept at the edges of the application.
 
@@ -37,7 +37,7 @@ The first useful workflow begins with an imported recording. Built-in microphone
 
 ## Current state
 
-LocaLog is an early working prototype, not a production application.
+LocaLog is an early working prototype. It is useful for testing the workflow and architecture, but it is not ready for production use.
 
 The repository currently contains:
 
@@ -51,9 +51,9 @@ The repository currently contains:
 - transcript review, Markdown editing, autosave, revision history, and Markdown/plain-text export;
 - synthetic fixtures, evaluation harnesses, and isolated architecture spikes.
 
-The native development path still accepts a locally supplied whisper.cpp executable and a user-managed Ollama server. Speaker separation now has a release-sidecar build path and first-use model preparation; whisper/FFmpeg packaging, the final public generation runtime, M1/8 GB performance validation, Windows/Linux builds, accessibility auditing, and backup/restore remain unfinished.
+The native development path still accepts a locally supplied whisper.cpp executable and a user-managed Ollama server. Speaker separation has a release-sidecar build path and first-use model preparation. Whisper/FFmpeg packaging, the final public generation runtime, M1/8 GB performance validation, Windows/Linux builds, accessibility auditing, and backup/restore are still open.
 
-The most important unfinished work is protocol quality: proving that the generated document is complete, factually supported, and useful to a professional after light editing.
+The main unresolved product question is protocol quality: whether the generated document is complete, factually supported, and useful after light editing.
 
 ## Documentation
 
@@ -97,8 +97,8 @@ For a packaged build, build the native speaker sidecar first and then use the re
 npm run tauri:build
 ```
 
-The sidecar is bundled into the installer. Its two verified model files are downloaded only when a
-person asks for speaker separation in a meeting, with progress and an explicit size shown first.
+The sidecar is bundled into the application. Its two verified model files are downloaded only when
+speaker separation is requested, with the size shown before the download starts.
 
 The complete checks are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
 

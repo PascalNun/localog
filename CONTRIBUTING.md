@@ -1,6 +1,6 @@
 # Contributing to LocaLog
 
-LocaLog is being developed in the open while its foundations are still moving. A good contribution makes the central workflow clearer, safer, faster, or more useful. It does not add surface area simply because the technology makes it possible.
+LocaLog is being developed in the open. A useful contribution makes the central workflow clearer, safer, faster, or more useful. It should not add surface area just because the technology allows it.
 
 ## Start with the product
 
@@ -30,7 +30,7 @@ Keep work small enough to understand and large enough to prove something real.
 - Keep commits small, descriptive, and focused on one change.
 - Record a product or architecture change in [docs/DECISIONS.md](docs/DECISIONS.md), and update [docs/PLAN.md](docs/PLAN.md) when implementation status changes.
 
-An assigned task is not permission to change an accepted product decision silently.
+Do not change an accepted product decision without recording the change.
 
 ## Implementation style
 
