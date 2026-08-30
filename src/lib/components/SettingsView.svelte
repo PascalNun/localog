@@ -12,7 +12,7 @@
     TranscriptionRuntimeStatus,
     SpeakerSeparationStatus,
   } from '../workflow/types';
-  import { PRESET_LABELS, SPEAKER_SEPARATION_UNREADY } from '../workflow/types';
+  import { SPEAKER_SEPARATION_UNREADY } from '../workflow/types';
   import { errorMessage } from '../errors';
   import {
     GENERATION_MODEL_CATALOG,
@@ -282,10 +282,11 @@
     try {
       const outcome = await onRestoreBackup(pendingRestore.folder);
       pendingRestore = null;
-      backupNote =
-        `Restored ${outcome.projectCount} projects and ${outcome.meetingCount} meetings. ` +
-        `What was here was moved to ${outcome.previousWorkspace} rather than deleted. ` +
-        `Quit and open LocaLog again to work with the restored workspace.`;
+      backupNote = $t.settings.restoredBackup(
+        outcome.projectCount,
+        outcome.meetingCount,
+        outcome.previousWorkspace,
+      );
     } catch (cause) {
       backupError = errorMessage(cause);
     } finally {
@@ -511,9 +512,11 @@
                 aria-checked={active}
                 onclick={() => onSelectPreset(preset.preset)}
               >
-                <span class="preset-name">{PRESET_LABELS[preset.preset].name}</span>
+                <span class="preset-name"
+                  >{$t.settings.transcriptionPreset[preset.preset].name}</span
+                >
                 <span class="preset-detail">
-                  {PRESET_LABELS[preset.preset].detail}
+                  {$t.settings.transcriptionPreset[preset.preset].detail}
                 </span>
               </button>
               <div class="preset-state">
@@ -525,7 +528,9 @@
                     aria-valuenow={downloading[preset.modelId]}
                     aria-valuemin="0"
                     aria-valuemax="100"
-                    aria-label="Downloading {PRESET_LABELS[preset.preset].name}"
+                    aria-label={$t.settings.downloadingPreset(
+                      $t.settings.transcriptionPreset[preset.preset].name,
+                    )}
                   >
                     <span style="width:{downloading[preset.modelId]}%"></span>
                   </div>
@@ -539,7 +544,7 @@
                   >
                 {:else}
                   <button class="secondary-action" onclick={() => onDownloadModel(preset.modelId)}
-                    >Download ({formatModelSize(preset.byteCount)})</button
+                    >{$t.settings.downloadModel(formatModelSize(preset.byteCount))}</button
                   >
                 {/if}
               </div>
@@ -556,7 +561,7 @@
             <label class="setting-field"
               >{$t.settings.whisperExecutable}<input
                 bind:value={executablePath}
-                placeholder="/path/to/whisper-cli"
+                placeholder={$t.settings.whisperExecutablePlaceholder}
               /><button class="quiet-action" onclick={chooseExecutable}
                 >{$t.settings.chooseFile}</button
               ></label
@@ -604,7 +609,7 @@
               </div>
             {:else if !speakerStatus.modelsInstalled}
               <button class="secondary-action" onclick={onDownloadSpeaker}>
-                Prepare speaker separation
+                {$t.settings.prepareSpeakerSeparation}
                 {#if speakerStatus.downloadBytes > 0}({formatModelSize(
                     speakerStatus.downloadBytes,
                   )}){/if}
@@ -746,7 +751,7 @@
                     ></span
                   >
                   <button class="text-action" onclick={() => void unarchiveMeeting(meeting.id)}>
-                    Bring back
+                    {$t.settings.bringBack}
                   </button>
                 </li>
               {/each}

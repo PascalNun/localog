@@ -330,6 +330,17 @@ export const ja: Strings = {
     european: '欧州製',
     checkInstalled: 'インストール済みのモデルを確認',
     curatedModels: '選定済みの議事録モデル',
+    downloadModel: (size: string) => `ダウンロード（${size}）`,
+    prepareSpeakerSeparation: '話者の分離を準備する',
+    restoredBackup: (projects: number, meetings: number, previous: string) =>
+      `プロジェクト ${projects} 件と会議 ${meetings} 件を復元しました。ここにあったものは削除せず ${previous} へ移しています。復元した作業領域を使うには、LocaLog を終了してから開き直してください。`,
+    /** en.ts の注記を参照。 */
+    transcriptionPreset: {
+      fast: { name: '高速', detail: '下書きを手早く。メモリの消費が最も少ない' },
+      balanced: { name: '標準', detail: '日々の会議に' },
+      accurate: { name: '高精度', detail: '品質が最も高く、最も遅い' },
+    },
+    downloadingPreset: (name: string) => `${name} をダウンロード中`,
     /** en.ts の注記を参照。 */
     modelDescription: {
       'gemma4-12b':
@@ -379,6 +390,7 @@ export const ja: Strings = {
     modelsStoredNote:
       'モデルはLocaLogのアプリケーションデータのフォルダに保管され、使用前に検証されます。',
     whisperExecutable: 'whisper-cliの実行ファイル',
+    whisperExecutablePlaceholder: '/whisper-cli までのパス',
     chooseFile: 'ファイルを選ぶ',
     whisperNote: 'whisper-serverではなく、コマンドラインの文字起こしバイナリを選んでください。',
     saveRuntime: 'ランタイムを保存',
@@ -431,6 +443,7 @@ export const ja: Strings = {
   },
 
   project: {
+    deleteMeeting: (title: string) => `${title} を削除`,
     deleteWarning:
       '会議を削除すると、その録音、文字起こし、すべての議事録の版がこの端末から消えます。元に戻せません。',
     eyebrow: 'プロジェクト',
@@ -903,6 +916,10 @@ export const ja: Strings = {
     heading: '録音を確認',
     noAudio: 'まだ作業用音声がありません',
     waveformLabel: '録音です。矢印キーで移動し、Shiftを押しながらで範囲を選べます。',
+    keptOf: (kept: string, whole: string) => `${whole} のうち ${kept} を残しました`,
+    startsAt: (time: string) => `${time} から`,
+    endsAt: (time: string) => `${time} まで`,
+    removedSpan: (from: string, to: string) => `${from} から ${to} を削除`,
     startHere: 'ここから始める',
     removeSelection: '選択範囲を取り除く',
     endHere: 'ここで終える',
@@ -1013,6 +1030,12 @@ export const ja: Strings = {
     nothingToCheck: '確認するものはありません',
     correctSpelling: '表記を修正',
     checkWording: '言い回しを確認',
+    checkWords: (words: string) => `${words} を確認`,
+    textAt: (time: string) => `${time} の文字起こしテキスト`,
+    jumpTo: (time: string) => `${time} へ移動`,
+    removeLineAt: (time: string) => `${time} の行を削除`,
+    renameSpeaker: (speaker: string) => `${speaker} の名前を変更`,
+    nameHeardAs: (heard: string) => `${heard} と聞こえた名前`,
     protocolStyle: '議事録スタイル',
     audioUnplayable: 'この会議の作業用音声を再生できませんでした。',
     speakersResolved:
@@ -1030,6 +1053,22 @@ export const ja: Strings = {
     edit: '編集',
     keep: '残す',
     notInUseSuffix: ' · 未使用',
+    /** en.ts の注記を参照。名前が変更されていない間だけ使われます。 */
+    shippedStyle: {
+      'style-formal': {
+        name: '正式な議事録',
+        description: '議論・決定事項・対応事項を構造立てて残す形式です。',
+      },
+      'style-working-note': {
+        name: '社内向けの作業メモ',
+        description: '社内のプロジェクトチーム向けの、簡潔な作業記録です。',
+      },
+      'style-decision-log': {
+        name: '技術的な決定の記録',
+        description: '選択肢・制約・明示された決定を前面に出します。',
+      },
+    },
+    copyOf: (name: string) => `${name}（コピー）`,
     enterATerm: '用語を入力してください。',
     reading: '読み込み中…',
     editTerm: '用語を編集',
@@ -1098,6 +1137,7 @@ export const ja: Strings = {
     footer: 'フッター',
     left: '左',
     centre: '中央',
+    insertInto: (where: string) => `${where} に値を差し込む`,
     right: '右',
     insert: '挿入…',
     lineHint:
@@ -1274,6 +1314,9 @@ export const ja: Strings = {
     tabHistory: '履歴',
     status: '状態',
     createRevision: '版を作る',
+    lineNumber: (line: number) => `${line} 行目`,
+    pageNumber: (page: number) => `${page} ページ`,
+    revisionNumber: (ordinal: number) => `第 ${ordinal} 版`,
     markReviewed: '確認済みにする',
     style: 'スタイル',
     sections: 'セクション',
@@ -1327,6 +1370,7 @@ export const ja: Strings = {
     themeAlwaysLight: '常にライトです。常にダークへ切り替えます。',
     themeAlwaysDark: '常にダークです。システムに従うよう戻します。',
     themeFollowingShort: 'システムに従う',
+    sidebarWidth: (width: number) => `${width} ピクセル`,
     resizeSidebar: 'サイドバーの幅を変えます。矢印キーで調整、Enterで元に戻します。',
     themeAlwaysLightShort: '常にライト',
     themeAlwaysDarkShort: '常にダーク',

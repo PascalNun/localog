@@ -16,7 +16,6 @@
   import {
     DEFAULT_APPEARANCE,
     EMPTY_FURNITURE,
-    PRESET_LABELS,
     SPEAKER_SEPARATION_UNREADY,
   } from './lib/workflow/types';
   import { buildDocx } from './lib/protocol/docx';
@@ -204,7 +203,7 @@
   let providerError: string | null = null;
 
   function presetDisplayName(preset: TranscriptionPreset) {
-    return PRESET_LABELS[preset]?.name ?? $t.shell.notSelected;
+    return $t.settings.transcriptionPreset[preset]?.name ?? $t.shell.notSelected;
   }
 
   function withoutModel(entries: Record<string, number>, modelId: string) {

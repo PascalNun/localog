@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { styleDescription, styleName } from '../protocol/styleNames';
   import { onDestroy, onMount } from 'svelte';
   import type {
     AppRoute,
@@ -1414,7 +1415,7 @@
           <ul class="replacement-list">
             {#each waiting.matches.slice(0, 12) as match, at (at)}
               <li>
-                <span class="replacement-line">Line {match.line}</span>
+                <span class="replacement-line">{$t.protocol.lineNumber(match.line)}</span>
                 <span class="replacement-context">{match.context}</span>
                 <span class="replacement-change">{match.matched} → {match.replacement}</span>
               </li>
@@ -1626,7 +1627,7 @@
                       <span>{foot.left}</span><span>{foot.centre}</span><span>{foot.right}</span>
                     </div>
                   {/if}
-                  <span class="page-edge-label">Page {at + 2}</span>
+                  <span class="page-edge-label">{$t.protocol.pageNumber(at + 2)}</span>
                   {#if !furnitureIsEmpty(furniture)}
                     {@const head = bandAt(at, 'header')}
                     <div class="page-edge-band">
@@ -1722,8 +1723,8 @@
           </div>
           <div class="inspector-section">
             <p class="eyebrow">{$t.protocol.style}</p>
-            <h3>{style.name}</h3>
-            <p>{style.description}</p>
+            <h3>{styleName(style)}</h3>
+            <p>{styleDescription(style)}</p>
           </div>
           <div class="inspector-section">
             <p class="eyebrow">{$t.protocol.sections}</p>
@@ -1955,7 +1956,7 @@
               {#each [...protocol.revisions].reverse() as revision (revision.id)}
                 <div>
                   <span
-                    >Revision {revision.ordinal}<small
+                    >{$t.protocol.revisionNumber(revision.ordinal)}<small
                       >{revision.status} · {revisionMoment(revision.createdAtMs)}</small
                     ></span
                   >

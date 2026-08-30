@@ -319,6 +319,17 @@ export const zh: Strings = {
     european: '欧洲出品',
     checkInstalled: '检查已安装的模型',
     curatedModels: '甄选的纪要模型',
+    downloadModel: (size: string) => `下载（${size}）`,
+    prepareSpeakerSeparation: '准备发言人区分',
+    restoredBackup: (projects: number, meetings: number, previous: string) =>
+      `已恢复 ${projects} 个项目与 ${meetings} 场会议。原先在此的内容已移至 ${previous}，并未删除。请退出 LocaLog 再重新打开，以使用恢复后的工作区。`,
+    /** 参见 en.ts 中的说明。 */
+    transcriptionPreset: {
+      fast: { name: '快速', detail: '快速草稿，最省内存' },
+      balanced: { name: '均衡', detail: '适合日常会议' },
+      accurate: { name: '精确', detail: '质量最好，速度最慢' },
+    },
+    downloadingPreset: (name: string) => `正在下载${name}`,
     /** 参见 en.ts 中的说明。 */
     modelDescription: {
       'gemma4-12b':
@@ -367,6 +378,7 @@ export const zh: Strings = {
     advancedDetails: '高级细节',
     modelsStoredNote: '模型保存在 LocaLog 的应用数据文件夹中，使用前会先核验。',
     whisperExecutable: 'whisper-cli 可执行文件',
+    whisperExecutablePlaceholder: '/whisper-cli 的路径',
     chooseFile: '选择文件',
     whisperNote: '请选择命令行转写程序，而不是 whisper-server。',
     saveRuntime: '保存运行环境',
@@ -417,6 +429,7 @@ export const zh: Strings = {
   },
 
   project: {
+    deleteMeeting: (title: string) => `删除${title}`,
     deleteWarning: '删除会议会从本机移除它的录音、转写稿以及每一版纪要。此操作无法撤销。',
     eyebrow: '项目',
     archiveProject: '归档项目',
@@ -851,6 +864,10 @@ export const zh: Strings = {
     heading: '校阅录音',
     noAudio: '尚无工作音频',
     waveformLabel: '这是录音。用方向键移动，按住 Shift 可以选取。',
+    keptOf: (kept: string, whole: string) => `${whole} 中保留 ${kept}`,
+    startsAt: (time: string) => `始于 ${time}`,
+    endsAt: (time: string) => `止于 ${time}`,
+    removedSpan: (from: string, to: string) => `已删除 ${from} 至 ${to}`,
     startHere: '从这里开始',
     removeSelection: '移除所选',
     endHere: '到这里结束',
@@ -954,6 +971,12 @@ export const zh: Strings = {
     nothingToCheck: '没有需要核对的',
     correctSpelling: '修正写法',
     checkWording: '核对措辞',
+    checkWords: (words: string) => `请核对 ${words}`,
+    textAt: (time: string) => `${time} 处的转写文本`,
+    jumpTo: (time: string) => `跳到 ${time}`,
+    removeLineAt: (time: string) => `删除 ${time} 处的这一行`,
+    renameSpeaker: (speaker: string) => `重命名${speaker}`,
+    nameHeardAs: (heard: string) => `听成“${heard}”的名字`,
     protocolStyle: '纪要样式',
     audioUnplayable: '这场会议的工作音频未能播放。',
     speakersResolved: '发言轮次已在本机判定。名称是临时的——只有在您确知是谁时才去更改。',
@@ -970,6 +993,22 @@ export const zh: Strings = {
     edit: '编辑',
     keep: '保留',
     notInUseSuffix: ' · 未启用',
+    /** 参见 en.ts 中的说明：仅在样式尚未被改名时使用。 */
+    shippedStyle: {
+      'style-formal': {
+        name: '正式会议纪要',
+        description: '对讨论、决定与行动事项作结构化的记录。',
+      },
+      'style-working-note': {
+        name: '内部工作记录',
+        description: '面向内部项目团队的简明工作记录。',
+      },
+      'style-decision-log': {
+        name: '技术决策记录',
+        description: '突出备选方案、约束条件与明确作出的决定。',
+      },
+    },
+    copyOf: (name: string) => `${name}（副本）`,
     enterATerm: '请输入术语。',
     reading: '正在读取…',
     editTerm: '编辑术语',
@@ -1037,6 +1076,7 @@ export const zh: Strings = {
     footer: '页脚',
     left: '左',
     centre: '中',
+    insertInto: (where: string) => `在${where}中插入一个值`,
     right: '右',
     insert: '插入…',
     lineHint:
@@ -1208,6 +1248,9 @@ export const zh: Strings = {
     tabHistory: '历史',
     status: '状态',
     createRevision: '创建版本',
+    lineNumber: (line: number) => `第 ${line} 行`,
+    pageNumber: (page: number) => `第 ${page} 页`,
+    revisionNumber: (ordinal: number) => `第 ${ordinal} 版`,
     markReviewed: '标记为已校阅',
     style: '样式',
     sections: '章节',
@@ -1261,6 +1304,7 @@ export const zh: Strings = {
     themeAlwaysLight: '始终浅色。切换为始终深色。',
     themeAlwaysDark: '始终深色。切换回跟随系统。',
     themeFollowingShort: '跟随系统',
+    sidebarWidth: (width: number) => `${width} 像素`,
     resizeSidebar: '调整侧边栏宽度。用方向键调整，按回车键复位。',
     themeAlwaysLightShort: '始终浅色',
     themeAlwaysDarkShort: '始终深色',

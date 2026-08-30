@@ -202,7 +202,7 @@
         <div class="review-times">
           <span>{clockFromMillis(0)}</span>
           <span class="review-kept"
-            >{clockFromMillis(keptMs)} of {clockFromMillis(durationMs)} kept</span
+            >{$t.recordingReview.keptOf(clockFromMillis(keptMs), clockFromMillis(durationMs))}</span
           >
           <span>{clockFromMillis(durationMs)}</span>
         </div>
@@ -217,7 +217,10 @@
           aria-valuemax={Math.round(durationMs / 1000)}
           aria-valuenow={Math.round(caretMs / 1000)}
           aria-valuetext={selection
-            ? `Selected ${clockFromMillis(selection.fromMs)} to ${clockFromMillis(selection.toMs)}`
+            ? $t.recordingReview.selectedRange(
+                clockFromMillis(selection.fromMs),
+                clockFromMillis(selection.toMs),
+              )
             : clockFromMillis(caretMs)}
           onpointerdown={beginSelection}
           onpointermove={extendSelection}
@@ -291,7 +294,7 @@
             <ul class="review-edits">
               {#if startMs > 0}
                 <li>
-                  <span>Starts at {clockFromMillis(startMs)}</span>
+                  <span>{$t.recordingReview.startsAt(clockFromMillis(startMs))}</span>
                   <button
                     class="text-action"
                     onclick={() => commit({ ...edits, startMs: 0 })}
@@ -301,7 +304,7 @@
               {/if}
               {#if (edits.endMs ?? null) !== null}
                 <li>
-                  <span>Ends at {clockFromMillis(endMs)}</span>
+                  <span>{$t.recordingReview.endsAt(clockFromMillis(endMs))}</span>
                   <button
                     class="text-action"
                     onclick={() => commit({ ...edits, endMs: null })}
@@ -312,8 +315,9 @@
               {#each removed as span, index (index)}
                 <li>
                   <span
-                    >Removed {clockFromMillis(Math.min(span.fromMs, span.toMs))} to {clockFromMillis(
-                      Math.max(span.fromMs, span.toMs),
+                    >{$t.recordingReview.removedSpan(
+                      clockFromMillis(Math.min(span.fromMs, span.toMs)),
+                      clockFromMillis(Math.max(span.fromMs, span.toMs)),
                     )}</span
                   >
                   <button

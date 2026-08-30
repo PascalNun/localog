@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { styleName } from '../protocol/styleNames';
   import type {
     NewMeetingInput,
     ProjectSummary,
@@ -236,7 +237,7 @@
           >
           <label
             ><span>{$t.newMeeting.protocolStyle}</span><select bind:value={styleId}
-              >{#each styles as style (style.id)}<option value={style.id}>{style.name}</option
+              >{#each styles as style (style.id)}<option value={style.id}>{styleName(style)}</option
                 >{/each}</select
             ><small
               >{selectedProject?.defaultStyleId === styleId

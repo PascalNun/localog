@@ -359,6 +359,17 @@ export const de: Strings = {
     european: 'Europäisch',
     checkInstalled: 'Installierte Modelle prüfen',
     curatedModels: 'Ausgewählte Protokollmodelle',
+    downloadModel: (size: string) => `Laden (${size})`,
+    prepareSpeakerSeparation: 'Sprechertrennung vorbereiten',
+    restoredBackup: (projects: number, meetings: number, previous: string) =>
+      `${projects} Projekte und ${meetings} Besprechungen wiederhergestellt. Was hier war, wurde nach ${previous} verschoben und nicht gelöscht. Beenden Sie LocaLog und öffnen Sie es erneut, um mit dem wiederhergestellten Arbeitsbereich zu arbeiten.`,
+    /** Siehe die Anmerkung in en.ts. */
+    transcriptionPreset: {
+      fast: { name: 'Schnell', detail: 'Schnelle Entwürfe, am sparsamsten mit dem Speicher' },
+      balanced: { name: 'Ausgewogen', detail: 'Für den Besprechungsalltag' },
+      accurate: { name: 'Genau', detail: 'Beste Qualität, am langsamsten' },
+    },
+    downloadingPreset: (name: string) => `${name} wird geladen`,
     /** Siehe die Anmerkung in en.ts. */
     modelDescription: {
       'gemma4-12b':
@@ -408,6 +419,7 @@ export const de: Strings = {
     modelsStoredNote:
       'Modelle liegen im Anwendungsdatenordner von LocaLog und werden vor der Verwendung geprüft.',
     whisperExecutable: 'whisper-cli-Anwendung',
+    whisperExecutablePlaceholder: '/pfad/zu/whisper-cli',
     chooseFile: 'Datei wählen',
     whisperNote:
       'Wählen Sie das Kommandozeilenprogramm für die Transkription, nicht whisper-server.',
@@ -463,6 +475,7 @@ export const de: Strings = {
   },
 
   project: {
+    deleteMeeting: (title: string) => `${title} löschen`,
     deleteWarning:
       'Eine Besprechung zu löschen entfernt ihre Aufnahme, ihr Transkript und jede Protokollfassung von diesem Gerät. Das lässt sich nicht rückgängig machen.',
     eyebrow: 'Projekt',
@@ -956,6 +969,10 @@ export const de: Strings = {
     heading: 'Aufnahme prüfen',
     noAudio: 'Noch keine Arbeitsdatei',
     waveformLabel: 'Die Aufnahme. Mit den Pfeiltasten bewegen, mit Umschalt auswählen.',
+    keptOf: (kept: string, whole: string) => `${kept} von ${whole} behalten`,
+    startsAt: (time: string) => `Beginnt bei ${time}`,
+    endsAt: (time: string) => `Endet bei ${time}`,
+    removedSpan: (from: string, to: string) => `${from} bis ${to} entfernt`,
     startHere: 'Hier beginnen',
     removeSelection: 'Auswahl entfernen',
     endHere: 'Hier enden',
@@ -1072,6 +1089,12 @@ export const de: Strings = {
     nothingToCheck: 'Nichts zu prüfen',
     correctSpelling: 'Schreibweise korrigieren',
     checkWording: 'Formulierung prüfen',
+    checkWords: (words: string) => `${words} prüfen`,
+    textAt: (time: string) => `Transkripttext bei ${time}`,
+    jumpTo: (time: string) => `Zu ${time} springen`,
+    removeLineAt: (time: string) => `Die Zeile bei ${time} entfernen`,
+    renameSpeaker: (speaker: string) => `${speaker} umbenennen`,
+    nameHeardAs: (heard: string) => `Name, gehört als ${heard}`,
     protocolStyle: 'Protokollstil',
     audioUnplayable: 'Die Arbeitsdatei dieser Besprechung konnte nicht abgespielt werden.',
     speakersResolved:
@@ -1089,6 +1112,22 @@ export const de: Strings = {
     edit: 'Bearbeiten',
     keep: 'Behalten',
     notInUseSuffix: ' · nicht in Verwendung',
+    /** Siehe die Anmerkung in en.ts: nur solange ein Stil nicht umbenannt wurde. */
+    shippedStyle: {
+      'style-formal': {
+        name: 'Förmliches Protokoll',
+        description: 'Gegliederte Aufzeichnung von Erörterung, Beschlüssen und Aufgaben.',
+      },
+      'style-working-note': {
+        name: 'Interne Arbeitsnotiz',
+        description: 'Knappe Arbeitsaufzeichnung für ein internes Projektteam.',
+      },
+      'style-decision-log': {
+        name: 'Technisches Entscheidungsprotokoll',
+        description: 'Betont Alternativen, Randbedingungen und ausdrückliche Entscheidungen.',
+      },
+    },
+    copyOf: (name: string) => `${name} (Kopie)`,
     enterATerm: 'Geben Sie einen Begriff ein.',
     reading: 'Wird gelesen …',
     editTerm: 'Begriff bearbeiten',
@@ -1159,6 +1198,7 @@ export const de: Strings = {
     footer: 'Fußzeile',
     left: 'Links',
     centre: 'Mitte',
+    insertInto: (where: string) => `Einen Wert in ${where} einfügen`,
     right: 'Rechts',
     insert: 'Einfügen …',
     lineHint:
@@ -1345,6 +1385,9 @@ export const de: Strings = {
     tabHistory: 'Verlauf',
     status: 'Status',
     createRevision: 'Fassung anlegen',
+    lineNumber: (line: number) => `Zeile ${line}`,
+    pageNumber: (page: number) => `Seite ${page}`,
+    revisionNumber: (ordinal: number) => `Fassung ${ordinal}`,
     markReviewed: 'Als geprüft markieren',
     style: 'Stil',
     sections: 'Abschnitte',
@@ -1398,6 +1441,7 @@ export const de: Strings = {
     themeAlwaysLight: 'Immer hell. Umschalten auf immer dunkel.',
     themeAlwaysDark: 'Immer dunkel. Umschalten auf dem System folgen.',
     themeFollowingShort: 'Folgt dem System',
+    sidebarWidth: (width: number) => `${width} Pixel`,
     resizeSidebar: 'Seitenleiste anpassen. Mit den Pfeiltasten ändern, mit Enter zurücksetzen.',
     themeAlwaysLightShort: 'Dauerhaft hell',
     themeAlwaysDarkShort: 'Dauerhaft dunkel',

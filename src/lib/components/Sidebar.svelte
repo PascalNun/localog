@@ -226,8 +226,11 @@
         : themeChoice === 'light'
           ? $t.sidebar.themeAlwaysLight
           : $t.sidebar.themeAlwaysDark}
-      title={themeChoice === 'auto' ? $t.sidebar.themeFollowingShort : `Always ${themeChoice}`}
-      ><Icon name={THEME_ICON[themeChoice]} /></button
+      title={themeChoice === 'auto'
+        ? $t.sidebar.themeFollowingShort
+        : themeChoice === 'light'
+          ? $t.sidebar.themeAlwaysLightShort
+          : $t.sidebar.themeAlwaysDarkShort}><Icon name={THEME_ICON[themeChoice]} /></button
     >
   </div>
   <SidebarResizeHandle {width} {onResize} {onResizeEnd} />

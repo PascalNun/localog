@@ -323,6 +323,17 @@ export const ko: Strings = {
     european: '유럽산',
     checkInstalled: '설치된 모델 확인',
     curatedModels: '선별된 회의록 모델',
+    downloadModel: (size: string) => `내려받기(${size})`,
+    prepareSpeakerSeparation: '화자 구분 준비',
+    restoredBackup: (projects: number, meetings: number, previous: string) =>
+      `프로젝트 ${projects}개와 회의 ${meetings}개를 복원했습니다. 여기에 있던 것은 삭제하지 않고 ${previous}(으)로 옮겼습니다. 복원한 작업 공간을 쓰려면 LocaLog를 종료했다가 다시 여십시오.`,
+    /** en.ts의 설명을 참고하십시오. */
+    transcriptionPreset: {
+      fast: { name: '빠름', detail: '빠른 초안, 메모리를 가장 적게 씁니다' },
+      balanced: { name: '균형', detail: '일상적인 회의에' },
+      accurate: { name: '정확', detail: '품질이 가장 좋고 가장 느립니다' },
+    },
+    downloadingPreset: (name: string) => `${name} 내려받는 중`,
     /** en.ts의 설명을 참고하십시오. */
     modelDescription: {
       'gemma4-12b':
@@ -371,6 +382,7 @@ export const ko: Strings = {
     advancedDetails: '고급 설정',
     modelsStoredNote: '모델은 LocaLog의 응용 프로그램 데이터 폴더에 보관되며 쓰기 전에 검증됩니다.',
     whisperExecutable: 'whisper-cli 실행 파일',
+    whisperExecutablePlaceholder: '/whisper-cli 까지의 경로',
     chooseFile: '파일 선택',
     whisperNote: 'whisper-server가 아니라 명령줄 전사 바이너리를 선택하십시오.',
     saveRuntime: '런타임 저장',
@@ -423,6 +435,7 @@ export const ko: Strings = {
   },
 
   project: {
+    deleteMeeting: (title: string) => `${title} 삭제`,
     deleteWarning:
       '회의를 삭제하면 그 녹음과 전사본, 모든 회의록 판이 이 기기에서 사라집니다. 되돌릴 수 없습니다.',
     eyebrow: '프로젝트',
@@ -893,6 +906,10 @@ export const ko: Strings = {
     heading: '녹음 검토',
     noAudio: '아직 작업용 오디오가 없습니다',
     waveformLabel: '녹음입니다. 화살표 키로 이동하고, Shift를 누르면 구간을 고를 수 있습니다.',
+    keptOf: (kept: string, whole: string) => `${whole} 가운데 ${kept} 유지`,
+    startsAt: (time: string) => `${time}에서 시작`,
+    endsAt: (time: string) => `${time}에서 끝남`,
+    removedSpan: (from: string, to: string) => `${from}부터 ${to}까지 삭제함`,
     startHere: '여기서 시작',
     removeSelection: '선택 구간 제거',
     endHere: '여기서 끝',
@@ -1001,6 +1018,12 @@ export const ko: Strings = {
     nothingToCheck: '확인할 것이 없습니다',
     correctSpelling: '표기 수정',
     checkWording: '표현 확인',
+    checkWords: (words: string) => `${words} 확인`,
+    textAt: (time: string) => `${time}의 전사 텍스트`,
+    jumpTo: (time: string) => `${time}(으)로 이동`,
+    removeLineAt: (time: string) => `${time} 위치의 줄 삭제`,
+    renameSpeaker: (speaker: string) => `${speaker} 이름 바꾸기`,
+    nameHeardAs: (heard: string) => `${heard}(으)로 들린 이름`,
     protocolStyle: '회의록 스타일',
     audioUnplayable: '이 회의의 작업용 오디오를 재생하지 못했습니다.',
     speakersResolved:
@@ -1018,6 +1041,22 @@ export const ko: Strings = {
     edit: '편집',
     keep: '남기기',
     notInUseSuffix: ' · 쓰지 않음',
+    /** en.ts의 설명을 참고하십시오. 이름을 바꾸기 전까지만 쓰입니다. */
+    shippedStyle: {
+      'style-formal': {
+        name: '정식 회의록',
+        description: '논의와 결정, 실행 항목을 짜임새 있게 남기는 형식입니다.',
+      },
+      'style-working-note': {
+        name: '내부 업무 메모',
+        description: '내부 프로젝트 팀을 위한 간결한 작업 기록입니다.',
+      },
+      'style-decision-log': {
+        name: '기술 결정 기록',
+        description: '대안과 제약, 명시된 결정을 앞세웁니다.',
+      },
+    },
+    copyOf: (name: string) => `${name} (사본)`,
     enterATerm: '용어를 입력하십시오.',
     reading: '읽는 중…',
     editTerm: '용어 편집',
@@ -1086,6 +1125,7 @@ export const ko: Strings = {
     footer: '바닥글',
     left: '왼쪽',
     centre: '가운데',
+    insertInto: (where: string) => `${where}에 값 넣기`,
     right: '오른쪽',
     insert: '삽입…',
     lineHint:
@@ -1262,6 +1302,9 @@ export const ko: Strings = {
     tabHistory: '기록',
     status: '상태',
     createRevision: '판 만들기',
+    lineNumber: (line: number) => `${line}행`,
+    pageNumber: (page: number) => `${page}쪽`,
+    revisionNumber: (ordinal: number) => `${ordinal}판`,
     markReviewed: '검토됨으로 표시',
     style: '스타일',
     sections: '섹션',
@@ -1315,6 +1358,7 @@ export const ko: Strings = {
     themeAlwaysLight: '항상 밝게입니다. 항상 어둡게로 바꿉니다.',
     themeAlwaysDark: '항상 어둡게입니다. 시스템을 따르도록 되돌립니다.',
     themeFollowingShort: '시스템을 따름',
+    sidebarWidth: (width: number) => `${width} 픽셀`,
     resizeSidebar: '사이드바 너비를 바꿉니다. 화살표 키로 조정하고 Enter로 되돌립니다.',
     themeAlwaysLightShort: '항상 밝게',
     themeAlwaysDarkShort: '항상 어둡게',

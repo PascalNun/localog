@@ -154,8 +154,8 @@
             {:else}
               <button
                 class="icon-button compact meeting-delete"
-                title={`Delete ${meeting.title}`}
-                aria-label={`Delete ${meeting.title}`}
+                title={$t.project.deleteMeeting(meeting.title)}
+                aria-label={$t.project.deleteMeeting(meeting.title)}
                 onclick={() => (confirming = meeting.id)}><Icon name="close" size={15} /></button
               >
             {/if}

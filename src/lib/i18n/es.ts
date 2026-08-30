@@ -334,6 +334,17 @@ export const es: Strings = {
     european: 'Europeo',
     checkInstalled: 'Comprobar los modelos instalados',
     curatedModels: 'Modelos de acta seleccionados',
+    downloadModel: (size: string) => `Descargar (${size})`,
+    prepareSpeakerSeparation: 'Preparar la separación de intervinientes',
+    restoredBackup: (projects: number, meetings: number, previous: string) =>
+      `Se han restaurado ${projects} proyectos y ${meetings} reuniones. Lo que había aquí se ha movido a ${previous} en vez de borrarse. Salga de LocaLog y vuelva a abrirlo para trabajar con el espacio restaurado.`,
+    /** Véase la nota en en.ts. */
+    transcriptionPreset: {
+      fast: { name: 'Rápida', detail: 'Borradores rápidos, la más ligera en memoria' },
+      balanced: { name: 'Equilibrada', detail: 'Para las reuniones del día a día' },
+      accurate: { name: 'Precisa', detail: 'La mejor calidad, la más lenta' },
+    },
+    downloadingPreset: (name: string) => `Descargando ${name}`,
     /** Véase la nota en en.ts. */
     modelDescription: {
       'gemma4-12b':
@@ -383,6 +394,7 @@ export const es: Strings = {
     modelsStoredNote:
       'Los modelos se guardan en la carpeta de datos de LocaLog y se verifican antes de usarse.',
     whisperExecutable: 'Ejecutable whisper-cli',
+    whisperExecutablePlaceholder: '/ruta/a/whisper-cli',
     chooseFile: 'Elegir archivo',
     whisperNote: 'Elija el binario de transcripción de línea de órdenes, no whisper-server.',
     saveRuntime: 'Guardar el entorno',
@@ -437,6 +449,7 @@ export const es: Strings = {
   },
 
   project: {
+    deleteMeeting: (title: string) => `Eliminar ${title}`,
     deleteWarning:
       'Eliminar una reunión borra de este dispositivo su grabación, su transcripción y todas las versiones de su acta. No se puede deshacer.',
     eyebrow: 'Proyecto',
@@ -918,6 +931,10 @@ export const es: Strings = {
     heading: 'Revisar la grabación',
     noAudio: 'Todavía no hay audio de trabajo',
     waveformLabel: 'La grabación. Muévase con las flechas y mantenga Mayúsculas para seleccionar.',
+    keptOf: (kept: string, whole: string) => `${kept} de ${whole} conservados`,
+    startsAt: (time: string) => `Empieza en ${time}`,
+    endsAt: (time: string) => `Termina en ${time}`,
+    removedSpan: (from: string, to: string) => `Quitado de ${from} a ${to}`,
     startHere: 'Empezar aquí',
     removeSelection: 'Quitar la selección',
     endHere: 'Terminar aquí',
@@ -1032,6 +1049,12 @@ export const es: Strings = {
     nothingToCheck: 'Nada que revisar',
     correctSpelling: 'Corregir la grafía',
     checkWording: 'Revisar la redacción',
+    checkWords: (words: string) => `Compruebe ${words}`,
+    textAt: (time: string) => `Texto de la transcripción en ${time}`,
+    jumpTo: (time: string) => `Ir a ${time}`,
+    removeLineAt: (time: string) => `Quitar la línea en ${time}`,
+    renameSpeaker: (speaker: string) => `Cambiar el nombre de ${speaker}`,
+    nameHeardAs: (heard: string) => `Nombre oído como ${heard}`,
     protocolStyle: 'Estilo del acta',
     audioUnplayable: 'No se ha podido reproducir el audio de trabajo de esta reunión.',
     speakersResolved:
@@ -1049,6 +1072,22 @@ export const es: Strings = {
     edit: 'Editar',
     keep: 'Conservar',
     notInUseSuffix: ' · sin usar',
+    /** Véase la nota en en.ts: solo mientras un estilo no se haya renombrado. */
+    shippedStyle: {
+      'style-formal': {
+        name: 'Acta formal',
+        description: 'Registro estructurado de la discusión, las decisiones y las acciones.',
+      },
+      'style-working-note': {
+        name: 'Nota de trabajo interna',
+        description: 'Registro de trabajo conciso para un equipo de proyecto interno.',
+      },
+      'style-decision-log': {
+        name: 'Registro de decisiones técnicas',
+        description: 'Destaca las alternativas, las restricciones y las decisiones explícitas.',
+      },
+    },
+    copyOf: (name: string) => `${name} (copia)`,
     enterATerm: 'Escriba un término.',
     reading: 'Leyendo…',
     editTerm: 'Editar el término',
@@ -1119,6 +1158,7 @@ export const es: Strings = {
     footer: 'Pie de página',
     left: 'Izquierda',
     centre: 'Centro',
+    insertInto: (where: string) => `Insertar un valor en ${where}`,
     right: 'Derecha',
     insert: 'Insertar…',
     lineHint:
@@ -1302,6 +1342,9 @@ export const es: Strings = {
     tabHistory: 'Historial',
     status: 'Estado',
     createRevision: 'Crear una versión',
+    lineNumber: (line: number) => `Línea ${line}`,
+    pageNumber: (page: number) => `Página ${page}`,
+    revisionNumber: (ordinal: number) => `Versión ${ordinal}`,
     markReviewed: 'Marcar como revisada',
     style: 'Estilo',
     sections: 'Secciones',
@@ -1355,6 +1398,7 @@ export const es: Strings = {
     themeAlwaysLight: 'Siempre claro. Cambiar a siempre oscuro.',
     themeAlwaysDark: 'Siempre oscuro. Volver al tema del sistema.',
     themeFollowingShort: 'Sigue al sistema',
+    sidebarWidth: (width: number) => `${width} píxeles`,
     resizeSidebar:
       'Redimensionar el panel. Use las flechas para ajustarlo, o Intro para restablecerlo.',
     themeAlwaysLightShort: 'Siempre claro',

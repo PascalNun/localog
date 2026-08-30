@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { AppRoute, TranscriptionCapability } from '../workflow/types';
-  import { PRESET_LABELS } from '../workflow/types';
   import { formatModelSize } from '../models/modelSize';
   import { t } from '../i18n';
   import Icon from './Icon.svelte';
@@ -55,7 +54,7 @@
         <p class="start-setup-title">{$t.start.setupTitle}</p>
         <p class="start-setup-copy">
           {$t.start.setupBody(
-            PRESET_LABELS[capability.selectedPreset].name,
+            $t.settings.transcriptionPreset[capability.selectedPreset].name,
             formatModelSize(chosen.byteCount),
           )}
         </p>

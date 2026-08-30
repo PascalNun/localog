@@ -359,7 +359,7 @@
   function uncertainLabel(segment: TranscriptSegment): string {
     const words = segment.uncertainWords ?? [];
     if (words.length === 0) return $t.transcript.checkWording;
-    return `Check ${words.map((word) => `“${word}”`).join(', ')}`;
+    return $t.transcript.checkWords(words.map((word) => `“${word}”`).join(', '));
   }
 
   function togglePlayback() {
@@ -593,12 +593,12 @@
             <button
               class="timestamp"
               onclick={() => seek(segment.startMs / 1000)}
-              title="Jump to {segmentTimeLabel(segment.startMs)}"
+              title={$t.transcript.jumpTo(segmentTimeLabel(segment.startMs))}
               >{segmentTimeLabel(segment.startMs)}</button
             >
             <span class="speaker-label">{segment.speaker}</span>
             <label
-              ><span class="sr-only">Transcript text at {segmentTimeLabel(segment.startMs)}</span
+              ><span class="sr-only">{$t.transcript.textAt(segmentTimeLabel(segment.startMs))}</span
               ><textarea
                 rows="2"
                 value={segment.text}
@@ -615,7 +615,7 @@
               onclick={() => removeSegment(segment.id)}
               disabled={deletingSegment === segment.id || (transcript?.segments.length ?? 0) <= 1}
               title={$t.transcript.removeLine}
-              aria-label="Remove the line at {segmentTimeLabel(segment.startMs)}"
+              aria-label={$t.transcript.removeLineAt(segmentTimeLabel(segment.startMs))}
               ><Icon name="close" size={14} /></button
             >
           </article>
@@ -671,7 +671,7 @@
             <label
               ><span class="speaker-token">S{index + 1}</span><input
                 value={speaker}
-                aria-label={`Rename ${speaker}`}
+                aria-label={$t.transcript.renameSpeaker(speaker)}
                 onblur={(event) => onUpdateSpeaker(speaker, event.currentTarget.value)}
               /></label
             >
@@ -744,7 +744,7 @@
                     <input
                       type="text"
                       bind:value={spellings[person.heard]}
-                      aria-label="Name heard as {person.heard}"
+                      aria-label={$t.transcript.nameHeardAs(person.heard)}
                     />
                     <span class="introduction-role">{person.role}</span>
                   </li>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { styleName, styleDescription } from '../protocol/styleNames';
   import type {
     ProjectSummary,
     ProtocolDensity,
@@ -139,7 +140,7 @@
 
   const duplicateStyle = (detail: ProtocolStyleDetail) =>
     styleAction(async () => {
-      await onDuplicateStyle(detail.id, `${detail.name} (copy)`);
+      await onDuplicateStyle(detail.id, $t.library.copyOf(styleName(detail)));
       openStyle = null;
     });
 
@@ -304,8 +305,8 @@
           >
             <div class="library-icon"><Icon name="document" /></div>
             <div>
-              <h2>{style.name}</h2>
-              <p>{style.description}</p>
+              <h2>{styleName(style)}</h2>
+              <p>{styleDescription(style)}</p>
             </div>
             <span class="meta"
               >{openingStyleId === style.id

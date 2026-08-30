@@ -114,7 +114,7 @@
             <select
               class="furniture-insert"
               value=""
-              aria-label={`Insert a value into ${band.label} ${slot.label}`}
+              aria-label={$t.furniture.insertInto(`${band.label} ${slot.label}`)}
               onchange={(event) => {
                 const kind = event.currentTarget.value;
                 event.currentTarget.value = '';

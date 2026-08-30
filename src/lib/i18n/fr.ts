@@ -351,6 +351,17 @@ export const fr: Strings = {
     european: 'Européen',
     checkInstalled: 'Vérifier les modèles installés',
     curatedModels: 'Modèles de compte rendu retenus',
+    downloadModel: (size: string) => `Télécharger (${size})`,
+    prepareSpeakerSeparation: 'Préparer la distinction des intervenants',
+    restoredBackup: (projects: number, meetings: number, previous: string) =>
+      `${projects} projets et ${meetings} réunions restaurés. Ce qui se trouvait ici a été déplacé vers ${previous} plutôt que supprimé. Quittez LocaLog et rouvrez-le pour travailler avec l’espace restauré.`,
+    /** Voir la note dans en.ts. */
+    transcriptionPreset: {
+      fast: { name: 'Rapide', detail: 'Brouillons rapides, la plus légère en mémoire' },
+      balanced: { name: 'Équilibrée', detail: 'Pour les réunions de tous les jours' },
+      accurate: { name: 'Précise', detail: 'Meilleure qualité, la plus lente' },
+    },
+    downloadingPreset: (name: string) => `Téléchargement de ${name}`,
     /** Voir la note dans en.ts. */
     modelDescription: {
       'gemma4-12b':
@@ -400,6 +411,7 @@ export const fr: Strings = {
     modelsStoredNote:
       'Les modèles sont conservés dans le dossier de données de LocaLog et vérifiés avant usage.',
     whisperExecutable: 'Exécutable whisper-cli',
+    whisperExecutablePlaceholder: '/chemin/vers/whisper-cli',
     chooseFile: 'Choisir un fichier',
     whisperNote: 'Choisissez le binaire de transcription en ligne de commande, pas whisper-server.',
     saveRuntime: 'Enregistrer l’environnement',
@@ -454,6 +466,7 @@ export const fr: Strings = {
   },
 
   project: {
+    deleteMeeting: (title: string) => `Supprimer ${title}`,
     deleteWarning:
       'Supprimer une réunion retire de cet appareil son enregistrement, sa transcription et toutes les versions de son compte rendu. C’est irréversible.',
     eyebrow: 'Projet',
@@ -941,6 +954,10 @@ export const fr: Strings = {
     noAudio: 'Pas encore d’audio de travail',
     waveformLabel:
       'L’enregistrement. Déplacez-vous avec les flèches, maintenez Maj pour sélectionner.',
+    keptOf: (kept: string, whole: string) => `${kept} sur ${whole} conservés`,
+    startsAt: (time: string) => `Commence à ${time}`,
+    endsAt: (time: string) => `Se termine à ${time}`,
+    removedSpan: (from: string, to: string) => `Supprimé de ${from} à ${to}`,
     startHere: 'Commencer ici',
     removeSelection: 'Supprimer la sélection',
     endHere: 'Terminer ici',
@@ -1057,6 +1074,12 @@ export const fr: Strings = {
     nothingToCheck: 'Rien à vérifier',
     correctSpelling: 'Corriger l’orthographe',
     checkWording: 'Vérifier la formulation',
+    checkWords: (words: string) => `Vérifier ${words}`,
+    textAt: (time: string) => `Texte de la transcription à ${time}`,
+    jumpTo: (time: string) => `Aller à ${time}`,
+    removeLineAt: (time: string) => `Supprimer la ligne à ${time}`,
+    renameSpeaker: (speaker: string) => `Renommer ${speaker}`,
+    nameHeardAs: (heard: string) => `Nom entendu comme ${heard}`,
     protocolStyle: 'Style de compte rendu',
     audioUnplayable: 'L’audio de travail de cette réunion n’a pas pu être lu.',
     speakersResolved:
@@ -1074,6 +1097,23 @@ export const fr: Strings = {
     edit: 'Modifier',
     keep: 'Conserver',
     notInUseSuffix: ' · inutilisé',
+    /** Voir la note dans en.ts : seulement tant qu’un style n’a pas été renommé. */
+    shippedStyle: {
+      'style-formal': {
+        name: 'Compte rendu officiel',
+        description: 'Compte rendu structuré des échanges, des décisions et des actions.',
+      },
+      'style-working-note': {
+        name: 'Note de travail interne',
+        description: 'Compte rendu de travail concis pour une équipe de projet interne.',
+      },
+      'style-decision-log': {
+        name: 'Journal des décisions techniques',
+        description:
+          'Met en avant les solutions envisagées, les contraintes et les décisions explicites.',
+      },
+    },
+    copyOf: (name: string) => `${name} (copie)`,
     enterATerm: 'Saisissez un terme.',
     reading: 'Lecture…',
     editTerm: 'Modifier le terme',
@@ -1144,6 +1184,7 @@ export const fr: Strings = {
     footer: 'Pied de page',
     left: 'Gauche',
     centre: 'Centre',
+    insertInto: (where: string) => `Insérer une valeur dans ${where}`,
     right: 'Droite',
     insert: 'Insérer…',
     lineHint:
@@ -1328,6 +1369,9 @@ export const fr: Strings = {
     tabHistory: 'Historique',
     status: 'État',
     createRevision: 'Créer une version',
+    lineNumber: (line: number) => `Ligne ${line}`,
+    pageNumber: (page: number) => `Page ${page}`,
+    revisionNumber: (ordinal: number) => `Version ${ordinal}`,
     markReviewed: 'Marquer comme relu',
     style: 'Style',
     sections: 'Sections',
@@ -1381,6 +1425,7 @@ export const fr: Strings = {
     themeAlwaysLight: 'Toujours clair. Passer à toujours sombre.',
     themeAlwaysDark: 'Toujours sombre. Revenir au thème du système.',
     themeFollowingShort: 'Suit le système',
+    sidebarWidth: (width: number) => `${width} pixels`,
     resizeSidebar:
       'Redimensionner le panneau. Utilisez les flèches pour ajuster, ou Entrée pour réinitialiser.',
     themeAlwaysLightShort: 'Toujours clair',

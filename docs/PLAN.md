@@ -1001,6 +1001,46 @@ the thing they describe rather than by remembering it.
   comparing the field's text against the project's stored default. Both would have
   gone quiet — not wrong, quiet — the moment the label was translated.
 
+  **What finally closed it is three guards rather than a fourth sweep.** Walking
+  the application in French went on finding things after the searching stopped —
+  the three transcription qualities, still a constant in `types.ts`; the three
+  shipped protocol style names, seeded into the database by a migration; eleven
+  plain text nodes with an interpolation in them, which is why the August
+  extractor read past every one; a screen reader saying "pixels". So the check is
+  now written down:
+
+  1. **No string is the same in English and German**, except sixteen words that
+     genuinely are — `PDF`, `Status`, `Person`, `Export` — listed by value rather
+     than by key, so a new use of one passes without editing the list. This is
+     what typing cannot see: German is typed against English, so a _missing_ key
+     is already a compile error, but a key added to both files and translated in
+     neither reads correctly to the one person who speaks English.
+  2. **No attribute a person reads or hears holds words of its own** — not as a
+     quoted value, not as a template literal, not as a sentence inside a ternary.
+  3. **No component says anything in its own markup.**
+
+  Each was checked against the fault it describes before it was kept, and that
+  mattered: the second one silently found nothing on its first attempt, because it
+  looked for the next `}` and every template literal worth catching has one inside
+  a `${}` hole. The first found a code raised by the correction pass that nobody
+  had ever written words for; the third, once its brace matching was right, found
+  the screen reader.
+
+  None of the three finds everything. What they do instead of a sweep is fail.
+
+  Two decisions inside this that are not translation:
+
+  - **A shipped protocol style is named in the reader's language only while it
+    still carries the name it shipped with.** Rename one and the name you gave it
+    is what you see, in every language, because at that point it is not the
+    shipped style any more. That comparison repeats the text the migration seeds,
+    which is the only place the interface repeats a stored value — and a test
+    reads `storage.rs` to check the two still match.
+  - **The meeting-language picker shows `Allemand` and stores `German`.** The
+    stored value is handed to the transcription runtime, so this is the one place
+    where getting the identifier-and-label split wrong would not look like a
+    translation fault: it would transcribe the meeting in the wrong language.
+
 - The application is not signed. It is ad-hoc signed, which runs here and is refused
   on anybody else's Mac, and there is no Developer ID on this machine. This is the
   whole of what stands between the current bundle and handing it to somebody. The

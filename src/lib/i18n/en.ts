@@ -372,6 +372,21 @@ export const en = {
     european: 'European',
     checkInstalled: 'Check installed models',
     curatedModels: 'Curated protocol models',
+    downloadModel: (size: string) => `Download (${size})`,
+    prepareSpeakerSeparation: 'Prepare speaker separation',
+    restoredBackup: (projects: number, meetings: number, previous: string) =>
+      `Restored ${projects} projects and ${meetings} meetings. What was here was moved to ${previous} rather than deleted. Quit and open LocaLog again to work with the restored workspace.`,
+    /**
+     * The three transcription qualities. Their ids are stored and sent to the
+     * runtime; these are the words for them, and they lived in `types.ts` as a
+     * constant until a French interface offered “Balanced”.
+     */
+    transcriptionPreset: {
+      fast: { name: 'Fast', detail: 'Quick drafts, lightest on memory' },
+      balanced: { name: 'Balanced', detail: 'Everyday meetings' },
+      accurate: { name: 'Accurate', detail: 'Best quality, slowest' },
+    },
+    downloadingPreset: (name: string) => `Downloading ${name}`,
     /**
      * The words for the model catalogue, which now holds only facts. Keyed by the
      * entry's id, and the id is a closed union, so a model added to the catalogue
@@ -425,6 +440,7 @@ export const en = {
     modelsStoredNote:
       'Models are stored in LocaLog’s application data folder and verified before use.',
     whisperExecutable: 'whisper-cli executable',
+    whisperExecutablePlaceholder: '/path/to/whisper-cli',
     chooseFile: 'Choose file',
     whisperNote: 'Choose the command-line transcription binary, not whisper-server.',
     saveRuntime: 'Save runtime',
@@ -479,6 +495,7 @@ export const en = {
 
   /** The sidebar, which is on screen whatever else is. */
   project: {
+    deleteMeeting: (title: string) => `Delete ${title}`,
     deleteWarning:
       'Deleting a meeting removes its recording, its transcript and every protocol revision, from this device. It cannot be undone.',
     eyebrow: 'Project',
@@ -1020,6 +1037,10 @@ export const en = {
     heading: 'Review recording',
     noAudio: 'No working audio yet',
     waveformLabel: 'The recording. Move with the arrow keys, hold shift to select.',
+    keptOf: (kept: string, whole: string) => `${kept} of ${whole} kept`,
+    startsAt: (time: string) => `Starts at ${time}`,
+    endsAt: (time: string) => `Ends at ${time}`,
+    removedSpan: (from: string, to: string) => `Removed ${from} to ${to}`,
     startHere: 'Start here',
     removeSelection: 'Remove selection',
     endHere: 'End here',
@@ -1147,6 +1168,12 @@ export const en = {
     nothingToCheck: 'Nothing to check',
     correctSpelling: 'Correct spelling',
     checkWording: 'Check wording',
+    checkWords: (words: string) => `Check ${words}`,
+    textAt: (time: string) => `Transcript text at ${time}`,
+    jumpTo: (time: string) => `Jump to ${time}`,
+    removeLineAt: (time: string) => `Remove the line at ${time}`,
+    renameSpeaker: (speaker: string) => `Rename ${speaker}`,
+    nameHeardAs: (heard: string) => `Name heard as ${heard}`,
     protocolStyle: 'Protocol style',
     audioUnplayable: 'This meeting’s working audio could not be played.',
     speakersResolved:
@@ -1164,6 +1191,29 @@ export const en = {
     edit: 'Edit',
     keep: 'Keep',
     notInUseSuffix: ' · not in use',
+    /**
+     * The three styles LocaLog ships with.
+     *
+     * Their names live in the database, because a style is something somebody can
+     * rename, and what they rename it to is theirs. So these are used only while a
+     * shipped style still carries the text it shipped with: rename one and the
+     * name you gave it is what you see, in every language.
+     */
+    shippedStyle: {
+      'style-formal': {
+        name: 'Formal minutes',
+        description: 'Structured record of discussion, decisions, and actions.',
+      },
+      'style-working-note': {
+        name: 'Internal working note',
+        description: 'Concise working record for an internal project team.',
+      },
+      'style-decision-log': {
+        name: 'Technical decision log',
+        description: 'Emphasises alternatives, constraints, and explicit decisions.',
+      },
+    },
+    copyOf: (name: string) => `${name} (copy)`,
     enterATerm: 'Enter a term.',
     reading: 'Reading…',
     editTerm: 'Edit term',
@@ -1240,6 +1290,7 @@ export const en = {
     footer: 'Footer',
     left: 'Left',
     centre: 'Centre',
+    insertInto: (where: string) => `Insert a value into ${where}`,
     right: 'Right',
     insert: 'Insert…',
     lineHint:
@@ -1438,6 +1489,9 @@ export const en = {
     tabHistory: 'History',
     status: 'Status',
     createRevision: 'Create revision',
+    lineNumber: (line: number) => `Line ${line}`,
+    pageNumber: (page: number) => `Page ${page}`,
+    revisionNumber: (ordinal: number) => `Revision ${ordinal}`,
     markReviewed: 'Mark reviewed',
     style: 'Style',
     sections: 'Sections',
@@ -1491,6 +1545,7 @@ export const en = {
     themeAlwaysLight: 'Always light. Switch to always dark.',
     themeAlwaysDark: 'Always dark. Switch to following the system.',
     themeFollowingShort: 'Following the system',
+    sidebarWidth: (width: number) => `${width} pixels`,
     resizeSidebar: 'Resize sidebar. Use arrow keys to adjust or Enter to reset.',
     themeAlwaysLightShort: 'Always light',
     themeAlwaysDarkShort: 'Always dark',

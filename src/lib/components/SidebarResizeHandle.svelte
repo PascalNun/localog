@@ -79,7 +79,7 @@
   aria-valuemin={MIN_SIDEBAR_WIDTH}
   aria-valuemax={MAX_SIDEBAR_WIDTH}
   aria-valuenow={width}
-  aria-valuetext={`${width} pixels`}
+  aria-valuetext={$t.sidebar.sidebarWidth(width)}
   tabindex="0"
   onpointerdown={beginResize}
   onpointermove={continueResize}
