@@ -512,39 +512,73 @@ pub(crate) fn formal_minutes_instructions() -> Vec<String> {
     formal_minutes_style().instructions
 }
 
-fn formal_minutes_style() -> GenerationStyle {
-    let mut style = GenerationStyle {
-        id: "style-formal".into(),
-        revision: "formal-minutes@2".into(),
-        density: crate::domain::ProtocolDensity::Comprehensive,
-        instructions: vec![
-            "Write the entire protocol in the meeting's language.".into(),
-            "Organise the protocol by topic, not in the order things were discussed. Gather everything said about one subject into a single numbered section, even if it came up several times.".into(),
-            "Begin with the participants, grouped by the organisation they belong to, and give a role only where it was stated.".into(),
-            "Use numbered sections with descriptive headings, and sub-numbered subsections where a topic has distinct parts.".into(),
-            "Write discussion as calm, factual prose. Use lists only for options, criteria, and open questions.".into(),
-            "Reproduce every number, measurement, area, date, and proper name exactly as stated. Never round or approximate them.".into(),
-            "Separate what was decided from what remains open. Where no decision was reached, say so plainly rather than implying one.".into(),
-            "Mark uncertainty in the words the meeting used, such as an intention, an estimate, or a matter still to be confirmed.".into(),
-            "End with a table of agreed next steps with two columns, the task and the responsible party, followed by a short section for dates and appointments.".into(),
-            "Never invent a decision, an action, an owner, or a date. If the source does not say who is responsible, leave it unattributed.".into(),
-            "Cover every topic that was discussed. A protocol that silently omits a topic is incomplete, even if what remains reads well.".into(),
-            "The table of next steps must list every action that was agreed, not a selection of the clearest ones.".into(),
-            // Density already says how long to write, and at two of its three
-            // settings this contradicts it. Removable under an environment variable
-            // so the question can be measured before prose is cut from the only
-            // thing that produces protocols.
-            "Write at whatever length the material requires. Do not compress the meeting into a summary: this is a record, and a reader who was absent must be able to follow what was discussed and what follows from it.".into(),
-            "Never leave a placeholder such as [Datum] or [Details]. If something is not in the source, omit the line instead.".into(),
-        ],
-        expectations: vec![crate::domain::StructuralExpectation::ActionTable],
-    };
-    if std::env::var("LOCALOG_EVAL_DROP_LENGTH_INSTRUCTION").is_ok() {
-        style
-            .instructions
-            .retain(|line| !line.starts_with("Write at whatever length"));
+/// The style this harness measures must be the style the application ships.
+///
+/// It is written out twice — once as SQL a migration runs into every workspace, once
+/// by hand here — and until 29 August 2026 nothing compared them. Byte-identical is
+/// not a property that survives an edit: change the shipped style and every
+/// measurement in `docs/` silently becomes a measurement of a style nobody has.
+///
+/// Compared against a **real workspace** rather than against the migration's text, so
+/// what is checked is what actually reaches the model after every migration has run,
+/// including the one that took the fidelity rules out of every style.
+///
+/// Not `#[ignore]`d, unlike everything else in this file: it needs no recording, no
+/// runtime and no model, and a guard that only runs when somebody remembers to ask
+/// for it is not a guard.
+#[test]
+fn the_style_this_harness_measures_is_the_style_that_ships() {
+    let temporary = tempfile::tempdir().unwrap();
+    let repository = crate::storage::WorkspaceRepository::open(temporary.path()).unwrap();
+    let shipped = repository.protocol_inputs_style("style-formal");
+    let measured = formal_minutes_style();
+
+    assert_eq!(
+        measured.instructions, shipped.instructions,
+        "the style this harness measures has drifted from the one every workspace gets"
+    );
+    assert_eq!(measured.revision, shipped.revision);
+    assert_eq!(measured.density, shipped.density);
+    assert_eq!(measured.expectations, shipped.expectations);
+
+    // And the fault the drift was hiding: the fidelity rules belong to the code, and
+    // `with_density` appends them to whatever the style carries. A style holding them
+    // as well sends each of them to the model twice.
+    for rule in crate::provider::FIDELITY_RULES {
+        assert!(
+            !measured.instructions.iter().any(|line| line == rule),
+            "a fidelity rule is in the style as well as in the code, so it is sent twice: {rule}"
+        );
     }
-    style
+}
+
+/// The shipped formal style, read from a workspace rather than written out here.
+///
+/// It was hand-typed until 29 August 2026, and the guard above found that the copy
+/// had drifted badly: **fourteen instructions here against six that ship**. The eight
+/// extra were the seven fidelity rules and the length instruction, all of which had
+/// been moved out of the style and into the code — where `with_density` appends them
+/// to whatever the style carries.
+///
+/// So the harness was sending them twice. Every measurement in `docs/` was produced
+/// with about eight instructions duplicated in the prompt, against an application
+/// that sends each of them once.
+///
+/// Reading the workspace removes both faults at once and neither can come back: the
+/// style cannot drift from the shipped one because it *is* the shipped one, and the
+/// fidelity rules cannot be duplicated because they are not in it.
+fn formal_minutes_style() -> GenerationStyle {
+    let temporary = tempfile::tempdir().expect("a workspace to read the shipped style from");
+    let repository =
+        crate::storage::WorkspaceRepository::open(temporary.path()).expect("a fresh workspace");
+    let shipped = repository.protocol_inputs_style("style-formal");
+    GenerationStyle {
+        id: shipped.id,
+        revision: shipped.revision,
+        density: shipped.density,
+        instructions: shipped.instructions,
+        expectations: shipped.expectations,
+    }
 }
 
 /// Run the transcript corrections over a real transcript and report what they change.

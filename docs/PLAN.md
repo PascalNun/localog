@@ -183,8 +183,32 @@ rule seriously. All four are fixed:
    protocol in hand, and a missing model or a changed runtime fails the next attempt
    identically, so both still travel out unchanged.
 
-4. **The evaluation harness hand-types the fourteen style instructions** that
-   migration 9 writes into every workspace. Byte-identical today; nothing checks it.
+4. ~~**The evaluation harness hand-types the fourteen style instructions.**~~ Fixed,
+   29 August 2026 — and "byte-identical today" was wrong when it was written. Writing
+   the check found **fourteen instructions in the harness against six that ship.**
+
+   The eight extra were the seven fidelity rules and the length instruction, all of
+   which had been moved out of the style and into the code, where `with_density`
+   appends them to whatever a style carries. So the harness was sending them twice.
+   **Every measurement in `docs/` was produced with about eight instructions
+   duplicated in the prompt**, against an application that sends each of them once.
+
+   What that does to the numbers is unknown and probably small — repetition in a
+   prompt is a weak signal — but "probably small" is exactly the kind of claim this
+   document has had to withdraw before. The measurements stand as they are, with this
+   noted against them; anything re-run from now on is run against the shipped style.
+
+   The harness now reads the style from a fresh workspace instead of writing it out,
+   so neither fault can return: it cannot drift from the shipped style because it _is_
+   the shipped style, and the fidelity rules cannot be duplicated because they are not
+   in it. Two tests hold it — one comparing every field, one asserting no fidelity rule
+   appears in the style at all — and neither is `#[ignore]`d, because a guard that runs
+   only when somebody remembers to ask for it is not a guard.
+
+   One correction to this document while confirming it: the length instruction **has**
+   been moved into the comprehensive density directive. §1b says it was "not done
+   here"; it was done, and `ProtocolDensity::Comprehensive` carries the measurement in
+   its own comment.
 
 5. **A refusal was being reported as a failure.** Found while fixing the above, and
    it is a category error with a consequence. `beyond_one_answer` decides before any

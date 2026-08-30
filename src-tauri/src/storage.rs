@@ -642,7 +642,7 @@ impl WorkspaceRepository {
     }
 
     #[cfg(test)]
-    fn protocol_inputs_style(&self, style_id: &str) -> ResolvedProtocolStyle {
+    pub(crate) fn protocol_inputs_style(&self, style_id: &str) -> ResolvedProtocolStyle {
         self.connection
             .query_row(
                 &format!("{PROTOCOL_STYLE_SELECT} WHERE id = ?1"),
