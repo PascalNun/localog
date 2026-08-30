@@ -1,0 +1,52 @@
+name: Windows build
+
+# Manual only, for now. This has never produced a binary and is here to find out
+# what stops it — the Linux workflow took four runs to go green and every failure
+# was environment rather than code, which is only worth learning by running it.
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: windows-${{ hashFiles('src-tauri/Cargo.lock', 'scripts/build-*-sidecar.sh') }}
+          restore-keys: windows-
+
+      - run: npm ci
+
+      # No Rust and no sidecars, so a lint or typecheck failure is known in a
+      # minute rather than after whatever the rest of this turns out to cost.
+      - name: Check the front end
+        run: |
+          npm run lint
+          npm run check
+          npm test
+
+      # The first real question. The crate has Windows branches — memory through
+      # a command, free space through PowerShell — that have never been compiled
+      # for the target they are written for, and nothing on a Mac can compile
+      # them: cross-checking dies in a C build script for a crypto dependency.
+      #
+      # Deliberately before the sidecars. If the Rust does not build for Windows
+      # there is no point spending half an hour finding out whether FFmpeg does.
+      - name: Compile the crate for Windows
+        run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets
+
+      - name: Check the Rust side
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib

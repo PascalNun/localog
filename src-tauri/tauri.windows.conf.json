@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "targets": ["nsis"],
+    "externalBin": [
+      "binaries/localog-whisper",
+      "binaries/localog-llama-server",
+      "binaries/localog-speaker-diarization",
+      "binaries/localog-speaker-embedding",
+      "binaries/localog-ffmpeg",
+      "binaries/localog-ffprobe"
+    ],
+    "resources": ["binaries/licences/*"]
+  }
+}

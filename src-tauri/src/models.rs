@@ -600,9 +600,49 @@ fn available_bytes(path: &Path) -> Option<u64> {
     }
 }
 
+/// Free space on Windows, asked of a command rather than through FFI.
+///
+/// This returned nothing at all, which meant Windows alone lost the check that
+/// stops a 6.5 GB download filling a disk and failing near the end. The unix
+/// branch above uses `statvfs` through `libc`; the Windows equivalent is
+/// `GetDiskFreeSpaceEx`, and rather than write unsafe FFI this project cannot
+/// run, it asks PowerShell — which fails safely, because a command that cannot
+/// run or cannot be parsed answers nothing, and nothing is exactly what this did
+/// before.
+///
+/// Asked about the drive the path is on, not the current one: a workspace on D:
+/// is not answered by how much room C: has.
 #[cfg(not(unix))]
-fn available_bytes(_path: &Path) -> Option<u64> {
-    None
+fn available_bytes(path: &Path) -> Option<u64> {
+    let drive = path.components().next().map(|component| {
+        component
+            .as_os_str()
+            .to_string_lossy()
+            .trim_end_matches('\\')
+            .to_string()
+    })?;
+    let script = format!(
+        "(Get-PSDrive -Name '{}' -ErrorAction Stop).Free",
+        drive.trim_end_matches(':')
+    );
+    let output = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-Command", &script])
+        .output()
+        .ok()?;
+    parse_free_bytes(&String::from_utf8_lossy(&output.stdout))
+}
+
+/// The number PowerShell prints for free space.
+///
+/// Its own function, tested on any machine, for the reason every other parser
+/// here is: the command cannot be run where this is developed, but what it
+/// prints can be read anywhere.
+#[cfg_attr(unix, allow(dead_code))]
+fn parse_free_bytes(text: &str) -> Option<u64> {
+    text.lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty() && line.chars().all(|glyph| glyph.is_ascii_digit()))
+        .and_then(|line| line.parse().ok())
 }
 
 #[cfg(test)]
@@ -941,5 +981,32 @@ mod accepting_terms {
         );
         assert!(accepted_licences(&root).is_empty());
         let _ = fs::remove_dir_all(&root);
+    }
+}
+
+#[cfg(test)]
+mod reading_free_space {
+    use super::*;
+
+    /// What PowerShell prints, and what a failure prints instead.
+    #[test]
+    fn a_number_is_read_and_a_message_is_not() {
+        assert_eq!(parse_free_bytes("123456789\r\n"), Some(123_456_789));
+        assert_eq!(parse_free_bytes("  987654321  \r\n\r\n"), Some(987_654_321));
+        assert_eq!(parse_free_bytes(""), None);
+        assert_eq!(
+            parse_free_bytes(
+                "Get-PSDrive : Cannot find drive. A drive with the name 'Q' does not exist."
+            ),
+            None
+        );
+    }
+
+    /// Zero free bytes is a real answer — a full disk — and must not be confused
+    /// with not knowing. The caller refuses the download either way, but for
+    /// different reasons, and only one of them is worth telling somebody about.
+    #[test]
+    fn a_full_disk_is_not_the_same_as_no_answer() {
+        assert_eq!(parse_free_bytes("0\r\n"), Some(0));
     }
 }

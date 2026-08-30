@@ -33,16 +33,60 @@ pub(crate) fn memory_bytes() -> Option<u64> {
             .ok()
             .and_then(|text| parse_meminfo(&text))
     }
-    // Windows reports this through GlobalMemoryStatusEx, which means either a
-    // crate or hand-written FFI. Neither is written here rather than written
-    // untested: this project has no Windows machine to run it on, and unverified
-    // unsafe code that reports memory would be worse than the honest nothing the
-    // callers already handle. When there is a Windows build to test, this is the
-    // one function that has to learn about it.
-    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    // Windows reports this through GlobalMemoryStatusEx, which means unsafe FFI or
+    // a crate. This asks a command instead, the way the macOS branch above asks
+    // `sysctl` — because the objection that kept this returning nothing was to
+    // *unverified unsafe code*, and a command that cannot be run or cannot be
+    // parsed simply answers nothing, which every caller already handles.
+    //
+    // `wmic` first because it is fast, PowerShell second because `wmic` was
+    // removed from Windows 11 24H2. Neither has been run by this project on a
+    // Windows machine; what has been tested is the parser, on any machine, which
+    // is the same arrangement `/proc/meminfo` already has.
+    #[cfg(target_os = "windows")]
+    {
+        ["wmic", "powershell"].iter().find_map(|tool| {
+            let output = match *tool {
+                "wmic" => std::process::Command::new("wmic")
+                    .args(["ComputerSystem", "get", "TotalPhysicalMemory"])
+                    .output(),
+                _ => std::process::Command::new("powershell")
+                    .args([
+                        "-NoProfile",
+                        "-Command",
+                        "(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory",
+                    ])
+                    .output(),
+            };
+            output
+                .ok()
+                .and_then(|out| String::from_utf8(out.stdout).ok())
+                .and_then(|text| parse_total_physical_memory(&text))
+        })
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
     {
         None
     }
+}
+
+/// The number out of what Windows prints for total physical memory.
+///
+/// Its own function so it can be tested anywhere rather than only on the platform
+/// that produces it — the same arrangement `parse_meminfo` has, and for the same
+/// reason: this project has no Windows machine, so the part that can be checked
+/// on any machine is the part worth having.
+///
+/// `wmic` prints a header line and then the value; PowerShell prints the value
+/// alone. Taking the first line that is entirely digits reads both, and reads
+/// nothing out of an error message, which is what a missing command produces.
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+fn parse_total_physical_memory(text: &str) -> Option<u64> {
+    text.lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty() && line.chars().all(|glyph| glyph.is_ascii_digit()))
+        .and_then(|line| line.parse().ok())
+        .filter(|bytes| *bytes > 0)
 }
 
 /// Installed memory in whole gigabytes, or nothing.
@@ -94,6 +138,35 @@ mod tests {
     fn the_first_matching_line_wins_and_nothing_after_it_matters() {
         let text = "MemTotal:       8000000 kB\nMemTotal:       1 kB\n";
         assert_eq!(parse_meminfo(text), Some(8_000_000 * 1024));
+    }
+
+    /// What `wmic` prints: a header, the value, and trailing blank lines.
+    #[test]
+    fn the_windows_value_is_read_past_its_header() {
+        let wmic = "TotalPhysicalMemory  \r\n17179869184          \r\n\r\n";
+        assert_eq!(parse_total_physical_memory(wmic), Some(17_179_869_184));
+        // PowerShell prints the number alone.
+        assert_eq!(
+            parse_total_physical_memory("17179869184\r\n"),
+            Some(17_179_869_184)
+        );
+    }
+
+    /// A missing command prints an error, not a number, and an error must not be
+    /// read as a machine with some quantity of memory.
+    #[test]
+    fn an_error_message_is_not_a_quantity() {
+        assert_eq!(parse_total_physical_memory(""), None);
+        assert_eq!(
+            parse_total_physical_memory("'wmic' is not recognized as an internal command"),
+            None
+        );
+        assert_eq!(
+            parse_total_physical_memory("TotalPhysicalMemory\r\n\r\n"),
+            None
+        );
+        // Zero is not an answer either.
+        assert_eq!(parse_total_physical_memory("0\r\n"), None);
     }
 
     /// Whatever this machine is, the two answers describe the same number.
