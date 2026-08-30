@@ -1450,6 +1450,10 @@ export const fr: Strings = {
     promiseTitle: 'Votre travail de réunion reste sur cet appareil.',
     promiseDetail: 'Pas de compte LocaLog, pas de service en ligne, pas de télémétrie.',
 
+    setupProviderTitle: 'Encore une chose avant le premier compte rendu',
+    setupProviderBody:
+      'La transcription fonctionne déjà. Rédiger le compte rendu demande en plus un modèle de langue sur cet appareil, qui se configure dans les réglages. Vous pouvez importer et transcrire un enregistrement avant.',
+    setupProviderAction: 'Configurer dans les réglages',
     setupTitle: 'Un téléchargement avant la première transcription',
     setupBody: (quality: string, size: string) =>
       `LocaLog transcrit sur cet appareil, il faut donc que le modèle y soit. La qualité ${quality} pèse ${size} et se télécharge une fois. Vous pouvez importer un enregistrement avant : c’est au démarrage de la transcription que le modèle est nécessaire, pas avant.`,

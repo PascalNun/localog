@@ -1575,6 +1575,18 @@ export const en = {
     promiseDetail: 'No LocaLog account, cloud service, or telemetry.',
 
     /** Shown only on an installation that has no transcription model yet. */
+    /**
+     * Shown when transcription is ready and the generation runtime is not.
+     *
+     * The transcription model was already announced here rather than at the
+     * moment of use; the generation one was not, so somebody met it by
+     * pressing Generate after a transcript they had already waited for. Same
+     * fault, same fix, and deliberately not a gate either.
+     */
+    setupProviderTitle: 'One more thing before the first protocol',
+    setupProviderBody:
+      'Transcribing works now. Writing the protocol needs a language model on this device as well, and that is set up in Settings. You can import and transcribe a recording before doing it.',
+    setupProviderAction: 'Set it up in Settings',
     setupTitle: 'One download before the first transcription',
     /** `quality` is a preset name — Fast, Balanced, Accurate — and `size` reads "141 MB". */
     setupBody: (quality: string, size: string) =>

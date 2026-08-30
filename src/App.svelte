@@ -717,6 +717,7 @@
           {capability}
           {downloading}
           {modelError}
+          {providerStatus}
           onDownloadModel={downloadModel}
           onCancelDownload={cancelModelDownload}
         />
@@ -1039,6 +1040,7 @@
           {capability}
           {downloading}
           {modelError}
+          {providerStatus}
           onDownloadModel={downloadModel}
           onCancelDownload={cancelModelDownload}
         />

@@ -1328,6 +1328,10 @@ export const zh: Strings = {
     promiseTitle: '您的会议工作留在本机。',
     promiseDetail: '没有 LocaLog 账户，没有云服务，没有遥测。',
 
+    setupProviderTitle: '生成第一份会议纪要前，还差一件事',
+    setupProviderBody:
+      '转写现在可用。撰写会议纪要还需要本机上的语言模型，在设置中准备。在此之前，导入并转写录音是可以的。',
+    setupProviderAction: '在设置中准备',
     setupTitle: '首次转写前需要下载一次',
     setupBody: (quality: string, size: string) =>
       `LocaLog 在本机上转写，所以模型必须在本机上。${quality}质量为 ${size}，只需下载一次。您可以先导入录音——模型是在转写开始时才需要的，而不是更早。`,

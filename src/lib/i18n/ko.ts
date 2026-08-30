@@ -1382,6 +1382,10 @@ export const ko: Strings = {
     promiseTitle: '회의 관련 작업은 이 기기를 떠나지 않습니다.',
     promiseDetail: 'LocaLog 계정도, 클라우드 서비스도, 원격 측정도 없습니다.',
 
+    setupProviderTitle: '첫 회의록을 만들기 전에 한 가지 더',
+    setupProviderBody:
+      '전사는 이제 됩니다. 회의록을 쓰려면 이 기기에 언어 모델도 필요하며, 설정에서 준비합니다. 그 전에 녹음을 가져와 전사하는 것은 가능합니다.',
+    setupProviderAction: '설정에서 준비하기',
     setupTitle: '첫 전사 전에 한 번만 내려받습니다',
     setupBody: (quality: string, size: string) =>
       `LocaLog는 이 기기에서 전사하므로 모델이 이 기기에 있어야 합니다. ${quality} 품질은 ${size}이며 한 번만 내려받습니다. 녹음을 먼저 가져오셔도 됩니다. 모델이 필요한 때는 전사가 시작될 때이지 그 전이 아닙니다.`,

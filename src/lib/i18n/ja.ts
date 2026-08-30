@@ -1394,6 +1394,10 @@ export const ja: Strings = {
     promiseTitle: '会議に関する作業は、この端末から出ません。',
     promiseDetail: 'LocaLogのアカウントも、クラウドも、テレメトリもありません。',
 
+    setupProviderTitle: '最初の議事録をつくる前に、もうひとつ',
+    setupProviderBody:
+      '文字起こしはもう使えます。議事録を書くには、この端末に言語モデルも必要で、設定から用意します。その前に録音の読み込みと文字起こしはできます。',
+    setupProviderAction: '設定で用意する',
     setupTitle: '最初の文字起こしの前に、1回だけダウンロードします',
     setupBody: (quality: string, size: string) =>
       `LocaLogはこの端末で文字起こしを行うため、モデルがこの端末にある必要があります。${quality}の品質は${size}で、一度だけダウンロードします。先に録音を取り込むこともできます。モデルが必要になるのは文字起こしを始めるときで、それより前ではありません。`,

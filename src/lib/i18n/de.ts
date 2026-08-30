@@ -1465,6 +1465,10 @@ export const de: Strings = {
     promiseTitle: 'Ihre Arbeit bleibt auf diesem Gerät.',
     promiseDetail: 'Kein LocaLog-Konto, kein Cloud-Dienst, keine Telemetrie.',
 
+    setupProviderTitle: 'Noch eines, bevor das erste Protokoll entsteht',
+    setupProviderBody:
+      'Transkribieren geht jetzt. Für das Protokoll wird zusätzlich ein Sprachmodell auf diesem Gerät gebraucht, eingerichtet wird es in den Einstellungen. Aufnehmen und Transkribieren können Sie schon vorher.',
+    setupProviderAction: 'In den Einstellungen einrichten',
     setupTitle: 'Ein Download vor der ersten Transkription',
     setupBody: (quality: string, size: string) =>
       `LocaLog transkribiert auf diesem Gerät, also muss das Modell darauf sein. Die Qualität „${quality}“ ist ${size} groß und wird einmal geladen. Sie können vorher eine Aufnahme importieren — gebraucht wird es erst, wenn die Transkription beginnt.`,

@@ -1423,6 +1423,10 @@ export const es: Strings = {
     promiseTitle: 'Su trabajo de reuniones se queda en este dispositivo.',
     promiseDetail: 'Sin cuenta de LocaLog, sin servicio en la nube, sin telemetría.',
 
+    setupProviderTitle: 'Una cosa más antes de la primera acta',
+    setupProviderBody:
+      'Transcribir ya funciona. Redactar el acta necesita además un modelo de lenguaje en este dispositivo, que se configura en los ajustes. Puede importar y transcribir una grabación antes de hacerlo.',
+    setupProviderAction: 'Configurarlo en los ajustes',
     setupTitle: 'Una descarga antes de la primera transcripción',
     setupBody: (quality: string, size: string) =>
       `LocaLog transcribe en este dispositivo, así que el modelo tiene que estar aquí. La calidad ${quality} ocupa ${size} y se descarga una sola vez. Puede importar antes una grabación: el modelo hace falta cuando empieza la transcripción, no antes.`,

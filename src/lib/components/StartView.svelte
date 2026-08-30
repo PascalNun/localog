@@ -1,5 +1,9 @@
 <script lang="ts">
-  import type { AppRoute, TranscriptionCapability } from '../workflow/types';
+  import type {
+    AppRoute,
+    ProtocolProviderStatus,
+    TranscriptionCapability,
+  } from '../workflow/types';
   import { formatModelSize } from '../models/modelSize';
   import { t } from '../i18n';
   import Icon from './Icon.svelte';
@@ -8,6 +12,7 @@
   export let capability: TranscriptionCapability;
   export let downloading: Record<string, number>;
   export let modelError: string | null;
+  export let providerStatus: ProtocolProviderStatus;
   export let onDownloadModel: (modelId: string) => Promise<void>;
   export let onCancelDownload: (modelId: string) => Promise<void>;
 
@@ -32,6 +37,14 @@
   $: ready = capability.presets.some((preset) => preset.installed);
   $: percent = chosen ? downloading[chosen.modelId] : undefined;
   $: fetching = percent !== undefined;
+  /// The second thing a new installation is missing, and it was never said here.
+  ///
+  /// Transcription announces itself on this screen; generation did not, so the
+  /// first anybody heard of it was pressing Generate on a transcript they had
+  /// already waited for — the exact fault the comment above describes fixing for
+  /// the other half. Shown after the transcription card rather than beside it, so
+  /// a fresh installation is told one thing at a time in the order it needs them.
+  $: providerReady = providerStatus?.selectedModelReady ?? false;
 </script>
 
 <main class="workspace start-workspace" id="main-content">
@@ -78,6 +91,14 @@
           <p class="start-setup-error">{modelError}</p>
         {/if}
         <p class="start-setup-aside">{$t.start.setupAside}</p>
+      </div>
+    {:else if !providerReady}
+      <div class="start-setup" aria-live="polite">
+        <p class="start-setup-title">{$t.start.setupProviderTitle}</p>
+        <p class="start-setup-copy">{$t.start.setupProviderBody}</p>
+        <button class="start-setup-action" onclick={() => onNavigate({ name: 'settings' })}>
+          {$t.start.setupProviderAction}
+        </button>
       </div>
     {/if}
 
