@@ -79,10 +79,18 @@ describe('choosing the language to start in', () => {
 
   it('falls back to English rather than to something merely nearby', () => {
     // Dutch is not German, and a Dutch speaker being given a German interface
-    // would be a worse answer than an English one.
+    // would be a worse answer than an English one. This used to say the same of
+    // French and Italian, which stopped being true when they were added — the
+    // examples have to be languages the application genuinely does not speak.
     expect(preferredLanguage(null, ['nl-NL'])).toBe('en');
-    expect(preferredLanguage(null, ['fr-FR', 'it-IT'])).toBe('en');
+    expect(preferredLanguage(null, ['pt-BR', 'pl-PL'])).toBe('en');
     expect(preferredLanguage(null, [])).toBe('en');
+  });
+
+  it('serves every language it offers, not only the first two', () => {
+    for (const entry of INTERFACE_LANGUAGES) {
+      expect(preferredLanguage(null, [`${entry.id}-XX`])).toBe(entry.id);
+    }
   });
 
   it('ignores a stored value it does not recognise', () => {

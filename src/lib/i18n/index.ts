@@ -19,6 +19,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { en } from './en';
 import { de } from './de';
+import { fr } from './fr';
 import type { Strings } from './en';
 
 export type { Strings };
@@ -33,6 +34,7 @@ export type { Strings };
 export const INTERFACE_LANGUAGES = [
   { id: 'en', label: 'English', strings: en },
   { id: 'de', label: 'Deutsch', strings: de },
+  { id: 'fr', label: 'Français', strings: fr },
 ] as const;
 
 export type LanguageId = (typeof INTERFACE_LANGUAGES)[number]['id'];
