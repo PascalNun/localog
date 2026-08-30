@@ -3988,9 +3988,30 @@ mod tests {
         let file = fs::File::create(&model).unwrap();
         file.set_len(77_691_713).unwrap();
         drop(file);
+        // Something that genuinely runs and prints a line, because the metadata
+        // reads a version by executing it — a file that merely exists is not
+        // enough, which is what a first attempt at fixing this for Windows got
+        // wrong on both platforms at once.
+        //
+        // `where.exe` rather than `cmd.exe`: given an argument it does not know it
+        // complains and exits, where cmd may open a shell and wait. Found through
+        // SystemRoot rather than assumed at C:\Windows, because the system drive
+        // is not always C.
+        let executable = if cfg!(windows) {
+            std::path::PathBuf::from(
+                std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string()),
+            )
+            .join("System32")
+            .join("where.exe")
+        } else {
+            std::path::PathBuf::from("/bin/echo")
+        };
         let repository = WorkspaceRepository::open(root).unwrap();
         repository
-            .write_setting("transcription.whisperExecutable", "/bin/echo")
+            .write_setting(
+                "transcription.whisperExecutable",
+                &executable.to_string_lossy(),
+            )
             .unwrap();
         repository
             .write_setting("transcription.preset", "fast")
