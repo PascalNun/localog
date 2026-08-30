@@ -21,7 +21,16 @@ jobs:
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev patchelf \
             libayatana-appindicator3-dev build-essential curl wget file libssl-dev \
-            cmake ninja-build pkg-config
+            cmake ninja-build pkg-config \
+            libopus-dev nasm
+
+      # The FFmpeg sidecar links libopus statically on purpose, so the binary
+      # carries no dependency on the machine that built it. Prove the archive is
+      # actually there before spending twenty minutes finding out it is not.
+      - name: Check for a static libopus
+        run: |
+          archive="$(pkg-config --variable=libdir opus)/libopus.a"
+          test -f "$archive" && ls -lh "$archive"
 
       - uses: actions/setup-node@v4
         with:
