@@ -18,10 +18,11 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:editor-spike": "vitest run --config spikes/markdown-editor/vitest.config.ts",
-    "build:sidecar": "bash scripts/build-recorder-sidecar.sh && bash scripts/build-whisper-sidecar.sh && bash scripts/build-sherpa-sidecar.sh && bash scripts/build-embedding-sidecar.sh && bash scripts/build-ffmpeg-sidecar.sh",
+    "build:sidecar": "bash scripts/build-sidecars.sh",
     "tauri:build": "npm run build:sidecar && tauri build --config src-tauri/tauri.release.conf.json",
     "test:watch": "vitest",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:build:linux": "npm run build:sidecar && tauri build --config src-tauri/tauri.linux.conf.json"
   },
   "dependencies": {
     "@fontsource-variable/noto-sans-jp": "^5.3.0",

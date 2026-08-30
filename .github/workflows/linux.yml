@@ -1,0 +1,73 @@
+name: Linux build
+
+# Manual, and on a version tag. Not on every push: this compiles whisper, sherpa
+# and FFmpeg from source, which is tens of minutes even with the cache warm.
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # What Tauri v2 needs to build a GTK/WebKit application. libwebkit2gtk-4.1
+      # is the v2 one; 4.0 is Tauri v1 and silently gives a configure failure.
+      - name: Install the desktop toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev patchelf \
+            libayatana-appindicator3-dev build-essential curl wget file libssl-dev \
+            cmake ninja-build pkg-config
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # The sidecar sources are the expensive part, not the Rust crate.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+            vendor
+          key: linux-${{ hashFiles('src-tauri/Cargo.lock', 'scripts/build-*-sidecar.sh') }}
+          restore-keys: linux-
+
+      - run: npm ci
+
+      - name: Check before building
+        run: |
+          npm run lint
+          npm run check
+          npm test
+          cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Build the sidecars
+        run: npm run build:sidecar
+
+      # Named so a failure here is obviously the bundle rather than the compile.
+      - name: Bundle the application
+        run: npx tauri build --config src-tauri/tauri.linux.conf.json
+
+      - name: What came out
+        if: always()
+        run: |
+          find src-tauri/target/release/bundle -maxdepth 2 -type f \
+            \( -name '*.deb' -o -name '*.AppImage' \) -exec ls -lh {} \; || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: localog-linux
+          path: |
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: warn
