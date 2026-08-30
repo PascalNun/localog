@@ -208,6 +208,8 @@ const failures = {
   // Starting the runtime that writes the protocol. It ships with the
   // application like whisper does, so none of these is a missing install:
   // each one is this build failing to start something it carries.
+  generationRuntimeReady: 'Ready to write protocols on this device.',
+  generationModelNotDownloaded: 'No model for writing protocols has been downloaded yet.',
   generationRuntimeMissing:
     'No protocol-writing runtime is installed. LocaLog ships one; this build cannot find it.',
   generationRuntimeNoPort:

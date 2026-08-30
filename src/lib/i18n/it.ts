@@ -198,6 +198,8 @@ const failures = {
   ollamaUnchecked: 'Ollama non è ancora stato verificato.',
   responseUnusable:
     'Il modello locale ha restituito una risposta che LocaLog non può usare come verbale. Non è stato salvato nulla e la sua trascrizione è invariata. Riprovare spesso funziona, perché un modello risponde ogni volta in modo diverso.',
+  generationRuntimeReady: 'Pronto a scrivere verbali su questo dispositivo.',
+  generationModelNotDownloaded: 'Non è ancora stato scaricato alcun modello per scrivere verbali.',
   generationRuntimeMissing:
     'Non è installato alcun motore di scrittura. LocaLog ne include uno; questa versione non lo trova.',
   generationRuntimeNoPort:

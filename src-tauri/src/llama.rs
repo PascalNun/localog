@@ -17,6 +17,19 @@
 //! `llama-server` takes it at launch. So a width the machine cannot afford is now
 //! refused before the model is loaded rather than discovered while it swaps.
 
+// Built and tested, not yet reachable from the command layer.
+//
+// The runtime is bundled, the catalogue knows the model and its licence, and the
+// status can answer without a server running — but nothing calls any of it until
+// the download flow and the settings row are wired up, which is the next piece.
+// Said here rather than left as twenty-seven warnings: a build that warns about
+// things known to be fine is a build whose warnings nobody reads, which is how a
+// real one gets missed.
+//
+// This attribute comes off with that wiring. If it is still here when generation
+// runs on the bundled runtime, it is stale.
+#![allow(dead_code)]
+
 use std::io::ErrorKind;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};

@@ -44,6 +44,19 @@ function raised(source: string): string[] {
   for (const arm of source.matchAll(/=>\s*"([a-z]+[A-Z][a-zA-Z]*)"\.(?:into|to_string)\(\)/g)) {
     if (arm[1]) found.push(arm[1]);
   }
+  // A message chosen by a branch and bound to a name, which is the third shape
+  // this file has had to learn. Each one was found the same way — by renaming a
+  // live code and watching this pass — and the moral is in the comment at the
+  // top: a guard checks the constructs it knows, so a new construct is invisible
+  // until somebody looks.
+  //
+  // Bounded to the statement rather than a fixed number of lines, so a branch
+  // growing an arm does not quietly fall outside it.
+  for (const binding of source.matchAll(/\blet\s+message\s*=\s*([\s\S]*?);\n/g)) {
+    for (const literal of (binding[1] ?? '').matchAll(/"([a-z]+[A-Z][a-zA-Z]*)"/g)) {
+      if (literal[1]) found.push(literal[1]);
+    }
+  }
   return found;
 }
 

@@ -203,6 +203,7 @@ fn spec(model_id: &str) -> Option<&'static ModelSpec> {
 /// not to hold a second copy that can disagree.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub(crate) struct ModelTerms {
     pub model_id: String,
     pub kind: ModelKind,
@@ -216,6 +217,7 @@ pub(crate) struct ModelTerms {
 }
 
 /// Everything known about one model's terms, or nothing if it is not catalogued.
+#[allow(dead_code)]
 pub(crate) fn terms(root: &Path, model_id: &str) -> Option<ModelTerms> {
     let model = spec(model_id)?;
     Some(ModelTerms {
@@ -229,6 +231,7 @@ pub(crate) fn terms(root: &Path, model_id: &str) -> Option<ModelTerms> {
 }
 
 /// The terms of everything catalogued, for the page that lists them.
+#[allow(dead_code)]
 pub(crate) fn every_model_terms(root: &Path) -> Vec<ModelTerms> {
     MODELS
         .iter()
@@ -241,6 +244,7 @@ pub(crate) fn every_model_terms(root: &Path) -> Vec<ModelTerms> {
 /// Order is the catalogue's, and the catalogue's order is what was measured. The
 /// first entry is what a new installation is offered without being asked to
 /// choose — the same way transcription offers Balanced.
+#[allow(dead_code)]
 pub(crate) fn generation_models(root: &Path) -> Vec<ModelTerms> {
     MODELS
         .iter()
@@ -254,6 +258,7 @@ pub(crate) fn generation_models(root: &Path) -> Vec<ModelTerms> {
 ///
 /// Returns nothing when none is installed, which is a normal first run rather
 /// than a fault — the start screen says so before anybody reaches generation.
+#[allow(dead_code)]
 pub(crate) fn generation_model_path(root: &Path, preferred: Option<&str>) -> Option<PathBuf> {
     if let Some(wanted) = preferred
         && let Some(path) = installed_model_path(root, wanted)

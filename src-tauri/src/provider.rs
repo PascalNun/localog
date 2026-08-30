@@ -588,6 +588,7 @@ pub struct Spend {
 /// stream is read — and in nothing above that: the retries, the corrections, the
 /// validation and the prompts are the same work whichever answers.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[allow(dead_code)]
 pub enum Backend {
     /// A machine-wide daemon somebody installed.
     Ollama,
@@ -610,6 +611,87 @@ pub struct OllamaProvider {
     generation_agent: ureq::Agent,
 }
 
+/// What the bundled runtime and its models add up to, in the shape the interface
+/// already reads.
+///
+/// A different set of questions from the Ollama one, and the difference is the
+/// point. Asking a daemon what it holds requires the daemon to be running, which
+/// is why that path begins "Start your existing Ollama installation". A runtime
+/// this application ships is present or not, and a model it downloaded is on the
+/// disk or not — neither needs a server to be up to answer, so a fresh
+/// installation can be told exactly what it still needs before anything is
+/// started.
+#[allow(dead_code)]
+pub fn bundled_status(root: &std::path::Path, selected_model: Option<String>) -> OllamaStatus {
+    let executable = crate::llama::server_path();
+    let models: Vec<ModelDescriptor> = crate::models::generation_models(root)
+        .into_iter()
+        .filter(|model| model.installed)
+        .map(|model| ModelDescriptor {
+            name: model.model_id,
+            size: model.byte_count,
+            // The catalogue's checksum, which is what makes a downloaded file
+            // the file it claims to be. Ollama answers with its own digest here
+            // and this is the same promise kept a different way.
+            digest: String::new(),
+            details: ModelDetails::default(),
+        })
+        .collect();
+
+    let chosen = selected_model.or_else(|| models.first().map(|model| model.name.clone()));
+    let ready = chosen
+        .as_deref()
+        .is_some_and(|wanted| models.iter().any(|model| model.name == wanted));
+
+    let message = if executable.is_none() {
+        "generationRuntimeMissing"
+    } else if models.is_empty() {
+        "generationModelNotDownloaded"
+    } else if ready {
+        "generationRuntimeReady"
+    } else {
+        "generationModelNotDownloaded"
+    };
+
+    OllamaStatus {
+        endpoint: executable
+            .as_ref()
+            .map(|path| path.display().to_string())
+            .unwrap_or_default(),
+        // The runtime being present, rather than a server being up. Nothing is
+        // started until a protocol is asked for.
+        server_reachable: executable.is_some(),
+        runtime_version: executable.as_ref().and_then(|path| runtime_version(path)),
+        models,
+        selected_model_digest: None,
+        selected_model_ready: ready,
+        selected_model: chosen,
+        message: message.to_string(),
+        machine_memory_gb: machine_memory_gb(),
+    }
+}
+
+/// What the bundled runtime reports itself as.
+///
+/// Asked rather than assumed: the build is pinned in the script, and a binary
+/// that is not the pinned one is worth being able to see.
+#[allow(dead_code)]
+fn runtime_version(executable: &std::path::Path) -> Option<String> {
+    let output = std::process::Command::new(executable)
+        .arg("--version")
+        .output()
+        .ok()?;
+    // It writes to standard error, which is where a version usually goes.
+    let said = if output.stderr.is_empty() {
+        String::from_utf8_lossy(&output.stdout)
+    } else {
+        String::from_utf8_lossy(&output.stderr)
+    };
+    said.lines()
+        .find(|line| !line.trim().is_empty())
+        .map(|line| truncate(line.trim(), 120))
+}
+
 /// How much memory this machine has, in gigabytes, or none where it cannot be read.
 ///
 /// The interface used to ask the browser and was told nothing on every macOS machine,
@@ -629,6 +711,7 @@ impl OllamaProvider {
     }
 
     /// A provider talking to a `llama-server` this application started.
+    #[allow(dead_code)]
     pub fn llama_at(base_url: String) -> Self {
         Self {
             backend: Backend::Llama,
@@ -636,6 +719,7 @@ impl OllamaProvider {
         }
     }
 
+    #[allow(dead_code)]
     pub fn backend(&self) -> Backend {
         self.backend
     }
@@ -4614,7 +4698,7 @@ mod tests {
     ///
     /// `None` means the peer sent nothing, which is how the test unblocks an accept
     /// still waiting after the client asked fewer times than expected.
-    fn read_whole_request(stream: &mut std::net::TcpStream) -> Option<()> {
+    pub(super) fn read_whole_request(stream: &mut std::net::TcpStream) -> Option<()> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut chunk = [0_u8; 4096];
         loop {
@@ -4749,7 +4833,7 @@ mod reading_a_sent_event {
 #[cfg(test)]
 mod against_a_chat_completions_server {
     use super::*;
-    use std::io::{Read, Write};
+    use std::io::Write;
     use std::net::TcpListener;
     use std::thread;
 
@@ -4774,11 +4858,14 @@ mod against_a_chat_completions_server {
         let port = listener.local_addr().unwrap().port();
         thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
-            // Drain the request first: answering and closing while the body is
-            // still being written loses the connection, which cost an afternoon
-            // once already.
-            let mut buffer = [0_u8; 8192];
-            let _ = stream.read(&mut buffer);
+            // The whole request, not one read of it. Answering and closing while
+            // the client is still writing loses the connection — a fault this
+            // codebase already met once and wrote this helper for, and which a
+            // single `read` here reproduced exactly: passing alone, failing
+            // beside three hundred other tests.
+            if super::tests::read_whole_request(&mut stream).is_none() {
+                return;
+            }
             write!(
                 stream,
                 "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
@@ -4820,5 +4907,65 @@ mod against_a_chat_completions_server {
             .expect("the events assemble into an answer");
 
         assert_eq!(answer, "## Protokoll\n\nEs wurde entschieden.");
+    }
+}
+
+#[cfg(test)]
+mod the_bundled_runtime_status {
+    use super::*;
+
+    fn workspace(label: &str) -> std::path::PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("localog-bundled-{label}-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&root);
+        root
+    }
+
+    /// A fresh installation, and the whole reason this is a separate question.
+    ///
+    /// Ollama's status cannot answer anything until a daemon is running, which is
+    /// why that path opens with "Start your existing Ollama installation". This one
+    /// answers on a machine where nothing has been started, so somebody can be told
+    /// what they still need before they need it.
+    #[test]
+    fn a_workspace_with_no_model_says_so_without_anything_running() {
+        let root = workspace("empty");
+        let status = bundled_status(&root, None);
+        assert!(status.models.is_empty());
+        assert!(!status.selected_model_ready);
+        // Whichever of the two is true depends on whether a sidecar was built in
+        // this checkout, and both are honest answers about a machine with no model.
+        assert!(
+            status.message == "generationModelNotDownloaded"
+                || status.message == "generationRuntimeMissing",
+            "{}",
+            status.message
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The status reports the machine, because the recommendation depends on it and
+    /// reading it in the interface was once the bug that recommended a worse model.
+    #[test]
+    fn the_machine_is_read_here_rather_than_in_the_interface() {
+        let root = workspace("memory");
+        let status = bundled_status(&root, None);
+        assert_eq!(status.machine_memory_gb, machine_memory_gb());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// Every message it can produce is a code the interface has words for. A
+    /// sentence here would be this side deciding what language somebody reads.
+    #[test]
+    fn every_message_is_a_code() {
+        let root = workspace("codes");
+        let status = bundled_status(&root, Some("gemma4-12b".into()));
+        assert!(!status.message.contains(' '), "{}", status.message);
+        assert!(
+            status.message.starts_with("generation"),
+            "{}",
+            status.message
+        );
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

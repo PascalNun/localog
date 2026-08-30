@@ -186,6 +186,8 @@ const failures = {
   ollamaUnchecked: 'Ollama는 아직 확인되지 않았습니다.',
   responseUnusable:
     '로컬 모델이 LocaLog가 회의록으로 쓸 수 없는 응답을 내놓았습니다. 아무것도 반영되지 않았고 전사본은 그대로입니다. 모델은 매번 다르게 답하므로 다시 시도하면 되는 경우가 많습니다.',
+  generationRuntimeReady: '이 기기에서 회의록을 쓸 준비가 되었습니다.',
+  generationModelNotDownloaded: '회의록을 쓸 모델을 아직 내려받지 않았습니다.',
   generationRuntimeMissing:
     '회의록을 쓰는 실행 환경이 설치되어 있지 않습니다. LocaLog에 함께 들어 있지만 이 빌드에서는 찾지 못했습니다.',
   generationRuntimeNoPort:

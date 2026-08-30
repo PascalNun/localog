@@ -202,6 +202,8 @@ const failures = {
   ollamaUnchecked: 'Ollama n’a pas encore été vérifié.',
   responseUnusable:
     'Le modèle local a rendu une réponse que LocaLog ne peut pas utiliser comme compte rendu. Rien n’a été retenu et votre transcription est inchangée. Réessayer aboutit souvent, car un modèle répond différemment à chaque fois.',
+  generationRuntimeReady: 'Prêt à rédiger des comptes rendus sur cet appareil.',
+  generationModelNotDownloaded: 'Aucun modèle de rédaction n’a encore été téléchargé.',
   generationRuntimeMissing:
     'Aucun moteur de rédaction n’est installé. LocaLog en fournit un ; cette version ne le trouve pas.',
   generationRuntimeNoPort:

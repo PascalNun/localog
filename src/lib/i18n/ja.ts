@@ -190,6 +190,8 @@ const failures = {
   ollamaUnchecked: 'Ollamaはまだ確認されていません。',
   responseUnusable:
     'ローカルモデルは、LocaLogが議事録として使えない応答を返しました。何も取り込んでおらず、文字起こしはそのままです。モデルは毎回異なる答えを返すため、やり直すとうまくいくことがよくあります。',
+  generationRuntimeReady: 'この端末で議事録を書く準備ができています。',
+  generationModelNotDownloaded: '議事録を書くためのモデルは、まだダウンロードされていません。',
   generationRuntimeMissing:
     '議事録を書くための実行環境が見つかりません。LocaLog に同梱されていますが、このビルドからは見つけられません。',
   generationRuntimeNoPort:
