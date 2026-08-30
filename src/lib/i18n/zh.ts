@@ -186,6 +186,12 @@ const failures = {
   ollamaUnchecked: '尚未检查 Ollama。',
   responseUnusable:
     '本地模型给出的回复，LocaLog 无法用作纪要。未采用任何内容，您的转写稿原封未动。模型每次作答都不同，重试往往可行。',
+  generationRuntimeMissing: '未安装用于撰写纪要的运行环境。LocaLog 自带一个，但此版本找不到它。',
+  generationRuntimeNoPort: '未能为本地运行环境取得空闲端口。请关闭一些应用后重试。',
+  generationRuntimeNotStarted: '未能启动本地运行环境。',
+  generationRuntimeNeverReady:
+    '本地运行环境已启动，但始终未就绪。超大模型在较慢的磁盘上加载会很久；若再次出现，请改选较小的模型。',
+  generationRuntimeStopped: '本地运行环境在启动过程中停止。模型文件可能不完整——请删除后重新下载。',
   recorderMissing: '未安装录音器。LocaLog 自带一个，但此版本找不到它。',
   recorderSilentAboutPermissions: '录音器未说明自己被允许做什么。',
   recorderCannotReportPermissions: '此录音器无法报告自己被允许做什么。',

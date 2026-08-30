@@ -198,6 +198,15 @@ const failures = {
   ollamaUnchecked: 'Ollama non è ancora stato verificato.',
   responseUnusable:
     'Il modello locale ha restituito una risposta che LocaLog non può usare come verbale. Non è stato salvato nulla e la sua trascrizione è invariata. Riprovare spesso funziona, perché un modello risponde ogni volta in modo diverso.',
+  generationRuntimeMissing:
+    'Non è installato alcun motore di scrittura. LocaLog ne include uno; questa versione non lo trova.',
+  generationRuntimeNoPort:
+    'Non è stato possibile ottenere una porta libera per il motore locale. Chiuda qualche applicazione e riprovi.',
+  generationRuntimeNotStarted: 'Non è stato possibile avviare il motore locale.',
+  generationRuntimeNeverReady:
+    'Il motore locale è partito ma non è mai stato pronto. Un modello molto grande su un disco lento può richiedere tempo; se accade di nuovo, ne scelga uno più piccolo.',
+  generationRuntimeStopped:
+    'Il motore locale si è fermato durante l’avvio. Il file del modello potrebbe essere incompleto: lo rimuova e lo scarichi di nuovo.',
   recorderMissing:
     'Non è installato alcun registratore. LocaLog ne fornisce uno; questa build non lo trova.',
   recorderSilentAboutPermissions: 'Il registratore non ha detto che cosa gli è consentito fare.',

@@ -209,6 +209,15 @@ const failures = {
   ollamaUnchecked: 'Ollama wurde noch nicht geprüft.',
   responseUnusable:
     'Das lokale Modell hat eine Antwort geliefert, die LocaLog nicht als Protokoll verwenden kann. Es wurde nichts übernommen, Ihr Transkript ist unverändert. Ein erneuter Versuch führt oft zum Ziel, da ein Modell jedes Mal anders antwortet.',
+  generationRuntimeMissing:
+    'Es ist keine Laufzeit zum Schreiben von Protokollen installiert. LocaLog bringt eine mit; dieser Build findet sie nicht.',
+  generationRuntimeNoPort:
+    'Für die lokale Laufzeit war kein freier Port zu bekommen. Schließen Sie einige Programme und versuchen Sie es erneut.',
+  generationRuntimeNotStarted: 'Die lokale Laufzeit konnte nicht gestartet werden.',
+  generationRuntimeNeverReady:
+    'Die lokale Laufzeit startete, war aber nie bereit. Ein sehr großes Modell auf einer langsamen Festplatte braucht Zeit; passiert es wieder, wählen Sie ein kleineres.',
+  generationRuntimeStopped:
+    'Die lokale Laufzeit hat sich beim Starten beendet. Die Modelldatei ist womöglich unvollständig — entfernen Sie sie und laden Sie sie erneut.',
   recorderMissing:
     'Es ist keine Aufnahmekomponente installiert. LocaLog liefert eine mit, dieser Build findet sie nicht.',
   recorderSilentAboutPermissions: 'Die Aufnahmekomponente hat nicht mitgeteilt, was sie darf.',

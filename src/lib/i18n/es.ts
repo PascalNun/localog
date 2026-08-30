@@ -190,6 +190,15 @@ const failures = {
   ollamaUnchecked: 'Todavía no se ha comprobado Ollama.',
   responseUnusable:
     'El modelo local ha devuelto una respuesta que LocaLog no puede usar como acta. No se ha guardado nada y su transcripción está intacta. Reintentarlo suele funcionar, porque un modelo responde distinto cada vez.',
+  generationRuntimeMissing:
+    'No hay ningún motor de redacción instalado. LocaLog incluye uno; esta versión no lo encuentra.',
+  generationRuntimeNoPort:
+    'No se ha podido obtener un puerto libre para el motor local. Cierre algunas aplicaciones e inténtelo de nuevo.',
+  generationRuntimeNotStarted: 'No se ha podido iniciar el motor local.',
+  generationRuntimeNeverReady:
+    'El motor local se ha iniciado pero nunca ha estado listo. Un modelo muy grande en un disco lento puede tardar; si vuelve a ocurrir, elija uno más pequeño.',
+  generationRuntimeStopped:
+    'El motor local se ha detenido durante el arranque. Puede que el archivo del modelo esté incompleto: quítelo y descárguelo de nuevo.',
   recorderMissing:
     'No hay ningún grabador instalado. LocaLog incluye uno; esta versión no lo encuentra.',
   recorderSilentAboutPermissions: 'El grabador no ha dicho qué tiene permitido hacer.',

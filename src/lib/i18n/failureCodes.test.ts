@@ -33,6 +33,17 @@ function raised(source: string): string[] {
   for (const call of source.matchAll(/InvalidData\(\s*"([^"]+)"/g)) {
     if (call[1]) found.push(call[1]);
   }
+  // A `code()` method mapping its variants to codes, which is how the storage
+  // layer and the generation runtime both report themselves. Added on 30 August
+  // after a new module raised five codes this could not see — the same lesson
+  // this file already records, arriving again from a different direction.
+  //
+  // The name must be camelCase, which is what every code in the dictionary is.
+  // Requiring one capital is what keeps `"none".to_string()` — a state, not a
+  // failure — from being read as a code nobody wrote words for.
+  for (const arm of source.matchAll(/=>\s*"([a-z]+[A-Z][a-zA-Z]*)"\.(?:into|to_string)\(\)/g)) {
+    if (arm[1]) found.push(arm[1]);
+  }
   return found;
 }
 

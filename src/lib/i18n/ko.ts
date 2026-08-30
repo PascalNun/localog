@@ -186,6 +186,15 @@ const failures = {
   ollamaUnchecked: 'Ollama는 아직 확인되지 않았습니다.',
   responseUnusable:
     '로컬 모델이 LocaLog가 회의록으로 쓸 수 없는 응답을 내놓았습니다. 아무것도 반영되지 않았고 전사본은 그대로입니다. 모델은 매번 다르게 답하므로 다시 시도하면 되는 경우가 많습니다.',
+  generationRuntimeMissing:
+    '회의록을 쓰는 실행 환경이 설치되어 있지 않습니다. LocaLog에 함께 들어 있지만 이 빌드에서는 찾지 못했습니다.',
+  generationRuntimeNoPort:
+    '로컬 실행 환경에 배정할 빈 포트를 얻지 못했습니다. 일부 앱을 닫고 다시 시도하십시오.',
+  generationRuntimeNotStarted: '로컬 실행 환경을 시작하지 못했습니다.',
+  generationRuntimeNeverReady:
+    '로컬 실행 환경이 시작되었지만 준비 상태가 되지 않았습니다. 아주 큰 모델을 느린 디스크에서 읽으면 오래 걸릴 수 있습니다. 다시 발생하면 더 작은 모델을 선택하십시오.',
+  generationRuntimeStopped:
+    '로컬 실행 환경이 시작 도중 멈췄습니다. 모델 파일이 불완전할 수 있습니다. 삭제한 뒤 다시 내려받으십시오.',
   recorderMissing: '설치된 녹음기가 없습니다. LocaLog에 포함되어 있으나 이 빌드가 찾지 못했습니다.',
   recorderSilentAboutPermissions: '녹음기가 무엇이 허용되었는지 밝히지 않았습니다.',
   recorderCannotReportPermissions: '이 녹음기는 무엇이 허용되었는지 알릴 수 없습니다.',

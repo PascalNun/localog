@@ -13,6 +13,7 @@ mod domain;
 mod edits;
 mod facts;
 mod imports;
+mod llama;
 mod machine;
 mod media;
 mod models;

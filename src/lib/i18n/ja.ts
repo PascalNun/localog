@@ -190,6 +190,15 @@ const failures = {
   ollamaUnchecked: 'Ollamaはまだ確認されていません。',
   responseUnusable:
     'ローカルモデルは、LocaLogが議事録として使えない応答を返しました。何も取り込んでおらず、文字起こしはそのままです。モデルは毎回異なる答えを返すため、やり直すとうまくいくことがよくあります。',
+  generationRuntimeMissing:
+    '議事録を書くための実行環境が見つかりません。LocaLog に同梱されていますが、このビルドからは見つけられません。',
+  generationRuntimeNoPort:
+    'ローカルの実行環境に割り当てられる空きポートがありませんでした。いくつかアプリを閉じて、もう一度お試しください。',
+  generationRuntimeNotStarted: 'ローカルの実行環境を起動できませんでした。',
+  generationRuntimeNeverReady:
+    'ローカルの実行環境は起動しましたが、準備が整いませんでした。とても大きなモデルを遅いディスクから読み込むと時間がかかります。再び起きる場合は、小さいモデルを選んでください。',
+  generationRuntimeStopped:
+    'ローカルの実行環境が起動中に停止しました。モデルのファイルが不完全かもしれません。削除してから、もう一度ダウンロードしてください。',
   recorderMissing:
     '録音機能がインストールされていません。LocaLogには同梱されていますが、このビルドでは見つかりません。',
   recorderSilentAboutPermissions: '録音機能は何が許可されているかを答えませんでした。',

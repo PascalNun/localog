@@ -205,6 +205,18 @@ const failures = {
   ollamaUnchecked: 'Ollama has not been checked yet.',
   responseUnusable:
     'The local model returned an answer LocaLog could not use as a protocol. Nothing was committed and your transcript is unchanged. Retrying often succeeds, because a model answers differently each time.',
+  // Starting the runtime that writes the protocol. It ships with the
+  // application like whisper does, so none of these is a missing install:
+  // each one is this build failing to start something it carries.
+  generationRuntimeMissing:
+    'No protocol-writing runtime is installed. LocaLog ships one; this build cannot find it.',
+  generationRuntimeNoPort:
+    'No free port could be claimed for the local runtime. Close some applications and try again.',
+  generationRuntimeNotStarted: 'The local runtime could not be started.',
+  generationRuntimeNeverReady:
+    'The local runtime started but never became ready. A very large model on a slow disk can take a while; if it happens again, choose a smaller one.',
+  generationRuntimeStopped:
+    'The local runtime stopped while starting up. The model file may be incomplete — remove it and download it again.',
   recorderMissing: 'No recorder is installed. LocaLog ships one; this build cannot find it.',
   recorderSilentAboutPermissions: 'The recorder did not say what it is allowed to do.',
   recorderCannotReportPermissions: 'This recorder cannot report what it is allowed to do.',
