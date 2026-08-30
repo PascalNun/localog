@@ -666,6 +666,27 @@ export interface ProtocolProviderModel {
   digest: string;
 }
 
+/**
+ * What a model is and under what terms, as the backend states them.
+ *
+ * Read here rather than held here. The licence, the size and the checksum are
+ * facts about a file the application downloads, and a second copy in the
+ * interface is a second copy that can disagree with the first.
+ */
+export interface ModelTerms {
+  modelId: string;
+  kind: 'transcription' | 'speakers' | 'generation';
+  byteCount: number;
+  /** An identifier the dictionary has words for — never a sentence. */
+  licence: string;
+  /** Where the terms themselves can be read. Shown, not summarised. */
+  licenceUrl: string;
+  installed: boolean;
+  acceptanceRequired: boolean;
+  /** When these terms were accepted, or null. */
+  acceptedAtMs: number | null;
+}
+
 export interface ProtocolProviderStatus {
   endpoint: string;
   serverReachable: boolean;
@@ -825,5 +846,10 @@ export interface WorkflowBridge {
     formatName: string,
   ): Promise<boolean>;
   getProtocolProviderStatus(): Promise<ProtocolProviderStatus>;
+  /** What the bundled runtime and its models add up to, without starting anything. */
+  getGenerationRuntimeStatus(): Promise<ProtocolProviderStatus>;
+  /** Every catalogued model, its terms, and whether they were accepted. */
+  getModelTerms(): Promise<ModelTerms[]>;
+  acceptModelLicence(modelId: string): Promise<ModelTerms[]>;
   configureProtocolProvider(model: string | null): Promise<ProtocolProviderStatus>;
 }

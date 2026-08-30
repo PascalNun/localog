@@ -328,6 +328,15 @@ export const zh: Strings = {
     european: '欧洲出品',
     checkInstalled: '检查已安装的模型',
     curatedModels: '甄选的纪要模型',
+    bundledRuntime: '在本机上',
+    bundledRuntimeLead: 'LocaLog 自带撰写会议纪要的引擎。只需一个模型，下载一次即保存在本机。',
+    licenceHeading: '下载之前',
+    licenceBody: (licence: string) =>
+      `该模型依据${licence}提供。在您接受之前，LocaLog 不会下载它。`,
+    licenceRead: '阅读条款',
+    licenceAccept: '我接受这些条款',
+    licenceAccepted: (when: string) => `已于 ${when} 接受`,
+    generationModelInstalled: '已安装并就绪',
     downloadModel: (size: string) => `下载（${size}）`,
     prepareSpeakerSeparation: '准备发言人区分',
     restoredBackup: (projects: number, meetings: number, previous: string) =>
@@ -375,6 +384,7 @@ export const zh: Strings = {
     modelSizeInstalled: (gb: string) => `安装后约 ${gb} GB`,
     modelSizeSmall: '适合本机的小模型',
     modelSizeLarger: '较大的本地模型',
+    useOllamaInstead: '改用您自己的 Ollama',
     useAnotherModel: '使用另一个已安装的模型',
     installedModel: '已安装的模型',
     chooseInstalledModel: '选择已安装的模型',

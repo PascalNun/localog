@@ -1366,6 +1366,40 @@ textarea::placeholder {
   gap: 22px 18px;
 }
 
+/* The terms, and the two things somebody can do about them.
+ *
+ * Set apart from the facts above it with a rule rather than a box: this is a
+ * step in the same card, not a warning about it. A licence somebody has to
+ * agree to is ordinary, and dressing it as an alert would suggest otherwise. */
+.licence-gate {
+  margin-top: 1.1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 0.55rem;
+  justify-items: start;
+}
+
+.licence-heading {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
+}
+
+.licence-gate p {
+  margin: 0;
+  max-width: 62ch;
+}
+
+/* Reading the terms comes before agreeing to them, and reads as the quieter of
+ * the two: a link, not a second button competing with the one that acts. */
+.licence-link {
+  color: var(--ink);
+  text-underline-offset: 0.2em;
+}
+
 .advanced-disclosure {
   margin-top: 24px;
   padding-top: 18px;

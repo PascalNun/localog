@@ -11,6 +11,7 @@ import type {
   ProjectSummary,
   ProtocolDraft,
   ProtocolProviderStatus,
+  ModelTerms,
   ProtocolStyle,
   SourceSelection,
   SpeakerRequest,
@@ -189,6 +190,9 @@ export interface WorkspaceStore {
     formatName: string,
   ) => Promise<boolean>;
   getProtocolProviderStatus: () => Promise<ProtocolProviderStatus>;
+  getGenerationRuntimeStatus: () => Promise<ProtocolProviderStatus>;
+  getModelTerms: () => Promise<ModelTerms[]>;
+  acceptModelLicence: (modelId: string) => Promise<ModelTerms[]>;
   configureProtocolProvider: (model: string | null) => Promise<ProtocolProviderStatus>;
 }
 
@@ -710,6 +714,18 @@ class TauriWorkspaceStore implements WorkspaceStore {
 
   getProtocolProviderStatus(): Promise<ProtocolProviderStatus> {
     return invoke<ProtocolProviderStatus>('protocol_provider_status');
+  }
+
+  getGenerationRuntimeStatus(): Promise<ProtocolProviderStatus> {
+    return invoke<ProtocolProviderStatus>('generation_runtime_status');
+  }
+
+  getModelTerms(): Promise<ModelTerms[]> {
+    return invoke<ModelTerms[]>('model_terms');
+  }
+
+  acceptModelLicence(modelId: string): Promise<ModelTerms[]> {
+    return invoke<ModelTerms[]>('accept_model_licence', { modelId });
   }
 
   configureProtocolProvider(model: string | null): Promise<ProtocolProviderStatus> {

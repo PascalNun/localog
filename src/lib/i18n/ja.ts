@@ -343,6 +343,16 @@ export const ja: Strings = {
     european: '欧州製',
     checkInstalled: 'インストール済みのモデルを確認',
     curatedModels: '選定済みの議事録モデル',
+    bundledRuntime: 'この端末で',
+    bundledRuntimeLead:
+      'LocaLog は議事録を書くためのエンジンを内蔵しています。必要なのはモデルひとつだけで、一度ダウンロードすればこの端末に残ります。',
+    licenceHeading: 'ダウンロードの前に',
+    licenceBody: (licence: string) =>
+      `このモデルは${licence}のもとで提供されています。同意いただくまで、LocaLog はダウンロードしません。`,
+    licenceRead: '条件を読む',
+    licenceAccept: 'これらの条件に同意します',
+    licenceAccepted: (when: string) => `${when} に同意`,
+    generationModelInstalled: 'インストール済み・準備完了',
     downloadModel: (size: string) => `ダウンロード（${size}）`,
     prepareSpeakerSeparation: '話者の分離を準備する',
     restoredBackup: (projects: number, meetings: number, previous: string) =>
@@ -390,6 +400,7 @@ export const ja: Strings = {
     modelSizeInstalled: (gb: string) => `インストール時およそ ${gb} GB`,
     modelSizeSmall: '端末向けの小さなモデル',
     modelSizeLarger: '大きめのローカルモデル',
+    useOllamaInstead: '代わりに自分の Ollama を使う',
     useAnotherModel: '別のインストール済みモデルを使う',
     installedModel: 'インストール済みモデル',
     chooseInstalledModel: 'インストール済みモデルを選ぶ',

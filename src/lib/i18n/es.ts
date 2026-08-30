@@ -346,6 +346,16 @@ export const es: Strings = {
     european: 'Europeo',
     checkInstalled: 'Comprobar los modelos instalados',
     curatedModels: 'Modelos de acta seleccionados',
+    bundledRuntime: 'En este dispositivo',
+    bundledRuntimeLead:
+      'LocaLog trae su propio motor para redactar actas. Necesita un modelo, descargado una vez y conservado aquí.',
+    licenceHeading: 'Antes de descargar',
+    licenceBody: (licence: string) =>
+      `Este modelo se ofrece bajo ${licence}. LocaLog no lo descargará hasta que las haya aceptado.`,
+    licenceRead: 'Leer las condiciones',
+    licenceAccept: 'Acepto estas condiciones',
+    licenceAccepted: (when: string) => `Aceptadas el ${when}`,
+    generationModelInstalled: 'Instalado y listo',
     downloadModel: (size: string) => `Descargar (${size})`,
     prepareSpeakerSeparation: 'Preparar la separación de intervinientes',
     restoredBackup: (projects: number, meetings: number, previous: string) =>
@@ -393,6 +403,7 @@ export const es: Strings = {
     modelSizeInstalled: (gb: string) => `unos ${gb} GB instalado`,
     modelSizeSmall: 'modelo pequeño para el equipo',
     modelSizeLarger: 'modelo local más grande',
+    useOllamaInstead: 'Usar su propio Ollama en su lugar',
     useAnotherModel: 'Usar otro modelo instalado',
     installedModel: 'Modelo instalado',
     chooseInstalledModel: 'Elegir un modelo instalado',

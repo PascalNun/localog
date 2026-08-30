@@ -387,6 +387,16 @@ export const en = {
     european: 'European',
     checkInstalled: 'Check installed models',
     curatedModels: 'Curated protocol models',
+    bundledRuntime: 'On this device',
+    bundledRuntimeLead:
+      'LocaLog brings its own engine for writing protocols. It needs one model, downloaded once and kept here.',
+    licenceHeading: 'Before downloading',
+    licenceBody: (licence: string) =>
+      `This model is offered under ${licence}. LocaLog will not download it until you have accepted them.`,
+    licenceRead: 'Read the terms',
+    licenceAccept: 'I accept these terms',
+    licenceAccepted: (when: string) => `Accepted on ${when}`,
+    generationModelInstalled: 'Installed and ready',
     downloadModel: (size: string) => `Download (${size})`,
     prepareSpeakerSeparation: 'Prepare speaker separation',
     restoredBackup: (projects: number, meetings: number, previous: string) =>
@@ -442,6 +452,7 @@ export const en = {
     modelSizeInstalled: (gb: string) => `about ${gb} GB installed`,
     modelSizeSmall: 'small edge model',
     modelSizeLarger: 'larger local model',
+    useOllamaInstead: 'Use your own Ollama instead',
     useAnotherModel: 'Use another installed model',
     installedModel: 'Installed model',
     chooseInstalledModel: 'Choose an installed model',

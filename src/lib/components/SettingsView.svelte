@@ -7,6 +7,7 @@
     RestoreOutcome,
     FakeJobOutcome,
     ProtocolProviderStatus,
+    ModelTerms,
     TranscriptionCapability,
     TranscriptionPreset,
     TranscriptionRuntimeStatus,
@@ -47,6 +48,8 @@
   export let runtimeStatus: TranscriptionRuntimeStatus;
   export let runtimeError: string | null = null;
   export let providerStatus: ProtocolProviderStatus;
+  export let modelTerms: ModelTerms[] = [];
+  export let onAcceptLicence: (modelId: string) => Promise<void>;
   export let capability: TranscriptionCapability;
   export let downloading: Record<string, number> = {};
   export let modelError: string | null = null;
@@ -149,6 +152,13 @@
   $: executablePath = runtimeStatus?.executablePath ?? executablePath;
   $: selectedProviderModel = providerStatus?.selectedModel ?? selectedProviderModel;
   $: modelRecommendation = recommendationFor(providerStatus?.models ?? [], memoryGb);
+  /// The model that writes protocols, and whether anything is in its way.
+  ///
+  /// One, deliberately: this is the recommendation, already chosen, not a list to
+  /// pick from. The rest of the catalogue is below for somebody who wants it.
+  $: bundledModel = modelTerms.find((terms) => terms.kind === 'generation');
+  $: licenceSettled = !bundledModel?.acceptanceRequired || bundledModel?.acceptedAtMs !== null;
+  $: bundledDownloading = bundledModel ? downloading[bundledModel.modelId] : undefined;
   $: recommendedInstalled = modelRecommendation.installed;
   $: uncataloguedModels = (providerStatus?.models ?? []).filter(
     (model) => !GENERATION_MODEL_CATALOG.some((entry) => entry.providerNames.includes(model.name)),
@@ -372,126 +382,208 @@
             {$t.settings.modelLead}
           </p>
         </div>
-        <article class="model-recommendation">
-          <div>
-            <p class="model-kicker">{$t.settings.recommendedForMachine}</p>
-            <h3>{modelRecommendation.entry.name}</h3>
-            <p>{$t.settings.modelDescription[modelRecommendation.entry.id]}</p>
-            <div class="model-meta">
-              <span>{$t.settings.modelOrigin[modelRecommendation.entry.origin]}</span>
-              <span>{$t.settings.modelLicence[modelRecommendation.entry.licence]}</span>
-              <span>{memoryLabel}</span>
-            </div>
-          </div>
-          <div class="model-recommendation-action">
-            {#if recommendedInstalled}
-              <button
-                class="secondary-action"
-                onclick={() => chooseProviderModel(recommendedInstalled.name)}
-                disabled={!providerStatus.serverReachable ||
-                  selectedProviderModel === recommendedInstalled.name}
-              >
-                {selectedProviderModel === recommendedInstalled.name
-                  ? $t.settings.modelSelected
-                  : $t.settings.useThisModel}
-              </button>
-            {:else}
-              <span class="model-status">{$t.settings.notInstalledYet}</span>
-            {/if}
-          </div>
-        </article>
+        <!-- What LocaLog brings itself, before the section about a runtime somebody
+             else installed. First because it is the answer for almost everybody:
+             one download and nothing else to set up. -->
+        {#if bundledModel}
+          <article class="model-recommendation bundled-runtime">
+            <div>
+              <p class="model-kicker">{$t.settings.bundledRuntime}</p>
+              <h3>{$t.settings.modelDescription['gemma4-12b'] ? 'Gemma 4 12B' : ''}</h3>
+              <p>{$t.settings.bundledRuntimeLead}</p>
+              <div class="model-meta">
+                <span>{formatModelSize(bundledModel.byteCount)}</span>
+                <span>{$t.settings.modelLicence[bundledModel.licence as 'gemma']}</span>
+                <span>{memoryLabel}</span>
+              </div>
 
-        <div class="model-catalog" aria-label={$t.settings.curatedModels}>
-          {#each GENERATION_MODEL_CATALOG as entry (entry.id)}
-            {@const installed = installedProviderModel(entry, providerStatus.models)}
-            {@const selected = installed !== null && selectedProviderModel === installed.name}
-            <article class="model-card" class:active={selected}>
-              <div class="model-card-copy">
-                <div class="model-card-heading">
-                  <h3>{entry.name}</h3>
-                  {#if entry.status === 'baseline'}<span class="model-badge"
-                      >{$t.settings.baseline}</span
-                    >{/if}
-                  {#if entry.origin === 'european'}<span class="model-badge quiet"
-                      >{$t.settings.european}</span
-                    >{/if}
-                </div>
-                <p>{$t.settings.modelDescription[entry.id]}</p>
-                <div class="model-meta">
-                  <span>{modelSize(entry)}</span>
-                  <span>{$t.settings.modelLicence[entry.licence]}</span>
-                  <span
-                    >{entry.languages
-                      .slice(0, 3)
-                      .map((code) => $t.settings.modelLanguage[code])
-                      .join(' · ')}</span
+              {#if bundledModel.installed}
+                <p class="model-evaluation">{$t.settings.generationModelInstalled}</p>
+              {:else if !licenceSettled}
+                <!-- The terms before the download, not beside it. Nothing is
+                     fetched until this is answered, and the backend refuses even
+                     if this screen is bypassed. -->
+                <div class="licence-gate">
+                  <p class="licence-heading">{$t.settings.licenceHeading}</p>
+                  <p>
+                    {$t.settings.licenceBody(
+                      $t.settings.modelLicence[bundledModel.licence as 'gemma'],
+                    )}
+                  </p>
+                  <a
+                    class="licence-link"
+                    href={bundledModel.licenceUrl}
+                    target="_blank"
+                    rel="noreferrer noopener">{$t.settings.licenceRead}</a
+                  >
+                  <button
+                    class="secondary-action"
+                    onclick={() => void onAcceptLicence(bundledModel.modelId)}
+                    >{$t.settings.licenceAccept}</button
                   >
                 </div>
-                <p class="model-evaluation">
-                  {entry.testedLanguages.length
-                    ? $t.settings.evaluatedIn(
-                        listOf(
-                          entry.testedLanguages.map((code) => $t.settings.modelLanguage[code]),
-                        ),
-                      )
-                    : $t.settings.evaluationPending}
-                </p>
-              </div>
-              <div class="model-card-action">
-                <span class="model-status"
-                  >{$t.settings.modelStatus[modelStatus(entry, installed)]}</span
-                >
-                {#if installed}
+              {:else if bundledDownloading !== undefined}
+                <div class="start-setup-progress">
+                  <div class="start-setup-track">
+                    <div class="start-setup-fill" style={`width: ${bundledDownloading}%`}></div>
+                  </div>
+                  <span class="start-setup-percent">{bundledDownloading}%</span>
                   <button
                     class="quiet-action"
-                    onclick={() => chooseProviderModel(installed.name)}
-                    disabled={!providerStatus.serverReachable || selected}
-                    >{selected ? $t.settings.modelSelected : $t.settings.useModel}</button
+                    onclick={() => onCancelDownload(bundledModel.modelId)}
+                    >{$t.settings.cancel}</button
                   >
+                </div>
+              {:else}
+                {#if bundledModel.acceptedAtMs !== null}
+                  <p class="model-evaluation">
+                    {$t.settings.licenceAccepted(
+                      formatMeetingDate(
+                        new Date(bundledModel.acceptedAtMs).toISOString().slice(0, 10),
+                        $t,
+                      ),
+                    )}
+                  </p>
                 {/if}
+                <button
+                  class="secondary-action"
+                  onclick={() => onDownloadModel(bundledModel.modelId)}
+                  >{$t.settings.downloadModel(formatModelSize(bundledModel.byteCount))}</button
+                >
+              {/if}
+            </div>
+          </article>
+        {/if}
+
+        <!-- Everything about a runtime somebody else installed, behind a
+             disclosure. It is a real choice and stays available — somebody may
+             already run Ollama, or want a model LocaLog does not ship — but it
+             is not the answer for most people, and offering two recommendations
+             for the same job side by side made the screen ask a question it had
+             already answered. -->
+        <details class="advanced-disclosure">
+          <summary>{$t.settings.useOllamaInstead}</summary>
+          <article class="model-recommendation">
+            <div>
+              <p class="model-kicker">{$t.settings.recommendedForMachine}</p>
+              <h3>{modelRecommendation.entry.name}</h3>
+              <p>{$t.settings.modelDescription[modelRecommendation.entry.id]}</p>
+              <div class="model-meta">
+                <span>{$t.settings.modelOrigin[modelRecommendation.entry.origin]}</span>
+                <span>{$t.settings.modelLicence[modelRecommendation.entry.licence]}</span>
+                <span>{memoryLabel}</span>
               </div>
-            </article>
-          {/each}
-        </div>
-        {#if providerError}<p class="setting-error" role="alert">{providerError}</p>{/if}
-        <!-- Through the funnel, like every other sentence the backend used to write
-             for itself. As of 30 August this row is codes all the way down: five of
-             them, two carrying the transport failure after a colon so that the
-             guidance is translated and the diagnostic is not lost. -->
-        <p class="setting-hint">{errorMessage(providerStatus.message)}</p>
-        <div class="setting-actions">
-          <button class="secondary-action" onclick={onRefreshProvider}
-            >{$t.settings.checkInstalled}</button
-          >
-        </div>
-        <details class="advanced-disclosure model-advanced">
-          <summary>{$t.settings.useAnotherModel}</summary>
-          <p>
-            {$t.settings.otherModelNote}
-          </p>
-          <div class="setting-field">
-            <label for="other-ollama-model">{$t.settings.installedModel}</label>
-            <select
-              id="other-ollama-model"
-              bind:value={selectedProviderModel}
-              disabled={!providerStatus.serverReachable || uncataloguedModels.length === 0}
-            >
-              <option value="">{$t.settings.chooseInstalledModel}</option>
-              {#each uncataloguedModels as model (model.name)}
-                <option value={model.name}>{model.name}</option>
-              {/each}
-            </select>
+            </div>
+            <div class="model-recommendation-action">
+              {#if recommendedInstalled}
+                <button
+                  class="secondary-action"
+                  onclick={() => chooseProviderModel(recommendedInstalled.name)}
+                  disabled={!providerStatus.serverReachable ||
+                    selectedProviderModel === recommendedInstalled.name}
+                >
+                  {selectedProviderModel === recommendedInstalled.name
+                    ? $t.settings.modelSelected
+                    : $t.settings.useThisModel}
+                </button>
+              {:else}
+                <span class="model-status">{$t.settings.notInstalledYet}</span>
+              {/if}
+            </div>
+          </article>
+
+          <div class="model-catalog" aria-label={$t.settings.curatedModels}>
+            {#each GENERATION_MODEL_CATALOG as entry (entry.id)}
+              {@const installed = installedProviderModel(entry, providerStatus.models)}
+              {@const selected = installed !== null && selectedProviderModel === installed.name}
+              <article class="model-card" class:active={selected}>
+                <div class="model-card-copy">
+                  <div class="model-card-heading">
+                    <h3>{entry.name}</h3>
+                    {#if entry.status === 'baseline'}<span class="model-badge"
+                        >{$t.settings.baseline}</span
+                      >{/if}
+                    {#if entry.origin === 'european'}<span class="model-badge quiet"
+                        >{$t.settings.european}</span
+                      >{/if}
+                  </div>
+                  <p>{$t.settings.modelDescription[entry.id]}</p>
+                  <div class="model-meta">
+                    <span>{modelSize(entry)}</span>
+                    <span>{$t.settings.modelLicence[entry.licence]}</span>
+                    <span
+                      >{entry.languages
+                        .slice(0, 3)
+                        .map((code) => $t.settings.modelLanguage[code])
+                        .join(' · ')}</span
+                    >
+                  </div>
+                  <p class="model-evaluation">
+                    {entry.testedLanguages.length
+                      ? $t.settings.evaluatedIn(
+                          listOf(
+                            entry.testedLanguages.map((code) => $t.settings.modelLanguage[code]),
+                          ),
+                        )
+                      : $t.settings.evaluationPending}
+                  </p>
+                </div>
+                <div class="model-card-action">
+                  <span class="model-status"
+                    >{$t.settings.modelStatus[modelStatus(entry, installed)]}</span
+                  >
+                  {#if installed}
+                    <button
+                      class="quiet-action"
+                      onclick={() => chooseProviderModel(installed.name)}
+                      disabled={!providerStatus.serverReachable || selected}
+                      >{selected ? $t.settings.modelSelected : $t.settings.useModel}</button
+                    >
+                  {/if}
+                </div>
+              </article>
+            {/each}
           </div>
-          <button
-            class="secondary-action"
-            onclick={() => onConfigureProvider(selectedProviderModel || null)}
-            disabled={!providerStatus.serverReachable || !selectedProviderModel}
-            >{$t.settings.useInstalledModel}</button
-          >
+          {#if providerError}<p class="setting-error" role="alert">{providerError}</p>{/if}
+          <!-- Through the funnel, like every other sentence the backend used to write
+               for itself. As of 30 August this row is codes all the way down: five of
+               them, two carrying the transport failure after a colon so that the
+               guidance is translated and the diagnostic is not lost. -->
+          <p class="setting-hint">{errorMessage(providerStatus.message)}</p>
+          <div class="setting-actions">
+            <button class="secondary-action" onclick={onRefreshProvider}
+              >{$t.settings.checkInstalled}</button
+            >
+          </div>
+          <details class="advanced-disclosure model-advanced">
+            <summary>{$t.settings.useAnotherModel}</summary>
+            <p>
+              {$t.settings.otherModelNote}
+            </p>
+            <div class="setting-field">
+              <label for="other-ollama-model">{$t.settings.installedModel}</label>
+              <select
+                id="other-ollama-model"
+                bind:value={selectedProviderModel}
+                disabled={!providerStatus.serverReachable || uncataloguedModels.length === 0}
+              >
+                <option value="">{$t.settings.chooseInstalledModel}</option>
+                {#each uncataloguedModels as model (model.name)}
+                  <option value={model.name}>{model.name}</option>
+                {/each}
+              </select>
+            </div>
+            <button
+              class="secondary-action"
+              onclick={() => onConfigureProvider(selectedProviderModel || null)}
+              disabled={!providerStatus.serverReachable || !selectedProviderModel}
+              >{$t.settings.useInstalledModel}</button
+            >
+          </details>
+          <div class="notice-inline">
+            {$t.settings.catalogueNote}
+          </div>
         </details>
-        <div class="notice-inline">
-          {$t.settings.catalogueNote}
-        </div>
       {:else if section === 'Transcription'}
         <div class="setting-row">
           <div>

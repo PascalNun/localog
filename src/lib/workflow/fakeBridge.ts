@@ -1323,6 +1323,52 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     return () => store.printWindow!();
   }
 
+  /**
+   * The bundled runtime, as a fresh installation sees it: present, with nothing
+   * downloaded. That is the state the setup card exists for, so it is the one the
+   * preview shows.
+   */
+  private fakeTerms: import('./types').ModelTerms[] = [
+    {
+      modelId: 'gemma4-12b',
+      kind: 'generation',
+      byteCount: 6_975_879_296,
+      licence: 'gemma',
+      licenceUrl: 'https://ai.google.dev/gemma/terms',
+      installed: false,
+      acceptanceRequired: true,
+      acceptedAtMs: null,
+    },
+  ];
+
+  async getGenerationRuntimeStatus(): Promise<import('./types').ProtocolProviderStatus> {
+    if (this.workspaceStore) return this.workspaceStore.getGenerationRuntimeStatus();
+    return {
+      endpoint: 'localog-llama-server',
+      serverReachable: true,
+      runtimeVersion: 'preview',
+      models: [],
+      selectedModel: null,
+      selectedModelDigest: null,
+      selectedModelReady: false,
+      message: 'generationModelNotDownloaded',
+      machineMemoryGb: null,
+    };
+  }
+
+  async getModelTerms(): Promise<import('./types').ModelTerms[]> {
+    if (this.workspaceStore) return this.workspaceStore.getModelTerms();
+    return this.fakeTerms;
+  }
+
+  async acceptModelLicence(modelId: string): Promise<import('./types').ModelTerms[]> {
+    if (this.workspaceStore) return this.workspaceStore.acceptModelLicence(modelId);
+    this.fakeTerms = this.fakeTerms.map((terms) =>
+      terms.modelId === modelId ? { ...terms, acceptedAtMs: 1_788_000_000_000 } : terms,
+    );
+    return this.fakeTerms;
+  }
+
   async getProtocolProviderStatus(): Promise<import('./types').ProtocolProviderStatus> {
     if (this.workspaceStore) {
       return this.workspaceStore.getProtocolProviderStatus();

@@ -46,6 +46,7 @@
     NewMeetingInput,
     NewProjectInput,
     ProtocolProviderStatus,
+    ModelTerms,
     RecordingReview,
     SpeakerSeparationStatus,
     WorkflowSnapshot,
@@ -234,6 +235,21 @@
       modelError = errorMessage(error);
     }
   }
+  /// What every catalogued model is and under what terms.
+  ///
+  /// Read once at start and replaced when a licence is accepted, rather than per
+  /// render: these are facts about files on the disk, and the answer changes when
+  /// somebody accepts terms or a download finishes, not while they type.
+  let modelTerms: ModelTerms[] = [];
+
+  async function acceptLicence(modelId: string) {
+    try {
+      modelTerms = await bridge.acceptModelLicence(modelId);
+    } catch (error) {
+      modelError = errorMessage(error);
+    }
+  }
+
   let providerStatus: ProtocolProviderStatus = {
     endpoint: 'http://127.0.0.1:11434',
     serverReachable: false,
@@ -334,6 +350,7 @@
     bridge.getTranscriptionRuntimeStatus().then((status) => (runtimeStatus = status));
     bridge.getSpeakerSeparationStatus().then((status) => (speakerStatus = status));
     bridge.getProtocolProviderStatus().then((status) => (providerStatus = status));
+    bridge.getModelTerms().then((terms) => (modelTerms = terms));
     bridge
       .getTranscriptionCapability()
       .then((next) => (capability = next))
@@ -938,6 +955,8 @@
           {speakerStatus}
           {speakerError}
           {providerStatus}
+          {modelTerms}
+          onAcceptLicence={acceptLicence}
           {capability}
           {downloading}
           {modelError}

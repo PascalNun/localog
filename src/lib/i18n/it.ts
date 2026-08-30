@@ -354,6 +354,16 @@ export const it: Strings = {
     european: 'Europeo',
     checkInstalled: 'Verifica i modelli installati',
     curatedModels: 'Modelli per i verbali selezionati',
+    bundledRuntime: 'Su questo dispositivo',
+    bundledRuntimeLead:
+      'LocaLog porta con sé il proprio motore per scrivere verbali. Serve un modello, scaricato una volta e conservato qui.',
+    licenceHeading: 'Prima di scaricare',
+    licenceBody: (licence: string) =>
+      `Questo modello è offerto secondo ${licence}. LocaLog non lo scaricherà finché non le avrà accettate.`,
+    licenceRead: 'Leggere le condizioni',
+    licenceAccept: 'Accetto queste condizioni',
+    licenceAccepted: (when: string) => `Accettate il ${when}`,
+    generationModelInstalled: 'Installato e pronto',
     downloadModel: (size: string) => `Scaricare (${size})`,
     prepareSpeakerSeparation: 'Preparare la distinzione degli interlocutori',
     restoredBackup: (projects: number, meetings: number, previous: string) =>
@@ -401,6 +411,7 @@ export const it: Strings = {
     modelSizeInstalled: (gb: string) => `circa ${gb} GB installato`,
     modelSizeSmall: 'modello piccolo per la macchina',
     modelSizeLarger: 'modello locale più grande',
+    useOllamaInstead: 'Usare invece il proprio Ollama',
     useAnotherModel: 'Usa un altro modello installato',
     installedModel: 'Modello installato',
     chooseInstalledModel: 'Scegli un modello installato',

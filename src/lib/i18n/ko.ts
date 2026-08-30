@@ -335,6 +335,16 @@ export const ko: Strings = {
     european: '유럽산',
     checkInstalled: '설치된 모델 확인',
     curatedModels: '선별된 회의록 모델',
+    bundledRuntime: '이 기기에서',
+    bundledRuntimeLead:
+      'LocaLog에는 회의록을 쓰는 엔진이 들어 있습니다. 필요한 것은 모델 하나뿐이며, 한 번 내려받으면 이 기기에 남습니다.',
+    licenceHeading: '내려받기 전에',
+    licenceBody: (licence: string) =>
+      `이 모델은 ${licence}에 따라 제공됩니다. 동의하시기 전까지 LocaLog는 내려받지 않습니다.`,
+    licenceRead: '약관 읽기',
+    licenceAccept: '이 약관에 동의합니다',
+    licenceAccepted: (when: string) => `${when}에 동의함`,
+    generationModelInstalled: '설치되어 사용할 준비 완료',
     downloadModel: (size: string) => `내려받기(${size})`,
     prepareSpeakerSeparation: '화자 구분 준비',
     restoredBackup: (projects: number, meetings: number, previous: string) =>
@@ -382,6 +392,7 @@ export const ko: Strings = {
     modelSizeInstalled: (gb: string) => `설치 시 약 ${gb} GB`,
     modelSizeSmall: '기기에서 돌리는 작은 모델',
     modelSizeLarger: '더 큰 로컬 모델',
+    useOllamaInstead: '대신 직접 설치한 Ollama 사용',
     useAnotherModel: '다른 설치된 모델 사용',
     installedModel: '설치된 모델',
     chooseInstalledModel: '설치된 모델 선택',
