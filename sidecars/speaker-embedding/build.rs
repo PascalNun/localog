@@ -39,6 +39,10 @@ fn main() {
             for framework in ["Foundation", "CoreML", "Accelerate"] {
                 println!("cargo:rustc-link-lib=framework={framework}");
             }
+        } else if cfg!(target_os = "windows") {
+            // Nothing. MSVC records the runtime it needs in the object files
+            // themselves, and naming one here would be asking the linker for a
+            // library that does not exist under that name.
         } else {
             println!("cargo:rustc-link-lib=dylib=stdc++");
         }
@@ -52,11 +56,20 @@ fn main() {
         "cargo:warning=No static sherpa-onnx libraries in {directory}; linking the shared library. A release build should link statically so the sidecar carries no dependency on this machine."
     );
     println!("cargo:rustc-link-lib=dylib=sherpa-onnx-c-api");
-    println!("cargo:rustc-link-arg=-Wl,-rpath,{directory}");
+    // An rpath is a GNU linker idea; MSVC has no equivalent and would reject the
+    // flag outright.
+    if !cfg!(target_os = "windows") {
+        println!("cargo:rustc-link-arg=-Wl,-rpath,{directory}");
+    }
 }
 
-/// Every `libNAME.a` in the directory, longest name first so that the C API is
-/// offered to the linker before the libraries it depends on.
+/// Every static library in the directory, most depended-upon first so that the C
+/// API is offered to the linker before the libraries it needs.
+///
+/// Two naming conventions, because there are two toolchains. The GNU ones write
+/// `libNAME.a`; MSVC writes `NAME.lib`, with no prefix. Reading only the first
+/// meant a Windows build linked nothing while the libraries sat in the directory
+/// under the other name.
 fn archives(directory: &Path) -> Vec<String> {
     let Ok(entries) = std::fs::read_dir(directory) else {
         return Vec::new();
@@ -65,6 +78,9 @@ fn archives(directory: &Path) -> Vec<String> {
         .flatten()
         .filter_map(|entry| {
             let name = entry.file_name().to_string_lossy().into_owned();
+            if let Some(rest) = name.strip_suffix(".lib") {
+                return Some(rest.to_string());
+            }
             name.strip_prefix("lib")
                 .and_then(|rest| rest.strip_suffix(".a"))
                 .map(str::to_string)

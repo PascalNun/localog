@@ -76,8 +76,18 @@ cmake --build "$build_dir" --config Release \
 lib_dir="$build_dir/localog-lib"
 rm -rf "$lib_dir"
 mkdir -p "$lib_dir"
-find "$build_dir" -name '*.a' -exec cp {} "$lib_dir/" \;
-if [[ ! -f "$lib_dir/libsherpa-onnx-c-api.a" ]]; then
+# MSVC names a static library `NAME.lib` and puts it under a per-configuration
+# directory; the GNU toolchains name it `libNAME.a` and do not. Looking only for
+# the second found nothing on Windows and reported it as a build that produced no
+# library, when the library was sitting there under the other name.
+if [[ "$target_triple" == *windows* ]]; then
+  find "$build_dir" -name '*.lib' -exec cp {} "$lib_dir/" \;
+  c_api="$lib_dir/sherpa-onnx-c-api.lib"
+else
+  find "$build_dir" -name '*.a' -exec cp {} "$lib_dir/" \;
+  c_api="$lib_dir/libsherpa-onnx-c-api.a"
+fi
+if [[ ! -f "$c_api" ]]; then
   echo "The sherpa-onnx build produced no static C API library." >&2
   echo "Found: $(ls "$lib_dir" 2>/dev/null | tr '\n' ' ')" >&2
   exit 1
