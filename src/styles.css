@@ -1,5 +1,20 @@
 /* Local type assets and semantic design tokens */
 
+/* Japanese, Korean and Simplified Chinese, under the same licence as Barlow.
+   
+   Imported as the packages' own stylesheets rather than written out here: each is
+   about 124 `@font-face` rules carrying a `unicode-range`, so a browser downloads only
+   the handful of subsets a page actually uses. All of them ship, which is where the
+   size goes.
+
+   The variable cut rather than two static weights. It is both smaller — 13.3 MB
+   against 20.2 for 400 and 600 alone — and covers the whole range 100 to 900,
+   including the 500 this interface uses. `font-synthesis: none` below means a weight
+   with no face would otherwise be flat rather than faux-bold. */
+@import '@fontsource-variable/noto-sans-jp/index.css';
+@import '@fontsource-variable/noto-sans-kr/index.css';
+@import '@fontsource-variable/noto-sans-sc/index.css';
+
 @font-face {
   font-family: 'Barlow';
   font-style: normal;
@@ -24,9 +39,22 @@
   src: url('@fontsource/barlow/files/barlow-latin-600-normal.woff2') format('woff2');
 }
 
+/* Barlow first, always: it carries every Latin glyph, so the CJK faces are only ever
+   reached for characters it does not have. That is also why "looks like Barlow" is not
+   really a property of the CJK face — the two share no letterforms, and what decides
+   whether they sit together is matching weight and vertical metrics.
+
+   Japanese and Chinese draw many of the same characters differently, and a browser
+   takes the first listed face that has the glyph. So the interface's own language
+   decides which regional forms are used, keyed on the `lang` attribute that
+   `chooseLanguage` already sets. Korean needs no such rule: hangul is only in the
+   Korean face, so it is found wherever it sits in the list. */
 :root {
   font-family:
     'Barlow',
+    'Noto Sans JP Variable',
+    'Noto Sans KR Variable',
+    'Noto Sans SC Variable',
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
@@ -35,6 +63,24 @@
   background: var(--canvas);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+/* A Chinese interface puts the Simplified face ahead of the Japanese one, so that
+   characters both draw take the forms its reader expects. Everything else keeps the
+   order above, where Japanese is first because something has to be. */
+:root:lang(zh) {
+  font-family:
+    'Barlow',
+    'Noto Sans SC Variable',
+    'Noto Sans JP Variable',
+    'Noto Sans KR Variable',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+}
+
+:root {
   --canvas: #f5f2ec;
   /* The mark on a control that opens a list. Inlined because a stylesheet cannot
      fetch anything, and named because three rules were carrying their own copy. */
