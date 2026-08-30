@@ -33,6 +33,13 @@ struct ModelSpec {
     /// Where the licence itself can be read. Shown rather than summarised —
     /// paraphrasing somebody's licence terms is not this application's place.
     licence_url: &'static str,
+    /// Whether somebody has to agree before this can be downloaded.
+    ///
+    /// False for MIT, which grants its permissions without anybody agreeing to
+    /// anything. True for terms that are an agreement — and then the download is
+    /// refused until it has been accepted, because a licence step somebody can
+    /// walk past is decoration rather than a licence step.
+    acceptance_required: bool,
 }
 
 /// What a downloaded model does.
@@ -71,6 +78,7 @@ const MODELS: &[ModelSpec] = &[
         kind: ModelKind::Speakers,
         licence: "mit",
         licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
+        acceptance_required: false,
     },
     ModelSpec {
         id: "speaker-embedding",
@@ -81,6 +89,7 @@ const MODELS: &[ModelSpec] = &[
         kind: ModelKind::Speakers,
         licence: "mit",
         licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
+        acceptance_required: false,
     },
     ModelSpec {
         id: "tiny",
@@ -91,6 +100,7 @@ const MODELS: &[ModelSpec] = &[
         kind: ModelKind::Transcription,
         licence: "mit",
         licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
     },
     ModelSpec {
         id: "base",
@@ -101,6 +111,7 @@ const MODELS: &[ModelSpec] = &[
         kind: ModelKind::Transcription,
         licence: "mit",
         licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
     },
     ModelSpec {
         id: "medium",
@@ -111,6 +122,7 @@ const MODELS: &[ModelSpec] = &[
         kind: ModelKind::Transcription,
         licence: "mit",
         licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
     },
     // The model that writes the protocol, and the one recommended first: it kept
     // 27 to 31 of a reference meeting's 35 stated figures across three runs, where
@@ -134,14 +146,20 @@ const MODELS: &[ModelSpec] = &[
         kind: ModelKind::Generation,
         licence: "gemma",
         licence_url: "https://ai.google.dev/gemma/terms",
+        acceptance_required: true,
     },
 ];
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum ModelError {
+    /// The model's terms are an agreement and nobody has agreed to them.
+    LicenceNotAccepted,
     UnknownModel,
     Cancelled,
-    NotEnoughSpace { needed: u64, available: u64 },
+    NotEnoughSpace {
+        needed: u64,
+        available: u64,
+    },
     Network(String),
     VerifyFailed,
     Io(String),
@@ -151,6 +169,7 @@ impl Display for ModelError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::UnknownModel => write!(formatter, "modelUnknown"),
+            Self::LicenceNotAccepted => write!(formatter, "licenceNotAccepted"),
             Self::Cancelled => write!(formatter, "downloadCancelled"),
             Self::NotEnoughSpace { needed, available } => write!(
                 formatter,
@@ -214,6 +233,66 @@ pub(crate) struct ModelTerms {
     /// Where the terms themselves can be read.
     pub licence_url: String,
     pub installed: bool,
+    pub acceptance_required: bool,
+    /// When these terms were accepted, in milliseconds since the epoch, or
+    /// nothing if they were not. Recorded so somebody can answer what is on their
+    /// machine and what they agreed to — which, in a firm, is a question they may
+    /// actually be asked. Milliseconds rather than a date, because every other
+    /// time this application stores is milliseconds and the interface already
+    /// knows how to say one in eight languages.
+    pub accepted_at_ms: Option<i64>,
+}
+
+/// Where accepted licences are written down.
+///
+/// A plain file beside the models rather than a row in the database, because it
+/// belongs with the thing it describes and because somebody should be able to
+/// read it without this application. One line per model: the identifier, a
+/// space, the date.
+fn acceptance_file(root: &Path) -> PathBuf {
+    models_dir(root).join("accepted-licences.txt")
+}
+
+/// Every model whose terms have been accepted, and when.
+pub(crate) fn accepted_licences(root: &Path) -> Vec<(String, i64)> {
+    let Ok(text) = fs::read_to_string(acceptance_file(root)) else {
+        return Vec::new();
+    };
+    text.lines()
+        .filter_map(|line| {
+            let (model, when) = line.trim().split_once(' ')?;
+            let when: i64 = when.trim().parse().ok()?;
+            (!model.is_empty()).then(|| (model.to_string(), when))
+        })
+        .collect()
+}
+
+/// Record that somebody accepted a model's terms, with the day they did.
+///
+/// Accepting twice is not an error and does not write a second line: what
+/// matters is that it was accepted, and the first time is the honest date.
+pub(crate) fn accept_licence(root: &Path, model_id: &str, at_ms: i64) -> Result<(), ModelError> {
+    if spec(model_id).is_none() {
+        return Err(ModelError::UnknownModel);
+    }
+    let mut accepted = accepted_licences(root);
+    if accepted.iter().any(|(model, _)| model == model_id) {
+        return Ok(());
+    }
+    accepted.push((model_id.to_string(), at_ms));
+    let directory = models_dir(root);
+    fs::create_dir_all(&directory)?;
+    let written: String = accepted
+        .iter()
+        .map(|(model, when)| {
+            format!(
+                "{model} {when}
+"
+            )
+        })
+        .collect();
+    fs::write(acceptance_file(root), written)?;
+    Ok(())
 }
 
 /// Everything known about one model's terms, or nothing if it is not catalogued.
@@ -227,6 +306,11 @@ pub(crate) fn terms(root: &Path, model_id: &str) -> Option<ModelTerms> {
         licence: model.licence.to_string(),
         licence_url: model.licence_url.to_string(),
         installed: installed_model_path(root, model_id).is_some(),
+        acceptance_required: model.acceptance_required,
+        accepted_at_ms: accepted_licences(root)
+            .into_iter()
+            .find(|(id, _)| id == model_id)
+            .map(|(_, when)| when),
     })
 }
 
@@ -381,6 +465,13 @@ pub(crate) fn download_model(
     mut progress: impl FnMut(u8),
 ) -> Result<(), ModelError> {
     let model = spec(model_id).ok_or(ModelError::UnknownModel)?;
+    // Before the request, not after it. A licence step that runs alongside the
+    // download, or that a second code path can miss, is decoration — so it lives
+    // here, where every download passes, rather than in the screen that usually
+    // starts one.
+    if model.acceptance_required && !accepted_licences(root).iter().any(|(id, _)| id == model_id) {
+        return Err(ModelError::LicenceNotAccepted);
+    }
     let directory = models_dir(root);
     fs::create_dir_all(&directory)?;
 
@@ -779,6 +870,81 @@ mod the_catalogue_terms {
         let root = std::env::temp_dir().join(format!("localog-kinds-{}", std::process::id()));
         let _ = fs::create_dir_all(&root);
         assert!(generation_model_path(&root, Some("base")).is_none());
+        let _ = fs::remove_dir_all(&root);
+    }
+}
+
+#[cfg(test)]
+mod accepting_terms {
+    use super::*;
+
+    fn workspace(label: &str) -> PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("localog-licence-{label}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::create_dir_all(&root);
+        root
+    }
+
+    /// The check this exists for. A model offered under terms somebody has to
+    /// agree to is not downloaded until they have — and the refusal happens
+    /// before the request, so nothing is fetched and then regretted.
+    #[test]
+    fn a_model_with_terms_is_not_downloaded_before_they_are_accepted() {
+        let root = workspace("refused");
+        let cancelled = AtomicBool::new(false);
+        let outcome = download_model(&root, "gemma4-12b", &cancelled, |_| {});
+        assert_eq!(outcome, Err(ModelError::LicenceNotAccepted));
+        assert_eq!(outcome.unwrap_err().to_string(), "licenceNotAccepted");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// MIT grants its permissions without anybody agreeing to anything, so a
+    /// transcription model is never held up by a question nobody needs to answer.
+    #[test]
+    fn a_model_under_mit_needs_no_agreement() {
+        let root = workspace("mit");
+        let terms = terms(&root, "base").expect("base is catalogued");
+        assert!(!terms.acceptance_required);
+        assert_eq!(terms.licence, "mit");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// What was accepted and when, which is the question somebody in a firm may
+    /// actually be asked about their own machine.
+    #[test]
+    fn accepting_is_recorded_with_its_date() {
+        let root = workspace("recorded");
+        assert!(terms(&root, "gemma4-12b").unwrap().accepted_at_ms.is_none());
+        accept_licence(&root, "gemma4-12b", 1_788_000_000_000).expect("accepted");
+        let after = terms(&root, "gemma4-12b").expect("still catalogued");
+        assert_eq!(after.accepted_at_ms, Some(1_788_000_000_000));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Accepting twice keeps the first date. The honest answer to "when did you
+    /// agree to this" is the first time, not the most recent.
+    #[test]
+    fn accepting_twice_keeps_the_first_date() {
+        let root = workspace("twice");
+        accept_licence(&root, "gemma4-12b", 1_788_000_000_000).expect("accepted");
+        accept_licence(&root, "gemma4-12b", 1_789_000_000_000).expect("accepted again");
+        let after = terms(&root, "gemma4-12b").expect("catalogued");
+        assert_eq!(after.accepted_at_ms, Some(1_788_000_000_000));
+        assert_eq!(accepted_licences(&root).len(), 1);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Accepting terms for something that is not in the catalogue is a mistake,
+    /// not a way to write an arbitrary line into the record.
+    #[test]
+    fn only_a_catalogued_model_can_be_accepted() {
+        let root = workspace("unknown");
+        assert_eq!(
+            accept_licence(&root, "not-a-model", 1_788_000_000_000),
+            Err(ModelError::UnknownModel)
+        );
+        assert!(accepted_licences(&root).is_empty());
         let _ = fs::remove_dir_all(&root);
     }
 }

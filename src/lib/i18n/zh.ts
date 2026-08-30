@@ -186,6 +186,7 @@ const failures = {
   ollamaUnchecked: '尚未检查 Ollama。',
   responseUnusable:
     '本地模型给出的回复，LocaLog 无法用作纪要。未采用任何内容，您的转写稿原封未动。模型每次作答都不同，重试往往可行。',
+  licenceNotAccepted: '下载此模型前，需要先接受这些条款。',
   generationRuntimeReady: '已可在本机上撰写会议纪要。',
   generationModelNotDownloaded: '尚未下载用于撰写会议纪要的模型。',
   generationRuntimeMissing: '未安装用于撰写纪要的运行环境。LocaLog 自带一个，但此版本找不到它。',

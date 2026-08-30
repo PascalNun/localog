@@ -637,6 +637,56 @@ async fn download_speaker_models(
     Ok(())
 }
 
+/// What the bundled runtime and its models add up to.
+///
+/// Separate from `protocol_provider_status` rather than folded into it, because
+/// they answer different questions: one asks a daemon what it is holding, and
+/// this one asks the disk what is here. Only the second can be answered on a
+/// machine where nothing has been started.
+#[tauri::command]
+async fn generation_runtime_status(
+    storage: State<'_, StorageState>,
+) -> Result<provider::OllamaStatus, String> {
+    let root = storage.root.clone();
+    with_repository(storage.root.clone(), move |repository| {
+        let selected = repository
+            .read_setting("generation.model")?
+            .filter(|value| !value.is_empty());
+        Ok(provider::bundled_status(&root, selected))
+    })
+    .await
+}
+
+/// What every catalogued model is, under what terms, and whether they were
+/// accepted. The page that lists what is on this machine reads this.
+#[tauri::command]
+async fn model_terms(storage: State<'_, StorageState>) -> Result<Vec<models::ModelTerms>, String> {
+    let root = storage.root.clone();
+    tauri::async_runtime::spawn_blocking(move || models::every_model_terms(&root))
+        .await
+        .map_err(|_| "taskStopped".to_string())
+}
+
+/// Record that somebody accepted a model's terms.
+///
+/// The date is taken here rather than sent from the interface: what is being
+/// written down is when this machine recorded the agreement, and a value the
+/// caller supplies is a value the caller can choose.
+#[tauri::command]
+async fn accept_model_licence(
+    storage: State<'_, StorageState>,
+    model_id: String,
+) -> Result<Vec<models::ModelTerms>, String> {
+    let root = storage.root.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        models::accept_licence(&root, &model_id, storage::unix_time_millis())
+            .map_err(|error| error.to_string())?;
+        Ok(models::every_model_terms(&root))
+    })
+    .await
+    .map_err(|_| "taskStopped".to_string())?
+}
+
 #[tauri::command]
 async fn protocol_provider_status(
     storage: State<'_, StorageState>,
@@ -1856,6 +1906,9 @@ pub fn run() {
             recording_review,
             set_recording_edits,
             protocol_provider_status,
+            generation_runtime_status,
+            model_terms,
+            accept_model_licence,
             configure_protocol_provider,
             load_workspace,
             create_project,

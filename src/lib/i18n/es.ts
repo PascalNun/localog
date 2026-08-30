@@ -190,6 +190,7 @@ const failures = {
   ollamaUnchecked: 'Todavía no se ha comprobado Ollama.',
   responseUnusable:
     'El modelo local ha devuelto una respuesta que LocaLog no puede usar como acta. No se ha guardado nada y su transcripción está intacta. Reintentarlo suele funcionar, porque un modelo responde distinto cada vez.',
+  licenceNotAccepted: 'Hay que aceptar estas condiciones antes de poder descargar este modelo.',
   generationRuntimeReady: 'Listo para redactar actas en este dispositivo.',
   generationModelNotDownloaded: 'Todavía no se ha descargado ningún modelo para redactar actas.',
   generationRuntimeMissing:

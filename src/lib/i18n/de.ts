@@ -209,6 +209,8 @@ const failures = {
   ollamaUnchecked: 'Ollama wurde noch nicht geprüft.',
   responseUnusable:
     'Das lokale Modell hat eine Antwort geliefert, die LocaLog nicht als Protokoll verwenden kann. Es wurde nichts übernommen, Ihr Transkript ist unverändert. Ein erneuter Versuch führt oft zum Ziel, da ein Modell jedes Mal anders antwortet.',
+  licenceNotAccepted:
+    'Diese Bedingungen müssen angenommen werden, bevor dieses Modell geladen werden kann.',
   generationRuntimeReady: 'Bereit, auf diesem Gerät Protokolle zu schreiben.',
   generationModelNotDownloaded: 'Es wurde noch kein Modell zum Schreiben von Protokollen geladen.',
   generationRuntimeMissing:
