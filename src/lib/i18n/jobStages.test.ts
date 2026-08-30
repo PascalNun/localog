@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { chooseLanguage, stageText } from './index';
+import { chooseLanguage, jobErrorDetail, jobErrorTitle, stageText } from './index';
 import { en } from './en';
 
 /**
@@ -129,5 +129,51 @@ describe('rendering a stage', () => {
 
   it('falls back to “Working” for a stage nobody wrote words for', () => {
     expect(stageText('a_stage_nobody_named')).toBe('Working');
+  });
+});
+
+describe('a job that failed', () => {
+  it('names the failure and says what is safe, in the reader’s language', () => {
+    chooseLanguage('en');
+    expect(jobErrorTitle('provider_unavailable')).toBe(
+      'Local protocol generation could not connect',
+    );
+    chooseLanguage('de');
+    expect(jobErrorTitle('provider_unavailable')).toBe(
+      'Die lokale Protokollerzeugung konnte keine Verbindung herstellen',
+    );
+    chooseLanguage('en');
+  });
+
+  /**
+   * The bug this conversion fixed. Those stored values became codes on 27 August and
+   * the progress panel prints the detail directly, so somebody whose generation had
+   * failed was shown the literal word `responseUnusable`.
+   */
+  it('renders a code the failing step stored, rather than printing it', () => {
+    expect(jobErrorDetail('provider_invalid_output', 'responseUnusable')).toContain(
+      'could not use as a protocol',
+    );
+    expect(jobErrorDetail('provider_invalid_output', 'responseUnusable')).not.toContain(
+      'responseUnusable',
+    );
+  });
+
+  it('prefers what the step knew to what its class knows', () => {
+    const general = jobErrorDetail('provider_model_missing', '');
+    const particular = jobErrorDetail('provider_model_missing', 'ollamaModelGone');
+    expect(particular).not.toBe(general);
+    expect(general).toContain('Ollama');
+  });
+
+  it('falls back to a sentence rather than to nothing', () => {
+    // Somebody whose work has just stopped needs words more than anybody.
+    expect(jobErrorTitle('a_failure_nobody_named')).toBe('Import could not finish');
+    expect(jobErrorDetail('a_failure_nobody_named', '')).toContain('remains in Draft');
+  });
+
+  it('lets a plain sentence from an older build through unchanged', () => {
+    const older = 'Something the previous build wrote out in full.';
+    expect(jobErrorDetail('processing_failed', older)).toBe(older);
   });
 });

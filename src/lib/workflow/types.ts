@@ -535,7 +535,13 @@ export interface ActiveJob {
   totalBytes: number | null;
   stage: string;
   attempt: number;
-  error: { code: string; title: string; detail: string } | null;
+  /**
+   * Why a job stopped, as codes. `code` names the class of failure and is also what
+   * the interface branches on; `detail` is what the failing step knew, when it knew
+   * more than the class does, and is empty otherwise. Both are rendered by
+   * `jobErrorTitle` and `jobErrorDetail`.
+   */
+  error: { code: string; detail: string } | null;
   requiresDuplicateConfirmation: boolean;
 }
 

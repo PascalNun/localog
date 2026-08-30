@@ -257,8 +257,11 @@ impl JobState {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JobErrorSummary {
+    /// Which class of failure it was. The interface reads this for the words *and*
+    /// branches on it, which is why it is not merely a message key.
     pub code: String,
-    pub title: String,
+    /// What the step that failed knew, when it knew more than the class does. A code
+    /// like `ollamaModelGone`, or `code:detail`, or empty.
     pub detail: String,
 }
 

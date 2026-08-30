@@ -1498,13 +1498,11 @@ export class FakeWorkflowBridge implements WorkflowBridge {
 
     if (this.snapshot.nextJobOutcome === 'failure' && job.progress >= 45) {
       job.state = 'failed';
-      job.stage = `${this.labelForJob(job.kind)} stopped`;
-      job.error = {
-        code: 'synthetic_failure',
-        title: `${this.labelForJob(job.kind)} could not finish`,
-        detail:
-          'The synthetic runtime stopped as requested. The source and latest stable work are still safe.',
-      };
+      job.stage = 'failed';
+      // Codes, like everything else that crosses this boundary. The words for them
+      // are the interface's, and a fake that speaks a different contract shows the
+      // preview something the application would never say.
+      job.error = { code: 'synthetic_failure', detail: '' };
       // Make failure one-shot so Retry demonstrates recovery without another settings change.
       this.snapshot.nextJobOutcome = 'success';
       this.stopTimer();

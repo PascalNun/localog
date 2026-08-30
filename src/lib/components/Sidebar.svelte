@@ -4,7 +4,7 @@
   import SidebarResizeHandle from './SidebarResizeHandle.svelte';
   import { clock } from '../time';
   import { formatBytes } from '../bytes';
-  import { stageText, t } from '../i18n';
+  import { jobErrorTitle, stageText, t } from '../i18n';
 
   export let projects: ProjectSummary[];
   export let route: AppRoute;
@@ -76,7 +76,7 @@
 
   function jobDetail(job: ActiveJob) {
     if (jobNeedsAttention || job.state === 'queued')
-      return job.error?.title ?? stageText(job.stage);
+      return job.error ? jobErrorTitle(job.error.code) : stageText(job.stage);
     // Without a meeting name above it, the stage would be the only line, so the
     // work is named here instead of being lost.
     if (!activeJobMeeting) return `${stageLabel(job)} · ${progressLabel(job)}`;

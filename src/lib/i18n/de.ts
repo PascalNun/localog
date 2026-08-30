@@ -400,6 +400,144 @@ export const de: Strings = {
       'Ein zurückgelegter Abschnitt verlässt das Dokument — was Sie lesen, ist also genau das, was exportiert wird. Er bleibt hier erhalten und kann zurückgeholt werden.',
   },
 
+  jobErrors: {
+    interrupted: {
+      title: 'Die Übernahme wurde unterbrochen',
+      detail:
+        'LocaLog wurde beendet, bevor die verwaltete Kopie festgeschrieben war. Das externe Original ist unverändert, und Sie können es gefahrlos erneut versuchen.',
+    },
+    permission_denied: {
+      title: 'LocaLog konnte die Aufnahme nicht lesen oder ablegen',
+      detail:
+        'Prüfen Sie den Zugriff auf die gewählte Datei und auf den lokalen Datenordner von LocaLog, und versuchen Sie es erneut. Das externe Original wurde nicht verändert.',
+    },
+    insufficient_space: {
+      title: 'Es ist nicht genug lokaler Speicher vorhanden',
+      detail:
+        'Geben Sie Speicher frei und versuchen Sie es erneut. Es wurde keine unvollständige Aufnahme als fertig ausgegeben.',
+    },
+    source_missing: {
+      title: 'Die gewählte Aufnahme ist nicht mehr verfügbar',
+      detail:
+        'Legen Sie die Datei wieder an ihren Ort, oder importieren Sie die Besprechung neu. Die Besprechung bleibt sicher im Entwurf.',
+    },
+    source_reselection_required: {
+      title: 'Wählen Sie die Aufnahme erneut',
+      detail:
+        'Diese Besprechung stammt aus einem früheren Entwicklungsstand, der den Ort der Quelldatei nicht festgehalten hat. Wählen Sie die Aufnahme erneut, um fortzufahren; die Besprechung ist erhalten.',
+    },
+    unsupported_media: {
+      title: 'Dieses Medienformat wird noch nicht unterstützt',
+      detail:
+        'Wählen Sie eine gängige Audio- oder Videodatei. Das externe Original wurde nicht verändert.',
+    },
+    empty_source: {
+      title: 'Die gewählte Aufnahme ist leer',
+      detail:
+        'Wählen Sie eine Aufnahme, die Audio- oder Videodaten enthält. Die leere externe Datei wurde nicht verändert.',
+    },
+    synthetic_failure: {
+      title: 'Der Entwicklungsadapter hat wie gewünscht angehalten',
+      detail:
+        'Der ausgelöste Fehler trat auf, bevor eine Fassung festgeschrieben war. Ihre Quelle und Ihr letzter stabiler Stand sind sicher, und Sie können es erneut versuchen.',
+    },
+    invalid_adapter_output: {
+      title: 'Die lokale Ausgabe konnte nicht geprüft werden',
+      detail:
+        'LocaLog hat das unvollständige Ergebnis nicht übernommen. Ihre letzte stabile Quelle und die Dokumentfassungen bleiben sicher.',
+    },
+    runtime_missing: {
+      title: 'Wählen Sie eine lokale Transkriptionslaufzeit',
+      detail:
+        'Wählen Sie in den Einstellungen unter Transkription eine installierte whisper.cpp-Anwendung. LocaLog lädt keine Laufzeiten herunter.',
+    },
+    model_missing: {
+      title: 'Wählen Sie ein lokales Transkriptionsmodell',
+      detail:
+        'Wählen Sie in den Einstellungen unter Transkription ein bereits vorhandenes whisper.cpp-Modell. Es wurde nichts heruntergeladen oder geändert.',
+    },
+    runtime_changed: {
+      title: 'Die Transkriptionslaufzeit hat sich geändert',
+      detail:
+        'Der eingereihte Vorgang wurde nicht ausgeführt, weil die whisper.cpp-Anwendung nicht mehr zur festgehaltenen Laufzeit passt. Versuchen Sie es erneut, um die aktuelle Laufzeit zu übernehmen.',
+    },
+    model_changed: {
+      title: 'Das Transkriptionsmodell hat sich geändert',
+      detail:
+        'Der eingereihte Vorgang wurde nicht ausgeführt, weil das Modell nicht mehr zur festgehaltenen Prüfsumme passt. Versuchen Sie es erneut, um das aktuelle Modell zu übernehmen.',
+    },
+    media_probe_failed: {
+      title: 'Die Aufnahme konnte nicht untersucht werden',
+      detail:
+        'Prüfen Sie, ob FFprobe installiert und die übernommene Quelle noch lesbar ist. Das Original bleibt unverändert.',
+    },
+    normalization_failed: {
+      title: 'Die Aufnahme konnte nicht vorbereitet werden',
+      detail:
+        'Prüfen Sie, ob FFmpeg installiert ist, und versuchen Sie es erneut. Die aufbereitete Fassung lässt sich neu erzeugen, das Original bleibt unverändert.',
+    },
+    transcription_failed: {
+      title: 'Die lokale Transkription konnte nicht abschließen',
+      detail:
+        'Die whisper.cpp-Laufzeit hat aufgehört, bevor eine Transkriptfassung festgeschrieben war. Prüfen Sie ihr Modell und versuchen Sie es erneut.',
+    },
+    transcription_timeout: {
+      title: 'Die lokale Transkription hat zu lange gedauert',
+      detail:
+        'Der überwachte Transkriptionsvorgang wurde beendet, bevor eine Fassung festgeschrieben war. Prüfen Sie Aufnahme und Laufzeit, und versuchen Sie es erneut.',
+    },
+    provider_model_missing: {
+      title: 'Das gewählte lokale Modell ist nicht verfügbar',
+      detail:
+        'Das gewählte Ollama-Modell ist nicht mehr installiert. Wählen Sie in den Einstellungen unter Protokollerzeugung ein installiertes Modell und versuchen Sie es erneut.',
+    },
+    provider_model_changed: {
+      title: 'Das lokale Modell hat sich geändert',
+      detail:
+        'Die Prüfsumme des Modells hat sich geändert, nachdem dieser Vorgang eingereiht wurde. Versuchen Sie es erneut, um das aktuelle Modell zu übernehmen.',
+    },
+    provider_runtime_changed: {
+      title: 'Der lokale Anbieter hat sich geändert',
+      detail:
+        'Die Version der Ollama-Laufzeit hat sich geändert, nachdem dieser Vorgang eingereiht wurde. Versuchen Sie es erneut, um die aktuelle Laufzeit zu übernehmen.',
+    },
+    provider_unavailable: {
+      title: 'Die lokale Protokollerzeugung konnte keine Verbindung herstellen',
+      detail:
+        'Starten Sie Ihre vorhandene Ollama-Installation und versuchen Sie es erneut. LocaLog startet und lädt keine Laufzeiten.',
+    },
+    provider_invalid_output: {
+      title: 'Die Ausgabe des lokalen Modells konnte nicht geprüft werden',
+      detail:
+        'LocaLog hat das unvollständige oder fehlerhafte Protokoll nicht übernommen. Ihr Transkript bleibt sicher, und Sie können es erneut versuchen.',
+    },
+    provider_incomplete_output: {
+      title: 'Die Ausgabe des lokalen Modells konnte nicht geprüft werden',
+      detail:
+        'LocaLog hat das unvollständige oder fehlerhafte Protokoll nicht übernommen. Ihr Transkript bleibt sicher, und Sie können es erneut versuchen.',
+    },
+    provider_response_too_large: {
+      title: 'Die Antwort des lokalen Modells war zu groß',
+      detail:
+        'Die Antwort hat die sichere Grenze von LocaLog überschritten und wurde nicht übernommen. Versuchen Sie es mit einem kürzeren Transkript oder einem anderen lokalen Modell.',
+    },
+    invalid_transcript_output: {
+      title: 'Die Transkriptionsausgabe konnte nicht geprüft werden',
+      detail:
+        'LocaLog hat die Ausgabe der Laufzeit nicht übernommen, weil sie unvollständig oder fehlerhaft war. Ihre Quelle bleibt sicher.',
+    },
+    processing_failed: {
+      title: 'Die lokale Verarbeitung konnte nicht abschließen',
+      detail:
+        'Es wurde kein unvollständiges Transkript und kein unvollständiges Protokoll als fertig ausgegeben. Ihr letzter stabiler Stand bleibt verfügbar, und Sie können es erneut versuchen.',
+    },
+    unknown: {
+      title: 'Die Übernahme konnte nicht abschließen',
+      detail:
+        'Die Besprechung bleibt im Entwurf, und das externe Original wurde nicht verändert. Sie können es gefahrlos erneut versuchen.',
+    },
+  },
+
   jobStages: {
     transcriptSaved: 'Transkript gespeichert',
     protocolSaved: 'Protokoll gespeichert',

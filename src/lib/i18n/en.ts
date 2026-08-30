@@ -427,6 +427,158 @@ export const en = {
    * A value taking a string is a stage that can say where it has got to: a step lasting
    * minutes must not show the same words throughout.
    */
+  /**
+   * What went wrong with a job, said to the person it happened to.
+   *
+   * Twenty-five pairs of these lived in Rust as English prose until 29 August 2026 —
+   * read at the moment a job fails, which is when somebody least wants to be read to
+   * in a language that is not theirs.
+   *
+   * Each has a **title**, which names the class of failure, and a **detail**, which
+   * says what is safe and what to do next. The second half of every detail is the
+   * important half: this application's whole claim is that nothing is lost, and a
+   * failure is the one moment where saying so out loud is answering the question
+   * rather than boasting.
+   *
+   * `unknown` is the fallback, and it is written for the commonest case rather than
+   * as an apology, because a fallback nobody wrote for is where people actually land.
+   */
+  jobErrors: {
+    interrupted: {
+      title: 'Import was interrupted',
+      detail:
+        'LocaLog stopped before the managed copy was committed. The external original remains unchanged and you can retry safely.',
+    },
+    permission_denied: {
+      title: 'LocaLog could not read or store the recording',
+      detail:
+        'Check access to the selected file and LocaLog’s local data location, then try again. The external original was not changed.',
+    },
+    insufficient_space: {
+      title: 'There is not enough local storage',
+      detail: 'Free some space and retry. No partial recording has been presented as complete.',
+    },
+    source_missing: {
+      title: 'The selected recording is no longer available',
+      detail:
+        'Restore the file to its original location or create a new meeting import. The meeting remains safely in Draft.',
+    },
+    source_reselection_required: {
+      title: 'Choose the recording again',
+      detail:
+        'This meeting was created by an earlier development build that did not retain the source location. Choose the recording again to continue; the meeting has been preserved.',
+    },
+    unsupported_media: {
+      title: 'This media type is not supported yet',
+      detail: 'Choose a common audio or video file. The external original was not changed.',
+    },
+    empty_source: {
+      title: 'The selected recording is empty',
+      detail:
+        'Choose a recording that contains audio or video data. The empty external file was not changed.',
+    },
+    synthetic_failure: {
+      title: 'The development adapter stopped as requested',
+      detail:
+        'The injected failure occurred before a revision was committed. Your source and latest stable work remain safe, and you can retry.',
+    },
+    invalid_adapter_output: {
+      title: 'The local output could not be validated',
+      detail:
+        'LocaLog did not commit the incomplete result. Your latest stable source and document revisions remain safe.',
+    },
+    runtime_missing: {
+      title: 'Choose a local transcription runtime',
+      detail:
+        'Select an installed whisper.cpp executable in Settings → Transcription. LocaLog does not download runtimes.',
+    },
+    model_missing: {
+      title: 'Choose a local transcription model',
+      detail:
+        'Select an already available whisper.cpp model in Settings → Transcription. No model was downloaded or changed.',
+    },
+    runtime_changed: {
+      title: 'The transcription runtime changed',
+      detail:
+        'The queued job was not run because its whisper.cpp executable no longer matches the recorded runtime. Retry to resolve the current runtime.',
+    },
+    model_changed: {
+      title: 'The transcription model changed',
+      detail:
+        'The queued job was not run because its model no longer matches the recorded checksum. Retry to resolve the current model.',
+    },
+    media_probe_failed: {
+      title: 'The recording could not be inspected',
+      detail:
+        'Check that FFprobe is installed and that the imported source is still readable. The original remains unchanged.',
+    },
+    normalization_failed: {
+      title: 'The recording could not be prepared',
+      detail:
+        'Check that FFmpeg is installed and retry. The normalized cache can be regenerated and the original remains unchanged.',
+    },
+    transcription_failed: {
+      title: 'Local transcription could not finish',
+      detail:
+        'The whisper.cpp runtime stopped before a transcript revision was committed. Check its model and retry.',
+    },
+    transcription_timeout: {
+      title: 'Local transcription took too long',
+      detail:
+        'The supervised transcription process was stopped before a transcript revision was committed. Check the recording and runtime, then retry.',
+    },
+    provider_model_missing: {
+      title: 'The selected local model is unavailable',
+      detail:
+        'The selected Ollama model is no longer installed. Choose an installed model in Settings → Protocol generation, then retry.',
+    },
+    provider_model_changed: {
+      title: 'The local model changed',
+      detail:
+        'The model digest changed after this job was queued. Retry to capture the current installed model.',
+    },
+    provider_runtime_changed: {
+      title: 'The local provider changed',
+      detail:
+        'The Ollama runtime version changed after this job was queued. Retry to capture the current runtime.',
+    },
+    provider_unavailable: {
+      title: 'Local protocol generation could not connect',
+      detail:
+        'Start your existing Ollama installation and retry. LocaLog does not start or download runtimes.',
+    },
+    provider_invalid_output: {
+      title: 'The local model output could not be validated',
+      detail:
+        'LocaLog did not commit the incomplete or malformed protocol. Your transcript remains safe and you can retry.',
+    },
+    provider_incomplete_output: {
+      title: 'The local model output could not be validated',
+      detail:
+        'LocaLog did not commit the incomplete or malformed protocol. Your transcript remains safe and you can retry.',
+    },
+    provider_response_too_large: {
+      title: 'The local model response was too large',
+      detail:
+        'The response exceeded LocaLog’s safe limit and was not committed. Try again with a shorter transcript or a different local model.',
+    },
+    invalid_transcript_output: {
+      title: 'The transcription output could not be validated',
+      detail:
+        'LocaLog did not commit the runtime output because it was incomplete or malformed. Your source remains safe.',
+    },
+    processing_failed: {
+      title: 'Local processing could not finish',
+      detail:
+        'No incomplete transcript or protocol was presented as ready. Your latest stable work remains available and you can retry.',
+    },
+    unknown: {
+      title: 'Import could not finish',
+      detail:
+        'The meeting remains in Draft and the external original was not changed. You can retry safely.',
+    },
+  },
+
   jobStages: {
     // What the lifecycle decides rather than the work.
     transcriptSaved: 'Transcript saved',

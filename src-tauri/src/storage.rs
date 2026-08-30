@@ -2985,120 +2985,27 @@ fn job_stage_code(kind: &str, stage: &str, state: JobState) -> String {
     }
     stage.to_string()
 }
+/// What went wrong with a job, as codes rather than as words.
+///
+/// It held twenty-five pairs of English title and detail until 29 August 2026 — what
+/// somebody reads at the moment a job fails, which is when they least want to be read
+/// to in a language that is not theirs. They are in the dictionary now, under
+/// `jobErrors`, and the interface renders them.
+///
+/// The `detail` a step stored beats the default for the code, because a step often
+/// knows something the class of failure does not: which model went missing, how much
+/// would not fit. It is a code too — `ollamaModelGone`, or `code:detail` — and the
+/// interface renders it the same way it renders any failure from this side.
+///
+/// **That was already broken and this fixes it.** Those stored values became codes on
+/// 27 August and the progress panel prints `detail` directly, so a person whose
+/// generation failed was shown the literal word `responseUnusable`.
 fn job_error_summary(code: &str, stored_message: Option<&str>) -> JobErrorSummary {
-    let (title, default_detail) = match code {
-        "interrupted" => (
-            "Import was interrupted",
-            "LocaLog stopped before the managed copy was committed. The external original remains unchanged and you can retry safely.",
-        ),
-        "permission_denied" => (
-            "LocaLog could not read or store the recording",
-            "Check access to the selected file and LocaLog’s local data location, then try again. The external original was not changed.",
-        ),
-        "insufficient_space" => (
-            "There is not enough local storage",
-            "Free some space and retry. No partial recording has been presented as complete.",
-        ),
-        "source_missing" => (
-            "The selected recording is no longer available",
-            "Restore the file to its original location or create a new meeting import. The meeting remains safely in Draft.",
-        ),
-        "source_reselection_required" => (
-            "Choose the recording again",
-            "This meeting was created by an earlier development build that did not retain the source location. Choose the recording again to continue; the meeting has been preserved.",
-        ),
-        "unsupported_media" => (
-            "This media type is not supported yet",
-            "Choose a common audio or video file. The external original was not changed.",
-        ),
-        "empty_source" => (
-            "The selected recording is empty",
-            "Choose a recording that contains audio or video data. The empty external file was not changed.",
-        ),
-        "synthetic_failure" => (
-            "The development adapter stopped as requested",
-            "The injected failure occurred before a revision was committed. Your source and latest stable work remain safe, and you can retry.",
-        ),
-        "invalid_adapter_output" => (
-            "The local output could not be validated",
-            "LocaLog did not commit the incomplete result. Your latest stable source and document revisions remain safe.",
-        ),
-        "runtime_missing" => (
-            "Choose a local transcription runtime",
-            "Select an installed whisper.cpp executable in Settings → Transcription. LocaLog does not download runtimes.",
-        ),
-        "model_missing" => (
-            "Choose a local transcription model",
-            "Select an already available whisper.cpp model in Settings → Transcription. No model was downloaded or changed.",
-        ),
-        "runtime_changed" => (
-            "The transcription runtime changed",
-            "The queued job was not run because its whisper.cpp executable no longer matches the recorded runtime. Retry to resolve the current runtime.",
-        ),
-        "model_changed" => (
-            "The transcription model changed",
-            "The queued job was not run because its model no longer matches the recorded checksum. Retry to resolve the current model.",
-        ),
-        "media_probe_failed" => (
-            "The recording could not be inspected",
-            "Check that FFprobe is installed and that the imported source is still readable. The original remains unchanged.",
-        ),
-        "normalization_failed" => (
-            "The recording could not be prepared",
-            "Check that FFmpeg is installed and retry. The normalized cache can be regenerated and the original remains unchanged.",
-        ),
-        "transcription_failed" => (
-            "Local transcription could not finish",
-            "The whisper.cpp runtime stopped before a transcript revision was committed. Check its model and retry.",
-        ),
-        "transcription_timeout" => (
-            "Local transcription took too long",
-            "The supervised transcription process was stopped before a transcript revision was committed. Check the recording and runtime, then retry.",
-        ),
-        "provider_model_missing" => (
-            "The selected local model is unavailable",
-            "The selected Ollama model is no longer installed. Choose an installed model in Settings → Protocol generation, then retry.",
-        ),
-        "provider_model_changed" => (
-            "The local model changed",
-            "The model digest changed after this job was queued. Retry to capture the current installed model.",
-        ),
-        "provider_runtime_changed" => (
-            "The local provider changed",
-            "The Ollama runtime version changed after this job was queued. Retry to capture the current runtime.",
-        ),
-        "provider_unavailable" => (
-            "Local protocol generation could not connect",
-            "Start your existing Ollama installation and retry. LocaLog does not start or download runtimes.",
-        ),
-        "provider_invalid_output" | "provider_incomplete_output" => (
-            "The local model output could not be validated",
-            "LocaLog did not commit the incomplete or malformed protocol. Your transcript remains safe and you can retry.",
-        ),
-        "provider_response_too_large" => (
-            "The local model response was too large",
-            "The response exceeded LocaLog’s safe limit and was not committed. Try again with a shorter transcript or a different local model.",
-        ),
-        "invalid_transcript_output" => (
-            "The transcription output could not be validated",
-            "LocaLog did not commit the runtime output because it was incomplete or malformed. Your source remains safe.",
-        ),
-        "processing_failed" => (
-            "Local processing could not finish",
-            "No incomplete transcript or protocol was presented as ready. Your latest stable work remains available and you can retry.",
-        ),
-        _ => (
-            "Import could not finish",
-            "The meeting remains in Draft and the external original was not changed. You can retry safely.",
-        ),
-    };
     JobErrorSummary {
         code: code.to_string(),
-        title: title.to_string(),
-        detail: stored_message.unwrap_or(default_detail).to_string(),
+        detail: stored_message.unwrap_or_default().to_string(),
     }
 }
-
 fn required_text(value: &str, max_chars: usize, message: &'static str) -> Result<String> {
     let trimmed = value.trim();
     if trimmed.is_empty() || trimmed.chars().count() > max_chars || trimmed.contains('\0') {

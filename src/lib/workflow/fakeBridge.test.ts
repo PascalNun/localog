@@ -244,11 +244,7 @@ describe('FakeWorkflowBridge', () => {
       totalBytes: 1_000,
       stage: 'interrupted',
       attempt: 1,
-      error: {
-        code: 'interrupted',
-        title: 'Import was interrupted',
-        detail: 'The meeting remains in Draft.',
-      },
+      error: { code: 'interrupted', detail: '' },
       requiresDuplicateConfirmation: false,
     };
     const store = mockStore({

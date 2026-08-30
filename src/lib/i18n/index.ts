@@ -159,3 +159,27 @@ export function stageText(raw: string): string {
   if (typeof found === 'string') return found;
   return stages.working as string;
 }
+
+/**
+ * What a failed job is called, and what it says about what is safe.
+ *
+ * The code names the class of failure; a code nobody wrote words for falls back to
+ * the general one rather than to nothing, because a person whose work has just
+ * stopped needs a sentence more than anybody.
+ *
+ * The `detail` a step stored beats the default for the class, because a step often
+ * knows something the class does not — which model went missing, how much would not
+ * fit. It arrives as a code too, so it goes through the same funnel; a plain sentence
+ * from an older build passes through unchanged.
+ */
+export function jobErrorTitle(code: string): string {
+  const errors = get(t).jobErrors as Record<string, { title: string; detail: string } | undefined>;
+  return (errors[code] ?? get(t).jobErrors.unknown).title;
+}
+
+export function jobErrorDetail(code: string, stored: string): string {
+  const said = stored.trim();
+  if (said !== '') return isFailureCode(said) ? failureText(said) : said;
+  const errors = get(t).jobErrors as Record<string, { title: string; detail: string } | undefined>;
+  return (errors[code] ?? get(t).jobErrors.unknown).detail;
+}

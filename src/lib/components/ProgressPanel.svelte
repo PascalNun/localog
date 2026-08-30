@@ -2,7 +2,7 @@
   import type { ActiveJob } from '../workflow/types';
   import Icon from './Icon.svelte';
   import { formatBytes } from '../bytes';
-  import { stageText, t } from '../i18n';
+  import { jobErrorDetail, jobErrorTitle, stageText, t } from '../i18n';
 
   export let job: ActiveJob;
   export let onCancel: () => Promise<void>;
@@ -42,8 +42,8 @@
     <p class="eyebrow">
       {job.state === 'failed' ? $t.progress.needsAttention : $t.progress.backgroundWork}
     </p>
-    <h2>{job.error?.title ?? kindLabel}</h2>
-    <p>{job.error?.detail ?? stageLabel}</p>
+    <h2>{job.error ? jobErrorTitle(job.error.code) : kindLabel}</h2>
+    <p>{job.error ? jobErrorDetail(job.error.code, job.error.detail) : stageLabel}</p>
   </div>
   {#if job.requiresDuplicateConfirmation}
     <div class="progress-actions duplicate-actions">
