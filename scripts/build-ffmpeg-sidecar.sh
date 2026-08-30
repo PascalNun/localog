@@ -28,6 +28,71 @@ if [[ -z "$target_triple" ]]; then
   exit 1
 fi
 
+# Windows takes a prebuilt rather than building from source.
+#
+# The configure-and-make below wants a Unix toolchain: MSYS2, a compiler it
+# recognises, and a static libopus it can find. None of that is on a Windows
+# machine by default, and standing it up would be more moving parts than the
+# thing it produces.
+#
+# What is given up by taking somebody else's build is real and worth naming. The
+# source build here is deliberately minimal — `--disable-everything` and then only
+# the demuxers, decoders and encoders this application actually calls — which is a
+# few megabytes and a small surface to audit. A general build is neither. It also
+# means Windows runs a different FFmpeg version from macOS and Linux, because no
+# 7.x Windows build is published; the same recording will be decoded by 8.1 there
+# and 7.1.1 elsewhere.
+#
+# The LGPL build rather than the GPL one, matching `--disable-gpl` below: the same
+# licence position on every platform is worth more than the extra codecs, none of
+# which this application asks for.
+#
+# Pinned by release tag and verified by checksum, because this is somebody else's
+# binary going inside something people are asked to trust.
+if [[ "$target_triple" == *windows* ]]; then
+  release="${FFMPEG_WINDOWS_RELEASE:-autobuild-2026-08-30-13-12}"
+  archive="${FFMPEG_WINDOWS_ARCHIVE:-ffmpeg-n8.1.2-50-g1a748fe2cd-win64-lgpl-8.1}"
+  expected="${FFMPEG_WINDOWS_SHA256:-ca713b37c6fcbc94df1bf0409a1c89c04435e8a49fce0df85e75cf08ce3f904b}"
+  url="https://github.com/BtbN/FFmpeg-Builds/releases/download/$release/$archive.zip"
+
+  work="$(mktemp -d)"
+  trap 'rm -rf "$work"' EXIT
+  echo "Fetching a prebuilt FFmpeg for Windows ($archive)…"
+  curl --fail --location --silent --show-error --output "$work/ffmpeg.zip" "$url"
+
+  actual="$(powershell -NoProfile -Command \
+    "(Get-FileHash -Algorithm SHA256 '$(cygpath -w "$work/ffmpeg.zip" 2>/dev/null || echo "$work/ffmpeg.zip")').Hash.ToLower()" |
+    tr -d '\r')"
+  if [[ "$actual" != "$expected" ]]; then
+    echo "The prebuilt FFmpeg did not match its checksum." >&2
+    echo "  expected $expected" >&2
+    echo "  actual   $actual" >&2
+    echo "Refusing to ship a binary that is not the one that was reviewed." >&2
+    exit 1
+  fi
+
+  powershell -NoProfile -Command \
+    "Expand-Archive -Path '$(cygpath -w "$work/ffmpeg.zip" 2>/dev/null || echo "$work/ffmpeg.zip")' -DestinationPath '$(cygpath -w "$work" 2>/dev/null || echo "$work")' -Force"
+
+  mkdir -p "$sidecar_dir/licences"
+  for tool in ffmpeg ffprobe; do
+    built="$work/$archive/bin/$tool.exe"
+    if [[ ! -f "$built" ]]; then
+      echo "The prebuilt archive did not contain $tool.exe." >&2
+      exit 1
+    fi
+    cp "$built" "$sidecar_dir/localog-$tool-$target_triple.exe"
+    echo "Wrote $sidecar_dir/localog-$tool-$target_triple.exe"
+  done
+  # The obligation that comes with shipping it, met the same way the source build
+  # meets it: the licence travels with the binary.
+  if [[ -f "$work/$archive/LICENSE.txt" ]]; then
+    cp "$work/$archive/LICENSE.txt" "$sidecar_dir/licences/ffmpeg-LICENSE.txt"
+  fi
+  echo "FFmpeg $archive, prebuilt (LGPL), from $url" > "$sidecar_dir/licences/ffmpeg-BUILD.txt"
+  exit 0
+fi
+
 temporary_source=""
 cleanup() {
   if [[ -n "$temporary_source" ]]; then

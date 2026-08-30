@@ -55,3 +55,33 @@ jobs:
 
       - name: Check the Rust side
         run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+
+      # whisper, llama.cpp, sherpa and the embedding tool are CMake projects and
+      # build under MSVC; FFmpeg is taken prebuilt, pinned by release tag and
+      # verified by checksum. The scripts are bash, which Git Bash provides on
+      # this runner.
+      - name: Build the sidecars
+        shell: bash
+        run: npm run build:sidecar
+
+      - name: What was built
+        if: always()
+        shell: bash
+        run: ls -lh src-tauri/binaries/ || true
+
+      # The bundle config is passed rather than named for the platform, so that
+      # the compile check above can run before any of this exists.
+      - name: Bundle the application
+        run: npx tauri build --config src-tauri/tauri.win-bundle.conf.json
+
+      - name: What came out
+        if: always()
+        shell: bash
+        run: find src-tauri/target/release/bundle -type f -name '*.exe' -exec ls -lh {} \; || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: localog-windows
+          path: src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: warn
