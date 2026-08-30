@@ -908,13 +908,31 @@ the thing they describe rather than by remembering it.
   there; and the density instructions in `domain.rs`, which are sent to a model rather
   than shown to a person.
 
-  Two things are open behind it. The **printed header's values** are still English on
-  an ISO date, so a German protocol's header reads `Protocol · 2026-08-10 · Draft`;
-  whether the printed page follows the interface's language or the meeting's is a
-  decision about the document rather than about the application, and it is the
-  owner's. And **French, Spanish, Italian, Japanese, Korean and Simplified Chinese**
-  were asked for and are not built — each is now one file, plus a font that covers
-  the last three.
+  Both things that were open behind it are now closed. The **printed header** follows
+  the interface's language, which was the owner's decision on 29 August. And the six
+  further languages — **French, Spanish, Italian, Japanese, Korean and Simplified
+  Chinese** — were built the same day, so the application speaks eight.
+
+  The decision each of those files rests on is the same one, and it is not a matter of
+  vocabulary: **the word for what this product makes is different in every language,
+  and none of them is "protocol".** French _protocole_ is a procedure, Italian
+  _protocollo_ is the register a document is filed in, Chinese 协议 is an agreement.
+  A meeting produces a _compte rendu_, an _acta_, a _verbale_, a 議事録, a 회의록, a
+  会议纪要. Getting that one word wrong would mark the whole interface as translated by
+  somebody who had not read it — which is the difference between translating words and
+  translating meaning.
+
+  Japanese, Korean and Chinese needed a face, since Barlow has no CJK glyphs. Noto
+  Sans JP, KR and SC ship under the same licence Barlow already does, in their variable
+  cut: 13.3 MB against 20.2 for two static weights, and covering the whole range rather
+  than two points of it. Japanese and Chinese draw many of the same characters
+  differently, so the interface's own language decides which regional forms are used —
+  verified in the running application, where a Chinese interface loads the SC face and
+  a Japanese one the JP.
+
+  Two tests had to change while this landed, and both were doing their job: each
+  asserted that some language was one the application does not speak, and named French,
+  Italian and Japanese as the examples.
 
   One correction to what stood here: this was never criterion 8 in `MVP.md`. That
   criterion asks for recorded German **and English quality evidence**, is untouched by
