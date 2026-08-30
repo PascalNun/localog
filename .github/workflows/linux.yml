@@ -43,15 +43,23 @@ jobs:
 
       - run: npm ci
 
-      - name: Check before building
+      # Split deliberately. These need no Rust and no sidecars, so a lint or a
+      # typecheck failure is known in a minute rather than after the compile.
+      - name: Check the front end
         run: |
           npm run lint
           npm run check
           npm test
-          cargo test --manifest-path src-tauri/Cargo.toml
 
       - name: Build the sidecars
         run: npm run build:sidecar
+
+      # After the sidecars, and it has to be: Tauri's build script resolves
+      # externalBin at compile time, so the crate does not build until every
+      # binary named in the config is on disk. On Linux that config is merged in
+      # by filename, so this applies to a test run just as much as to a bundle.
+      - name: Check the Rust side
+        run: cargo test --manifest-path src-tauri/Cargo.toml
 
       # Named so a failure here is obviously the bundle rather than the compile.
       - name: Bundle the application
