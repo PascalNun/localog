@@ -26,6 +26,7 @@
   import { formatModelSize } from '../models/modelSize';
   import { INTERFACE_LANGUAGES, chooseLanguage, language, listOf, t } from '../i18n';
   import { formatMeetingDate } from '../protocol/document';
+  import { showInFileManagerKey } from '../platform/fileManager';
   import Icon from './Icon.svelte';
   import type { IconName } from './Icon.svelte';
 
@@ -143,6 +144,10 @@
   /// Reactive, and it was a `const` reading a `$:` value — which is assigned after
   /// the initialisers run, so this captured `undefined` and the line always claimed
   /// the conservative baseline even on a machine that had reported its memory.
+  const revealLabelKey = showInFileManagerKey(
+    typeof navigator === 'undefined' ? '' : navigator.userAgent,
+  );
+
   $: memoryLabel = memoryGb
     ? $t.settings.memoryReported(memoryGb)
     : $t.settings.conservativeBaseline;
@@ -752,7 +757,7 @@
           </div>
           {#if workspacePath}
             <button class="quiet-action" onclick={() => void onRevealWorkspace()}>
-              {$t.settings.showInFinder}
+              {$t.settings[revealLabelKey]}
             </button>
           {/if}
         </div>

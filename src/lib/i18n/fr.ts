@@ -109,8 +109,6 @@ const failures = {
   diariserPathInvalid: 'Choisissez un programme de séparation des intervenants existant.',
   whisperPathInvalid: 'Choisissez un exécutable whisper.cpp existant.',
   nothingRecording: 'Aucun enregistrement n’est en cours.',
-  revealOnlyOnMac:
-    'L’ouverture du dossier n’est câblée que sur macOS. Le chemin ci-dessus est correct.',
   privacySettingsOnlyOnMac:
     'L’ouverture des réglages de confidentialité n’est câblée que sur macOS.',
   providerNeededForModel: 'Démarrez votre installation Ollama avant de choisir un modèle.',
@@ -454,6 +452,8 @@ export const fr: Strings = {
     workspaceNote:
       'LocaLog gère ce dossier pour que les chemins qu’il contient restent valides, mais il est à vous et vous pouvez y regarder quand vous voulez.',
     showInFinder: 'Afficher dans le Finder',
+    showInExplorer: 'Afficher dans l’Explorateur de fichiers',
+    showInFileManager: 'Afficher dans le gestionnaire de fichiers',
     backup: 'Sauvegarde',
     backupLead:
       'Tout reste sur cet appareil, ce qui veut aussi dire que tout part avec lui. Une sauvegarde est un dossier ordinaire, à mettre sur un disque ou là où vous gardez ce qui compte.',

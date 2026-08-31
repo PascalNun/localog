@@ -114,7 +114,6 @@ const failures = {
   diariserPathInvalid: 'Choose an existing speaker separation program.',
   whisperPathInvalid: 'Choose an existing whisper.cpp executable.',
   nothingRecording: 'Nothing is being recorded.',
-  revealOnlyOnMac: 'Opening the folder is only wired up on macOS. The path above is correct.',
   privacySettingsOnlyOnMac: 'Opening the privacy settings is only wired up on macOS.',
   providerNeededForModel: 'Start your existing Ollama installation before selecting a model.',
   settingsNotOpened: 'System Settings could not be opened.',
@@ -485,6 +484,8 @@ export const en = {
     workspaceNote:
       'LocaLog manages this folder so that paths inside it stay valid, but it is yours and you can look in it whenever you like.',
     showInFinder: 'Show in Finder',
+    showInExplorer: 'Show in File Explorer',
+    showInFileManager: 'Show in file manager',
     backup: 'Backup',
     backupLead:
       'Everything stays on this device, which also means it leaves with the device. A backup is an ordinary folder you can put on a drive or wherever you keep things safe.',

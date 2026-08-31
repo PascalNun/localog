@@ -100,7 +100,6 @@ const failures = {
   diariserPathInvalid: '존재하는 화자 분리 프로그램을 선택하십시오.',
   whisperPathInvalid: '존재하는 whisper.cpp 실행 파일을 선택하십시오.',
   nothingRecording: '녹음 중인 것이 없습니다.',
-  revealOnlyOnMac: '폴더 열기는 macOS에서만 연결되어 있습니다. 위의 경로는 정확합니다.',
   privacySettingsOnlyOnMac: '개인 정보 보호 설정 열기는 macOS에서만 연결되어 있습니다.',
   providerNeededForModel: '모델을 선택하기 전에 사용 중인 Ollama를 실행하십시오.',
   settingsNotOpened: '시스템 설정을 열지 못했습니다.',
@@ -423,6 +422,8 @@ export const ko: Strings = {
     workspaceNote:
       'LocaLog는 안의 경로가 계속 유효하도록 이 폴더를 관리하지만, 폴더는 사용자의 것이며 언제든 들여다보실 수 있습니다.',
     showInFinder: 'Finder에서 보기',
+    showInExplorer: '파일 탐색기에서 보기',
+    showInFileManager: '파일 관리자에서 보기',
     backup: '백업',
     backupLead:
       '모든 것이 이 기기에 남는다는 말은, 기기와 함께 사라질 수도 있다는 뜻입니다. 백업은 평범한 폴더이므로 외장 드라이브 등 안전한 곳에 두십시오.',

@@ -104,7 +104,6 @@ const failures = {
   diariserPathInvalid: '存在する話者分離プログラムを選んでください。',
   whisperPathInvalid: '存在するwhisper.cppの実行ファイルを選んでください。',
   nothingRecording: '録音は行われていません。',
-  revealOnlyOnMac: 'フォルダを開く機能はmacOSのみに対応しています。上のパスは正しいものです。',
   privacySettingsOnlyOnMac: 'プライバシー設定を開く機能はmacOSのみに対応しています。',
   providerNeededForModel: 'モデルを選ぶ前に、お使いのOllamaを起動してください。',
   settingsNotOpened: 'システム設定を開けませんでした。',
@@ -433,6 +432,8 @@ export const ja: Strings = {
     workspaceNote:
       'LocaLogは中のパスが有効であり続けるようにこのフォルダを管理しますが、フォルダはあなたのもので、いつでも中を見ていただけます。',
     showInFinder: 'Finderで表示',
+    showInExplorer: 'エクスプローラーで表示',
+    showInFileManager: 'ファイルマネージャーで表示',
     backup: 'バックアップ',
     backupLead:
       'すべてがこの端末に残るということは、端末とともに失われうるということでもあります。バックアップはただのフォルダですので、外付けドライブなど安全な場所に置いてください。',

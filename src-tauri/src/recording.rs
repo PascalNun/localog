@@ -18,7 +18,7 @@
 
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -99,7 +99,7 @@ pub(crate) fn permissions() -> Permissions {
             ..Permissions::default()
         };
     };
-    let output = Command::new(&recorder).arg("--check").output();
+    let output = crate::process::command(&recorder).arg("--check").output();
     match output {
         Ok(output) if output.status.success() => serde_json::from_slice(&output.stdout)
             .unwrap_or_else(|_| Permissions {
@@ -179,7 +179,7 @@ impl Recording {
         let recorder = recorder_path().ok_or_else(|| "recorderMissing".to_string())?;
         sweep_orphans(root);
 
-        let mut child = Command::new(&recorder)
+        let mut child = crate::process::command(&recorder)
             .arg("--system")
             .arg(&system_path)
             .arg("--microphone")

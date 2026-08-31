@@ -103,8 +103,6 @@ const failures = {
   diariserPathInvalid: 'Scelga un programma di separazione degli interlocutori esistente.',
   whisperPathInvalid: 'Scelga un eseguibile whisper.cpp esistente.',
   nothingRecording: 'Non è in corso alcuna registrazione.',
-  revealOnlyOnMac:
-    'L’apertura della cartella è prevista solo su macOS. Il percorso qui sopra è corretto.',
   privacySettingsOnlyOnMac: 'L’apertura delle impostazioni sulla privacy è prevista solo su macOS.',
   providerNeededForModel: 'Avvii la sua installazione di Ollama prima di scegliere un modello.',
   settingsNotOpened: 'Non è stato possibile aprire Impostazioni di Sistema.',
@@ -444,6 +442,8 @@ export const it: Strings = {
     workspaceNote:
       'LocaLog gestisce questa cartella perché i percorsi al suo interno restino validi, ma è sua e può guardarci dentro quando vuole.',
     showInFinder: 'Mostra nel Finder',
+    showInExplorer: 'Mostra in Esplora file',
+    showInFileManager: 'Mostra nel gestore file',
     backup: 'Copia di sicurezza',
     backupLead:
       'Tutto resta su questo dispositivo, il che vuol dire anche che se ne va insieme a lui. Una copia di sicurezza è una cartella comune, da mettere su un disco o dove tiene ciò che conta.',

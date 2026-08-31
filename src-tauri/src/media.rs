@@ -36,7 +36,7 @@ pub(crate) fn probe(
     source: &Path,
     cancellation: &AtomicBool,
 ) -> Result<Probe, String> {
-    let mut command = Command::new(ffprobe);
+    let mut command = crate::process::command(ffprobe);
     command
         .args([
             "-v",
@@ -88,7 +88,7 @@ pub(crate) fn normalize(
     fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     let temporary = destination.with_extension("wav.part");
     let _ = fs::remove_file(&temporary);
-    let mut command = Command::new(ffmpeg);
+    let mut command = crate::process::command(ffmpeg);
     command
         .args(["-hide_banner", "-nostdin", "-y", "-i"])
         .arg(source)
@@ -111,7 +111,16 @@ pub(crate) fn normalize(
         return Err("normalizerNoOutput".into());
     }
     // Make the derived cache durable before exposing it at its final path.
-    if let Err(error) = fs::File::open(&temporary).and_then(|file| file.sync_all()) {
+    //
+    // Opened for writing to do it. FFmpeg wrote this file, so there is no handle
+    // of ours to flush through, and a read-only one cannot flush on Windows —
+    // FlushFileBuffers wants write access and returns "Access is denied" without
+    // it. Asking for write access is the same request on all three systems.
+    if let Err(error) = fs::OpenOptions::new()
+        .write(true)
+        .open(&temporary)
+        .and_then(|file| file.sync_all())
+    {
         let _ = fs::remove_file(&temporary);
         return Err(error.to_string());
     }
@@ -136,7 +145,7 @@ pub(crate) fn whisper_command(
     language: &str,
     vocabulary_prompt: Option<&str>,
 ) -> Command {
-    let mut command = Command::new(&config.executable);
+    let mut command = crate::process::command(&config.executable);
     command
         .args(["-m"])
         .arg(&config.model)
@@ -383,7 +392,7 @@ pub(crate) fn encode_to_opus(
 ) -> Result<(), String> {
     let temporary = destination.with_extension("opus.part");
     let _ = fs::remove_file(&temporary);
-    let mut command = Command::new(ffmpeg);
+    let mut command = crate::process::command(ffmpeg);
     command
         .args(["-hide_banner", "-nostdin", "-y", "-i"])
         .arg(source)
@@ -624,7 +633,7 @@ pub(crate) fn diarisation_command(request: &DiarisationRequest<'_>) -> Command {
     } else {
         "cpu"
     };
-    let mut command = Command::new(request.executable);
+    let mut command = crate::process::command(request.executable);
     command
         .arg(format!(
             "--segmentation.pyannote-model={}",
@@ -714,7 +723,7 @@ pub(crate) fn combine_tracks(
     let temporary = destination.with_extension("wav.part");
     let _ = fs::remove_file(&temporary);
 
-    let mut command = Command::new(ffmpeg);
+    let mut command = crate::process::command(ffmpeg);
     command
         .args(["-hide_banner", "-nostdin", "-y", "-i"])
         .arg(microphone)

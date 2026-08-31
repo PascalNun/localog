@@ -20,7 +20,7 @@
 use std::io::ErrorKind;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 use std::time::{Duration, Instant};
 
 /// What the generation runtime is called, most preferred first.
@@ -133,7 +133,7 @@ pub(crate) fn start_with(
     request: &ServerRequest,
 ) -> Result<Server, StartFailure> {
     let port = free_port().ok_or(StartFailure::NoPort)?;
-    let mut command = Command::new(executable);
+    let mut command = crate::process::command(executable);
     command
         .arg("--model")
         .arg(&request.model)

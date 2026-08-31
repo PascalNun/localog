@@ -18,7 +18,7 @@
 pub(crate) fn memory_bytes() -> Option<u64> {
     #[cfg(target_os = "macos")]
     {
-        std::process::Command::new("sysctl")
+        crate::process::command("sysctl")
             .args(["-n", "hw.memsize"])
             .output()
             .ok()
@@ -47,10 +47,10 @@ pub(crate) fn memory_bytes() -> Option<u64> {
     {
         ["wmic", "powershell"].iter().find_map(|tool| {
             let output = match *tool {
-                "wmic" => std::process::Command::new("wmic")
+                "wmic" => crate::process::command("wmic")
                     .args(["ComputerSystem", "get", "TotalPhysicalMemory"])
                     .output(),
-                _ => std::process::Command::new("powershell")
+                _ => crate::process::command("powershell")
                     .args([
                         "-NoProfile",
                         "-Command",

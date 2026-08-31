@@ -1,4 +1,3 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 #[cfg(test)]
 mod e2e_harness;
@@ -17,6 +16,7 @@ mod llama;
 mod machine;
 mod media;
 mod models;
+mod process;
 mod processing;
 mod provider;
 mod recording;
@@ -1020,21 +1020,22 @@ fn workspace_location(state: State<'_, StorageState>) -> String {
 #[tauri::command]
 async fn reveal_workspace(state: State<'_, StorageState>) -> Result<(), String> {
     let root = state.root.clone();
+    // One destination — this application's own folder, chosen here and never taken
+    // from the interface — handed to whichever file manager the system has. The
+    // button's wording follows the same split: somebody sent to look in Finder on
+    // Windows is being sent to look for something that is not there.
     #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(&root)
-            .spawn()
-            .map(|_| ())
-            .map_err(|_| "workspaceNotOpened".to_string())
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        // xdg-open on Linux and explorer on Windows, once either has a build to
-        // try it in. Naming the folder still works everywhere.
-        let _ = root;
-        Err("revealOnlyOnMac".into())
-    }
+    let program = "open";
+    #[cfg(target_os = "windows")]
+    let program = "explorer";
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let program = "xdg-open";
+
+    crate::process::command(program)
+        .arg(&root)
+        .spawn()
+        .map(|_| ())
+        .map_err(|_| "workspaceNotOpened".to_string())
 }
 
 /// Open the System Settings pane where a recording permission is granted.

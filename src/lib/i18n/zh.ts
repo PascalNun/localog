@@ -103,7 +103,6 @@ const failures = {
   diariserPathInvalid: '请选择存在的说话人分离程序。',
   whisperPathInvalid: '请选择存在的 whisper.cpp 可执行文件。',
   nothingRecording: '当前没有录音。',
-  revealOnlyOnMac: '打开文件夹仅在 macOS 上接通。上面的路径是正确的。',
   privacySettingsOnlyOnMac: '打开隐私设置仅在 macOS 上接通。',
   providerNeededForModel: '选择模型前，请先启动您已安装的 Ollama。',
   settingsNotOpened: '未能打开系统设置。',
@@ -414,6 +413,8 @@ export const zh: Strings = {
     whereWorkIsKept: '您的工作保存在哪里',
     workspaceNote: 'LocaLog 管理此文件夹，好让其中的路径始终有效，但它是您的，您随时可以进去看看。',
     showInFinder: '在访达中显示',
+    showInExplorer: '在文件资源管理器中显示',
+    showInFileManager: '在文件管理器中显示',
     backup: '备份',
     backupLead:
       '一切都留在本机，这也意味着它会随本机一同离开。备份就是一个普通的文件夹，可以放在移动硬盘或任何您觉得稳妥的地方。',

@@ -220,7 +220,7 @@ fn search_locations(beside_the_app: Option<&Path>, on_path: Vec<PathBuf>) -> Vec
 /// bounded and never runs on the UI thread; it catches a missing executable or
 /// an incompatible architecture before a meeting is started.
 pub(crate) fn executable_health(path: &Path) -> bool {
-    let mut command = Command::new(path);
+    let mut command = crate::process::command(path);
     command.arg("--help");
     let token = AtomicBool::new(false);
     run_process(command, &token, ProcessLimits::version()).is_ok()
@@ -500,7 +500,7 @@ pub(crate) fn ffmpeg_version(path: &Path) -> Option<String> {
 }
 
 fn executable_version_with_argument(path: &Path, argument: &str) -> Option<String> {
-    let mut command = Command::new(path);
+    let mut command = crate::process::command(path);
     command.arg(argument);
     let token = AtomicBool::new(false);
     run_process(command, &token, ProcessLimits::version())

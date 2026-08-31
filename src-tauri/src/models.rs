@@ -492,12 +492,10 @@ pub(crate) fn download_model(
         return result;
     }
 
-    // Durably install the verified file, then reveal it at its final path.
+    // The staged file is already verified and flushed to disk by the writer, which
+    // is where the sync belongs: a reopened read-only handle cannot flush on
+    // Windows. Install it at its final path.
     let final_path = directory.join(model.file_name);
-    if let Err(error) = File::open(&staged).and_then(|file| file.sync_all()) {
-        let _ = fs::remove_file(&staged);
-        return Err(ModelError::Io(error.to_string()));
-    }
     if let Err(error) = fs::rename(&staged, &final_path) {
         let _ = fs::remove_file(&staged);
         return Err(ModelError::Io(error.to_string()));
@@ -561,6 +559,13 @@ fn stream_to_staged(
     if written != model.byte_count || digest != model.sha256 {
         return Err(ModelError::VerifyFailed);
     }
+
+    // On the handle that did the writing, and deliberately: FlushFileBuffers needs
+    // write access on Windows, so syncing through a reopened read-only handle
+    // fails with "Access is denied" — after the whole model has been fetched and
+    // verified. fsync on a read-only descriptor is legal on macOS and Linux, which
+    // is why this only ever failed on one of the three.
+    file.sync_all()?;
     Ok(())
 }
 
@@ -625,7 +630,7 @@ fn available_bytes(path: &Path) -> Option<u64> {
         "(Get-PSDrive -Name '{}' -ErrorAction Stop).Free",
         drive.trim_end_matches(':')
     );
-    let output = std::process::Command::new("powershell")
+    let output = crate::process::command("powershell")
         .args(["-NoProfile", "-Command", &script])
         .output()
         .ok()?;

@@ -110,8 +110,6 @@ const failures = {
   diariserPathInvalid: 'Wählen Sie ein vorhandenes Programm zur Sprechertrennung.',
   whisperPathInvalid: 'Wählen Sie eine vorhandene whisper.cpp-Anwendung.',
   nothingRecording: 'Es wird gerade nichts aufgenommen.',
-  revealOnlyOnMac:
-    'Das Öffnen des Ordners ist bisher nur unter macOS eingerichtet. Der Pfad oben stimmt.',
   privacySettingsOnlyOnMac:
     'Das Öffnen der Datenschutzeinstellungen ist bisher nur unter macOS eingerichtet.',
   providerNeededForModel:
@@ -463,6 +461,8 @@ export const de: Strings = {
     workspaceNote:
       'LocaLog verwaltet diesen Ordner, damit die Pfade darin gültig bleiben — er gehört aber Ihnen, und Sie können jederzeit hineinsehen.',
     showInFinder: 'Im Finder zeigen',
+    showInExplorer: 'Im Explorer zeigen',
+    showInFileManager: 'Im Dateimanager zeigen',
     backup: 'Sicherung',
     backupLead:
       'Alles bleibt auf diesem Gerät — was auch heißt, dass es mit dem Gerät verschwindet. Eine Sicherung ist ein gewöhnlicher Ordner, den Sie auf ein Laufwerk legen können oder wohin Sie sonst Sicheres legen.',
