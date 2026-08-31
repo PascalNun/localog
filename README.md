@@ -15,6 +15,13 @@ The protocol is the point of the product. Transcription is the reviewable source
 
 _The current shell uses synthetic project data. These screenshots show the visual direction in light and dark mode, not a finished release._
 
+## Download
+
+The first alpha is on the [releases page](../../releases/latest), for macOS,
+Windows and Linux. It is unsigned, so each system will warn you before opening
+it; the release notes say what to click and why. Read the untested list there
+before you rely on the output.
+
 ## Why LocaLog exists
 
 Meeting recordings can contain personal information, internal decisions, client details, and material that should not leave an organisation's controlled environment. LocaLog is designed around that:
@@ -25,7 +32,7 @@ Meeting recordings can contain personal information, internal decisions, client 
 - projects and meetings provide context for every recording and document;
 - the interface is designed as a writing and review tool, not a chatbot or model dashboard.
 
-The project is open source under [GPL-3.0-or-later](LICENSE). macOS is the first development and validation platform. Windows and Linux remain intended platforms, with operating-system-specific work kept at the edges of the application.
+The project is open source under [GPL-3.0-or-later](LICENSE). It builds and packages on macOS, Windows and Linux. macOS is the platform the work is validated on: the other two compile and bundle in CI, and nobody has run them yet. Operating-system-specific work stays at the edges of the application.
 
 ## The workflow
 
@@ -33,7 +40,7 @@ The project is open source under [GPL-3.0-or-later](LICENSE). macOS is the first
 Project → Meeting → Import → Transcribe → Review → Generate → Edit → Export
 ```
 
-The first useful workflow begins with an imported recording. Built-in microphone and system-audio recording are later possibilities, not part of the first complete path.
+Importing a recording is the path that works. Recording a meeting inside the application is built on all three systems now, through AVAudioEngine on macOS, WASAPI loopback on Windows and an ALSA monitor source on Linux. Only the macOS backend has ever captured audio, and that was in the spike it came from rather than from inside the application.
 
 ## Current state
 
@@ -47,11 +54,11 @@ The repository currently contains:
 - durable import, transcription, and generation jobs with cancellation, retry, and restart recovery;
 - local media probing and normalisation through supervised FFmpeg processes;
 - a whisper.cpp boundary for local transcription, with consent-gated verified model downloads;
-- an Ollama protocol provider for development and early technical previews;
+- a bundled llama.cpp server for writing protocols, and an Ollama provider for anyone already running one;
 - transcript review, Markdown editing, autosave, revision history, and Markdown/plain-text export;
 - synthetic fixtures, evaluation harnesses, and isolated architecture spikes.
 
-The native development path still accepts a locally supplied whisper.cpp executable and a user-managed Ollama server. Speaker separation has a release-sidecar build path and first-use model preparation. Whisper/FFmpeg packaging, the final public generation runtime, M1/8 GB performance validation, Windows/Linux builds, accessibility auditing, and backup/restore are still open.
+Seven sidecars ship inside the application: whisper.cpp, FFmpeg and ffprobe, the llama.cpp server, speaker diarisation and embedding, and the recorder. A locally supplied whisper.cpp executable and a user-managed Ollama server are both still accepted. Signing and notarisation, M1/8 GB performance validation, accessibility auditing, and backup/restore are open.
 
 The main unresolved product question is protocol quality: whether the generated document is complete, factually supported, and useful after light editing.
 
@@ -91,14 +98,13 @@ To run the Tauri shell:
 npm run tauri dev
 ```
 
-For a packaged build, build the native speaker sidecar first and then use the release config:
+For a packaged build, which compiles every sidecar first and then bundles them:
 
 ```sh
 npm run tauri:build
 ```
 
-The sidecar is bundled into the application. Its two verified model files are downloaded only when
-speaker separation is requested, with the size shown before the download starts.
+Expect this to take a while the first time; FFmpeg and llama.cpp are built from source. Model files are never bundled. They download when the feature that needs them is first used, with the size shown and, where a licence requires it, the terms shown before anything is fetched.
 
 The complete checks are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
 
