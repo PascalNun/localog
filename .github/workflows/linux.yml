@@ -9,11 +9,27 @@ on:
 
 jobs:
   build:
+    # Both architectures, and neither is a cross-compile: every sidecar takes its
+    # target from `rustc -vV`, so the same scripts produce an arm64 build when run
+    # on an arm64 machine. FFmpeg, whisper, llama.cpp and sherpa are all built from
+    # source here, which is what makes that true — nothing downloads a prebuilt
+    # x86 binary that would have to be replaced.
+    #
     # Not ubuntu-latest, deliberately. A binary cannot run against an older glibc
     # than it was linked with, and latest (24.04) links 2.39 — which rules out
     # Debian 12, Ubuntu 22.04 and RHEL 9, a large part of installed Linux. Building
     # on the older base costs nothing and the result runs on everything newer.
-    runs-on: ubuntu-22.04
+    strategy:
+      # One architecture failing must not cancel the other. They share no code
+      # path beyond these scripts, so a break in one says nothing about the other.
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            arch: x86_64
+          - runner: ubuntu-22.04-arm
+            arch: aarch64
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
@@ -62,8 +78,11 @@ jobs:
           # compile failed with "can't find crate for tauri" — an error that says
           # nothing about the actual cause, which was a different toolchain's
           # artifacts sitting in the same directory.
-          key: linux-2204-${{ hashFiles('src-tauri/Cargo.lock', 'scripts/build-*-sidecar.sh') }}
-          restore-keys: linux-2204-
+          # The architecture is in the key for the same reason the image is: an
+          # x86 target directory restored onto an arm runner is a slower version
+          # of the same confusing failure.
+          key: linux-2204-${{ matrix.arch }}-${{ hashFiles('src-tauri/Cargo.lock', 'scripts/build-*-sidecar.sh') }}
+          restore-keys: linux-2204-${{ matrix.arch }}-
 
       - run: npm ci
 
@@ -98,7 +117,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: localog-linux
+          name: localog-linux-${{ matrix.arch }}
           path: |
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/appimage/*.AppImage
