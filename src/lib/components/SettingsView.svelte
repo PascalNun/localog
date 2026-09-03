@@ -166,10 +166,13 @@
   /// Proper names rather than interface words. "Gemma 4 E2B" is what the file is
   /// called wherever somebody looks it up, and translating it would make it
   /// harder to find rather than easier to read.
+  /// The measured descriptions, reachable by an identifier the backend supplies
+  /// rather than one this file already knows.
+  $: describedModels = $t.settings.modelDescription as Record<string, string | undefined>;
+
   const GENERATION_NAMES: Record<string, string> = {
     'gemma4-12b': 'Gemma 4 12B',
-    'gemma4-e4b': 'Gemma 4 E4B',
-    'gemma4-e2b': 'Gemma 4 E2B',
+    'ministral-8b': 'Ministral 3 8B',
   };
 
   /// Every model this application can run itself, largest first.
@@ -416,8 +419,17 @@
                   ? $t.settings.bundledRuntime
                   : $t.settings.bundledAlternative}
               </p>
-              <h3>{GENERATION_NAMES[model.modelId] ?? model.modelId}</h3>
-              {#if model.modelId === recommendedGeneration}
+              <div class="model-card-heading">
+                <h3>{GENERATION_NAMES[model.modelId] ?? model.modelId}</h3>
+                {#if model.origin === 'european'}
+                  <span class="model-badge quiet">{$t.settings.european}</span>
+                {/if}
+              </div>
+              <!-- The words already written for this model, measured on real
+                   meetings, rather than a second description saying less. -->
+              {#if describedModels[model.modelId]}
+                <p>{describedModels[model.modelId]}</p>
+              {:else if model.modelId === recommendedGeneration}
                 <p>{$t.settings.bundledRuntimeLead}</p>
               {/if}
               <div class="model-meta">
@@ -427,12 +439,6 @@
                   <span>{$t.settings.wantsMemory(model.wantsMemoryGb)}</span>
                 {/if}
               </div>
-              <!-- Only the largest has been measured against a real meeting, and
-                   saying so is the difference between a choice and a guess. -->
-              {#if model.modelId !== 'gemma4-12b'}
-                <p class="setting-hint">{$t.settings.bundledUnmeasured}</p>
-              {/if}
-
               {#if model.installed}
                 <p class="model-evaluation">{$t.settings.generationModelInstalled}</p>
               {:else if model.acceptanceRequired && model.acceptedAtMs === null}

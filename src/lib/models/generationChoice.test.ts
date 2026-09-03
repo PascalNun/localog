@@ -13,6 +13,7 @@ function model(modelId: string, byteCount: number, wantsMemoryGb: number | null)
     acceptanceRequired: true,
     acceptedAtMs: null,
     wantsMemoryGb,
+    origin: 'international',
   };
 }
 

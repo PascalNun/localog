@@ -685,6 +685,8 @@ export interface ModelTerms {
   acceptanceRequired: boolean;
   /// Roughly the memory this model wants, where the question arises.
   wantsMemoryGb: number | null;
+  /// Who made it. Not a ranking — a fact somebody may be choosing on.
+  origin: 'international' | 'european';
   /** When these terms were accepted, or null. */
   acceptedAtMs: number | null;
 }

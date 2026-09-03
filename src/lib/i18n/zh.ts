@@ -330,7 +330,6 @@ export const zh: Strings = {
     bundledRuntime: '在本机上',
     bundledAlternative: '同样可用',
     wantsMemory: (gb: number) => `需要约 ${gb} GB`,
-    bundledUnmeasured: '更小更快，但尚未在真实会议中测量过。',
     bundledRuntimeLead: 'LocaLog 自带撰写会议纪要的引擎。只需一个模型，下载一次即保存在本机。',
     licenceHeading: '下载之前',
     licenceBody: (licence: string) =>

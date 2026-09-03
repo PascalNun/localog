@@ -40,6 +40,8 @@ struct ModelSpec {
     /// refused until it has been accepted, because a licence step somebody can
     /// walk past is decoration rather than a licence step.
     acceptance_required: bool,
+    /// Who made it, for somebody choosing on more than size.
+    origin: ModelOrigin,
     /// Roughly the memory a machine needs to run this, in gigabytes.
     ///
     /// The weights plus the working room a context needs beside them, rounded to
@@ -49,6 +51,20 @@ struct ModelSpec {
     /// then swap. `None` where the question does not arise: a transcription model
     /// runs in a fraction of this and the diariser's two are smaller still.
     wants_memory_gb: Option<u32>,
+}
+
+/// Where a model comes from.
+///
+/// Not a quality claim and not a ranking. Somebody choosing a model for a
+/// meeting record may be choosing under a policy about which company's weights
+/// their organisation will run, and that question has no answer in a benchmark.
+/// The interface already says this for models somebody runs through Ollama; the
+/// models this application downloads itself carry it for the same reason.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum ModelOrigin {
+    International,
+    European,
 }
 
 /// What a downloaded model does.
@@ -88,6 +104,7 @@ const MODELS: &[ModelSpec] = &[
         licence: "mit",
         licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
         acceptance_required: false,
+        origin: ModelOrigin::International,
         wants_memory_gb: None,
     },
     ModelSpec {
@@ -100,6 +117,7 @@ const MODELS: &[ModelSpec] = &[
         licence: "mit",
         licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
         acceptance_required: false,
+        origin: ModelOrigin::International,
         wants_memory_gb: None,
     },
     ModelSpec {
@@ -112,6 +130,7 @@ const MODELS: &[ModelSpec] = &[
         licence: "mit",
         licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
         acceptance_required: false,
+        origin: ModelOrigin::International,
         wants_memory_gb: None,
     },
     ModelSpec {
@@ -124,6 +143,7 @@ const MODELS: &[ModelSpec] = &[
         licence: "mit",
         licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
         acceptance_required: false,
+        origin: ModelOrigin::International,
         wants_memory_gb: None,
     },
     ModelSpec {
@@ -136,6 +156,7 @@ const MODELS: &[ModelSpec] = &[
         licence: "mit",
         licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
         acceptance_required: false,
+        origin: ModelOrigin::International,
         wants_memory_gb: None,
     },
     // The model that writes the protocol, and the one recommended first: it kept
@@ -161,34 +182,28 @@ const MODELS: &[ModelSpec] = &[
         licence: "gemma",
         licence_url: "https://ai.google.dev/gemma/terms",
         acceptance_required: true,
+        origin: ModelOrigin::International,
         wants_memory_gb: Some(16),
     },
-    // Two smaller ones from the same family, so the choice is a size rather than
-    // a different set of terms to read: same licence, same acceptance, same
-    // behaviour. Sizes and checksums are what the repository reports.
+    // The European option, and the reason the choice exists at all. Somebody
+    // running meetings through this may be doing it under a policy about whose
+    // weights their organisation will run, which is a question no benchmark
+    // answers. Apache-2.0, so unlike Gemma there is nothing to agree to first —
+    // and it is already the candidate the Ollama catalogue names, tested in
+    // German. First-party GGUF from Mistral; size and checksum are what the
+    // repository reports.
     ModelSpec {
-        id: "gemma4-e4b",
-        file_name: "gemma-4-E4B_q4_0-it.gguf",
-        url: "https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf/resolve/main/gemma-4-E4B_q4_0-it.gguf",
-        sha256: "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee",
-        byte_count: 5_154_941_280,
+        id: "ministral-8b",
+        file_name: "Ministral-3-8B-Instruct-2512-Q4_K_M.gguf",
+        url: "https://huggingface.co/mistralai/Ministral-3-8B-Instruct-2512-GGUF/resolve/main/Ministral-3-8B-Instruct-2512-Q4_K_M.gguf",
+        sha256: "33e7a72cf5e6e2cfc2f2847075acc013d68bba023e35310cef86b5cf8fdca761",
+        byte_count: 5_198_911_904,
         kind: ModelKind::Generation,
-        licence: "gemma",
-        licence_url: "https://ai.google.dev/gemma/terms",
-        acceptance_required: true,
-        wants_memory_gb: Some(12),
-    },
-    ModelSpec {
-        id: "gemma4-e2b",
-        file_name: "gemma-4-E2B_q4_0-it.gguf",
-        url: "https://huggingface.co/google/gemma-4-E2B-it-qat-q4_0-gguf/resolve/main/gemma-4-E2B_q4_0-it.gguf",
-        sha256: "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634",
-        byte_count: 3_349_516_256,
-        kind: ModelKind::Generation,
-        licence: "gemma",
-        licence_url: "https://ai.google.dev/gemma/terms",
-        acceptance_required: true,
-        wants_memory_gb: Some(8),
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+        origin: ModelOrigin::European,
+        wants_memory_gb: Some(16),
     },
 ];
 
@@ -279,6 +294,8 @@ pub(crate) struct ModelTerms {
     /// models a machine can actually run rather than listing three sizes and
     /// leaving somebody to guess.
     pub wants_memory_gb: Option<u32>,
+    /// Who made it. The interface has words for each; this is never a sentence.
+    pub origin: ModelOrigin,
     /// When these terms were accepted, in milliseconds since the epoch, or
     /// nothing if they were not. Recorded so somebody can answer what is on their
     /// machine and what they agreed to — which, in a firm, is a question they may
@@ -352,6 +369,7 @@ pub(crate) fn terms(root: &Path, model_id: &str) -> Option<ModelTerms> {
         installed: installed_model_path(root, model_id).is_some(),
         acceptance_required: model.acceptance_required,
         wants_memory_gb: model.wants_memory_gb,
+        origin: model.origin,
         accepted_at_ms: accepted_licences(root)
             .into_iter()
             .find(|(id, _)| id == model_id)
