@@ -40,6 +40,15 @@ struct ModelSpec {
     /// refused until it has been accepted, because a licence step somebody can
     /// walk past is decoration rather than a licence step.
     acceptance_required: bool,
+    /// Roughly the memory a machine needs to run this, in gigabytes.
+    ///
+    /// The weights plus the working room a context needs beside them, rounded to
+    /// something a person can compare against what their machine reports. An
+    /// estimate and described as one — the alternative is silence, which leaves
+    /// somebody to discover the answer by watching a 7 GB download finish and
+    /// then swap. `None` where the question does not arise: a transcription model
+    /// runs in a fraction of this and the diariser's two are smaller still.
+    wants_memory_gb: Option<u32>,
 }
 
 /// What a downloaded model does.
@@ -79,6 +88,7 @@ const MODELS: &[ModelSpec] = &[
         licence: "mit",
         licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
         acceptance_required: false,
+        wants_memory_gb: None,
     },
     ModelSpec {
         id: "speaker-embedding",
@@ -90,6 +100,7 @@ const MODELS: &[ModelSpec] = &[
         licence: "mit",
         licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
         acceptance_required: false,
+        wants_memory_gb: None,
     },
     ModelSpec {
         id: "tiny",
@@ -101,6 +112,7 @@ const MODELS: &[ModelSpec] = &[
         licence: "mit",
         licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
         acceptance_required: false,
+        wants_memory_gb: None,
     },
     ModelSpec {
         id: "base",
@@ -112,6 +124,7 @@ const MODELS: &[ModelSpec] = &[
         licence: "mit",
         licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
         acceptance_required: false,
+        wants_memory_gb: None,
     },
     ModelSpec {
         id: "medium",
@@ -123,6 +136,7 @@ const MODELS: &[ModelSpec] = &[
         licence: "mit",
         licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
         acceptance_required: false,
+        wants_memory_gb: None,
     },
     // The model that writes the protocol, and the one recommended first: it kept
     // 27 to 31 of a reference meeting's 35 stated figures across three runs, where
@@ -147,6 +161,34 @@ const MODELS: &[ModelSpec] = &[
         licence: "gemma",
         licence_url: "https://ai.google.dev/gemma/terms",
         acceptance_required: true,
+        wants_memory_gb: Some(16),
+    },
+    // Two smaller ones from the same family, so the choice is a size rather than
+    // a different set of terms to read: same licence, same acceptance, same
+    // behaviour. Sizes and checksums are what the repository reports.
+    ModelSpec {
+        id: "gemma4-e4b",
+        file_name: "gemma-4-E4B_q4_0-it.gguf",
+        url: "https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf/resolve/main/gemma-4-E4B_q4_0-it.gguf",
+        sha256: "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee",
+        byte_count: 5_154_941_280,
+        kind: ModelKind::Generation,
+        licence: "gemma",
+        licence_url: "https://ai.google.dev/gemma/terms",
+        acceptance_required: true,
+        wants_memory_gb: Some(12),
+    },
+    ModelSpec {
+        id: "gemma4-e2b",
+        file_name: "gemma-4-E2B_q4_0-it.gguf",
+        url: "https://huggingface.co/google/gemma-4-E2B-it-qat-q4_0-gguf/resolve/main/gemma-4-E2B_q4_0-it.gguf",
+        sha256: "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634",
+        byte_count: 3_349_516_256,
+        kind: ModelKind::Generation,
+        licence: "gemma",
+        licence_url: "https://ai.google.dev/gemma/terms",
+        acceptance_required: true,
+        wants_memory_gb: Some(8),
     },
 ];
 
@@ -233,6 +275,10 @@ pub(crate) struct ModelTerms {
     pub licence_url: String,
     pub installed: bool,
     pub acceptance_required: bool,
+    /// Roughly the memory this wants, so the interface can say which of several
+    /// models a machine can actually run rather than listing three sizes and
+    /// leaving somebody to guess.
+    pub wants_memory_gb: Option<u32>,
     /// When these terms were accepted, in milliseconds since the epoch, or
     /// nothing if they were not. Recorded so somebody can answer what is on their
     /// machine and what they agreed to — which, in a firm, is a question they may
@@ -305,6 +351,7 @@ pub(crate) fn terms(root: &Path, model_id: &str) -> Option<ModelTerms> {
         licence_url: model.licence_url.to_string(),
         installed: installed_model_path(root, model_id).is_some(),
         acceptance_required: model.acceptance_required,
+        wants_memory_gb: model.wants_memory_gb,
         accepted_at_ms: accepted_licences(root)
             .into_iter()
             .find(|(id, _)| id == model_id)

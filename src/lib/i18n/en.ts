@@ -387,6 +387,9 @@ export const en = {
     checkInstalled: 'Check installed models',
     curatedModels: 'Curated protocol models',
     bundledRuntime: 'On this device',
+    bundledAlternative: 'Also available',
+    wantsMemory: (gb: number) => `Wants about ${gb} GB`,
+    bundledUnmeasured: 'Smaller and faster, and not yet measured against a real meeting.',
     bundledRuntimeLead:
       'LocaLog brings its own engine for writing protocols. It needs one model, downloaded once and kept here.',
     licenceHeading: 'Before downloading',

@@ -335,6 +335,9 @@ export const ko: Strings = {
     checkInstalled: '설치된 모델 확인',
     curatedModels: '선별된 회의록 모델',
     bundledRuntime: '이 기기에서',
+    bundledAlternative: '다른 선택지',
+    wantsMemory: (gb: number) => `약 ${gb} GB 필요`,
+    bundledUnmeasured: '더 작고 빠르지만 실제 회의로 아직 측정하지 않았습니다.',
     bundledRuntimeLead:
       'LocaLog에는 회의록을 쓰는 엔진이 들어 있습니다. 필요한 것은 모델 하나뿐이며, 한 번 내려받으면 이 기기에 남습니다.',
     licenceHeading: '내려받기 전에',

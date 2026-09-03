@@ -12,6 +12,7 @@
   export let capability: TranscriptionCapability;
   export let downloading: Record<string, number>;
   export let modelError: string | null;
+  export let downloadErrors: Record<string, string> = {};
   export let providerStatus: ProtocolProviderStatus;
   export let onDownloadModel: (modelId: string) => Promise<void>;
   export let onCancelDownload: (modelId: string) => Promise<void>;
@@ -36,6 +37,9 @@
   // Settings is ready and should not be told otherwise.
   $: ready = capability.presets.some((preset) => preset.installed);
   $: percent = chosen ? downloading[chosen.modelId] : undefined;
+  // This model's own failure first; the general one only when there is no
+  // failure attached to a model.
+  $: downloadError = (chosen ? downloadErrors[chosen.modelId] : undefined) ?? modelError;
   $: fetching = percent !== undefined;
   /// The second thing a new installation is missing, and it was never said here.
   ///
@@ -87,8 +91,8 @@
             {$t.start.setupDownload(formatModelSize(chosen.byteCount))}
           </button>
         {/if}
-        {#if modelError}
-          <p class="start-setup-error">{modelError}</p>
+        {#if downloadError}
+          <p class="start-setup-error">{downloadError}</p>
         {/if}
         <p class="start-setup-aside">{$t.start.setupAside}</p>
       </div>

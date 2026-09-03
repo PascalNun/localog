@@ -683,6 +683,8 @@ export interface ModelTerms {
   licenceUrl: string;
   installed: boolean;
   acceptanceRequired: boolean;
+  /// Roughly the memory this model wants, where the question arises.
+  wantsMemoryGb: number | null;
   /** When these terms were accepted, or null. */
   acceptedAtMs: number | null;
 }

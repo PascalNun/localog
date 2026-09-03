@@ -345,6 +345,9 @@ export const es: Strings = {
     checkInstalled: 'Comprobar los modelos instalados',
     curatedModels: 'Modelos de acta seleccionados',
     bundledRuntime: 'En este dispositivo',
+    bundledAlternative: 'También disponible',
+    wantsMemory: (gb: number) => `Necesita unos ${gb} GB`,
+    bundledUnmeasured: 'Más pequeño y rápido, pero aún no medido con una reunión real.',
     bundledRuntimeLead:
       'LocaLog trae su propio motor para redactar actas. Necesita un modelo, descargado una vez y conservado aquí.',
     licenceHeading: 'Antes de descargar',

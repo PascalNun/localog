@@ -353,6 +353,9 @@ export const it: Strings = {
     checkInstalled: 'Verifica i modelli installati',
     curatedModels: 'Modelli per i verbali selezionati',
     bundledRuntime: 'Su questo dispositivo',
+    bundledAlternative: 'Disponibile anche',
+    wantsMemory: (gb: number) => `Richiede circa ${gb} GB`,
+    bundledUnmeasured: 'Più piccolo e veloce, ma non ancora misurato su una riunione reale.',
     bundledRuntimeLead:
       'LocaLog porta con sé il proprio motore per scrivere verbali. Serve un modello, scaricato una volta e conservato qui.',
     licenceHeading: 'Prima di scaricare',

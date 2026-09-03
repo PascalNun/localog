@@ -343,6 +343,9 @@ export const ja: Strings = {
     checkInstalled: 'インストール済みのモデルを確認',
     curatedModels: '選定済みの議事録モデル',
     bundledRuntime: 'この端末で',
+    bundledAlternative: 'こちらも利用できます',
+    wantsMemory: (gb: number) => `約${gb} GB が必要です`,
+    bundledUnmeasured: '小さく高速ですが、実際の会議ではまだ測定していません。',
     bundledRuntimeLead:
       'LocaLog は議事録を書くためのエンジンを内蔵しています。必要なのはモデルひとつだけで、一度ダウンロードすればこの端末に残ります。',
     licenceHeading: 'ダウンロードの前に',

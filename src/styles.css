@@ -2373,6 +2373,14 @@ button.review-summary[aria-pressed='true'] {
   background: var(--subtle);
   border-left: 2px solid var(--action);
 }
+/* The alternatives: same shape, quieter, so the eye lands on the one this
+   machine should run without the others reading as unavailable. */
+.model-recommendation.model-not-recommended {
+  margin-bottom: 12px;
+  padding: 16px 22px;
+  background: transparent;
+  border-left-color: var(--line);
+}
 .model-recommendation h3 {
   margin: 4px 0 5px;
   font-size: 1.2rem;

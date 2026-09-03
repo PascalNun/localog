@@ -24,6 +24,7 @@
   } from '../models/modelCatalog';
   import type { GenerationModelEntry } from '../models/modelCatalog';
   import { formatModelSize } from '../models/modelSize';
+  import { recommendGeneration } from '../models/generationChoice';
   import { INTERFACE_LANGUAGES, chooseLanguage, language, listOf, t } from '../i18n';
   import { formatMeetingDate } from '../protocol/document';
   import { showInFileManagerKey } from '../platform/fileManager';
@@ -54,6 +55,7 @@
   export let capability: TranscriptionCapability;
   export let downloading: Record<string, number> = {};
   export let modelError: string | null = null;
+  export let downloadErrors: Record<string, string> = {};
   export let onSelectPreset: (preset: TranscriptionPreset) => Promise<void>;
   export let onDownloadModel: (modelId: string) => Promise<void>;
   export let onCancelDownload: (modelId: string) => Promise<void>;
@@ -161,9 +163,22 @@
   ///
   /// One, deliberately: this is the recommendation, already chosen, not a list to
   /// pick from. The rest of the catalogue is below for somebody who wants it.
-  $: bundledModel = modelTerms.find((terms) => terms.kind === 'generation');
-  $: licenceSettled = !bundledModel?.acceptanceRequired || bundledModel?.acceptedAtMs !== null;
-  $: bundledDownloading = bundledModel ? downloading[bundledModel.modelId] : undefined;
+  /// Proper names rather than interface words. "Gemma 4 E2B" is what the file is
+  /// called wherever somebody looks it up, and translating it would make it
+  /// harder to find rather than easier to read.
+  const GENERATION_NAMES: Record<string, string> = {
+    'gemma4-12b': 'Gemma 4 12B',
+    'gemma4-e4b': 'Gemma 4 E4B',
+    'gemma4-e2b': 'Gemma 4 E2B',
+  };
+
+  /// Every model this application can run itself, largest first.
+  $: generationModels = modelTerms
+    .filter((terms) => terms.kind === 'generation')
+    .sort((first, second) => second.byteCount - first.byteCount);
+
+  $: recommendedGeneration = recommendGeneration(modelTerms, memoryGb);
+
   $: recommendedInstalled = modelRecommendation.installed;
   $: uncataloguedModels = (providerStatus?.models ?? []).filter(
     (model) => !GENERATION_MODEL_CATALOG.some((entry) => entry.providerNames.includes(model.name)),
@@ -390,75 +405,91 @@
         <!-- What LocaLog brings itself, before the section about a runtime somebody
              else installed. First because it is the answer for almost everybody:
              one download and nothing else to set up. -->
-        {#if bundledModel}
-          <article class="model-recommendation bundled-runtime">
+        {#each generationModels as model (model.modelId)}
+          <article
+            class="model-recommendation bundled-runtime"
+            class:model-not-recommended={model.modelId !== recommendedGeneration}
+          >
             <div>
-              <p class="model-kicker">{$t.settings.bundledRuntime}</p>
-              <h3>{$t.settings.modelDescription['gemma4-12b'] ? 'Gemma 4 12B' : ''}</h3>
-              <p>{$t.settings.bundledRuntimeLead}</p>
+              <p class="model-kicker">
+                {model.modelId === recommendedGeneration
+                  ? $t.settings.bundledRuntime
+                  : $t.settings.bundledAlternative}
+              </p>
+              <h3>{GENERATION_NAMES[model.modelId] ?? model.modelId}</h3>
+              {#if model.modelId === recommendedGeneration}
+                <p>{$t.settings.bundledRuntimeLead}</p>
+              {/if}
               <div class="model-meta">
-                <span>{formatModelSize(bundledModel.byteCount)}</span>
-                <span>{$t.settings.modelLicence[bundledModel.licence as 'gemma']}</span>
-                <span>{memoryLabel}</span>
+                <span>{formatModelSize(model.byteCount)}</span>
+                <span>{$t.settings.modelLicence[model.licence as 'gemma']}</span>
+                {#if model.wantsMemoryGb}
+                  <span>{$t.settings.wantsMemory(model.wantsMemoryGb)}</span>
+                {/if}
               </div>
+              <!-- Only the largest has been measured against a real meeting, and
+                   saying so is the difference between a choice and a guess. -->
+              {#if model.modelId !== 'gemma4-12b'}
+                <p class="setting-hint">{$t.settings.bundledUnmeasured}</p>
+              {/if}
 
-              {#if bundledModel.installed}
+              {#if model.installed}
                 <p class="model-evaluation">{$t.settings.generationModelInstalled}</p>
-              {:else if !licenceSettled}
+              {:else if model.acceptanceRequired && model.acceptedAtMs === null}
                 <!-- The terms before the download, not beside it. Nothing is
                      fetched until this is answered, and the backend refuses even
                      if this screen is bypassed. -->
                 <div class="licence-gate">
                   <p class="licence-heading">{$t.settings.licenceHeading}</p>
                   <p>
-                    {$t.settings.licenceBody(
-                      $t.settings.modelLicence[bundledModel.licence as 'gemma'],
-                    )}
+                    {$t.settings.licenceBody($t.settings.modelLicence[model.licence as 'gemma'])}
                   </p>
                   <a
                     class="licence-link"
-                    href={bundledModel.licenceUrl}
+                    href={model.licenceUrl}
                     target="_blank"
                     rel="noreferrer noopener">{$t.settings.licenceRead}</a
                   >
                   <button
                     class="secondary-action"
-                    onclick={() => void onAcceptLicence(bundledModel.modelId)}
+                    onclick={() => void onAcceptLicence(model.modelId)}
                     >{$t.settings.licenceAccept}</button
                   >
                 </div>
-              {:else if bundledDownloading !== undefined}
+              {:else if downloading[model.modelId] !== undefined}
                 <div class="start-setup-progress">
                   <div class="start-setup-track">
-                    <div class="start-setup-fill" style={`width: ${bundledDownloading}%`}></div>
+                    <div
+                      class="start-setup-fill"
+                      style={`width: ${downloading[model.modelId]}%`}
+                    ></div>
                   </div>
-                  <span class="start-setup-percent">{bundledDownloading}%</span>
-                  <button
-                    class="quiet-action"
-                    onclick={() => onCancelDownload(bundledModel.modelId)}
+                  <span class="start-setup-percent">{downloading[model.modelId]}%</span>
+                  <button class="quiet-action" onclick={() => onCancelDownload(model.modelId)}
                     >{$t.settings.cancel}</button
                   >
                 </div>
               {:else}
-                {#if bundledModel.acceptedAtMs !== null}
+                {#if model.acceptedAtMs !== null}
                   <p class="model-evaluation">
                     {$t.settings.licenceAccepted(
                       formatMeetingDate(
-                        new Date(bundledModel.acceptedAtMs).toISOString().slice(0, 10),
+                        new Date(model.acceptedAtMs).toISOString().slice(0, 10),
                         $t,
                       ),
                     )}
                   </p>
                 {/if}
-                <button
-                  class="secondary-action"
-                  onclick={() => onDownloadModel(bundledModel.modelId)}
-                  >{$t.settings.downloadModel(formatModelSize(bundledModel.byteCount))}</button
+                <button class="secondary-action" onclick={() => onDownloadModel(model.modelId)}
+                  >{$t.settings.downloadModel(formatModelSize(model.byteCount))}</button
                 >
+              {/if}
+              {#if downloadErrors[model.modelId]}
+                <p class="setting-error" role="alert">{downloadErrors[model.modelId]}</p>
               {/if}
             </div>
           </article>
-        {/if}
+        {/each}
 
         <!-- Everything about a runtime somebody else installed, behind a
              disclosure. It is a real choice and stays available — somebody may
@@ -643,6 +674,9 @@
                   <button class="secondary-action" onclick={() => onDownloadModel(preset.modelId)}
                     >{$t.settings.downloadModel(formatModelSize(preset.byteCount))}</button
                   >
+                {/if}
+                {#if downloadErrors[preset.modelId]}
+                  <p class="setting-error" role="alert">{downloadErrors[preset.modelId]}</p>
                 {/if}
               </div>
             </div>

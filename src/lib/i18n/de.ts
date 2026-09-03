@@ -371,6 +371,9 @@ export const de: Strings = {
     checkInstalled: 'Installierte Modelle prüfen',
     curatedModels: 'Ausgewählte Protokollmodelle',
     bundledRuntime: 'Auf diesem Gerät',
+    bundledAlternative: 'Ebenfalls verfügbar',
+    wantsMemory: (gb: number) => `Benötigt etwa ${gb} GB`,
+    bundledUnmeasured: 'Kleiner und schneller, aber noch nicht an einer echten Sitzung gemessen.',
     bundledRuntimeLead:
       'LocaLog bringt eine eigene Maschine zum Schreiben von Protokollen mit. Sie braucht ein Modell, einmal geladen und hier behalten.',
     licenceHeading: 'Vor dem Laden',

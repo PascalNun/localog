@@ -363,6 +363,9 @@ export const fr: Strings = {
     checkInstalled: 'Vérifier les modèles installés',
     curatedModels: 'Modèles de compte rendu retenus',
     bundledRuntime: 'Sur cet appareil',
+    bundledAlternative: 'Également disponible',
+    wantsMemory: (gb: number) => `Nécessite environ ${gb} Go`,
+    bundledUnmeasured: 'Plus petit et plus rapide, mais pas encore mesuré sur une réunion réelle.',
     bundledRuntimeLead:
       'LocaLog apporte son propre moteur de rédaction. Il lui faut un modèle, téléchargé une fois et conservé ici.',
     licenceHeading: 'Avant le téléchargement',

@@ -201,13 +201,19 @@
   // modelId → percent, present only while a download is in flight.
   let downloading: Record<string, number> = {};
   let modelError: string | null = null;
+  /// A download's failure, kept against the model it belongs to.
+  ///
+  /// Keyed rather than shared, because these cards are far apart on the page:
+  /// one string meant a failed generation download printed its message under the
+  /// transcription list, which is a different section about different files.
+  let downloadErrors: Record<string, string> = {};
   let providerError: string | null = null;
 
   function presetDisplayName(preset: TranscriptionPreset) {
     return $t.settings.transcriptionPreset[preset]?.name ?? $t.shell.notSelected;
   }
 
-  function withoutModel(entries: Record<string, number>, modelId: string) {
+  function withoutModel<T>(entries: Record<string, T>, modelId: string) {
     const next = { ...entries };
     delete next[modelId];
     return next;
@@ -225,14 +231,14 @@
   }
 
   async function downloadModel(modelId: string) {
-    modelError = null;
+    downloadErrors = withoutModel(downloadErrors, modelId);
     // Show the download as started before the first progress event arrives.
     downloading = { ...downloading, [modelId]: 0 };
     try {
       await bridge.downloadTranscriptionModel(modelId);
     } catch (error) {
       downloading = withoutModel(downloading, modelId);
-      modelError = errorMessage(error);
+      downloadErrors = { ...downloadErrors, [modelId]: errorMessage(error) };
     }
   }
   /// What every catalogued model is and under what terms.
@@ -245,8 +251,9 @@
   async function acceptLicence(modelId: string) {
     try {
       modelTerms = await bridge.acceptModelLicence(modelId);
+      downloadErrors = withoutModel(downloadErrors, modelId);
     } catch (error) {
-      modelError = errorMessage(error);
+      downloadErrors = { ...downloadErrors, [modelId]: errorMessage(error) };
     }
   }
 
@@ -373,7 +380,7 @@
       },
       onError: ({ modelId, message }) => {
         downloading = withoutModel(downloading, modelId);
-        modelError = message;
+        downloadErrors = { ...downloadErrors, [modelId]: message };
       },
     });
     const stopSpeakerEvents = bridge.subscribeSpeakerEvents((status) => {
@@ -734,6 +741,7 @@
           {capability}
           {downloading}
           {modelError}
+          {downloadErrors}
           {providerStatus}
           onDownloadModel={downloadModel}
           onCancelDownload={cancelModelDownload}
@@ -960,6 +968,7 @@
           {capability}
           {downloading}
           {modelError}
+          {downloadErrors}
           {providerError}
           nextJobOutcome={snapshot.nextJobOutcome}
           onChooseTheme={chooseTheme}
@@ -1059,6 +1068,7 @@
           {capability}
           {downloading}
           {modelError}
+          {downloadErrors}
           {providerStatus}
           onDownloadModel={downloadModel}
           onCancelDownload={cancelModelDownload}
