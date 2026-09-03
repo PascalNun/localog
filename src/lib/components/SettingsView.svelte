@@ -24,7 +24,7 @@
   } from '../models/modelCatalog';
   import type { GenerationModelEntry } from '../models/modelCatalog';
   import { formatModelSize } from '../models/modelSize';
-  import { recommendGeneration } from '../models/generationChoice';
+  import { catalogueEntryFor, recommendGeneration } from '../models/generationChoice';
   import { INTERFACE_LANGUAGES, chooseLanguage, language, listOf, t } from '../i18n';
   import { formatMeetingDate } from '../protocol/document';
   import { showInFileManagerKey } from '../platform/fileManager';
@@ -159,21 +159,14 @@
   $: executablePath = runtimeStatus?.executablePath ?? executablePath;
   $: selectedProviderModel = providerStatus?.selectedModel ?? selectedProviderModel;
   $: modelRecommendation = recommendationFor(providerStatus?.models ?? [], memoryGb);
-  /// The model that writes protocols, and whether anything is in its way.
-  ///
-  /// One, deliberately: this is the recommendation, already chosen, not a list to
-  /// pick from. The rest of the catalogue is below for somebody who wants it.
-  /// Proper names rather than interface words. "Gemma 4 E2B" is what the file is
-  /// called wherever somebody looks it up, and translating it would make it
-  /// harder to find rather than easier to read.
   /// The measured descriptions, reachable by an identifier the backend supplies
   /// rather than one this file already knows.
+  ///
+  /// Everything else a person reads about these models — the name, who made it,
+  /// the memory it wants, whether it is the baseline — comes from the same
+  /// catalogue, through `catalogueEntryFor`. The backend supplies the file and
+  /// nothing about how to describe it.
   $: describedModels = $t.settings.modelDescription as Record<string, string | undefined>;
-
-  const GENERATION_NAMES: Record<string, string> = {
-    'gemma4-12b': 'Gemma 4 12B',
-    'ministral-8b': 'Ministral 3 8B',
-  };
 
   /// Every model this application can run itself, largest first.
   $: generationModels = modelTerms
@@ -409,6 +402,7 @@
              else installed. First because it is the answer for almost everybody:
              one download and nothing else to set up. -->
         {#each generationModels as model (model.modelId)}
+          {@const entry = catalogueEntryFor(model.modelId)}
           <article
             class="model-recommendation bundled-runtime"
             class:model-not-recommended={model.modelId !== recommendedGeneration}
@@ -420,8 +414,11 @@
                   : $t.settings.bundledAlternative}
               </p>
               <div class="model-card-heading">
-                <h3>{GENERATION_NAMES[model.modelId] ?? model.modelId}</h3>
-                {#if model.origin === 'european'}
+                <h3>{entry?.name ?? model.modelId}</h3>
+                {#if entry?.status === 'baseline'}
+                  <span class="model-badge">{$t.settings.baseline}</span>
+                {/if}
+                {#if entry?.origin === 'european'}
                   <span class="model-badge quiet">{$t.settings.european}</span>
                 {/if}
               </div>
@@ -435,8 +432,8 @@
               <div class="model-meta">
                 <span>{formatModelSize(model.byteCount)}</span>
                 <span>{$t.settings.modelLicence[model.licence as 'gemma']}</span>
-                {#if model.wantsMemoryGb}
-                  <span>{$t.settings.wantsMemory(model.wantsMemoryGb)}</span>
+                {#if entry}
+                  <span>{$t.settings.wantsMemory(entry.minimumMemoryGb)}</span>
                 {/if}
               </div>
               {#if model.installed}

@@ -1,4 +1,19 @@
+import { GENERATION_MODEL_CATALOG, type GenerationModelEntry } from './modelCatalog';
 import type { ModelTerms } from '../workflow/types';
+
+/**
+ * What the catalogue knows about a model this application downloads itself.
+ *
+ * The two halves are deliberately split. The backend owns the file — where it
+ * comes from, what it weighs, its checksum, whether it is on the disk — and the
+ * catalogue owns what a person reads about it: the name, who made it, the memory
+ * it wants, what the evaluation runs found. Stating either half twice is how the
+ * two drift, and `bundledCatalogue.test.ts` fails if a bundled model is missing
+ * from the catalogue or disagrees with it about its licence.
+ */
+export function catalogueEntryFor(modelId: string): GenerationModelEntry | undefined {
+  return GENERATION_MODEL_CATALOG.find((entry) => entry.id === modelId);
+}
 
 /**
  * Which of the bundled models to put in front of somebody.
@@ -27,6 +42,11 @@ export function recommendGeneration(
   const smallest = generation.at(-1);
   if (!smallest) return undefined;
   const available = memoryGb ?? 8;
-  const fits = generation.find((model) => (model.wantsMemoryGb ?? 0) <= available);
+  const fits = generation.find((model) => {
+    const wanted = catalogueEntryFor(model.modelId)?.minimumMemoryGb;
+    // A model the catalogue does not describe is not recommended. The guard makes
+    // that unreachable; this is what it does if the guard is ever removed.
+    return wanted !== undefined && wanted <= available;
+  });
   return (fits ?? smallest).modelId;
 }

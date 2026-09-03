@@ -40,31 +40,6 @@ struct ModelSpec {
     /// refused until it has been accepted, because a licence step somebody can
     /// walk past is decoration rather than a licence step.
     acceptance_required: bool,
-    /// Who made it, for somebody choosing on more than size.
-    origin: ModelOrigin,
-    /// Roughly the memory a machine needs to run this, in gigabytes.
-    ///
-    /// The weights plus the working room a context needs beside them, rounded to
-    /// something a person can compare against what their machine reports. An
-    /// estimate and described as one — the alternative is silence, which leaves
-    /// somebody to discover the answer by watching a 7 GB download finish and
-    /// then swap. `None` where the question does not arise: a transcription model
-    /// runs in a fraction of this and the diariser's two are smaller still.
-    wants_memory_gb: Option<u32>,
-}
-
-/// Where a model comes from.
-///
-/// Not a quality claim and not a ranking. Somebody choosing a model for a
-/// meeting record may be choosing under a policy about which company's weights
-/// their organisation will run, and that question has no answer in a benchmark.
-/// The interface already says this for models somebody runs through Ollama; the
-/// models this application downloads itself carry it for the same reason.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) enum ModelOrigin {
-    International,
-    European,
 }
 
 /// What a downloaded model does.
@@ -104,8 +79,6 @@ const MODELS: &[ModelSpec] = &[
         licence: "mit",
         licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
         acceptance_required: false,
-        origin: ModelOrigin::International,
-        wants_memory_gb: None,
     },
     ModelSpec {
         id: "speaker-embedding",
@@ -117,8 +90,6 @@ const MODELS: &[ModelSpec] = &[
         licence: "mit",
         licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
         acceptance_required: false,
-        origin: ModelOrigin::International,
-        wants_memory_gb: None,
     },
     ModelSpec {
         id: "tiny",
@@ -130,8 +101,6 @@ const MODELS: &[ModelSpec] = &[
         licence: "mit",
         licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
         acceptance_required: false,
-        origin: ModelOrigin::International,
-        wants_memory_gb: None,
     },
     ModelSpec {
         id: "base",
@@ -143,8 +112,6 @@ const MODELS: &[ModelSpec] = &[
         licence: "mit",
         licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
         acceptance_required: false,
-        origin: ModelOrigin::International,
-        wants_memory_gb: None,
     },
     ModelSpec {
         id: "medium",
@@ -156,8 +123,6 @@ const MODELS: &[ModelSpec] = &[
         licence: "mit",
         licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
         acceptance_required: false,
-        origin: ModelOrigin::International,
-        wants_memory_gb: None,
     },
     // The model that writes the protocol, and the one recommended first: it kept
     // 27 to 31 of a reference meeting's 35 stated figures across three runs, where
@@ -182,8 +147,6 @@ const MODELS: &[ModelSpec] = &[
         licence: "gemma",
         licence_url: "https://ai.google.dev/gemma/terms",
         acceptance_required: true,
-        origin: ModelOrigin::International,
-        wants_memory_gb: Some(16),
     },
     // The European option, and the reason the choice exists at all. Somebody
     // running meetings through this may be doing it under a policy about whose
@@ -202,8 +165,6 @@ const MODELS: &[ModelSpec] = &[
         licence: "apache2",
         licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
         acceptance_required: false,
-        origin: ModelOrigin::European,
-        wants_memory_gb: Some(16),
     },
 ];
 
@@ -293,9 +254,7 @@ pub(crate) struct ModelTerms {
     /// Roughly the memory this wants, so the interface can say which of several
     /// models a machine can actually run rather than listing three sizes and
     /// leaving somebody to guess.
-    pub wants_memory_gb: Option<u32>,
-    /// Who made it. The interface has words for each; this is never a sentence.
-    pub origin: ModelOrigin,
+
     /// When these terms were accepted, in milliseconds since the epoch, or
     /// nothing if they were not. Recorded so somebody can answer what is on their
     /// machine and what they agreed to — which, in a firm, is a question they may
@@ -368,8 +327,6 @@ pub(crate) fn terms(root: &Path, model_id: &str) -> Option<ModelTerms> {
         licence_url: model.licence_url.to_string(),
         installed: installed_model_path(root, model_id).is_some(),
         acceptance_required: model.acceptance_required,
-        wants_memory_gb: model.wants_memory_gb,
-        origin: model.origin,
         accepted_at_ms: accepted_licences(root)
             .into_iter()
             .find(|(id, _)| id == model_id)

@@ -1338,8 +1338,6 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       installed: false,
       acceptanceRequired: true,
       acceptedAtMs: null,
-      wantsMemoryGb: 16,
-      origin: 'international',
     },
     {
       modelId: 'ministral-8b',
@@ -1350,8 +1348,6 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       installed: false,
       acceptanceRequired: false,
       acceptedAtMs: null,
-      wantsMemoryGb: 16,
-      origin: 'european',
     },
   ];
 
