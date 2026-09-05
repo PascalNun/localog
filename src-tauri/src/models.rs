@@ -355,22 +355,34 @@ pub(crate) fn generation_models(root: &Path) -> Vec<ModelTerms> {
         .collect()
 }
 
-/// The generation model to use: the one asked for if it is here, otherwise the
-/// first catalogued one that is.
+/// The generation model to use: the one asked for if it is here, or the first
+/// catalogued one only when nothing has been chosen yet.
 ///
 /// Returns nothing when none is installed, which is a normal first run rather
 /// than a fault — the start screen says so before anybody reaches generation.
 pub(crate) fn generation_model_path(root: &Path, preferred: Option<&str>) -> Option<PathBuf> {
-    if let Some(wanted) = preferred
-        && let Some(path) = installed_model_path(root, wanted)
-        && spec(wanted).is_some_and(|model| model.kind == ModelKind::Generation)
-    {
-        return Some(path);
+    if let Some(wanted) = preferred {
+        return installed_model_path(root, wanted)
+            .filter(|_| spec(wanted).is_some_and(|model| model.kind == ModelKind::Generation));
     }
     MODELS
         .iter()
         .filter(|model| model.kind == ModelKind::Generation)
         .find_map(|model| installed_model_path(root, model.id))
+}
+
+/// The catalogue digest recorded with generated documents.
+///
+/// `installed_model_path` deliberately answers only whether a file is present
+/// with the expected size. The caller verifies this digest through the durable
+/// provenance cache before a model can write a protocol.
+pub(crate) fn expected_model_digest(model_id: &str) -> Option<String> {
+    spec(model_id).map(|model| format!("sha256:{}", model.sha256))
+}
+
+/// Whether an identifier names a model that can write protocols.
+pub(crate) fn is_generation_model(model_id: &str) -> bool {
+    spec(model_id).is_some_and(|model| model.kind == ModelKind::Generation)
 }
 
 pub(crate) fn preset_model_id(preset: &str) -> Option<&'static str> {
@@ -388,8 +400,11 @@ fn models_dir(root: &Path) -> PathBuf {
     root.join("models")
 }
 
-/// Path to an installed model, verified only by presence and exact size here.
-/// Content is checksum-verified on download and rehashed before inference.
+/// Path to an installed model, verified by presence and exact size here.
+///
+/// Content is checksum-verified while downloading. Processing verifies the
+/// selected file through its provenance cache before inference; keeping that
+/// expensive work there prevents every settings refresh from reading gigabytes.
 pub(crate) fn installed_model_path(root: &Path, model_id: &str) -> Option<PathBuf> {
     let model = spec(model_id)?;
     let path = models_dir(root).join(model.file_name);
@@ -911,6 +926,23 @@ mod the_catalogue_terms {
         assert_eq!(generation[0].id, "gemma4-12b");
     }
 
+    #[test]
+    fn generation_model_digests_are_catalogue_checksums() {
+        for model in MODELS
+            .iter()
+            .filter(|model| model.kind == ModelKind::Generation)
+        {
+            assert_eq!(
+                expected_model_digest(model.id).as_deref(),
+                Some(format!("sha256:{}", model.sha256).as_str()),
+                "{} must record the file checksum, not its licence or display name",
+                model.id
+            );
+            assert!(is_generation_model(model.id));
+        }
+        assert!(!is_generation_model("base"));
+    }
+
     /// Nothing is installed on a fresh workspace, and asking must answer that
     /// rather than failing.
     #[test]
@@ -932,6 +964,27 @@ mod the_catalogue_terms {
         let root = std::env::temp_dir().join(format!("localog-kinds-{}", std::process::id()));
         let _ = fs::create_dir_all(&root);
         assert!(generation_model_path(&root, Some("base")).is_none());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn an_explicit_generation_choice_never_falls_back_to_another_model() {
+        let root = std::env::temp_dir().join(format!("localog-choice-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(models_dir(&root)).unwrap();
+
+        for model_id in ["gemma4-12b", "ministral-8b"] {
+            let model = spec(model_id).unwrap();
+            let file = File::create(models_dir(&root).join(model.file_name)).unwrap();
+            file.set_len(model.byte_count).unwrap();
+        }
+
+        let chosen = generation_model_path(&root, Some("ministral-8b")).unwrap();
+        assert!(chosen.ends_with("Ministral-3-8B-Instruct-2512-Q4_K_M.gguf"));
+
+        fs::remove_file(chosen).unwrap();
+        assert!(generation_model_path(&root, Some("ministral-8b")).is_none());
+        assert!(generation_model_path(&root, None).is_some());
         let _ = fs::remove_dir_all(&root);
     }
 }

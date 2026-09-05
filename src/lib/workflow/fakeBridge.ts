@@ -1092,7 +1092,15 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async downloadTranscriptionModel(modelId: string): Promise<void> {
-    await this.workspaceStore?.downloadTranscriptionModel(modelId);
+    if (this.workspaceStore) {
+      await this.workspaceStore.downloadTranscriptionModel(modelId);
+      return;
+    }
+    // The browser preview cannot fetch multi-gigabyte files, but completing the
+    // state transition keeps its model picker useful when reviewing the flow.
+    this.fakeTerms = this.fakeTerms.map((model) =>
+      model.modelId === modelId ? { ...model, installed: true } : model,
+    );
   }
 
   async cancelTranscriptionDownload(modelId: string): Promise<void> {
@@ -1363,6 +1371,19 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       selectedModelReady: false,
       message: 'generationModelNotDownloaded',
       machineMemoryGb: null,
+    };
+  }
+
+  async selectGenerationModel(modelId: string): Promise<import('./types').ProtocolProviderStatus> {
+    if (this.workspaceStore) return this.workspaceStore.selectGenerationModel(modelId);
+    if (!this.fakeTerms.some((model) => model.modelId === modelId && model.installed)) {
+      throw new Error('generationModelNotDownloaded');
+    }
+    return {
+      ...(await this.getGenerationRuntimeStatus()),
+      selectedModel: modelId,
+      selectedModelReady: true,
+      message: 'generationRuntimeReady',
     };
   }
 

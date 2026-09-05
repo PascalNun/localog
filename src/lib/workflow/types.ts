@@ -849,6 +849,8 @@ export interface WorkflowBridge {
   getProtocolProviderStatus(): Promise<ProtocolProviderStatus>;
   /** What the bundled runtime and its models add up to, without starting anything. */
   getGenerationRuntimeStatus(): Promise<ProtocolProviderStatus>;
+  /** Choose an installed bundled model for future protocol jobs. */
+  selectGenerationModel(modelId: string): Promise<ProtocolProviderStatus>;
   /** Every catalogued model, its terms, and whether they were accepted. */
   getModelTerms(): Promise<ModelTerms[]>;
   acceptModelLicence(modelId: string): Promise<ModelTerms[]>;

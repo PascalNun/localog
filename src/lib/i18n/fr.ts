@@ -204,6 +204,8 @@ const failures = {
     'Ces conditions doivent être acceptées avant de pouvoir télécharger ce modèle.',
   generationRuntimeReady: 'Prêt à rédiger des comptes rendus sur cet appareil.',
   generationModelNotDownloaded: 'Aucun modèle de rédaction n’a encore été téléchargé.',
+  generationModelChanged:
+    'Le modèle local sélectionné a changé après la mise en file de cette tâche. Réessayez pour le vérifier à nouveau.',
   generationRuntimeMissing:
     'Aucun moteur de rédaction n’est installé. LocaLog en fournit un ; cette version ne le trouve pas.',
   generationRuntimeNoPort:

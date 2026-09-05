@@ -199,6 +199,8 @@ const failures = {
   licenceNotAccepted: 'Queste condizioni vanno accettate prima di poter scaricare questo modello.',
   generationRuntimeReady: 'Pronto a scrivere verbali su questo dispositivo.',
   generationModelNotDownloaded: 'Non è ancora stato scaricato alcun modello per scrivere verbali.',
+  generationModelChanged:
+    'Il modello locale selezionato è cambiato dopo che questa attività è stata messa in coda. Riprova per verificarlo di nuovo.',
   generationRuntimeMissing:
     'Non è installato alcun motore di scrittura. LocaLog ne include uno; questa versione non lo trova.',
   generationRuntimeNoPort:

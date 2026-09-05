@@ -193,6 +193,8 @@ const failures = {
     'このモデルをダウンロードする前に、利用条件に同意していただく必要があります。',
   generationRuntimeReady: 'この端末で議事録を書く準備ができています。',
   generationModelNotDownloaded: '議事録を書くためのモデルは、まだダウンロードされていません。',
+  generationModelChanged:
+    'このジョブをキューに入れた後、選択したローカルモデルが変更されました。もう一度試して確認してください。',
   generationRuntimeMissing:
     '議事録を書くための実行環境が見つかりません。LocaLog に同梱されていますが、このビルドからは見つけられません。',
   generationRuntimeNoPort:

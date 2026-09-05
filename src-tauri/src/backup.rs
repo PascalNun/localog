@@ -196,9 +196,10 @@ pub(crate) fn create(root: &Path, parent: &Path, folder_name: &str) -> Result<Ma
         for relative in found {
             let from = projects.join(&relative);
             let to = folder.join("projects").join(&relative);
-            if let Some(parent) = to.parent() {
-                fs::create_dir_all(parent)?;
-            }
+            let Some(parent) = to.parent() else {
+                continue;
+            };
+            fs::create_dir_all(parent)?;
             fs::copy(&from, &to)?;
             let (sha256, byte_count) = checksum(&to)?;
             files.push(FileRecord {
@@ -347,10 +348,10 @@ fn collect(base: &Path, directory: &Path, found: &mut Vec<PathBuf>) -> Result<()
         let path = entry?.path();
         if path.is_dir() {
             collect(base, &path, found)?;
-        } else if path.is_file() {
-            if let Ok(relative) = path.strip_prefix(base) {
-                found.push(relative.to_path_buf());
-            }
+        } else if path.is_file()
+            && let Ok(relative) = path.strip_prefix(base)
+        {
+            found.push(relative.to_path_buf());
         }
     }
     Ok(())

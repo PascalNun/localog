@@ -84,6 +84,25 @@ impl StartFailure {
     }
 }
 
+impl std::fmt::Display for StartFailure {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Missing => write!(formatter, "generation runtime is missing"),
+            Self::NoPort => write!(formatter, "no local port was available"),
+            Self::LaunchFailed(detail) => {
+                write!(formatter, "generation runtime did not start: {detail}")
+            }
+            Self::NeverReady => write!(formatter, "generation runtime did not become ready"),
+            Self::Stopped(status) => write!(
+                formatter,
+                "generation runtime stopped with status {status:?}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for StartFailure {}
+
 /// A running generation server, stopped when this is dropped.
 pub(crate) struct Server {
     child: Child,

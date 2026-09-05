@@ -210,6 +210,8 @@ const failures = {
   licenceNotAccepted: 'These terms have to be accepted before this model can be downloaded.',
   generationRuntimeReady: 'Ready to write protocols on this device.',
   generationModelNotDownloaded: 'No model for writing protocols has been downloaded yet.',
+  generationModelChanged:
+    'The selected local model changed after this job was queued. Retry to verify it again.',
   generationRuntimeMissing:
     'No protocol-writing runtime is installed. LocaLog ships one; this build cannot find it.',
   generationRuntimeNoPort:

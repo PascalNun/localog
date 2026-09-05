@@ -1,4 +1,3 @@
-
 #[cfg(test)]
 mod e2e_harness;
 #[cfg(test)]
@@ -653,6 +652,31 @@ async fn generation_runtime_status(
             .read_setting("generation.model")?
             .filter(|value| !value.is_empty());
         Ok(provider::bundled_status(&root, selected))
+    })
+    .await
+}
+
+/// Choose which downloaded LocaLog model writes future protocols.
+///
+/// Selection is deliberately separate from download. A second model may be
+/// installed for another language or a more capable machine; downloading it must
+/// not silently change the model a person already chose.
+#[tauri::command]
+async fn select_generation_model(
+    storage: State<'_, StorageState>,
+    model_id: String,
+) -> Result<provider::OllamaStatus, String> {
+    let root = storage.root.clone();
+    with_repository(storage.root.clone(), move |repository| {
+        if !models::is_generation_model(&model_id)
+            || models::generation_model_path(&root, Some(&model_id)).is_none()
+        {
+            return Err(storage::StorageError::InvalidData(
+                "generationModelNotDownloaded",
+            ));
+        }
+        repository.write_setting("generation.model", &model_id)?;
+        Ok(provider::bundled_status(&root, Some(model_id)))
     })
     .await
 }
@@ -1908,6 +1932,7 @@ pub fn run() {
             set_recording_edits,
             protocol_provider_status,
             generation_runtime_status,
+            select_generation_model,
             model_terms,
             accept_model_licence,
             configure_protocol_provider,

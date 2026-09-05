@@ -625,14 +625,17 @@ pub fn bundled_status(root: &std::path::Path, selected_model: Option<String>) ->
     let models: Vec<ModelDescriptor> = crate::models::generation_models(root)
         .into_iter()
         .filter(|model| model.installed)
-        .map(|model| ModelDescriptor {
-            name: model.model_id,
-            size: model.byte_count,
-            // The catalogue's checksum, which is what makes a downloaded file
-            // the file it claims to be. Ollama answers with its own digest here
-            // and this is the same promise kept a different way.
-            digest: String::new(),
-            details: ModelDetails::default(),
+        .map(|model| {
+            let digest = crate::models::expected_model_digest(&model.model_id).unwrap_or_default();
+            ModelDescriptor {
+                name: model.model_id,
+                size: model.byte_count,
+                // The catalogue's checksum, which is what makes a downloaded file
+                // the file it claims to be. Ollama answers with its own digest here
+                // and this is the same promise kept a different way.
+                digest,
+                details: ModelDetails::default(),
+            }
         })
         .collect();
 
@@ -867,17 +870,19 @@ impl OllamaProvider {
         cancelled: &AtomicBool,
         progress: &mut dyn FnMut(u64, &str) -> Result<()>,
     ) -> Result<String> {
-        let runtime_version = self.version()?;
-        if runtime_version != request.runtime_version {
-            return Err(ProviderError::RuntimeChanged);
-        }
-        let model = self
-            .installed_models()?
-            .into_iter()
-            .find(|model| model.name == request.model)
-            .ok_or_else(|| ProviderError::ModelMissing(request.model.clone()))?;
-        if model.digest != request.model_digest {
-            return Err(ProviderError::ModelChanged);
+        if self.backend == Backend::Ollama {
+            let runtime_version = self.version()?;
+            if runtime_version != request.runtime_version {
+                return Err(ProviderError::RuntimeChanged);
+            }
+            let model = self
+                .installed_models()?
+                .into_iter()
+                .find(|model| model.name == request.model)
+                .ok_or_else(|| ProviderError::ModelMissing(request.model.clone()))?;
+            if model.digest != request.model_digest {
+                return Err(ProviderError::ModelChanged);
+            }
         }
         progress(18, "resolving_protocol_inputs")?;
 

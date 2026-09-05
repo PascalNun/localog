@@ -873,27 +873,45 @@ fn generation_metadata(
             None,
         ));
     }
-    // What LocaLog brought, if it is here. Preferred without being forced: it is
-    // the answer for almost everybody, and nothing has to be started or installed
-    // for it to work. Ollama remains for a machine that has one and no model of
-    // ours, and for somebody who chose it.
-    let bundled = models::generation_models(root)
-        .into_iter()
-        .find(|model| model.installed)
-        .filter(|_| crate::llama::server_path().is_some());
+    // What LocaLog brought, if it is here. A saved choice is strict: silently
+    // using another installed model would make a retry look reproducible while
+    // changing the model that wrote it. Before somebody chooses, the first
+    // catalogued model is the sensible default.
+    let selected_bundled_model = repository
+        .read_setting("generation.model")?
+        .filter(|value| !value.is_empty());
+    let bundled = crate::llama::server_path().and_then(|_| {
+        let catalogued = models::generation_models(root);
+        match selected_bundled_model.as_deref() {
+            Some(model_id) => catalogued
+                .into_iter()
+                .find(|model| model.model_id == model_id && model.installed),
+            None => catalogued.into_iter().find(|model| model.installed),
+        }
+    });
+
+    if selected_bundled_model.is_some()
+        && bundled.is_none()
+        && crate::llama::server_path().is_some()
+    {
+        return Err(StorageError::InvalidData("generationModelNotDownloaded"));
+    }
 
     let (runtime, model, model_digest, runtime_version, model_bytes) = match bundled {
         Some(model) => {
             let status = provider::bundled_status(root, Some(model.model_id.clone()));
+            let path = models::generation_model_path(root, Some(&model.model_id))
+                .ok_or(StorageError::InvalidData("generationModelNotDownloaded"))?;
+            let provenance = cached_model_provenance(repository, &path)?;
+            let expected_digest = models::expected_model_digest(&model.model_id)
+                .ok_or(StorageError::InvalidData("generationModelNotDownloaded"))?;
+            if provenance.digest != expected_digest {
+                return Err(StorageError::InvalidData("generationModelChanged"));
+            }
             (
                 GenerationRuntime::Bundled,
                 model.model_id.clone(),
-                // The catalogue's checksum. Ollama answers with a digest of its
-                // own and this is the same promise kept the same way: the file
-                // that produced a protocol can be named exactly.
-                models::terms(root, &model.model_id)
-                    .map(|terms| terms.licence)
-                    .unwrap_or_default(),
+                provenance.digest,
                 status
                     .runtime_version
                     .unwrap_or_else(|| "bundled".to_string()),
@@ -976,7 +994,10 @@ fn generation_metadata(
     let runtime_config_json = serde_json::to_string(&config)
         .map_err(|_| StorageError::InvalidData("providerConfigNotSaved"))?;
     Ok((
-        "ollama",
+        match runtime {
+            GenerationRuntime::Bundled => "llama.cpp",
+            GenerationRuntime::Ollama => "ollama",
+        },
         runtime_version,
         model_digest,
         settings_json,
@@ -1204,6 +1225,24 @@ fn execute_generation(
                         message: "generationModelNotDownloaded".into(),
                     },
                 )?;
+                // The queued digest is a promise about this exact model file.
+                // Reuse the identity-keyed cache when it is unchanged, but do
+                // not start a replacement file merely because it has the same
+                // name and size.
+                let provenance = cached_model_provenance(repository, &model)?;
+                let expected_digest = models::expected_model_digest(&request.model).ok_or(
+                    ProcessingError::Runtime {
+                        code: "provider_model_missing",
+                        message: "generationModelNotDownloaded".into(),
+                    },
+                )?;
+                if provenance.digest != expected_digest || provenance.digest != request.model_digest
+                {
+                    return Err(ProcessingError::Runtime {
+                        code: "provider_model_changed",
+                        message: "generationModelChanged".into(),
+                    });
+                }
                 // Started here and stopped when this scope ends, which is what
                 // makes the memory question answerable: nothing is resident
                 // before a protocol is asked for, and nothing stays resident

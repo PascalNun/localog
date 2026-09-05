@@ -3225,8 +3225,6 @@ mod tests {
         );
     }
 
-    /// Every stage the pipeline reports has words for it.
-    ///
     // The guard that used to stand here — every stage the pipeline reports has
     // words for it — moved to `src/lib/i18n/jobStages.test.ts` on 29 August 2026,
     // when the words moved to the dictionary. It reads these same Rust sources and

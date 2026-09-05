@@ -268,6 +268,20 @@
     message: 'ollamaUnchecked',
     machineMemoryGb: null,
   };
+  // The bundled path and an optional Ollama installation answer different
+  // questions. Keeping their statuses separate prevents the normal setup from
+  // looking unavailable just because Ollama is not running.
+  let generationStatus: ProtocolProviderStatus = {
+    endpoint: '',
+    serverReachable: false,
+    runtimeVersion: null,
+    models: [],
+    selectedModel: null,
+    selectedModelDigest: null,
+    selectedModelReady: false,
+    message: 'generationModelNotDownloaded',
+    machineMemoryGb: null,
+  };
 
   // Route-derived context keeps project and meeting selection in one predictable place.
   $: meetingId = 'meetingId' in route ? route.meetingId : null;
@@ -357,6 +371,7 @@
     bridge.getTranscriptionRuntimeStatus().then((status) => (runtimeStatus = status));
     bridge.getSpeakerSeparationStatus().then((status) => (speakerStatus = status));
     bridge.getProtocolProviderStatus().then((status) => (providerStatus = status));
+    bridge.getGenerationRuntimeStatus().then((status) => (generationStatus = status));
     bridge.getModelTerms().then((terms) => (modelTerms = terms));
     bridge
       .getTranscriptionCapability()
@@ -377,6 +392,8 @@
         );
         // A newly installed model can make transcription possible.
         bridge.getTranscriptionRuntimeStatus().then((status) => (runtimeStatus = status));
+        bridge.getModelTerms().then((terms) => (modelTerms = terms));
+        bridge.getGenerationRuntimeStatus().then((status) => (generationStatus = status));
       },
       onError: ({ modelId, message }) => {
         downloading = withoutModel(downloading, modelId);
@@ -742,7 +759,7 @@
           {downloading}
           {modelError}
           {downloadErrors}
-          {providerStatus}
+          providerStatus={generationStatus}
           onDownloadModel={downloadModel}
           onCancelDownload={cancelModelDownload}
         />
@@ -963,6 +980,7 @@
           {speakerStatus}
           {speakerError}
           {providerStatus}
+          {generationStatus}
           {modelTerms}
           onAcceptLicence={acceptLicence}
           {capability}
@@ -1061,6 +1079,14 @@
               providerError = errorMessage(error);
             }
           }}
+          onSelectGenerationModel={async (model) => {
+            try {
+              generationStatus = await bridge.selectGenerationModel(model);
+              providerError = null;
+            } catch (error) {
+              providerError = errorMessage(error);
+            }
+          }}
         />
       {:else}
         <StartView
@@ -1069,7 +1095,7 @@
           {downloading}
           {modelError}
           {downloadErrors}
-          {providerStatus}
+          providerStatus={generationStatus}
           onDownloadModel={downloadModel}
           onCancelDownload={cancelModelDownload}
         />

@@ -188,6 +188,8 @@ const failures = {
   licenceNotAccepted: '이 모델을 내려받기 전에 이용 약관에 동의해야 합니다.',
   generationRuntimeReady: '이 기기에서 회의록을 쓸 준비가 되었습니다.',
   generationModelNotDownloaded: '회의록을 쓸 모델을 아직 내려받지 않았습니다.',
+  generationModelChanged:
+    '이 작업을 대기열에 넣은 뒤 선택한 로컬 모델이 변경되었습니다. 다시 시도해 확인하세요.',
   generationRuntimeMissing:
     '회의록을 쓰는 실행 환경이 설치되어 있지 않습니다. LocaLog에 함께 들어 있지만 이 빌드에서는 찾지 못했습니다.',
   generationRuntimeNoPort:

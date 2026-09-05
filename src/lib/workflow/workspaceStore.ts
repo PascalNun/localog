@@ -191,6 +191,7 @@ export interface WorkspaceStore {
   ) => Promise<boolean>;
   getProtocolProviderStatus: () => Promise<ProtocolProviderStatus>;
   getGenerationRuntimeStatus: () => Promise<ProtocolProviderStatus>;
+  selectGenerationModel: (modelId: string) => Promise<ProtocolProviderStatus>;
   getModelTerms: () => Promise<ModelTerms[]>;
   acceptModelLicence: (modelId: string) => Promise<ModelTerms[]>;
   configureProtocolProvider: (model: string | null) => Promise<ProtocolProviderStatus>;
@@ -718,6 +719,10 @@ class TauriWorkspaceStore implements WorkspaceStore {
 
   getGenerationRuntimeStatus(): Promise<ProtocolProviderStatus> {
     return invoke<ProtocolProviderStatus>('generation_runtime_status');
+  }
+
+  selectGenerationModel(modelId: string): Promise<ProtocolProviderStatus> {
+    return invoke<ProtocolProviderStatus>('select_generation_model', { modelId });
   }
 
   getModelTerms(): Promise<ModelTerms[]> {

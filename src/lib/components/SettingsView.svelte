@@ -50,6 +50,7 @@
   export let runtimeStatus: TranscriptionRuntimeStatus;
   export let runtimeError: string | null = null;
   export let providerStatus: ProtocolProviderStatus;
+  export let generationStatus: ProtocolProviderStatus;
   export let modelTerms: ModelTerms[] = [];
   export let onAcceptLicence: (modelId: string) => Promise<void>;
   export let capability: TranscriptionCapability;
@@ -73,6 +74,7 @@
   export let onRestoreBackup: (folder: string) => Promise<RestoreOutcome>;
   export let onRefreshProvider: () => Promise<void>;
   export let onConfigureProvider: (model: string | null) => Promise<void>;
+  export let onSelectGenerationModel: (modelId: string) => Promise<void>;
   export let providerError: string | null = null;
   export let speakerStatus: SpeakerSeparationStatus = SPEAKER_SEPARATION_UNREADY;
   export let speakerError: string | null = null;
@@ -128,7 +130,8 @@
   /// reported nothing, nothing was treated as the weakest supported machine, and a
   /// 16 GB laptop was recommended a model measured at 20 figures against the
   /// baseline's 31.
-  $: memoryGb = providerStatus?.machineMemoryGb ?? browserMemoryGb();
+  $: memoryGb =
+    generationStatus?.machineMemoryGb ?? providerStatus?.machineMemoryGb ?? browserMemoryGb();
 
   /**
    * What a model occupies, said in words the catalogue does not hold.
@@ -172,6 +175,7 @@
   $: generationModels = modelTerms
     .filter((terms) => terms.kind === 'generation')
     .sort((first, second) => second.byteCount - first.byteCount);
+  $: selectedGenerationModel = generationStatus?.selectedModel ?? null;
 
   $: recommendedGeneration = recommendGeneration(modelTerms, memoryGb);
 
@@ -406,6 +410,7 @@
           <article
             class="model-recommendation bundled-runtime"
             class:model-not-recommended={model.modelId !== recommendedGeneration}
+            class:active={model.installed && selectedGenerationModel === model.modelId}
           >
             <div>
               <p class="model-kicker">
@@ -491,6 +496,19 @@
                 <p class="setting-error" role="alert">{downloadErrors[model.modelId]}</p>
               {/if}
             </div>
+            {#if model.installed}
+              <div class="model-recommendation-action">
+                <button
+                  class="secondary-action"
+                  onclick={() => onSelectGenerationModel(model.modelId)}
+                  disabled={selectedGenerationModel === model.modelId}
+                >
+                  {selectedGenerationModel === model.modelId
+                    ? $t.settings.modelSelected
+                    : $t.settings.useThisModel}
+                </button>
+              </div>
+            {/if}
           </article>
         {/each}
 

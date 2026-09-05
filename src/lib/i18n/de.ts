@@ -211,6 +211,8 @@ const failures = {
     'Diese Bedingungen müssen angenommen werden, bevor dieses Modell geladen werden kann.',
   generationRuntimeReady: 'Bereit, auf diesem Gerät Protokolle zu schreiben.',
   generationModelNotDownloaded: 'Es wurde noch kein Modell zum Schreiben von Protokollen geladen.',
+  generationModelChanged:
+    'Das ausgewählte lokale Modell wurde nach dem Einreihen dieses Auftrags verändert. Bitte erneut versuchen.',
   generationRuntimeMissing:
     'Es ist keine Laufzeit zum Schreiben von Protokollen installiert. LocaLog bringt eine mit; dieser Build findet sie nicht.',
   generationRuntimeNoPort:

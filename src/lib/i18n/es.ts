@@ -191,6 +191,8 @@ const failures = {
   licenceNotAccepted: 'Hay que aceptar estas condiciones antes de poder descargar este modelo.',
   generationRuntimeReady: 'Listo para redactar actas en este dispositivo.',
   generationModelNotDownloaded: 'Todavía no se ha descargado ningún modelo para redactar actas.',
+  generationModelChanged:
+    'El modelo local seleccionado cambió después de poner esta tarea en cola. Vuelve a intentarlo para verificarlo de nuevo.',
   generationRuntimeMissing:
     'No hay ningún motor de redacción instalado. LocaLog incluye uno; esta versión no lo encuentra.',
   generationRuntimeNoPort:

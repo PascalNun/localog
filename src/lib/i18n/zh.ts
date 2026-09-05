@@ -188,6 +188,7 @@ const failures = {
   licenceNotAccepted: '下载此模型前，需要先接受这些条款。',
   generationRuntimeReady: '已可在本机上撰写会议纪要。',
   generationModelNotDownloaded: '尚未下载用于撰写会议纪要的模型。',
+  generationModelChanged: '此任务排队后，所选本地模型发生了变化。请重试以重新验证。',
   generationRuntimeMissing: '未安装用于撰写纪要的运行环境。LocaLog 自带一个，但此版本找不到它。',
   generationRuntimeNoPort: '未能为本地运行环境取得空闲端口。请关闭一些应用后重试。',
   generationRuntimeNotStarted: '未能启动本地运行环境。',
