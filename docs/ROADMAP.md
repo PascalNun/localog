@@ -18,6 +18,14 @@ Diarisation can separate voices but cannot know their names. Later work may add 
 
 Participants, project documents, and previous protocols could suggest vocabulary entries. Suggestions would always require confirmation. The prompt budget means the library must be prioritised rather than allowed to grow without limit.
 
+### Explicit online verification
+
+An uncertain company name, product, public body, standard, or acronym is sometimes easier to verify from a public source than from audio alone. LocaLog may later offer a small **Verify online** action for a term a person has selected during review.
+
+This is not background research and it is not a model deciding to send meeting material away. The normal workflow remains fully local. Before any search, the interface must show the exact query and make clear that it will leave the device. It should send only the selected term by default—not a transcript passage, a meeting title, speaker names, or hidden context. Search results are evidence for a person to inspect; they never rewrite a transcript or protocol automatically. Any correction remains visible, reviewable, and reversible.
+
+The first safe shape would open a prefilled query in the user’s normal browser. An integrated result view would need a separately accepted provider, privacy, retention, attribution, and source-quality design before it becomes part of the product.
+
 ### Portability and distribution
 
 Windows and Linux packaged builds, installer updates, backup/restore, and a portable project bundle are future work. They must preserve the same local-first workflow rather than introduce a second product shape.
