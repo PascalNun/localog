@@ -36,10 +36,8 @@ jobs:
       # What Tauri v2 needs to build a GTK/WebKit application. libwebkit2gtk-4.1
       # is the v2 one; 4.0 is Tauri v1 and silently gives a configure failure.
       #
-      # libasound2-dev belongs to the recorder rather than to Tauri: cpal speaks
-      # ALSA on Linux, and on a PipeWire desktop it reaches the monitor source
-      # through ALSA's compatibility layer. Without the headers the sidecar does
-      # not build, and the failure names alsa-sys rather than anything of ours.
+      # The Linux recorder uses libpulse directly, including on PipeWire-Pulse.
+      # ALSA's device list does not expose the sound server's monitor sources.
       - name: Install the desktop toolchain
         run: |
           sudo apt-get update
@@ -48,7 +46,7 @@ jobs:
             libayatana-appindicator3-dev build-essential curl wget file libssl-dev \
             cmake ninja-build pkg-config \
             libopus-dev nasm \
-            libasound2-dev
+            libasound2-dev libpulse-dev
 
       # The FFmpeg sidecar links libopus statically on purpose, so the binary
       # carries no dependency on the machine that built it. Prove the archive is
@@ -94,19 +92,19 @@ jobs:
           npm run check
           npm test
 
+      # Sidecars are release inputs. The bundle config is explicitly passed only
+      # below, so ordinary development and Rust tests also work without them.
+      - name: Check the Rust side
+        run: |
+          cargo test --locked --manifest-path src-tauri/Cargo.toml
+          cargo test --locked --manifest-path sidecars/record-meeting/Cargo.toml
+
       - name: Build the sidecars
         run: npm run build:sidecar
 
-      # After the sidecars, and it has to be: Tauri's build script resolves
-      # externalBin at compile time, so the crate does not build until every
-      # binary named in the config is on disk. On Linux that config is merged in
-      # by filename, so this applies to a test run just as much as to a bundle.
-      - name: Check the Rust side
-        run: cargo test --manifest-path src-tauri/Cargo.toml
-
       # Named so a failure here is obviously the bundle rather than the compile.
       - name: Bundle the application
-        run: npx tauri build --config src-tauri/tauri.linux.conf.json
+        run: npx tauri build --config src-tauri/tauri.linux-bundle.conf.json
 
       - name: What came out
         if: always()

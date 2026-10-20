@@ -800,6 +800,8 @@ export const es: Strings = {
     starting: 'Empezando…',
     backToMeeting: 'Volver a la reunión',
     noRecorder: 'Esta compilación no tiene grabador. Importe un archivo en su lugar.',
+    desktopAudioHint:
+      'Compruebe la entrada y la salida seleccionadas en los ajustes de sonido del escritorio. Solo se grabarán las fuentes disponibles.',
     openTheSetting: 'Abrir el ajuste',
     grantedInSettings: 'Concedido en los Ajustes del Sistema, y reconocido aquí en cuanto vuelva.',
     callWouldNotRecordTitle: 'La llamada no se grabaría.',
@@ -812,7 +814,7 @@ export const es: Strings = {
     stoppedOnItsOwn:
       'El grabador se ha detenido solo. Lo que hubiera captado hasta ese momento se ha conservado.',
     quietCall: (seconds: number) =>
-      `No llega nada de la llamada desde hace ${seconds} segundos. macOS le da silencio en vez de un error a una aplicación sin permiso de grabación de pantalla y audio del sistema, así que conviene comprobarlo ahora y no después de la reunión.`,
+      `No llega audio de la llamada desde hace ${seconds} segundos. Compruebe que se reproduce por la salida seleccionada y que se permite la grabación.`,
     quietMicrophone: (seconds: number) =>
       `No llega nada del micrófono desde hace ${seconds} segundos. Compruebe que está seleccionada la entrada correcta y que no la está ocupando otra cosa.`,
   },

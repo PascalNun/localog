@@ -1830,7 +1830,7 @@ textarea::placeholder {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.review-flag :global(svg) {
+.review-flag svg {
   flex: none;
 }
 button.review-summary {
@@ -2990,7 +2990,7 @@ button.review-summary[aria-pressed='true'] {
   font-size: 0.8rem;
   line-height: 1.45;
 }
-.evidence-warning :global(svg) {
+.evidence-warning svg {
   flex: none;
   margin-top: 2px;
 }
@@ -3127,7 +3127,7 @@ button.review-summary[aria-pressed='true'] {
   font-size: 0.76rem;
   line-height: 1.45;
 }
-.review-note :global(svg) {
+.review-note svg {
   flex: none;
   margin-top: 2px;
 }
@@ -4157,7 +4157,7 @@ button.review-summary[aria-pressed='true'] {
 
 /* One object, the way the same thing is in Word: selected and deleted whole, never
    half-edited into a word nobody meant. */
-.furniture-line :global(.furniture-value) {
+.furniture-line .furniture-value {
   padding: 1px 5px;
   background: var(--subtle);
   border-radius: 3px;

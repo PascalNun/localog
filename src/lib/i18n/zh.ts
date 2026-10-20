@@ -748,6 +748,7 @@ export const zh: Strings = {
     starting: '正在启动…',
     backToMeeting: '返回会议',
     noRecorder: '此版本没有录音器。请改为导入文件。',
+    desktopAudioHint: '请在桌面声音设置中检查所选的输入和输出。只会录制可用的音源。',
     openTheSetting: '打开该设置',
     grantedInSettings: '在系统设置中授权后，您一回来这里就会生效。',
     callWouldNotRecordTitle: '通话不会被录下。',
@@ -758,7 +759,7 @@ export const zh: Strings = {
     recorderNotesTitle: '录音器未能完成所有被要求的事。',
     stoppedOnItsOwn: '录音器自行停止了。它在此之前录到的内容都已保留。',
     quietCall: (seconds: number) =>
-      `已有 ${seconds} 秒没有任何声音从通话传来。对于未获屏幕与系统音频录制权限的应用，macOS 给的是静音而不是错误，所以现在核对，好过会议之后再说。`,
+      `已有 ${seconds} 秒没有收到通话声音。请检查通话是否通过所选输出播放，以及是否允许录音。`,
     quietMicrophone: (seconds: number) =>
       `已有 ${seconds} 秒没有任何声音从麦克风传来。请检查是否选对了输入设备，以及是否有别的程序正占用它。`,
   },

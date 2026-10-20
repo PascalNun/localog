@@ -816,6 +816,8 @@ export const it: Strings = {
     starting: 'Avvio…',
     backToMeeting: 'Torna alla riunione',
     noRecorder: 'Questa build non ha un registratore. Importi invece un file.',
+    desktopAudioHint:
+      'Controlli ingresso e uscita selezionati nelle impostazioni audio del desktop. Verranno registrate solo le sorgenti disponibili.',
     openTheSetting: 'Apri l’impostazione',
     grantedInSettings: 'Concesso in Impostazioni di Sistema, e recepito qui non appena torna.',
     callWouldNotRecordTitle: 'La chiamata non verrebbe registrata.',
@@ -828,7 +830,7 @@ export const it: Strings = {
     stoppedOnItsOwn:
       'Il registratore si è fermato da solo. Ciò che aveva captato fino a quel punto è stato conservato.',
     quietCall: (seconds: number) =>
-      `Dalla chiamata non arriva nulla da ${seconds} secondi. macOS dà silenzio anziché un errore a un’applicazione priva del permesso di registrare schermo e audio di sistema: conviene verificarlo ora e non dopo la riunione.`,
+      `Non arriva audio dalla chiamata da ${seconds} secondi. Controlli che utilizzi l’uscita selezionata e che la registrazione sia consentita.`,
     quietMicrophone: (seconds: number) =>
       `Dal microfono non arriva nulla da ${seconds} secondi. Verifichi che sia selezionato l’ingresso giusto e che nessun altro lo stia occupando.`,
   },

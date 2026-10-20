@@ -22,7 +22,7 @@
     "tauri:build": "npm run build:sidecar && tauri build --config src-tauri/tauri.release.conf.json",
     "test:watch": "vitest",
     "tauri": "tauri",
-    "tauri:build:linux": "npm run build:sidecar && tauri build --config src-tauri/tauri.linux.conf.json"
+    "tauri:build:linux": "npm run build:sidecar && tauri build --config src-tauri/tauri.linux-bundle.conf.json"
   },
   "dependencies": {
     "@fontsource-variable/noto-sans-jp": "^5.3.0",

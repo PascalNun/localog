@@ -347,10 +347,10 @@ fn collect(base: &Path, directory: &Path, found: &mut Vec<PathBuf>) -> Result<()
         let path = entry?.path();
         if path.is_dir() {
             collect(base, &path, found)?;
-        } else if path.is_file() {
-            if let Ok(relative) = path.strip_prefix(base) {
-                found.push(relative.to_path_buf());
-            }
+        } else if path.is_file()
+            && let Ok(relative) = path.strip_prefix(base)
+        {
+            found.push(relative.to_path_buf());
         }
     }
     Ok(())

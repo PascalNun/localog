@@ -63,11 +63,11 @@ pub(crate) enum StartFailure {
     /// No port could be claimed to give it.
     NoPort,
     /// The process would not start at all.
-    LaunchFailed(String),
+    LaunchFailed,
     /// It started and never reported itself ready.
     NeverReady,
     /// It started and then stopped on its own.
-    Stopped(Option<i32>),
+    Stopped,
 }
 
 impl StartFailure {
@@ -77,9 +77,9 @@ impl StartFailure {
         match self {
             Self::Missing => "generationRuntimeMissing".into(),
             Self::NoPort => "generationRuntimeNoPort".into(),
-            Self::LaunchFailed(_) => "generationRuntimeNotStarted".into(),
+            Self::LaunchFailed => "generationRuntimeNotStarted".into(),
             Self::NeverReady => "generationRuntimeNeverReady".into(),
-            Self::Stopped(_) => "generationRuntimeStopped".into(),
+            Self::Stopped => "generationRuntimeStopped".into(),
         }
     }
 }
@@ -156,7 +156,7 @@ pub(crate) fn start_with(
         if error.kind() == ErrorKind::NotFound {
             StartFailure::Missing
         } else {
-            StartFailure::LaunchFailed(error.to_string())
+            StartFailure::LaunchFailed
         }
     })?;
 
@@ -177,8 +177,8 @@ fn wait_until_ready(server: &mut Server) -> Result<(), StartFailure> {
     while Instant::now() < deadline {
         // A server that stopped will never become ready, and waiting the full
         // three minutes to say so helps nobody.
-        if let Ok(Some(status)) = server.child.try_wait() {
-            return Err(StartFailure::Stopped(status.code()));
+        if let Ok(Some(_)) = server.child.try_wait() {
+            return Err(StartFailure::Stopped);
         }
         if agent.get(&health).call().is_ok() {
             return Ok(());
@@ -223,9 +223,9 @@ mod tests {
         for failure in [
             StartFailure::Missing,
             StartFailure::NoPort,
-            StartFailure::LaunchFailed("x".into()),
+            StartFailure::LaunchFailed,
             StartFailure::NeverReady,
-            StartFailure::Stopped(Some(1)),
+            StartFailure::Stopped,
         ] {
             let code = failure.code();
             assert!(!code.is_empty(), "{failure:?}");

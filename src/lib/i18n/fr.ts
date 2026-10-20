@@ -822,6 +822,8 @@ export const fr: Strings = {
     starting: 'Démarrage…',
     backToMeeting: 'Retour à la réunion',
     noRecorder: 'Cette version n’a pas d’enregistreur. Importez plutôt un fichier.',
+    desktopAudioHint:
+      'Vérifiez les entrées et sorties sélectionnées dans les réglages audio du bureau. Seules les sources disponibles seront enregistrées.',
     openTheSetting: 'Ouvrir le réglage',
     grantedInSettings: 'Accordé dans les Réglages Système, et pris en compte ici dès votre retour.',
     callWouldNotRecordTitle: 'L’appel ne serait pas enregistré.',
@@ -834,7 +836,7 @@ export const fr: Strings = {
     stoppedOnItsOwn:
       'L’enregistreur s’est arrêté de lui-même. Ce qu’il avait capté jusque-là a été conservé.',
     quietCall: (seconds: number) =>
-      `Rien n’est arrivé de l’appel depuis ${seconds} secondes. macOS donne du silence plutôt qu’une erreur à une application qui n’a pas l’autorisation d’enregistrer l’écran et l’audio système ; mieux vaut vérifier maintenant qu’après la réunion.`,
+      `Aucun son ne parvient de l’appel depuis ${seconds} secondes. Vérifiez que l’appel utilise la sortie sélectionnée et que l’enregistrement est autorisé.`,
     quietMicrophone: (seconds: number) =>
       `Rien n’est arrivé du microphone depuis ${seconds} secondes. Vérifiez que la bonne entrée est sélectionnée et que rien d’autre ne l’occupe.`,
   },

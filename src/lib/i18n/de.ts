@@ -837,6 +837,8 @@ export const de: Strings = {
     backToMeeting: 'Zurück zur Besprechung',
     noRecorder:
       'Dieser Build hat keine Aufnahmekomponente. Importieren Sie stattdessen eine Datei.',
+    desktopAudioHint:
+      'Prüfen Sie den gewählten Eingang und Ausgang in den Audioeinstellungen Ihres Desktops. Nur verfügbare Quellen werden aufgenommen.',
     openTheSetting: 'Einstellung öffnen',
     grantedInSettings:
       'Wird in den Systemeinstellungen erteilt und hier übernommen, sobald Sie zurückkommen.',
@@ -850,7 +852,7 @@ export const de: Strings = {
     stoppedOnItsOwn:
       'Die Aufnahme hat von selbst gestoppt. Was bis dahin aufgenommen wurde, ist erhalten.',
     quietCall: (seconds: number) =>
-      `Seit ${seconds} Sekunden kommt nichts von der Konferenz an. macOS gibt einer Anwendung ohne die Berechtigung zur Bildschirm- und Systemtonaufnahme Stille statt eines Fehlers — das prüft man besser jetzt als nach der Besprechung.`,
+      `Seit ${seconds} Sekunden kommt kein Ton von der Konferenz an. Prüfen Sie, ob die Konferenz über den gewählten Ausgang läuft und die Aufnahme erlaubt ist.`,
     quietMicrophone: (seconds: number) =>
       `Seit ${seconds} Sekunden kommt nichts vom Mikrofon an. Prüfen Sie, ob der richtige Eingang gewählt ist und ob eine andere Anwendung ihn belegt.`,
   },

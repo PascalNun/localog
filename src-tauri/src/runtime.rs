@@ -596,11 +596,10 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn process_drains_large_output_without_failing() {
-        let mut command = Command::new("sh");
-        command.args([
-            "-c",
-            "i=0; while [ $i -lt 100000 ]; do printf x; i=$((i+1)); done",
-        ]);
+        // Exceed a pipe buffer in one bulk write. A hundred thousand shell
+        // builtins tested shell speed and timed out on a busy Linux desktop.
+        let mut command = Command::new("dd");
+        command.args(["if=/dev/zero", "bs=100000", "count=1"]);
         let output = run_process(
             command,
             &AtomicBool::new(false),

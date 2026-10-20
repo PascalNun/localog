@@ -785,6 +785,8 @@ export const ko: Strings = {
     starting: '시작하는 중…',
     backToMeeting: '회의로 돌아가기',
     noRecorder: '이 빌드에는 녹음기가 없습니다. 대신 파일을 가져오십시오.',
+    desktopAudioHint:
+      '데스크톱 소리 설정에서 선택한 입력과 출력을 확인하세요. 사용할 수 있는 소스만 녹음됩니다.',
     openTheSetting: '설정 열기',
     grantedInSettings: '시스템 설정에서 허용하시면 돌아오시는 즉시 여기에 반영됩니다.',
     callWouldNotRecordTitle: '통화는 녹음되지 않습니다.',
@@ -796,7 +798,7 @@ export const ko: Strings = {
     recorderNotesTitle: '녹음기가 요청받은 모든 것을 하지는 못했습니다.',
     stoppedOnItsOwn: '녹음기가 스스로 멈췄습니다. 그때까지 담은 것은 보관되었습니다.',
     quietCall: (seconds: number) =>
-      `통화에서 ${seconds}초 동안 아무것도 들어오지 않았습니다. macOS는 화면 및 시스템 오디오 녹음 권한이 없는 응용 프로그램에 오류가 아니라 무음을 줍니다. 회의가 끝난 뒤보다 지금 확인해 두시는 편이 낫습니다.`,
+      `${seconds}초 동안 통화 소리가 들어오지 않았습니다. 선택한 출력으로 통화가 재생되고 녹음이 허용되는지 확인하세요.`,
     quietMicrophone: (seconds: number) =>
       `마이크에서 ${seconds}초 동안 아무것도 들어오지 않았습니다. 올바른 입력이 선택되었는지, 다른 프로그램이 쓰고 있지는 않은지 확인하십시오.`,
   },

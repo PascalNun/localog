@@ -14,6 +14,10 @@ The GPL does not grant rights to the LocaLog name, logo, or other identifiers as
 
 Dependencies remain under their own licences. The current dependency set is predominantly MIT, Apache-2.0, BSD, MPL-2.0, Unicode, and ISC software. Barlow is distributed under the SIL Open Font License 1.1, as are the bundled Noto Sans JP, KR and SC variable faces, which carry the Japanese, Korean and Chinese characters Barlow does not. Their licence text ships with them.
 
+The Linux recorder uses `libpulse-binding` and `libpulse-sys` (MIT OR Apache-2.0)
+to link to the desktop's PulseAudio client library. That system library is LGPL;
+it is a system dependency, not a statically bundled audio server.
+
 Future distribution work must record and review the exact licences, provenance, checksums, and notices for bundled FFmpeg builds, inference runtimes, model files, fonts, icons, and other assets. A compatible application licence does not automatically make every possible runtime or model redistributable.
 
 The installed FFmpeg, Whisper, and Ollama environments used by Phase 0 spikes are development evidence only. Their binaries and model files are not included in this repository.

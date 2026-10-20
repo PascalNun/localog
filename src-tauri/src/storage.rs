@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 const CURRENT_SCHEMA_VERSION: i64 = 23;
@@ -276,7 +276,12 @@ impl WorkspaceRepository {
     pub fn open(root: impl AsRef<Path>) -> Result<Self> {
         let root = root.as_ref();
         fs::create_dir_all(root)?;
+        // Startup commands can arrive together, including from another process.
+        // Lock before reading the version: per-migration SQL transactions cannot
+        // protect a version another opener already read before waiting its turn.
+        let _initialization = lock_initialization(root)?;
         let connection = Connection::open(root.join("localog.sqlite3"))?;
+        connection.busy_timeout(Duration::from_secs(5))?;
         let version = schema_version(&connection)?;
         if version > CURRENT_SCHEMA_VERSION {
             // Do not change persistent database settings before compatibility is known.
@@ -1901,6 +1906,33 @@ impl WorkspaceRepository {
     }
 }
 
+/// Coordinate only opening/migration, not the lifetime of a repository. The OS
+/// releases this lock on close or process exit; the empty file is not a PID marker.
+fn lock_initialization(root: &Path) -> std::io::Result<fs::File> {
+    let lock = fs::File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(root.join(".workspace-open.lock"))?;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        match lock.try_lock() {
+            Ok(()) => return Ok(lock),
+            Err(fs::TryLockError::Error(error)) => return Err(error),
+            Err(fs::TryLockError::WouldBlock) if Instant::now() >= deadline => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "workspace initialization is busy",
+                ));
+            }
+            Err(fs::TryLockError::WouldBlock) => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        }
+    }
+}
+
 fn schema_version(connection: &Connection) -> Result<i64> {
     Ok(connection.query_row("PRAGMA user_version", [], |row| row.get(0))?)
 }
@@ -3137,6 +3169,35 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
+    #[test]
+    fn simultaneous_first_opens_share_one_complete_migration() {
+        let root = tempfile::tempdir().unwrap();
+        let start = std::sync::Arc::new(std::sync::Barrier::new(8));
+        let workers: Vec<_> = (0..8)
+            .map(|_| {
+                let root = root.path().to_path_buf();
+                let start = start.clone();
+                std::thread::spawn(move || {
+                    start.wait();
+                    let repository = WorkspaceRepository::open(root)?;
+                    let version = schema_version(&repository.connection)?;
+                    repository.workspace_snapshot()?;
+                    Ok::<_, StorageError>(version)
+                })
+            })
+            .collect();
+        let results: Vec<_> = workers
+            .into_iter()
+            .map(|worker| worker.join().unwrap())
+            .collect();
+        assert!(
+            results
+                .iter()
+                .all(|result| matches!(result, Ok(CURRENT_SCHEMA_VERSION))),
+            "{results:?}"
+        );
+    }
+
     /// A new workspace has not been edited by anybody, and should say so.
     ///
     /// This is the test that was missing. Migration 8 rewrote style-formal's
@@ -3225,8 +3286,6 @@ mod tests {
         );
     }
 
-    /// Every stage the pipeline reports has words for it.
-    ///
     // The guard that used to stand here — every stage the pipeline reports has
     // words for it — moved to `src/lib/i18n/jobStages.test.ts` on 29 August 2026,
     // when the words moved to the dictionary. It reads these same Rust sources and

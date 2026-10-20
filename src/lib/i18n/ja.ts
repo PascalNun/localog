@@ -793,6 +793,8 @@ export const ja: Strings = {
     starting: '開始しています…',
     backToMeeting: '会議に戻る',
     noRecorder: 'このビルドには録音機能がありません。代わりにファイルを取り込んでください。',
+    desktopAudioHint:
+      'デスクトップのサウンド設定で、選択した入力と出力を確認してください。利用可能な音源のみ収録されます。',
     openTheSetting: '設定を開く',
     grantedInSettings: 'システム設定で許可すると、戻った時点でここに反映されます。',
     callWouldNotRecordTitle: '通話は録音されません。',
@@ -804,7 +806,7 @@ export const ja: Strings = {
     recorderNotesTitle: '録音機能は求められたことすべてを行えませんでした。',
     stoppedOnItsOwn: '録音機能が自ら停止しました。そこまでに収めたものは保存されています。',
     quietCall: (seconds: number) =>
-      `通話から${seconds}秒間なにも届いていません。macOSは、画面とシステム音声の収録を許可されていないアプリケーションにエラーではなく無音を渡します。会議のあとで気づくより、今確認しておくほうが確実です。`,
+      `通話から${seconds}秒間音声が届いていません。選択した出力で通話が再生され、収録が許可されているか確認してください。`,
     quietMicrophone: (seconds: number) =>
       `マイクから${seconds}秒間なにも届いていません。正しい入力が選ばれているか、ほかのアプリが占有していないかを確認してください。`,
   },

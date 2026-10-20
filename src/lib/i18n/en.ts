@@ -910,6 +910,8 @@ export const en = {
     starting: 'Starting…',
     backToMeeting: 'Back to the meeting',
     noRecorder: 'This build has no recorder. Import a file instead.',
+    desktopAudioHint:
+      'Check the selected input and output in your desktop sound settings. Only available sources will be recorded.',
     openTheSetting: 'Open the setting',
     grantedInSettings: 'Granted in System Settings, and picked up here as soon as you come back.',
     callWouldNotRecordTitle: 'The call would not be recorded.',
@@ -922,7 +924,7 @@ export const en = {
     stoppedOnItsOwn:
       'The recorder stopped on its own. Whatever it captured up to that point has been kept.',
     quietCall: (seconds: number) =>
-      `Nothing has arrived from the call in ${seconds} seconds. macOS gives an application silence rather than an error when it has not been granted Screen & System Audio Recording, so this is worth checking now rather than after the meeting.`,
+      `No audio has arrived from the call in ${seconds} seconds. Check that the call is playing through the selected output and that recording access is allowed.`,
     quietMicrophone: (seconds: number) =>
       `Nothing has arrived from the microphone in ${seconds} seconds. Check that the right input is selected and that nothing else is holding it.`,
   },
