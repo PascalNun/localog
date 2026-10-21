@@ -89,10 +89,13 @@ fn parse_total_physical_memory(text: &str) -> Option<u64> {
         .filter(|bytes| *bytes > 0)
 }
 
-/// Installed memory in whole gigabytes, or nothing.
+/// Installed memory class in GiB, rounded up for firmware-reserved memory.
 pub(crate) fn memory_gb() -> Option<u32> {
-    let bytes = memory_bytes()?;
-    u32::try_from(bytes / (1024 * 1024 * 1024))
+    memory_class_gb(memory_bytes()?)
+}
+
+fn memory_class_gb(bytes: u64) -> Option<u32> {
+    u32::try_from(bytes.div_ceil(1024 * 1024 * 1024))
         .ok()
         .filter(|gb| *gb > 0)
 }
@@ -114,6 +117,13 @@ fn parse_meminfo(text: &str) -> Option<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn firmware_reservations_do_not_demote_an_eight_or_sixteen_gb_machine() {
+        assert_eq!(memory_class_gb(8_200_000_000), Some(8));
+        assert_eq!(memory_class_gb(16_300_000_000), Some(16));
+        assert_eq!(memory_class_gb(0), None);
+    }
 
     const SAMPLE: &str = "MemTotal:       16333852 kB\n\
                           MemFree:         1234567 kB\n\
@@ -174,9 +184,11 @@ mod tests {
     fn gigabytes_agree_with_bytes() {
         match (memory_bytes(), memory_gb()) {
             (Some(bytes), Some(gb)) => {
-                assert_eq!(u64::from(gb), bytes / (1024 * 1024 * 1024));
+                assert_eq!(u64::from(gb), bytes.div_ceil(1024 * 1024 * 1024));
             }
-            (Some(bytes), None) => assert!(bytes < 1024 * 1024 * 1024),
+            (Some(bytes), None) => {
+                assert!(bytes == 0 || bytes.div_ceil(1024 * 1024 * 1024) > u64::from(u32::MAX))
+            }
             (None, gb) => assert!(gb.is_none()),
         }
     }

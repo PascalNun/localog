@@ -32,6 +32,8 @@
 import type { Strings } from './en';
 
 const failures = {
+  generationModelNeedsMoreMemory:
+    'Ce modèle nécessite plus de mémoire que cet ordinateur. Choisissez un modèle plus petit.',
   missingProject: 'Le projet sélectionné n’existe plus.',
   missingMeeting: 'La réunion sélectionnée n’existe plus.',
   missingJob: 'La tâche d’importation n’est plus disponible.',
@@ -362,6 +364,16 @@ export const fr: Strings = {
     european: 'Européen',
     checkInstalled: 'Vérifier les modèles installés',
     curatedModels: 'Modèles de compte rendu retenus',
+    downloadIntro:
+      'Choisissez un modèle pour cet ordinateur. Les téléchargements restent sur cet appareil ; aucun service d’IA séparé n’est nécessaire.',
+    memoryMinimum: (gb: number) => `Classe de RAM minimale : ${gb} Go`,
+    memoryTooSmall: (gb: number) =>
+      `Nécessite une classe de RAM d’au moins ${gb} Go. Téléchargement et sélection indisponibles sur cet ordinateur.`,
+    memoryUnknown: 'Mémoire non détectée. Vérifiez les besoins en RAM avant de télécharger.',
+    memoryTight:
+      'Avec 8 Go, les longues réunions laissent peu de marge. Fermez les autres applications ; la génération sur CPU peut être lente. La taille du téléchargement n’est pas la RAM totale utilisée.',
+    qualityCaution:
+      'Une mémoire suffisante ne garantit pas la qualité. Vérifiez soigneusement les petits modèles ; les mesures précédentes proviennent d’un autre ordinateur.',
     bundledRuntime: 'Sur cet appareil',
     bundledRuntimeLead:
       'LocaLog apporte son propre moteur de rédaction. Il lui faut un modèle, téléchargé une fois et conservé ici.',
@@ -385,6 +397,8 @@ export const fr: Strings = {
     downloadingPreset: (name: string) => `Téléchargement de ${name}`,
     /** Voir la note dans en.ts. */
     modelDescription: {
+      'qwen3.5-0.8b':
+        'Petit modèle de développement et de test. Qualité des comptes rendus non évaluée ; ne vous y fiez pas pour un compte rendu professionnel.',
       'gemma4-12b':
         'Le plus exact et le plus régulier des modèles mesurés : sur trois exécutions, il a conservé 27 à 31 des 35 chiffres d’une réunion, là où le suivant est descendu à 6. Plus lent — environ quatorze minutes pour une réunion de quatre-vingts minutes.',
       'ministral-8b':

@@ -51,6 +51,11 @@ Status words:
 25. D-014’s original “discover installed models only” rule is superseded. Known transcription and diarisation models may be downloaded on demand with explicit user consent, HTTPS verification, checksums, atomic installation, and no silent acquisition. A model marketplace is not part of the product.
 26. Reproducibility means recording provenance and resolved inputs, not promising byte-identical model output.
 
+### Model setup guidance
+
+- A fresh installation offers a short list of pinned, checksum-verified managed models with visible size, memory requirements and quality limits. Hardware suitability and measured protocol quality are separate claims. Known oversized models are unavailable on that machine; unknown memory is stated explicitly. The 0.8B candidate is for development tests, not a professional-quality recommendation.
+- Settings persists the chosen runtime and model. An explicit Ollama choice wins over installed bundled files, and a missing explicit bundled choice is an error rather than a silent substitution. See [managed model details](MODEL_DOWNLOADS.md).
+
 ### Desktop window chrome
 
 - macOS retains its native overlay controls. Linux uses an undecorated window with compact, translated app-owned window controls over the existing surfaces, plus native drag and resize operations. This avoids a separate title-bar band while remaining usable on floating desktops. Windows retains its native frame, and browser previews retain normal browser chrome.

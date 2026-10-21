@@ -32,6 +32,8 @@
 import type { Strings } from './en';
 
 const failures = {
+  generationModelNeedsMoreMemory:
+    'このモデルには、このコンピューターより多くのメモリが必要です。小さいモデルを選択してください。',
   missingProject: '選択されたプロジェクトはもう存在しません。',
   missingMeeting: '選択された会議はもう存在しません。',
   missingJob: 'その取り込み処理はもう利用できません。',
@@ -342,6 +344,16 @@ export const ja: Strings = {
     european: '欧州製',
     checkInstalled: 'インストール済みのモデルを確認',
     curatedModels: '選定済みの議事録モデル',
+    downloadIntro:
+      'このコンピューターに合うモデルを選択してください。ダウンロードは端末内に保存され、別のAIサービスは不要です。',
+    memoryMinimum: (gb: number) => `最小RAMクラス：${gb} GB`,
+    memoryTooSmall: (gb: number) =>
+      `${gb} GB以上のRAMクラスが必要です。このコンピューターではダウンロード・選択できません。`,
+    memoryUnknown: 'メモリを検出できませんでした。ダウンロード前に必要なRAMを確認してください。',
+    memoryTight:
+      '8 GBでは長い会議を処理する余裕が少なくなります。他のアプリを閉じてください。CPUでの生成は遅くなる場合があります。ダウンロード容量とRAM使用量は異なります。',
+    qualityCaution:
+      'メモリが足りても議事録の品質は保証されません。小型モデルの結果は慎重に確認してください。以前の測定は別のコンピューターで行われました。',
     bundledRuntime: 'この端末で',
     bundledRuntimeLead:
       'LocaLog は議事録を書くためのエンジンを内蔵しています。必要なのはモデルひとつだけで、一度ダウンロードすればこの端末に残ります。',
@@ -365,6 +377,8 @@ export const ja: Strings = {
     downloadingPreset: (name: string) => `${name} をダウンロード中`,
     /** en.ts の注記を参照。 */
     modelDescription: {
+      'qwen3.5-0.8b':
+        '開発・動作確認用の小型モデルです。議事録品質は未評価のため、業務用議事録には依存しないでください。',
       'gemma4-12b':
         '測定したモデルのなかで最も正確で、最も安定しています。3 回の実行で、会議に出てきた 35 個の数値のうち 27 〜 31 を残しました。次点は 6 まで落ちています。速度は遅く、80 分の会議でおよそ 14 分かかります。',
       'ministral-8b':

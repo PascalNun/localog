@@ -265,6 +265,33 @@
     machineMemoryGb: null,
   };
 
+  let generationStatus: ProtocolProviderStatus = {
+    ...providerStatus,
+    endpoint: '',
+    message: 'generationModelNotDownloaded',
+    active: true,
+  };
+
+  async function refreshGenerationModels() {
+    try {
+      const [terms, status, external] = await Promise.all([
+        bridge.getModelTerms(),
+        bridge.getGenerationRuntimeStatus(),
+        bridge.getProtocolProviderStatus(),
+      ]);
+      modelTerms = terms;
+      generationStatus = status;
+      providerStatus = external;
+      downloading = Object.fromEntries(
+        Object.entries(downloading).filter(
+          ([id]) => !terms.some((model) => model.modelId === id && model.installed),
+        ),
+      );
+    } catch (error) {
+      modelError = errorMessage(error);
+    }
+  }
+
   // Route-derived context keeps project and meeting selection in one predictable place.
   $: meetingId = 'meetingId' in route ? route.meetingId : null;
   $: meeting = meetingId
@@ -350,8 +377,7 @@
     followSystem = settle;
     bridge.getTranscriptionRuntimeStatus().then((status) => (runtimeStatus = status));
     bridge.getSpeakerSeparationStatus().then((status) => (speakerStatus = status));
-    bridge.getProtocolProviderStatus().then((status) => (providerStatus = status));
-    bridge.getModelTerms().then((terms) => (modelTerms = terms));
+    void refreshGenerationModels();
     bridge
       .getTranscriptionCapability()
       .then((next) => (capability = next))
@@ -363,12 +389,9 @@
       },
       onChanged: (next) => {
         capability = next;
-        // Only clear rows that are now installed; another download may still be running.
-        downloading = Object.fromEntries(
-          Object.entries(downloading).filter(
-            ([id]) => !next.presets.some((preset) => preset.modelId === id && preset.installed),
-          ),
-        );
+        // The backend permits one heavy download at a time. Completion also covers cancellation.
+        downloading = {};
+        void refreshGenerationModels();
         // A newly installed model can make transcription possible.
         bridge.getTranscriptionRuntimeStatus().then((status) => (runtimeStatus = status));
       },
@@ -736,7 +759,7 @@
           {capability}
           {downloading}
           {modelError}
-          {providerStatus}
+          providerStatus={generationStatus.active === true ? generationStatus : providerStatus}
           onDownloadModel={downloadModel}
           onCancelDownload={cancelModelDownload}
         />
@@ -958,6 +981,16 @@
           {speakerError}
           {providerStatus}
           {modelTerms}
+          {generationStatus}
+          onConfigureGeneration={async (model) => {
+            try {
+              generationStatus = await bridge.configureGenerationModel(model);
+              providerStatus = await bridge.getProtocolProviderStatus();
+              providerError = null;
+            } catch (error) {
+              providerError = errorMessage(error);
+            }
+          }}
           onAcceptLicence={acceptLicence}
           {capability}
           {downloading}
@@ -1049,6 +1082,7 @@
           onConfigureProvider={async (model) => {
             try {
               providerStatus = await bridge.configureProtocolProvider(model);
+              generationStatus = await bridge.getGenerationRuntimeStatus();
               providerError = null;
             } catch (error) {
               providerError = errorMessage(error);
@@ -1061,7 +1095,7 @@
           {capability}
           {downloading}
           {modelError}
-          {providerStatus}
+          providerStatus={generationStatus.active === true ? generationStatus : providerStatus}
           onDownloadModel={downloadModel}
           onCancelDownload={cancelModelDownload}
         />

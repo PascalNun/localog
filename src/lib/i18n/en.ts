@@ -31,6 +31,8 @@
 
 /** Text that comes back from the Rust side as a code rather than a sentence. */
 const failures = {
+  generationModelNeedsMoreMemory:
+    'This model requires more memory than this computer has. Choose a smaller model.',
   // Storage: something referred to is not there any more.
   missingProject: 'The selected project no longer exists.',
   missingMeeting: 'The selected meeting no longer exists.',
@@ -386,6 +388,17 @@ export const en = {
     european: 'European',
     checkInstalled: 'Check installed models',
     curatedModels: 'Curated protocol models',
+    downloadIntro:
+      'Choose a model for this computer. Downloads stay on this device; no separate AI service is needed.',
+    memoryMinimum: (gb: number) => `Minimum RAM class: ${gb} GB`,
+    memoryTooSmall: (gb: number) =>
+      `Needs a ${gb} GB RAM class or larger. Download and selection are unavailable on this computer.`,
+    memoryUnknown:
+      'Memory could not be detected. Check the model’s RAM requirement before downloading.',
+    memoryTight:
+      'An 8 GB computer has little room for long meetings. Close other applications; CPU generation may be slow. Download size is not total RAM use.',
+    qualityCaution:
+      'Memory suitability does not guarantee protocol quality. Smaller candidates need careful review; earlier measurements were made on a different computer.',
     bundledRuntime: 'On this device',
     bundledRuntimeLead:
       'LocaLog brings its own engine for writing protocols. It needs one model, downloaded once and kept here.',
@@ -417,6 +430,8 @@ export const en = {
      * without a sentence here does not compile.
      */
     modelDescription: {
+      'qwen3.5-0.8b':
+        'A small development and smoke-test model. Protocol quality has not been evaluated; do not rely on it for a professional meeting record.',
       'gemma4-12b':
         'The most accurate and the steadiest of the measured models: it kept 27 to 31 of a meeting’s 35 figures across three runs, where the next best kept as few as 6. Slower — about fourteen minutes for an eighty-minute meeting.',
       'ministral-8b':

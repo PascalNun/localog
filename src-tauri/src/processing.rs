@@ -167,6 +167,32 @@ fn context_within(supported: u32, model_bytes: u64, machine_bytes: u64) -> u32 {
     supported.min(affordable).max(LEAST_USEFUL)
 }
 
+fn bundled_model_for_generation(
+    root: &Path,
+    preferred: Option<&str>,
+    backend: Option<&str>,
+    server_available: bool,
+    memory_gb: Option<u32>,
+) -> storage::Result<Option<models::ModelTerms>> {
+    if backend == Some("ollama") {
+        return Ok(None);
+    }
+    let selected = models::selected_generation_model(root, preferred, memory_gb);
+    let explicit = backend == Some("bundled") || preferred.is_some();
+    if explicit && selected.is_none() {
+        return Err(StorageError::InvalidData("generationModelNotDownloaded"));
+    }
+    if let Some(model) = &selected {
+        if !models::generation_fits(&model.model_id, memory_gb) {
+            return Err(StorageError::InvalidData("generationModelNeedsMoreMemory"));
+        }
+        if !server_available && explicit {
+            return Err(StorageError::InvalidData("generationRuntimeMissing"));
+        }
+    }
+    Ok(selected.filter(|_| server_available))
+}
+
 /// How much memory this machine has, or zero where that cannot be established —
 /// in which case nothing is inferred from it.
 fn machine_memory_bytes() -> u64 {
@@ -877,10 +903,17 @@ fn generation_metadata(
     // the answer for almost everybody, and nothing has to be started or installed
     // for it to work. Ollama remains for a machine that has one and no model of
     // ours, and for somebody who chose it.
-    let bundled = models::generation_models(root)
-        .into_iter()
-        .find(|model| model.installed)
-        .filter(|_| crate::llama::server_path().is_some());
+    let preferred = repository
+        .read_setting("generation.model")?
+        .filter(|value| !value.is_empty());
+    let backend = repository.read_setting("generation.backend")?;
+    let bundled = bundled_model_for_generation(
+        root,
+        preferred.as_deref(),
+        backend.as_deref(),
+        crate::llama::server_path().is_some(),
+        crate::machine::memory_gb(),
+    )?;
 
     let (runtime, model, model_digest, runtime_version, model_bytes) = match bundled {
         Some(model) => {
@@ -891,9 +924,9 @@ fn generation_metadata(
                 // The catalogue's checksum. Ollama answers with a digest of its
                 // own and this is the same promise kept the same way: the file
                 // that produced a protocol can be named exactly.
-                models::terms(root, &model.model_id)
-                    .map(|terms| terms.licence)
-                    .unwrap_or_default(),
+                models::generation_digest(&model.model_id)
+                    .unwrap_or_default()
+                    .to_string(),
                 status
                     .runtime_version
                     .unwrap_or_else(|| "bundled".to_string()),
@@ -911,6 +944,9 @@ fn generation_metadata(
             let model = status
                 .selected_model
                 .ok_or(StorageError::InvalidData("providerModelRequired"))?;
+            if !models::generation_fits(&model, crate::machine::memory_gb()) {
+                return Err(StorageError::InvalidData("generationModelNeedsMoreMemory"));
+            }
             let model_digest = status
                 .selected_model_digest
                 .ok_or(StorageError::InvalidData("ollamaModelGone"))?;
@@ -958,8 +994,9 @@ fn generation_metadata(
         temperature_milli: GENERATION_TEMPERATURE_MILLI,
         // Decided here, before anything is started. With the bundled runtime this
         // is not advice: it becomes the --ctx-size the server is launched with,
-        // so a width the machine cannot afford is refused rather than discovered
-        // while it swaps.
+        // so the configured context is consistent with the queued request.
+        // The protocol's minimum context can still exceed the free-memory budget;
+        // Settings warns about this on small machines.
         context_tokens: affordable_context(
             &provider::OllamaProvider::loopback(),
             &model,
@@ -3088,6 +3125,58 @@ mod tests {
     /// Read as text because the honest check needs a live Ollama and a repository:
     /// what can be checked without one is that the number is not typed in beside
     /// the code that resolves it.
+    #[test]
+    fn explicit_runtime_and_model_choices_survive_other_installed_models() {
+        let root =
+            std::env::temp_dir().join(format!("localog-backend-choice-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("models")).unwrap();
+        let terms = models::terms(&root, "qwen3.5-4b").unwrap();
+        fs::File::create(root.join("models/Qwen3.5-4B-Q4_K_M.gguf"))
+            .unwrap()
+            .set_len(terms.byte_count)
+            .unwrap();
+        // Choosing Ollama wins even though a managed model is installed.
+        assert!(
+            bundled_model_for_generation(&root, Some("qwen3.5-4b"), Some("ollama"), true, Some(8))
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            bundled_model_for_generation(&root, Some("qwen3.5-4b"), Some("bundled"), true, Some(8))
+                .unwrap()
+                .unwrap()
+                .model_id,
+            "qwen3.5-4b"
+        );
+        // A missing choice or runtime is an actionable failure, never substitution.
+        assert!(
+            bundled_model_for_generation(
+                &root,
+                Some("ministral-3b"),
+                Some("bundled"),
+                true,
+                Some(8)
+            )
+            .is_err()
+        );
+        assert!(
+            bundled_model_for_generation(
+                &root,
+                Some("qwen3.5-4b"),
+                Some("bundled"),
+                false,
+                Some(8)
+            )
+            .is_err()
+        );
+        assert!(
+            bundled_model_for_generation(&root, Some("qwen3.5-4b"), Some("bundled"), true, Some(4))
+                .is_err()
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
     #[test]
     fn the_recorded_settings_are_not_typed_in_beside_the_run() {
         let source = include_str!("processing.rs");

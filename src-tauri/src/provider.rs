@@ -148,6 +148,7 @@ pub fn can_check_a_rewrite(descriptor: &ModelDescriptor) -> bool {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OllamaStatus {
+    pub active: bool,
     pub endpoint: String,
     pub server_reachable: bool,
     pub runtime_version: Option<String>,
@@ -626,23 +627,35 @@ pub fn bundled_status(root: &std::path::Path, selected_model: Option<String>) ->
         .into_iter()
         .filter(|model| model.installed)
         .map(|model| ModelDescriptor {
-            name: model.model_id,
+            name: model.model_id.clone(),
             size: model.byte_count,
             // The catalogue's checksum, which is what makes a downloaded file
             // the file it claims to be. Ollama answers with its own digest here
             // and this is the same promise kept a different way.
-            digest: String::new(),
+            digest: crate::models::generation_digest(&model.model_id)
+                .unwrap_or_default()
+                .to_string(),
             details: ModelDetails::default(),
         })
         .collect();
 
-    let chosen = selected_model.or_else(|| models.first().map(|model| model.name.clone()));
-    let ready = chosen
+    let chosen = selected_model.or_else(|| {
+        crate::models::selected_generation_model(root, None, machine_memory_gb())
+            .map(|model| model.model_id)
+    });
+    let fits = chosen
         .as_deref()
-        .is_some_and(|wanted| models.iter().any(|model| model.name == wanted));
+        .is_none_or(|model| crate::models::generation_fits(model, machine_memory_gb()));
+    let ready = executable.is_some()
+        && fits
+        && chosen
+            .as_deref()
+            .is_some_and(|wanted| models.iter().any(|model| model.name == wanted));
 
     let message = if executable.is_none() {
         "generationRuntimeMissing"
+    } else if !fits {
+        "generationModelNeedsMoreMemory"
     } else if models.is_empty() {
         "generationModelNotDownloaded"
     } else if ready {
@@ -652,6 +665,7 @@ pub fn bundled_status(root: &std::path::Path, selected_model: Option<String>) ->
     };
 
     OllamaStatus {
+        active: true,
         endpoint: executable
             .as_ref()
             .map(|path| path.display().to_string())
@@ -661,7 +675,10 @@ pub fn bundled_status(root: &std::path::Path, selected_model: Option<String>) ->
         server_reachable: executable.is_some(),
         runtime_version: executable.as_ref().and_then(|path| runtime_version(path)),
         models,
-        selected_model_digest: None,
+        selected_model_digest: chosen
+            .as_deref()
+            .and_then(crate::models::generation_digest)
+            .map(str::to_string),
         selected_model_ready: ready,
         selected_model: chosen,
         message: message.to_string(),
@@ -761,6 +778,7 @@ impl OllamaProvider {
 
     pub fn status(&self, selected_model: Option<String>) -> OllamaStatus {
         let mut status = OllamaStatus {
+            active: true,
             endpoint: self.base_url.clone(),
             selected_model,
             machine_memory_gb: machine_memory_gb(),

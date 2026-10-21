@@ -29,6 +29,8 @@
 import type { Strings } from './en';
 
 const failures = {
+  generationModelNeedsMoreMemory:
+    'Dieses Modell benötigt mehr Arbeitsspeicher als dieser Computer hat. Wählen Sie ein kleineres Modell.',
   missingProject: 'Das gewählte Projekt existiert nicht mehr.',
   missingMeeting: 'Die gewählte Besprechung existiert nicht mehr.',
   missingJob: 'Der Importvorgang ist nicht mehr verfügbar.',
@@ -370,6 +372,17 @@ export const de: Strings = {
     european: 'Europäisch',
     checkInstalled: 'Installierte Modelle prüfen',
     curatedModels: 'Ausgewählte Protokollmodelle',
+    downloadIntro:
+      'Wählen Sie ein Modell für diesen Computer. Downloads bleiben auf diesem Gerät; ein zusätzlicher KI-Dienst ist nicht nötig.',
+    memoryMinimum: (gb: number) => `RAM-Mindestklasse: ${gb} GB`,
+    memoryTooSmall: (gb: number) =>
+      `Benötigt eine RAM-Klasse ab ${gb} GB. Download und Auswahl sind auf diesem Computer nicht verfügbar.`,
+    memoryUnknown:
+      'Der Arbeitsspeicher konnte nicht ermittelt werden. Prüfen Sie vor dem Download den RAM-Bedarf.',
+    memoryTight:
+      'Bei 8 GB bleibt wenig Platz für lange Besprechungen. Schließen Sie andere Anwendungen; die CPU-Erstellung kann langsam sein. Die Downloadgröße ist nicht der gesamte RAM-Bedarf.',
+    qualityCaution:
+      'Passender Arbeitsspeicher garantiert keine Protokollqualität. Kleinere Kandidaten erfordern sorgfältige Prüfung; frühere Messungen stammen von einem anderen Computer.',
     bundledRuntime: 'Auf diesem Gerät',
     bundledRuntimeLead:
       'LocaLog bringt eine eigene Maschine zum Schreiben von Protokollen mit. Sie braucht ein Modell, einmal geladen und hier behalten.',
@@ -393,6 +406,8 @@ export const de: Strings = {
     downloadingPreset: (name: string) => `${name} wird geladen`,
     /** Siehe die Anmerkung in en.ts. */
     modelDescription: {
+      'qwen3.5-0.8b':
+        'Ein kleines Modell für Entwicklung und Funktionstests. Die Protokollqualität wurde nicht geprüft; verlassen Sie sich für professionelle Besprechungsprotokolle nicht darauf.',
       'gemma4-12b':
         'Das genaueste und beständigste der gemessenen Modelle: Über drei Läufe hat es 27 bis 31 der 35 Zahlen einer Besprechung erhalten, wo das nächstbeste auf nur 6 kam. Langsamer — etwa vierzehn Minuten für eine achtzigminütige Besprechung.',
       'ministral-8b':
@@ -1234,7 +1249,7 @@ export const de: Strings = {
     maximize: 'Fenster maximieren',
     restore: 'Fenster wiederherstellen',
     close: 'Fenster schließen',
-    actionFailed: 'Die Fensteraktion ist fehlgeschlagen. Versuche es erneut.',
+    actionFailed: 'Die Fensteraktion ist fehlgeschlagen. Versuchen Sie es erneut.',
   },
   shell: {
     breadcrumbMeeting: 'Besprechung',

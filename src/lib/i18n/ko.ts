@@ -30,6 +30,8 @@
 import type { Strings } from './en';
 
 const failures = {
+  generationModelNeedsMoreMemory:
+    '이 모델은 이 컴퓨터보다 더 많은 메모리가 필요합니다. 더 작은 모델을 선택하세요.',
   missingProject: '선택한 프로젝트가 더 이상 존재하지 않습니다.',
   missingMeeting: '선택한 회의가 더 이상 존재하지 않습니다.',
   missingJob: '해당 가져오기 작업을 더 이상 사용할 수 없습니다.',
@@ -334,6 +336,16 @@ export const ko: Strings = {
     european: '유럽산',
     checkInstalled: '설치된 모델 확인',
     curatedModels: '선별된 회의록 모델',
+    downloadIntro:
+      '이 컴퓨터에 맞는 모델을 선택하세요. 다운로드는 기기에 저장되며 별도 AI 서비스가 필요하지 않습니다.',
+    memoryMinimum: (gb: number) => `최소 RAM 등급: ${gb} GB`,
+    memoryTooSmall: (gb: number) =>
+      `${gb} GB 이상의 RAM 등급이 필요합니다. 이 컴퓨터에서는 다운로드하거나 선택할 수 없습니다.`,
+    memoryUnknown: '메모리를 감지하지 못했습니다. 다운로드 전에 RAM 요구 사항을 확인하세요.',
+    memoryTight:
+      '8 GB에서는 긴 회의를 처리할 여유가 적습니다. 다른 앱을 닫으세요. CPU 생성은 느릴 수 있습니다. 다운로드 크기는 전체 RAM 사용량이 아닙니다.',
+    qualityCaution:
+      '메모리가 충분해도 회의록 품질은 보장되지 않습니다. 작은 모델의 결과를 신중히 검토하세요. 이전 측정은 다른 컴퓨터에서 수행되었습니다.',
     bundledRuntime: '이 기기에서',
     bundledRuntimeLead:
       'LocaLog에는 회의록을 쓰는 엔진이 들어 있습니다. 필요한 것은 모델 하나뿐이며, 한 번 내려받으면 이 기기에 남습니다.',
@@ -357,6 +369,8 @@ export const ko: Strings = {
     downloadingPreset: (name: string) => `${name} 내려받는 중`,
     /** en.ts의 설명을 참고하십시오. */
     modelDescription: {
+      'qwen3.5-0.8b':
+        '개발 및 동작 확인용 소형 모델입니다. 회의록 품질은 평가되지 않았으며 전문 회의록 작성에 의존하지 마세요.',
       'gemma4-12b':
         '측정한 모델 가운데 가장 정확하고 가장 안정적입니다. 세 차례 실행에서 회의에 나온 수치 35개 가운데 27~31개를 지켰고, 그다음 모델은 6개까지 떨어졌습니다. 다만 느립니다. 80분짜리 회의에 약 14분이 걸립니다.',
       'ministral-8b':

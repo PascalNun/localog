@@ -26,6 +26,8 @@
 import type { Strings } from './en';
 
 const failures = {
+  generationModelNeedsMoreMemory:
+    'Questo modello richiede più memoria di quella disponibile. Scegli un modello più piccolo.',
   missingProject: 'Il progetto selezionato non esiste più.',
   missingMeeting: 'La riunione selezionata non esiste più.',
   missingJob: 'L’operazione di importazione non è più disponibile.',
@@ -352,6 +354,16 @@ export const it: Strings = {
     european: 'Europeo',
     checkInstalled: 'Verifica i modelli installati',
     curatedModels: 'Modelli per i verbali selezionati',
+    downloadIntro:
+      'Scegli un modello per questo computer. I download restano qui; non serve un servizio IA separato.',
+    memoryMinimum: (gb: number) => `Classe RAM minima: ${gb} GB`,
+    memoryTooSmall: (gb: number) =>
+      `Richiede una classe RAM di almeno ${gb} GB. Download e selezione non disponibili su questo computer.`,
+    memoryUnknown: 'Memoria non rilevata. Verifica i requisiti RAM prima del download.',
+    memoryTight:
+      'Con 8 GB resta poco spazio per riunioni lunghe. Chiudi le altre applicazioni; la generazione su CPU può essere lenta. La dimensione del download non è la RAM totale usata.',
+    qualityCaution:
+      'La memoria sufficiente non garantisce la qualità. Controlla attentamente i modelli piccoli; le misurazioni precedenti provengono da un altro computer.',
     bundledRuntime: 'Su questo dispositivo',
     bundledRuntimeLead:
       'LocaLog porta con sé il proprio motore per scrivere verbali. Serve un modello, scaricato una volta e conservato qui.',
@@ -375,6 +387,8 @@ export const it: Strings = {
     downloadingPreset: (name: string) => `Scaricamento di ${name}`,
     /** Si veda la nota in en.ts. */
     modelDescription: {
+      'qwen3.5-0.8b':
+        'Piccolo modello per sviluppo e test. Qualità dei verbali non valutata; non farvi affidamento per verbali professionali.',
       'gemma4-12b':
         'Il più accurato e il più costante fra i modelli misurati: su tre esecuzioni ha conservato da 27 a 31 delle 35 cifre di una riunione, dove il successivo è sceso a 6. Più lento: circa quattordici minuti per una riunione di ottanta minuti.',
       'ministral-8b':

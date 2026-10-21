@@ -26,6 +26,8 @@
 import type { Strings } from './en';
 
 const failures = {
+  generationModelNeedsMoreMemory:
+    'Este modelo necesita más memoria de la disponible. Elige uno más pequeño.',
   missingProject: 'El proyecto seleccionado ya no existe.',
   missingMeeting: 'La reunión seleccionada ya no existe.',
   missingJob: 'La tarea de importación ya no está disponible.',
@@ -344,6 +346,17 @@ export const es: Strings = {
     european: 'Europeo',
     checkInstalled: 'Comprobar los modelos instalados',
     curatedModels: 'Modelos de acta seleccionados',
+    downloadIntro:
+      'Elige un modelo para este ordenador. Las descargas permanecen aquí; no hace falta otro servicio de IA.',
+    memoryMinimum: (gb: number) => `Clase mínima de RAM: ${gb} GB`,
+    memoryTooSmall: (gb: number) =>
+      `Necesita una clase de RAM de al menos ${gb} GB. La descarga y selección no están disponibles en este ordenador.`,
+    memoryUnknown:
+      'No se pudo detectar la memoria. Comprueba los requisitos de RAM antes de descargar.',
+    memoryTight:
+      'Con 8 GB queda poco margen para reuniones largas. Cierra otras aplicaciones; generar con CPU puede ser lento. El tamaño de descarga no es el uso total de RAM.',
+    qualityCaution:
+      'La memoria suficiente no garantiza la calidad. Revisa los modelos pequeños con cuidado; las mediciones anteriores proceden de otro ordenador.',
     bundledRuntime: 'En este dispositivo',
     bundledRuntimeLead:
       'LocaLog trae su propio motor para redactar actas. Necesita un modelo, descargado una vez y conservado aquí.',
@@ -367,6 +380,8 @@ export const es: Strings = {
     downloadingPreset: (name: string) => `Descargando ${name}`,
     /** Véase la nota en en.ts. */
     modelDescription: {
+      'qwen3.5-0.8b':
+        'Modelo pequeño para desarrollo y pruebas. Calidad de actas no evaluada; no dependas de él para actas profesionales.',
       'gemma4-12b':
         'El más exacto y el más constante de los modelos medidos: en tres ejecuciones conservó de 27 a 31 de las 35 cifras de una reunión, donde el siguiente bajó hasta 6. Más lento: unos catorce minutos para una reunión de ochenta minutos.',
       'ministral-8b':

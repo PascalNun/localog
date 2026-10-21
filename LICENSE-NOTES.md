@@ -22,6 +22,12 @@ Future distribution work must record and review the exact licences, provenance, 
 
 The installed FFmpeg, Whisper, and Ollama environments used by Phase 0 spikes are development evidence only. Their binaries and model files are not included in this repository.
 
+The on-demand generation catalogue uses Apache 2.0 models from Google, Unsloth and
+ggml-org. Model weights are not included in this repository or fetched implicitly.
+See [managed model provenance](docs/MODEL_DOWNLOADS.md) for the pinned revisions.
+Google’s current Gemma 4 card identifies Apache 2.0; earlier Gemma licence labels
+must not be applied to that release.
+
 ## Contributions
 
 Unless explicitly agreed otherwise before submission, contributions are accepted under `GPL-3.0-or-later`, with copyright retained by their respective contributors. See [CONTRIBUTING.md](CONTRIBUTING.md).

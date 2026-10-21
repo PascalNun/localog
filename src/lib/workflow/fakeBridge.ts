@@ -1331,13 +1331,47 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   private fakeTerms: import('./types').ModelTerms[] = [
     {
       modelId: 'gemma4-12b',
+      minimumMemoryGb: 16,
       kind: 'generation',
       byteCount: 6_975_879_296,
-      licence: 'gemma',
-      licenceUrl: 'https://ai.google.dev/gemma/terms',
+      licence: 'apache2',
+      licenceUrl: 'https://www.apache.org/licenses/LICENSE-2.0',
       installed: false,
-      acceptanceRequired: true,
+      acceptanceRequired: false,
       acceptedAtMs: null,
+    },
+    {
+      modelId: 'qwen3.5-4b',
+      kind: 'generation',
+      byteCount: 2740937888,
+      licence: 'apache2',
+      licenceUrl: 'https://www.apache.org/licenses/LICENSE-2.0',
+      installed: false,
+      acceptanceRequired: false,
+      acceptedAtMs: null,
+      minimumMemoryGb: 8,
+    },
+    {
+      modelId: 'ministral-3b',
+      kind: 'generation',
+      byteCount: 2146497824,
+      licence: 'apache2',
+      licenceUrl: 'https://www.apache.org/licenses/LICENSE-2.0',
+      installed: false,
+      acceptanceRequired: false,
+      acceptedAtMs: null,
+      minimumMemoryGb: 8,
+    },
+    {
+      modelId: 'qwen3.5-0.8b',
+      kind: 'generation',
+      byteCount: 833592096,
+      licence: 'apache2',
+      licenceUrl: 'https://www.apache.org/licenses/LICENSE-2.0',
+      installed: false,
+      acceptanceRequired: false,
+      acceptedAtMs: null,
+      minimumMemoryGb: 4,
     },
   ];
 
@@ -1354,6 +1388,12 @@ export class FakeWorkflowBridge implements WorkflowBridge {
       message: 'generationModelNotDownloaded',
       machineMemoryGb: null,
     };
+  }
+
+  async configureGenerationModel(model: string): Promise<import('./types').ProtocolProviderStatus> {
+    if (this.workspaceStore) return this.workspaceStore.configureGenerationModel(model);
+    const status = await this.getGenerationRuntimeStatus();
+    return { ...status, selectedModel: model, active: true };
   }
 
   async getModelTerms(): Promise<import('./types').ModelTerms[]> {

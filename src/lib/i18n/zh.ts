@@ -33,6 +33,7 @@
 import type { Strings } from './en';
 
 const failures = {
+  generationModelNeedsMoreMemory: '此模型所需内存超过此电脑的容量。请选择更小的模型。',
   missingProject: '所选项目已不存在。',
   missingMeeting: '所选会议已不存在。',
   missingJob: '该导入任务已不可用。',
@@ -327,6 +328,13 @@ export const zh: Strings = {
     european: '欧洲出品',
     checkInstalled: '检查已安装的模型',
     curatedModels: '甄选的纪要模型',
+    downloadIntro: '请选择适合此电脑的模型。下载保存在本机，无需单独的 AI 服务。',
+    memoryMinimum: (gb: number) => `最低内存档位：${gb} GB`,
+    memoryTooSmall: (gb: number) => `需要至少 ${gb} GB 的内存档位。此电脑无法下载或选择此模型。`,
+    memoryUnknown: '无法检测内存。下载前请检查模型的内存需求。',
+    memoryTight:
+      '8 GB 电脑处理长会议的余量很小。请关闭其他应用；CPU 生成可能较慢。下载大小不等于总内存用量。',
+    qualityCaution: '内存适合并不保证会议纪要质量。小模型需要仔细审核；之前的测量来自另一台电脑。',
     bundledRuntime: '在本机上',
     bundledRuntimeLead: 'LocaLog 自带撰写会议纪要的引擎。只需一个模型，下载一次即保存在本机。',
     licenceHeading: '下载之前',
@@ -349,6 +357,8 @@ export const zh: Strings = {
     downloadingPreset: (name: string) => `正在下载${name}`,
     /** 参见 en.ts 中的说明。 */
     modelDescription: {
+      'qwen3.5-0.8b':
+        '用于开发和功能测试的小模型。尚未评估会议纪要质量，请勿依赖它生成专业会议记录。',
       'gemma4-12b':
         '在测得的模型中最准确、也最稳定：三次运行保留了会议 35 个数字里的 27 到 31 个，而次优者最少只保留 6 个。速度较慢——80 分钟的会议约需 14 分钟。',
       'ministral-8b':

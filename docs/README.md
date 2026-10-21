@@ -50,3 +50,5 @@ Decisions and measurements are useful because they explain why the project took 
 ## Privacy
 
 Real meeting recordings, transcripts, protocols, names, client information, and local paths do not belong in the public repository. The `eval/` directory is intentionally local-only. Use the synthetic fixtures for tests and examples.
+
+- [Managed model downloads and hardware guidance](MODEL_DOWNLOADS.md): pinned model sources, memory guards, runtime selection and validation limits.

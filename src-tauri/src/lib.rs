@@ -651,7 +651,39 @@ async fn generation_runtime_status(
         let selected = repository
             .read_setting("generation.model")?
             .filter(|value| !value.is_empty());
-        Ok(provider::bundled_status(&root, selected))
+        let mut status = provider::bundled_status(&root, selected.clone());
+        status.active = match repository.read_setting("generation.backend")?.as_deref() {
+            Some("ollama") => false,
+            Some("bundled") => true,
+            _ => selected.is_some() || status.selected_model_ready,
+        };
+        Ok(status)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn configure_generation_model(
+    storage: State<'_, StorageState>,
+    model: String,
+) -> Result<provider::OllamaStatus, String> {
+    let root = storage.root.clone();
+    with_repository(storage.root.clone(), move |repository| {
+        if !models::generation_fits(&model, crate::machine::memory_gb()) {
+            return Err(storage::StorageError::InvalidData(
+                "generationModelNeedsMoreMemory",
+            ));
+        }
+        if models::selected_generation_model(&root, Some(&model), crate::machine::memory_gb())
+            .is_none()
+        {
+            return Err(storage::StorageError::InvalidData(
+                "generationModelNotDownloaded",
+            ));
+        }
+        repository.write_setting("generation.model", &model)?;
+        repository.write_setting("generation.backend", "bundled")?;
+        Ok(provider::bundled_status(&root, Some(model)))
     })
     .await
 }
@@ -690,9 +722,19 @@ async fn accept_model_licence(
 async fn protocol_provider_status(
     storage: State<'_, StorageState>,
 ) -> Result<provider::OllamaStatus, String> {
+    let root = storage.root.clone();
     with_repository(storage.root.clone(), move |repository| {
-        let selected_model = repository.read_setting("generation.ollamaModel")?;
-        Ok(provider::OllamaProvider::loopback().status(selected_model))
+        let selected_model = repository
+            .read_setting("generation.ollamaModel")?
+            .filter(|value| !value.is_empty());
+        let mut status = provider::OllamaProvider::loopback().status(selected_model);
+        let backend = repository.read_setting("generation.backend")?;
+        status.active = backend.as_deref() == Some("ollama")
+            || (backend.is_none()
+                && (models::selected_generation_model(&root, None, crate::machine::memory_gb())
+                    .is_none()
+                    || crate::llama::server_path().is_none()));
+        Ok(status)
     })
     .await
 }
@@ -707,6 +749,12 @@ async fn configure_protocol_provider(
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty());
         if let Some(model_name) = model.as_deref() {
+            if !models::generation_fits(model_name, crate::machine::memory_gb()) {
+                return Err(storage::StorageError::InvalidData(
+                    "generationModelNeedsMoreMemory",
+                ));
+            }
+
             let status = provider::OllamaProvider::loopback().status(None);
             if !status.server_reachable {
                 return Err(storage::StorageError::InvalidData("providerNeededForModel"));
@@ -724,6 +772,7 @@ async fn configure_protocol_provider(
         } else {
             repository.write_setting("generation.ollamaModel", "")?;
         }
+        repository.write_setting("generation.backend", "ollama")?;
         let selected_model = repository
             .read_setting("generation.ollamaModel")?
             .filter(|value| !value.is_empty());
@@ -1907,6 +1956,7 @@ pub fn run() {
             set_recording_edits,
             protocol_provider_status,
             generation_runtime_status,
+            configure_generation_model,
             model_terms,
             accept_model_licence,
             configure_protocol_provider,

@@ -683,11 +683,13 @@ export interface ModelTerms {
   licenceUrl: string;
   installed: boolean;
   acceptanceRequired: boolean;
+  minimumMemoryGb?: number | null;
   /** When these terms were accepted, or null. */
   acceptedAtMs: number | null;
 }
 
 export interface ProtocolProviderStatus {
+  active?: boolean;
   endpoint: string;
   serverReachable: boolean;
   runtimeVersion: string | null;
@@ -848,6 +850,7 @@ export interface WorkflowBridge {
   getProtocolProviderStatus(): Promise<ProtocolProviderStatus>;
   /** What the bundled runtime and its models add up to, without starting anything. */
   getGenerationRuntimeStatus(): Promise<ProtocolProviderStatus>;
+  configureGenerationModel(model: string): Promise<ProtocolProviderStatus>;
   /** Every catalogued model, its terms, and whether they were accepted. */
   getModelTerms(): Promise<ModelTerms[]>;
   acceptModelLicence(modelId: string): Promise<ModelTerms[]>;

@@ -33,7 +33,13 @@ import type { ProtocolProviderModel } from '../workflow/types';
  * a blank card.
  */
 export type GenerationModelId =
-  'gemma4-12b' | 'ministral-8b' | 'qwen3.5-4b' | 'ministral-3b' | 'granite4.1-8b' | 'llama-8b';
+  | 'qwen3.5-0.8b'
+  | 'gemma4-12b'
+  | 'ministral-8b'
+  | 'qwen3.5-4b'
+  | 'ministral-3b'
+  | 'granite4.1-8b'
+  | 'llama-8b';
 
 /** A language a model claims, or `more` for "and many others". */
 export type ModelLanguage = 'de' | 'en' | 'ja' | 'more';
@@ -88,7 +94,7 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     languages: ['de', 'en', 'more'],
     testedLanguages: ['de'],
     origin: 'international',
-    licence: 'gemma',
+    licence: 'apache2',
     status: 'baseline',
   },
   {
@@ -161,6 +167,20 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     licence: 'modelSpecific',
     status: 'planned',
   },
+  {
+    id: 'qwen3.5-0.8b',
+    name: 'Qwen3.5 0.8B',
+    family: 'Qwen3.5',
+    providerNames: ['qwen3.5:0.8b'],
+    tier: 'baseline',
+    minimumMemoryGb: 4,
+    installedGb: null,
+    languages: ['de', 'en', 'more'],
+    testedLanguages: [],
+    origin: 'international',
+    licence: 'apache2',
+    status: 'candidate',
+  },
 ];
 
 export function hardwareTierForMemory(memoryGb: number | null): HardwareTier {
@@ -191,9 +211,8 @@ export function recommendationFor(
   models: ProtocolProviderModel[],
   memoryGb: number | null,
 ): { entry: GenerationModelEntry; installed: ProtocolProviderModel | null } {
-  const tier = hardwareTierForMemory(memoryGb);
   const allowed = GENERATION_MODEL_CATALOG.filter(
-    (entry) => entry.minimumMemoryGb <= (tier === 'baseline' ? 8 : tier === 'standard' ? 16 : 32),
+    (entry) => entry.minimumMemoryGb <= (memoryGb ?? 8),
   );
 
   // Prefer a verified installed model. The catalogue order is what was measured on
@@ -211,7 +230,11 @@ export function recommendationFor(
     .find(({ installed }) => installed !== null);
   if (installed) return installed;
 
-  const fallback = allowed[0] ?? GENERATION_MODEL_CATALOG[0]!;
+  const fallback =
+    allowed[0] ??
+    GENERATION_MODEL_CATALOG.reduce((smallest, entry) =>
+      entry.minimumMemoryGb < smallest.minimumMemoryGb ? entry : smallest,
+    );
   return { entry: fallback, installed: installedProviderModel(fallback, models) };
 }
 

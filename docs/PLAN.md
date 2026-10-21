@@ -13,6 +13,16 @@ Linux window chrome now extends the app surfaces to the top edge with compact
 minimize, maximize/restore and close controls, native dragging and eight resize
 edges. Browser previews and the macOS/Windows frame choices remain platform-specific.
 
+## Model setup — 21 October 2026
+
+The managed download screen now exposes four verified entries, with per-model RAM
+requirements, small-model quality cautions and native guards against oversized
+managed downloads/selections. Runtime/model choices are persisted and respected;
+Ollama no longer loses to the first installed managed file. Download completion
+refreshes installed state. See [managed model details](MODEL_DOWNLOADS.md) for
+pinned sources, scope and validation limits. No model weights were downloaded or
+inference benchmark performed on the Surface.
+
 ## Linux development — 20–21 October 2026
 
 The Omarchy development checkout now works without requiring every AI sidecar
