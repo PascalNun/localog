@@ -9,6 +9,10 @@ product entries were last reviewed on 29 August 2026. The interface-language ent
 true" was checked against the code and rewritten; the rest was read rather than
 re-verified.
 
+Linux window chrome now extends the app surfaces to the top edge with compact
+minimize, maximize/restore and close controls, native dragging and eight resize
+edges. Browser previews and the macOS/Windows frame choices remain platform-specific.
+
 ## Linux development — 20–21 October 2026
 
 The Omarchy development checkout now works without requiring every AI sidecar

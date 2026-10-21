@@ -14,8 +14,12 @@ describe('resolveWindowChrome', () => {
     );
   });
 
-  it('keeps other desktop platforms on standard window chrome', () => {
+  it('keeps Windows on standard window chrome', () => {
     expect(resolveWindowChrome('Mozilla/5.0 (Windows NT 10.0; Win64; x64)', true)).toBe('standard');
-    expect(resolveWindowChrome('Mozilla/5.0 (X11; Linux x86_64)', true)).toBe('standard');
+  });
+  it('integrates controls only in native desktop Linux', () => {
+    expect(resolveWindowChrome('Mozilla/5.0 (X11; Linux x86_64)', true)).toBe('linux-integrated');
+    expect(resolveWindowChrome('Mozilla/5.0 (X11; Linux x86_64)', false)).toBe('standard');
+    expect(resolveWindowChrome('Mozilla/5.0 (Linux; Android 15)', true)).toBe('standard');
   });
 });

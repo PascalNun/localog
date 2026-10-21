@@ -1205,6 +1205,13 @@ export const it: Strings = {
       `Si applica a tutti i verbali di ${project}. Si ripete sulla pagina stampata e non fa parte del documento che sta modificando.`,
   },
 
+  window: {
+    minimize: 'Riduci finestra',
+    maximize: 'Ingrandisci finestra',
+    restore: 'Ripristina finestra',
+    close: 'Chiudi finestra',
+    actionFailed: 'L’azione sulla finestra non è riuscita. Riprova.',
+  },
   shell: {
     breadcrumbMeeting: 'Riunione',
     breadcrumbRecording: 'Registrazione',

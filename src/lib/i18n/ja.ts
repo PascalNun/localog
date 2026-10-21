@@ -1169,6 +1169,13 @@ export const ja: Strings = {
       `${project}のすべての議事録に適用されます。印刷されたページで繰り返され、いま編集している文書の一部ではありません。`,
   },
 
+  window: {
+    minimize: 'ウィンドウを最小化',
+    maximize: 'ウィンドウを最大化',
+    restore: 'ウィンドウを元に戻す',
+    close: 'ウィンドウを閉じる',
+    actionFailed: 'ウィンドウの操作に失敗しました。もう一度お試しください。',
+  },
   shell: {
     breadcrumbMeeting: '会議',
     breadcrumbRecording: '録音',

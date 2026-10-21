@@ -13,6 +13,7 @@
   import RecordingView from './lib/components/RecordingView.svelte';
   import TranscriptView from './lib/components/TranscriptView.svelte';
   import Icon from './lib/components/Icon.svelte';
+  import WindowControls from './lib/components/WindowControls.svelte';
   import {
     DEFAULT_APPEARANCE,
     EMPTY_FURNITURE,
@@ -55,6 +56,8 @@
     TranscriptionRuntimeStatus,
     AppliedCorrection,
   } from './lib/workflow/types';
+
+  let windowChrome: ReturnType<typeof resolveWindowChrome> = 'standard';
 
   /// Whether this is the desktop shell rather than a browser preview. A browser can
   /// fall back to a download; the desktop shell blocks it, so a failure there has to
@@ -313,11 +316,9 @@
   });
 
   onMount(() => {
-    // Native overlay spacing belongs only to Tauri on macOS, never to browser previews or other OSes.
-    document.documentElement.dataset.windowChrome = resolveWindowChrome(
-      navigator.userAgent,
-      '__TAURI_INTERNALS__' in window,
-    );
+    windowChrome = resolveWindowChrome(navigator.userAgent, '__TAURI_INTERNALS__' in window);
+
+    document.documentElement.dataset.windowChrome = windowChrome;
 
     sidebarWidth = parseStoredSidebarWidth(localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
 
@@ -669,6 +670,7 @@
 
 <a class="skip-link" href="#main-content">{$t.shell.skipToWorkspace}</a>
 <div class="app-shell" style={`--sidebar-width: ${sidebarWidth}px`}>
+  {#if windowChrome === 'linux-integrated'}<WindowControls />{/if}
   <div class="window-drag-region" data-tauri-drag-region aria-hidden="true"></div>
   {#if snapshot}
     <Sidebar

@@ -1102,6 +1102,13 @@ export const zh: Strings = {
       `适用于${project}中的所有纪要。它在打印页上重复出现，不属于您正在编辑的文档。`,
   },
 
+  window: {
+    minimize: '最小化窗口',
+    maximize: '最大化窗口',
+    restore: '还原窗口',
+    close: '关闭窗口',
+    actionFailed: '窗口操作失败，请重试。',
+  },
   shell: {
     breadcrumbMeeting: '会议',
     breadcrumbRecording: '录音',

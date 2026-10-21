@@ -1156,6 +1156,13 @@ export const ko: Strings = {
       `${project}의 모든 회의록에 적용됩니다. 인쇄된 페이지마다 되풀이되며, 지금 편집하고 계신 문서의 일부가 아닙니다.`,
   },
 
+  window: {
+    minimize: '창 최소화',
+    maximize: '창 최대화',
+    restore: '창 복원',
+    close: '창 닫기',
+    actionFailed: '창 작업에 실패했습니다. 다시 시도하세요.',
+  },
   shell: {
     breadcrumbMeeting: '회의',
     breadcrumbRecording: '녹음',

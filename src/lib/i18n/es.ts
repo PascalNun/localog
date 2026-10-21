@@ -1188,6 +1188,13 @@ export const es: Strings = {
       `Se aplica a todas las actas de ${project}. Se repite en la página impresa y no forma parte del documento que está editando.`,
   },
 
+  window: {
+    minimize: 'Minimizar ventana',
+    maximize: 'Maximizar ventana',
+    restore: 'Restaurar ventana',
+    close: 'Cerrar ventana',
+    actionFailed: 'La acción de la ventana falló. Inténtalo de nuevo.',
+  },
   shell: {
     breadcrumbMeeting: 'Reunión',
     breadcrumbRecording: 'Grabación',

@@ -1324,6 +1324,13 @@ export const en = {
       `Applies to every protocol in ${project}. It repeats on the printed page and is not part of the document you are editing.`,
   },
 
+  window: {
+    minimize: 'Minimize window',
+    maximize: 'Maximize window',
+    restore: 'Restore window',
+    close: 'Close window',
+    actionFailed: 'The window action failed. Try again.',
+  },
   shell: {
     breadcrumbMeeting: 'Meeting',
     breadcrumbRecording: 'Recording',

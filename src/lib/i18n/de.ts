@@ -1229,6 +1229,13 @@ export const de: Strings = {
       `Gilt für jedes Protokoll in ${project}. Sie wiederholt sich auf der gedruckten Seite und gehört nicht zu dem Dokument, das Sie bearbeiten.`,
   },
 
+  window: {
+    minimize: 'Fenster minimieren',
+    maximize: 'Fenster maximieren',
+    restore: 'Fenster wiederherstellen',
+    close: 'Fenster schließen',
+    actionFailed: 'Die Fensteraktion ist fehlgeschlagen. Versuche es erneut.',
+  },
   shell: {
     breadcrumbMeeting: 'Besprechung',
     breadcrumbRecording: 'Aufnahme',

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "LocaLog",
+        "width": 1440,
+        "height": 940,
+        "minWidth": 760,
+        "minHeight": 680,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": false
+      }
+    ]
+  }
+}

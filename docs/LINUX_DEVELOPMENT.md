@@ -96,3 +96,16 @@ produce Linux packages. Keeping it separate from Tauri's automatically loaded
 Compiling a package does not establish recording, playback, printing or model
 quality on a desktop. Validate those separately with synthetic material and record
 any untested paths in the current plan.
+
+## Window frame
+
+`tauri.linux.conf.json` is the automatically merged Linux window override for both
+development and release builds. It removes the separate OS title bar. Compact
+app-owned controls provide minimize, maximize/restore and close, with a draggable
+top region and resize edges for floating desktops. The release-only sidecar and
+packaging configuration remains in `tauri.linux-bundle.conf.json`.
+
+Window-frame validation: native Linux launch, light/dark screenshots at 1280px
+and 800px, keyboard focus and simulated Tauri calls for all three controls,
+dragging and corner resizing. Actual window-manager behavior on GNOME/KDE has
+not been checked on this Hyprland machine.

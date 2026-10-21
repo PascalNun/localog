@@ -4849,3 +4849,114 @@ button.review-summary[aria-pressed='true'] {
   font-size: 0.78rem;
   line-height: 1.5;
 }
+
+/* Linux draws controls over the existing surfaces, without a separate title bar. */
+.linux-window-drag {
+  position: fixed;
+  z-index: 32;
+  top: 0;
+  left: 6px;
+  right: 120px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.linux-window-controls {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  right: 6px;
+  display: flex;
+}
+.linux-window-controls button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--workspace);
+  color: var(--muted);
+}
+.linux-window-controls button:hover {
+  background: var(--sidebar);
+  color: var(--ink);
+}
+.linux-window-controls .window-close:hover {
+  background: var(--ink);
+  color: var(--workspace);
+}
+.linux-window-controls svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+.window-resize-edge {
+  position: fixed;
+  z-index: 51;
+}
+.edge-North,
+.edge-South {
+  left: 8px;
+  right: 8px;
+  height: 5px;
+  cursor: ns-resize;
+}
+.edge-North {
+  top: 0;
+}
+.edge-South {
+  bottom: 0;
+}
+.edge-East,
+.edge-West {
+  top: 8px;
+  bottom: 8px;
+  width: 5px;
+  cursor: ew-resize;
+}
+.edge-East {
+  right: 0;
+}
+.edge-West {
+  left: 0;
+}
+.edge-NorthEast,
+.edge-NorthWest,
+.edge-SouthEast,
+.edge-SouthWest {
+  width: 8px;
+  height: 8px;
+}
+.edge-NorthEast {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+.edge-NorthWest {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+.edge-SouthEast {
+  bottom: 0;
+  right: 0;
+  cursor: nwse-resize;
+}
+.edge-SouthWest {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+@media (max-width: 900px) {
+  :root[data-window-chrome='linux-integrated'] .mobile-topbar {
+    height: 88px;
+    padding-top: 32px;
+  }
+  :root[data-window-chrome='linux-integrated'] .workspace {
+    height: calc(100% - 88px);
+  }
+}

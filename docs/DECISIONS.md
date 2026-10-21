@@ -51,6 +51,10 @@ Status words:
 25. D-014’s original “discover installed models only” rule is superseded. Known transcription and diarisation models may be downloaded on demand with explicit user consent, HTTPS verification, checksums, atomic installation, and no silent acquisition. A model marketplace is not part of the product.
 26. Reproducibility means recording provenance and resolved inputs, not promising byte-identical model output.
 
+### Desktop window chrome
+
+- macOS retains its native overlay controls. Linux uses an undecorated window with compact, translated app-owned window controls over the existing surfaces, plus native drag and resize operations. This avoids a separate title-bar band while remaining usable on floating desktops. Windows retains its native frame, and browser previews retain normal browser chrome.
+
 ### Scope and distribution
 
 27. App-managed working storage is approved for v0.1, with documented locations and explicit exports. Backup/restore remains part of v0.1 hardening and a portable project bundle remains a later possibility.

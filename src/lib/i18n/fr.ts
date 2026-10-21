@@ -1215,6 +1215,13 @@ export const fr: Strings = {
       `S’applique à tous les comptes rendus de ${project}. Cela se répète sur la page imprimée et ne fait pas partie du document que vous modifiez.`,
   },
 
+  window: {
+    minimize: 'Réduire la fenêtre',
+    maximize: 'Agrandir la fenêtre',
+    restore: 'Restaurer la fenêtre',
+    close: 'Fermer la fenêtre',
+    actionFailed: 'L’action sur la fenêtre a échoué. Réessayez.',
+  },
   shell: {
     breadcrumbMeeting: 'Réunion',
     breadcrumbRecording: 'Enregistrement',

@@ -41,7 +41,7 @@ The slim project sidebar stays visible on larger windows. It contains:
 - settings;
 - one quiet status line for background work.
 
-The central workspace holds the current task. The sidebar can be resized, and on compact windows it becomes an overlay with an obvious open/close control. On macOS the surfaces extend beneath the native title-bar controls; the application must not draw its own fake traffic lights.
+The central workspace holds the current task. The sidebar can be resized, and on compact windows it becomes an overlay with an obvious open/close control. On macOS the surfaces extend beneath the native title-bar controls; the application must not draw its own fake traffic lights. On Linux, the surfaces likewise reach the top edge, with compact app-owned minimize, maximize/restore and close controls, a draggable top region, and resize edges. Windows retains its native frame.
 
 The interface should not reserve a permanent empty inspector. An inspector appears only when the current task benefits from extra context and can be dismissed without losing work.
 
