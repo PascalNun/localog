@@ -546,7 +546,7 @@ struct ChatChoice {
 #[derive(Debug, Default, Deserialize)]
 struct ChatDelta {
     #[serde(default)]
-    content: String,
+    content: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -885,17 +885,22 @@ impl OllamaProvider {
         cancelled: &AtomicBool,
         progress: &mut dyn FnMut(u64, &str) -> Result<()>,
     ) -> Result<String> {
-        let runtime_version = self.version()?;
-        if runtime_version != request.runtime_version {
-            return Err(ProviderError::RuntimeChanged);
-        }
-        let model = self
-            .installed_models()?
-            .into_iter()
-            .find(|model| model.name == request.model)
-            .ok_or_else(|| ProviderError::ModelMissing(request.model.clone()))?;
-        if model.digest != request.model_digest {
-            return Err(ProviderError::ModelChanged);
+        // Ollama is a user-managed daemon whose model/runtime may change between
+        // queuing and execution. The bundled server was just started with the
+        // selected model; it does not implement Ollama's discovery endpoints.
+        if self.backend == Backend::Ollama {
+            let runtime_version = self.version()?;
+            if runtime_version != request.runtime_version {
+                return Err(ProviderError::RuntimeChanged);
+            }
+            let model = self
+                .installed_models()?
+                .into_iter()
+                .find(|model| model.name == request.model)
+                .ok_or_else(|| ProviderError::ModelMissing(request.model.clone()))?;
+            if model.digest != request.model_digest {
+                return Err(ProviderError::ModelChanged);
+            }
         }
         progress(18, "resolving_protocol_inputs")?;
 
@@ -1993,7 +1998,7 @@ impl OllamaProvider {
                         });
                         let finish = choice.finish_reason.unwrap_or_default();
                         StreamChunk {
-                            response: choice.delta.content,
+                            response: choice.delta.content.unwrap_or_default(),
                             thinking: String::new(),
                             done: !finish.is_empty(),
                             done_reason: finish,
@@ -4853,10 +4858,61 @@ mod against_a_chat_completions_server {
     use std::net::TcpListener;
     use std::thread;
 
+    #[test]
+    fn bundled_generation_does_not_query_ollama_discovery_endpoints() {
+        let provider = OllamaProvider::llama_at("http://127.0.0.1:1".into());
+        let mut request = super::tests::synthetic_request(1, 100_000);
+        request.maximum_output_tokens = 1;
+        let result = provider.generate(&request, &AtomicBool::new(false), &mut |_, _| Ok(()));
+        assert!(
+            matches!(result, Err(ProviderError::BeyondOneAnswer { .. })),
+            "{result:?}"
+        );
+    }
+
+    #[test]
+    #[ignore = "requires a local GGUF model and bundled llama-server"]
+    fn generates_a_protocol_with_the_real_bundled_engine() {
+        let model = std::env::var_os("LOCALOG_SMOKE_GGUF").expect("set LOCALOG_SMOKE_GGUF");
+        let server = crate::llama::start(&crate::llama::ServerRequest {
+            model: model.into(),
+            context_tokens: 16384,
+            gpu_layers: Some(0),
+        })
+        .expect("the bundled server starts");
+        let provider = OllamaProvider::llama_at(server.base_url().to_string());
+        let mut request = super::tests::synthetic_request(1, 1);
+        request.meeting_language = "English".into();
+        request.transcript[0].text = "Anna and Ben reviewed the office renovation. They agreed to use warm white paint. Ben will request two supplier quotes by Friday. Anna will confirm the delivery date. The budget limit is 1200 euros. No decision was made about the flooring.".into();
+        request.context_tokens = 16384;
+        request.maximum_output_tokens = 1024;
+        let workspace = tempfile::tempdir().unwrap();
+        let repository = crate::storage::WorkspaceRepository::open(workspace.path()).unwrap();
+        let style = repository.protocol_inputs_style("style-formal");
+        request.style = GenerationStyle {
+            id: style.id,
+            revision: style.revision,
+            density: style.density,
+            instructions: style.instructions,
+            expectations: style.expectations,
+        };
+        let answer = provider
+            .generate(&request, &AtomicBool::new(false), &mut |_, stage| {
+                println!("{stage}");
+                Ok(())
+            })
+            .expect("a protocol is generated");
+        assert!(!answer.trim().is_empty());
+        assert!(answer.contains("Friday"), "the assigned deadline survives");
+        println!("Generated {} characters", answer.len());
+    }
+
     /// A stream that arrives the way `llama-server` actually sends one: a `data:`
     /// line per record, blank lines between them, and `[DONE]` at the end.
     fn sse_body() -> String {
         [
+            "data: {\"choices\":[{\"delta\":{\"role\":\"assistant\",\"content\":null}}]}",
+            "",
             "data: {\"choices\":[{\"delta\":{\"content\":\"## Protokoll\"}}]}",
             "",
             "data: {\"choices\":[{\"delta\":{\"content\":\"\\n\\nEs wurde \"}}]}",

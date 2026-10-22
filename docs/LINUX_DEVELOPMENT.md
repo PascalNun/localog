@@ -143,3 +143,13 @@ can exceed a tiler's allocation (for example, a 1354 × 431 tile), causing the
 compositor to compress the surface instead of letting CSS adapt. Short windows
 also use tighter vertical spacing; the workspace and navigation scroll. Narrow
 windows keep the existing overlay navigation and single-column layouts.
+
+## Transcript playback
+
+WebKitGTK can reject media through Tauri's `asset:` scheme even with the audio
+plugins installed ([upstream issue](https://github.com/tauri-apps/tauri/issues/3725)).
+Linux therefore streams working WAV files through an app-owned IPv4 loopback
+listener. Only repository-resolved files allowed by the existing asset scope are
+registered, behind opaque URLs. GET/HEAD and byte ranges support playback and
+seeking with disk streaming rather than recording-sized frontend buffers. The
+listener exists only for the app process; no login service is installed.

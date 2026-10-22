@@ -3,6 +3,9 @@ mod e2e_harness;
 #[cfg(test)]
 mod eval_harness;
 
+#[cfg(target_os = "linux")]
+mod audio_stream;
+
 mod backup;
 mod clustering;
 mod corrections;
@@ -386,6 +389,7 @@ async fn cancel_transcription_download(
 #[serde(rename_all = "camelCase")]
 struct MeetingAudio {
     path: String,
+    source: Option<String>,
     duration_ms: Option<i64>,
 }
 
@@ -394,6 +398,7 @@ struct MeetingAudio {
 /// Returns null until working audio exists.
 #[tauri::command]
 async fn meeting_audio(
+    app: AppHandle,
     storage: State<'_, StorageState>,
     meeting_id: String,
 ) -> Result<Option<MeetingAudio>, String> {
@@ -417,7 +422,20 @@ async fn meeting_audio(
         if !absolute.is_file() {
             return Ok(None);
         }
+        #[cfg(target_os = "linux")]
+        let source = {
+            if !app.asset_protocol_scope().is_allowed(&absolute) {
+                return Err(storage::StorageError::InvalidData("meetingInvalid"));
+            }
+            Some(app.state::<audio_stream::AudioStream>().register(&absolute))
+        };
+        #[cfg(not(target_os = "linux"))]
+        let source = {
+            let _ = &app;
+            None
+        };
         Ok(Some(MeetingAudio {
+            source,
             path: absolute.to_string_lossy().into_owned(),
             duration_ms,
         }))
@@ -1937,6 +1955,8 @@ pub fn run() {
             app.manage(StorageState { root });
             app.manage(JobCoordinatorState::default());
             app.manage(RecordingState::default());
+            #[cfg(target_os = "linux")]
+            app.manage(audio_stream::AudioStream::start()?);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

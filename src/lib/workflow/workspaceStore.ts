@@ -609,16 +609,17 @@ class TauriWorkspaceStore implements WorkspaceStore {
   }
 
   async getMeetingAudio(meetingId: string): Promise<MeetingAudio | null> {
-    const found = await invoke<{ path: string; durationMs: number | null } | null>(
-      'meeting_audio',
-      {
-        meetingId,
-      },
-    );
+    const found = await invoke<{
+      path: string;
+      source?: string | null;
+      durationMs: number | null;
+    } | null>('meeting_audio', {
+      meetingId,
+    });
     if (!found) return null;
-    // The asset protocol streams the file with range requests instead of
-    // holding a long recording in memory.
-    return { source: convertFileSrc(found.path), durationMs: found.durationMs };
+    // Linux supplies a loopback streaming URL because WebKitGTK cannot play
+    // custom-scheme media reliably. Other hosts retain the asset protocol.
+    return { source: found.source ?? convertFileSrc(found.path), durationMs: found.durationMs };
   }
 
   getTranscriptionCapability(): Promise<TranscriptionCapability> {

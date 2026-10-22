@@ -26,6 +26,7 @@ tauri-plugin-dialog = "2.7.2"
 # path still uses plain HTTP; TLS exists here only for fetching models.
 ureq = { version = "3.3.0", default-features = false, features = ["json", "rustls"] }
 uuid = { version = "1", features = ["v7"] }
+tiny_http = "0.12"
 
 [dev-dependencies]
 tempfile = "3.27.0"
