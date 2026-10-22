@@ -13,11 +13,18 @@ platform; an Apple target is not required on Linux.
 On Arch Linux / Omarchy, install the desktop build dependencies:
 
 ```sh
-omarchy pkg add base-devel webkit2gtk-4.1 openssl librsvg pkgconf libpulse
+omarchy pkg add base-devel webkit2gtk-4.1 openssl librsvg pkgconf libpulse gst-plugins-base gst-plugins-good
 ```
 
 On Debian / Ubuntu, use the desktop packages listed in
 `.github/workflows/linux.yml`. Tauri 2 requires WebKitGTK **4.1**, not 4.0.
+Audio playback also requires `gstreamer1.0-plugins-base` and
+`gstreamer1.0-plugins-good` (included as dependencies of the Debian bundle).
+These are needed by WebKit's audio player even though import/transcription use
+the separate FFmpeg sidecar. Without `autoaudiosink`, WebKit can abort when the
+transcript audio player opens, leaving a blank native window. On Arch, verify
+`gst-inspect-1.0 autoaudiosink` and `gst-inspect-1.0 pulsesink` both succeed before
+testing playback. After installing missing plugins, restart the native app.
 
 ## Run the application
 

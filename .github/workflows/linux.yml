@@ -46,7 +46,8 @@ jobs:
             libayatana-appindicator3-dev build-essential curl wget file libssl-dev \
             cmake ninja-build pkg-config \
             libopus-dev nasm \
-            libasound2-dev libpulse-dev
+            libasound2-dev libpulse-dev \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good
 
       # The FFmpeg sidecar links libopus statically on purpose, so the binary
       # carries no dependency on the machine that built it. Prove the archive is
