@@ -385,18 +385,20 @@ export class FakeWorkflowBridge implements WorkflowBridge {
           furniture: EMPTY_FURNITURE,
         };
     this.snapshot.projects = [...this.snapshot.projects, project];
-    // The durable path stores these inside the same transaction that makes the
-    // project; here they are saved after it, which is the closest this can get and
-    // is what keeps the browser preview showing what the application would.
-    for (const named of input.names) {
-      await this.saveVocabularyEntry({
-        id: null,
-        term: named.term,
-        category: named.category,
-        scope: 'Project',
-        projectId: project.id,
-        enabled: true,
-      });
+    if (this.workspaceStore) {
+      // Native creation already commits the project and its names atomically.
+      if (input.names.length > 0) await this.loadDurableWorkspace(this.workspaceStore);
+    } else {
+      for (const named of input.names) {
+        await this.saveVocabularyEntry({
+          id: null,
+          term: named.term,
+          category: named.category,
+          scope: 'Project',
+          projectId: project.id,
+          enabled: true,
+        });
+      }
     }
     this.emit();
     return structuredClone(project);

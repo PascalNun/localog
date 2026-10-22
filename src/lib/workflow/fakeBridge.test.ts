@@ -196,6 +196,51 @@ describe('FakeWorkflowBridge', () => {
     expect((await bridge.getSnapshot()).projects).toEqual([persistedProject, createdProject]);
   });
 
+  it('does not save project names twice after the native transaction', async () => {
+    const project: ProjectSummary = {
+      id: 'project-with-names',
+      name: 'Synthetic project',
+      description: '',
+      meetingCount: 0,
+      defaultLanguage: '',
+      defaultStyleId: 'style-formal',
+      appearance: DEFAULT_APPEARANCE,
+      furniture: EMPTY_FURNITURE,
+    };
+    const vocabulary = [
+      {
+        id: 'native-name',
+        term: 'Anna',
+        category: 'Person',
+        scope: 'Project' as const,
+        projectId: project.id,
+        enabled: true,
+      },
+    ];
+    const store = mockStore({
+      loadWorkspace: vi
+        .fn<WorkspaceStore['loadWorkspace']>()
+        .mockResolvedValueOnce(emptyWorkspace)
+        .mockResolvedValue({ ...emptyWorkspace, projects: [project], vocabulary }),
+      createProject: vi.fn<WorkspaceStore['createProject']>().mockResolvedValue(project),
+      saveVocabularyEntry: vi
+        .fn<WorkspaceStore['saveVocabularyEntry']>()
+        .mockRejectedValue('duplicateTerm'),
+    });
+    const bridge = new FakeWorkflowBridge({ workspaceStore: store });
+    await expect(
+      bridge.createProject({
+        name: project.name,
+        description: '',
+        defaultLanguage: '',
+        names: [{ term: 'Anna', category: 'Person' }],
+      }),
+    ).resolves.toEqual(project);
+    expect(store.createProject).toHaveBeenCalledOnce();
+    expect(store.saveVocabularyEntry).not.toHaveBeenCalled();
+    expect((await bridge.getSnapshot()).vocabulary).toEqual(vocabulary);
+  });
+
   it('reports a bounded native-workspace startup failure', async () => {
     const store = mockStore({
       loadWorkspace: vi

@@ -736,7 +736,7 @@ impl WorkspaceRepository {
         let name = required_text(&input.name, 200, "projectNameRequired")?;
         let description = optional_text(&input.description, 2_000, "descriptionTooLong")?;
         let default_language =
-            required_text(&input.default_language, 64, "meetingLanguageInvalid")?;
+            optional_text(&input.default_language, 64, "meetingLanguageInvalid")?;
 
         // Every name is validated before anything at all is written. A term too long
         // or a category missing must not leave behind a project the person then has
@@ -813,7 +813,7 @@ impl WorkspaceRepository {
             title_from_source(&source_name)
         };
         let occurred_at = meeting_date(&input.occurred_at)?;
-        let language = required_text(&input.language, 64, "meetingLanguageInvalid")?;
+        let language = optional_text(&input.language, 64, "meetingLanguageInvalid")?;
         let style_id = required_text(&input.style_id, 128, "styleInvalid")?;
         let source_path = if to_record {
             String::new()
@@ -885,7 +885,7 @@ impl WorkspaceRepository {
 
     pub fn update_meeting_language(&self, meeting_id: &str, language: &str) -> Result<()> {
         let meeting_id = required_text(meeting_id, 128, "meetingInvalid")?;
-        let language = required_text(language, 64, "meetingLanguageRequired")?;
+        let language = optional_text(language, 64, "meetingLanguageRequired")?;
         let updated = self.connection.execute(
             "UPDATE meetings SET language = ?1, updated_at_ms = ?2 WHERE id = ?3",
             params![language, unix_time_millis(), meeting_id],
@@ -4156,6 +4156,37 @@ mod tests {
     }
 
     #[test]
+    fn automatic_language_survives_project_and_meeting_creation() {
+        let temporary = tempdir().unwrap();
+        let source = synthetic_source(temporary.path());
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let project = repository
+            .create_project(NewProjectInput {
+                default_language: "  ".into(),
+                ..project_input()
+            })
+            .unwrap();
+        assert_eq!(project.default_language, "");
+        let mut input = meeting_input(&project.id, &source);
+        input.language = "  ".into();
+        let meeting = repository.create_meeting(input).unwrap();
+        assert_eq!(meeting.language, "");
+        repository
+            .update_meeting_language(&meeting.id, "German")
+            .unwrap();
+        repository
+            .update_meeting_language(&meeting.id, "  ")
+            .unwrap();
+        drop(repository);
+        let reopened = WorkspaceRepository::open(temporary.path())
+            .unwrap()
+            .workspace_snapshot()
+            .unwrap();
+        assert_eq!(reopened.projects[0].default_language, "");
+        assert_eq!(reopened.meetings[0].language, "");
+    }
+
+    #[test]
     fn project_and_meeting_survive_repository_reopen() {
         let temporary = tempdir().unwrap();
         let source = synthetic_source(temporary.path());
@@ -4247,7 +4278,7 @@ mod tests {
             .update_meeting_language(&meeting.id, "German")
             .unwrap();
         assert!(matches!(
-            repository.update_meeting_language(&meeting.id, " "),
+            repository.update_meeting_language(&meeting.id, &"x".repeat(65)),
             Err(StorageError::InvalidData(_))
         ));
         drop(repository);
