@@ -20,8 +20,11 @@ requirements, small-model quality cautions and native guards against oversized
 managed downloads/selections. Runtime/model choices are persisted and respected;
 Ollama no longer loses to the first installed managed file. Download completion
 refreshes installed state. See [managed model details](MODEL_DOWNLOADS.md) for
-pinned sources, scope and validation limits. No model weights were downloaded or
-inference benchmark performed on the Surface.
+pinned sources, scope and validation limits. The initial catalogue change downloaded no weights. A later Ministral 3B
+installation and short inference check on 22 October exposed a CPU-incompatible
+imported sidecar. A portable rebuild of the pinned engine fixed it; see
+[Linux development](LINUX_DEVELOPMENT.md#cpu-compatible-generation-engine).
+Professional quality and long-meeting speed remain unmeasured.
 
 ## Linux development — 20–21 October 2026
 

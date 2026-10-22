@@ -109,3 +109,22 @@ Window-frame validation: native Linux launch, light/dark screenshots at 1280px
 and 800px, keyboard focus and simulated Tauri calls for all three controls,
 dragging and corner resizing. Actual window-manager behavior on GNOME/KDE has
 not been checked on this Hyprland machine.
+
+## CPU-compatible generation engine
+
+A real Ministral 3B load on the Surface exposed a limit of the imported release
+sidecar: `--version` worked, but the CPU backend raised SIGILL while loading the
+model. GDB stopped on the GPR-to-vector `vpbroadcastq` instruction, an AVX-512 form
+unavailable on this AVX2 CPU. This was not a model checksum or out-of-memory fault.
+
+`build-llama-sidecar.sh` now sets `GGML_NATIVE=OFF`, so a release build does not
+inherit newer instructions from its build host. The pinned x86 build keeps AVX2,
+FMA and F16C enabled; this does not promise support for pre-AVX2 machines. It also
+sets `LLAMA_BUILD_UI=OFF`: LocaLog supplies the interface, so the inference sidecar
+does not need to build or fetch the server's separate web UI.
+
+Validated on 22 October 2026 by building the exact pinned source on the Surface
+and loading the verified Ministral 3B Q4_K_M file with the same 16,384-token
+context setting used by LocaLog. The server became ready after 17.7 seconds and
+returned `BEREIT.` for a synthetic German prompt. This is a load/completion smoke
+test, not a professional-protocol quality or long-meeting benchmark.

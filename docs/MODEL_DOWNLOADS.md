@@ -55,3 +55,17 @@ HTTP 200 with the catalogued content length using HEAD requests. Light/dark
 layouts at 1280px and 800px showed every managed option and the disabled oversized
 model. Component action spies checked download and installed-model selection
 without fetching weights. Full inference and GNOME/KDE behavior remain untested.
+
+## First Surface inference check — 22 October 2026
+
+Ministral 3B Q4_K_M was installed into app-managed storage and verified against its
+catalogued size and SHA-256. The imported development engine raised SIGILL in its
+CPU backend; rebuilding the same pinned revision with `GGML_NATIVE=OFF` fixed it.
+See [Linux development](LINUX_DEVELOPMENT.md#cpu-compatible-generation-engine).
+
+With a 16,384-token context the rebuilt server became ready in 17.7 seconds. A
+synthetic German instruction returned `BEREIT.` after 43.2 seconds including prompt
+processing (546 input tokens from the chat template, 5 output tokens). Peak RSS
+was about 4.3 GiB. This confirms one local model load/completion, not practical
+long-meeting speed or professional protocol quality. The server was stopped after
+the check; the application starts it only when generating.

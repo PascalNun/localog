@@ -77,13 +77,19 @@ build_dir="$source_dir/build-localog-$target_triple"
 # Homebrew's, at a path no other Mac has, and the check at the end of this script
 # is what caught it. Nothing here needs TLS: the only thing that ever talks to
 # this server is the application on the same machine, over the loopback.
+# LocaLog supplies its own interface; do not build or fetch the server web UI.
+# Release binaries must not inherit AVX-512 or other instructions from the build
+# host. The prebuilt sidecar passed --version on an AVX2 Surface but raised
+# SIGILL in the CPU backend as soon as it loaded a model.
 cmake -S "$source_dir" -B "$build_dir" \
   -DCMAKE_BUILD_TYPE=Release \
+  -DGGML_NATIVE=OFF \
   -DBUILD_SHARED_LIBS=OFF \
   -DLLAMA_BUILD_TESTS=OFF \
   -DLLAMA_BUILD_EXAMPLES=OFF \
   -DLLAMA_BUILD_TOOLS=ON \
   -DLLAMA_BUILD_SERVER=ON \
+  -DLLAMA_BUILD_UI=OFF \
   -DLLAMA_CURL=OFF \
   -DLLAMA_OPENSSL=OFF \
   "$metal_flag"
