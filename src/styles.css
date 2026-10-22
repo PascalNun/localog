@@ -4960,3 +4960,35 @@ button.review-summary[aria-pressed='true'] {
     height: calc(100% - 88px);
   }
 }
+
+/* Tiled windows can be wide but only a few hundred pixels tall. Keep the
+   navigation usable and give the workspace its own scrolling area. */
+@media (max-height: 600px) {
+  .sidebar {
+    padding-top: 16px;
+    padding-bottom: 12px;
+  }
+  .wordmark {
+    margin-top: 20px;
+    margin-bottom: 20px;
+  }
+  .sidebar-nav {
+    gap: 20px;
+  }
+  .sidebar-footer {
+    padding-top: 10px;
+  }
+  .workspace {
+    padding-top: 36px;
+    padding-bottom: 28px;
+  }
+  .workspace-header {
+    margin-bottom: 24px;
+  }
+  .start-hero h1 {
+    font-size: 2.8rem;
+  }
+  .hero-copy {
+    margin-bottom: 24px;
+  }
+}

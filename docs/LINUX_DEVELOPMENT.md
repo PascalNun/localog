@@ -135,3 +135,11 @@ and loading the verified Ministral 3B Q4_K_M file with the same 16,384-token
 context setting used by LocaLog. The server became ready after 17.7 seconds and
 returned `BEREIT.` for a synthetic German prompt. This is a load/completion smoke
 test, not a professional-protocol quality or long-meeting benchmark.
+
+## Tiled windows
+
+The Linux window minimum is 360 × 320 logical pixels. A larger native minimum
+can exceed a tiler's allocation (for example, a 1354 × 431 tile), causing the
+compositor to compress the surface instead of letting CSS adapt. Short windows
+also use tighter vertical spacing; the workspace and navigation scroll. Narrow
+windows keep the existing overlay navigation and single-column layouts.
