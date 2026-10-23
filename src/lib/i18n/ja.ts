@@ -287,6 +287,9 @@ export const ja: Strings = {
   },
 
   settings: {
+    windowControls: 'ウィンドウ操作ボタン',
+    windowControlsDetail:
+      '自動では、対応するタイル型デスクトップでボタンを非表示にします。必要に応じて表示・非表示を選べます。',
     memoryReported: (gb: number) => `メモリ${gb}GBを検出`,
     themeAutomatic: '自動',
     themeLight: 'ライト',

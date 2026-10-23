@@ -272,6 +272,8 @@ export const zh: Strings = {
   },
 
   settings: {
+    windowControls: '窗口控制按钮',
+    windowControlsDetail: '自动模式会在识别到的平铺式桌面中隐藏按钮。您也可以手动选择显示或隐藏。',
     memoryReported: (gb: number) => `检测到 ${gb} GB 内存`,
     themeAutomatic: '自动',
     themeLight: '浅色',

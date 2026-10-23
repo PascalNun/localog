@@ -329,6 +329,9 @@ export const en = {
   /** The screen somebody sees before there is anything to open. */
   /** The settings screen. */
   settings: {
+    windowControls: 'Window controls',
+    windowControlsDetail:
+      'Automatic hides the buttons in recognized tiling desktops. Show or hide them yourself when needed.',
     memoryReported: (gb: number) => `${gb} GB memory reported`,
     themeAutomatic: 'Automatic',
     themeLight: 'Light',

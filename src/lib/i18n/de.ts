@@ -313,6 +313,9 @@ export const de: Strings = {
   },
 
   settings: {
+    windowControls: 'Fenstersteuerung',
+    windowControlsDetail:
+      'Automatisch blendet die Knöpfe in erkannten Kachel-Desktops aus. Bei Bedarf können Sie sie selbst ein- oder ausblenden.',
     memoryReported: (gb: number) => `${gb} GB Arbeitsspeicher erkannt`,
     themeAutomatic: 'Automatisch',
     themeLight: 'Hell',

@@ -9,6 +9,7 @@ mod audio_stream;
 mod backup;
 mod clustering;
 mod corrections;
+mod desktop;
 mod diarisation;
 mod domain;
 mod edits;
@@ -35,6 +36,7 @@ mod storage;
 /// and the shipped library carries nothing it does not call.
 #[cfg(test)]
 mod topics;
+mod workspace_recovery;
 
 use domain::{MeetingSummary, NewMeetingInput, NewProjectInput, ProjectSummary, WorkspaceSnapshot};
 use rusqlite::OptionalExtension;
@@ -60,6 +62,11 @@ fn app_identity() -> AppIdentity {
         version: env!("CARGO_PKG_VERSION"),
         local_only: true,
     }
+}
+
+#[tauri::command]
+fn window_environment() -> bool {
+    desktop::current_session_is_tiled()
 }
 
 /// The recording in progress, if there is one.
@@ -800,16 +807,15 @@ async fn configure_protocol_provider(
 }
 
 #[tauri::command]
-async fn load_workspace(state: State<'_, StorageState>) -> Result<WorkspaceSnapshot, String> {
+async fn load_workspace(
+    state: State<'_, StorageState>,
+    recovery: State<'_, workspace_recovery::WorkspaceRecovery>,
+) -> Result<WorkspaceSnapshot, String> {
     let root = state.root.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        models::discard_staged_downloads(&root);
-        imports::reconcile_imports(&root)?;
-        processing::reconcile(&root)
-    })
-    .await
-    .map_err(|_| "taskStopped".to_string())?
-    .map_err(|error| error.code())
+    let recovery = recovery.inner().clone();
+    off_thread(move || recovery.load(&root))
+        .await?
+        .map_err(|error| error.code())
 }
 
 #[tauri::command]
@@ -1638,10 +1644,27 @@ async fn refine_passage(
 #[tauri::command]
 async fn set_project_archived(
     state: State<'_, StorageState>,
+    recording: State<'_, RecordingState>,
     project_id: String,
     archived: bool,
 ) -> Result<WorkspaceSnapshot, String> {
+    let recording_meeting = recording
+        .running
+        .lock()
+        .map_err(|_| "meetingBusy".to_string())?
+        .as_ref()
+        .map(|(_, meeting_id, _)| meeting_id.clone());
     with_repository(state.root.clone(), move |repository| {
+        if archived && let Some(meeting_id) = recording_meeting {
+            let belongs: bool = repository.connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM meetings WHERE id = ?1 AND project_id = ?2)",
+                rusqlite::params![meeting_id, project_id],
+                |row| row.get(0),
+            )?;
+            if belongs {
+                return Err(storage::StorageError::InvalidData("meetingBusy"));
+            }
+        }
         repository.set_project_archived(&project_id, archived)?;
         repository.workspace_snapshot()
     })
@@ -1955,12 +1978,14 @@ pub fn run() {
             app.manage(StorageState { root });
             app.manage(JobCoordinatorState::default());
             app.manage(RecordingState::default());
+            app.manage(workspace_recovery::WorkspaceRecovery::default());
             #[cfg(target_os = "linux")]
             app.manage(audio_stream::AudioStream::start()?);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             app_identity,
+            window_environment,
             transcription_runtime_status,
             configure_transcription_runtime,
             transcription_capability,

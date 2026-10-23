@@ -153,3 +153,14 @@ listener. Only repository-resolved files allowed by the existing asset scope are
 registered, behind opaque URLs. GET/HEAD and byte ranges support playback and
 seeking with disk streaming rather than recording-sized frontend buffers. The
 listener exists only for the app process; no login service is installed.
+
+## Linux window controls
+
+Settings → General → Window controls offers Automatic, Show and Hide. Automatic
+recognizes Hyprland, Sway and Niri from the launch environment and hides the app's
+controls there. Unknown desktops keep controls; explicit choices override detection
+and are saved locally. macOS and Windows retain their existing window controls.
+
+Workspace recovery now runs once per native process. Later frontend reloads read
+the current snapshot rather than interrupting live jobs or discarding active
+staged downloads. A real process restart still recovers abandoned work.

@@ -41,7 +41,7 @@ The slim project sidebar stays visible on larger windows. It contains:
 - settings;
 - one quiet status line for background work.
 
-The central workspace holds the current task. The sidebar can be resized, and on compact windows it becomes an overlay with an obvious open/close control. On macOS the surfaces extend beneath the native title-bar controls; the application must not draw its own fake traffic lights. On Linux, the surfaces likewise reach the top edge, with compact app-owned minimize, maximize/restore and close controls, a draggable top region, and resize edges. Windows retains its native frame.
+The central workspace holds the current task. The sidebar can be resized, and on compact windows it becomes an overlay with an obvious open/close control. On macOS the surfaces extend beneath the native title-bar controls; the application must not draw its own fake traffic lights. On Linux, the surfaces likewise reach the top edge, with compact app-owned minimize, maximize/restore and close controls, a draggable top region, and resize edges. Windows retains its native frame. Linux window controls have Automatic, Show and Hide choices in Settings → General. Automatic hides app-owned controls in recognized Hyprland, Sway and Niri sessions; unknown desktops keep them. Job notices occupy their own space below any title controls and navigation, rather than covering page actions.
 
 The interface should not reserve a permanent empty inspector. An inspector appears only when the current task benefits from extra context and can be dismissed without losing work.
 
@@ -55,7 +55,9 @@ The sound mark in the middle of the page is a provisional identity element, not 
 
 ## Projects and meetings
 
-Creating a project is a short form. A project can be named, renamed, and eventually archived without making the person configure models or storage first.
+Creating a project is a short form. A project can be named, renamed, and archived without making the person configure models or storage first.
+
+Right-clicking a project in the sidebar, or using its row menu button, offers **Archive project**. This hides the project and its meetings while retaining recordings, transcripts, protocols and names. Projects with active jobs or recordings cannot be archived. **Settings → Storage → Archived → Bring back** restores the project and its meetings. The menu floats beside its row or pointer, stays within the window edges and does not move the list. It supports keyboard focus, Escape and a visible button for touch access. Permanent meeting deletion remains a separate, explicitly confirmed action.
 
 The project view is an index, not a dashboard. It should show the meetings that belong to the project, their stable stage, and the next useful action. Empty projects should explain what belongs there and offer one clear next step.
 
@@ -176,7 +178,7 @@ The supplied reference images guide the visual character and spacing. They do no
 
 ## Open UX questions
 
-- Should archive and restore be available in v0.1, and should permanent deletion remain absent?
+- Archive and restore are available for projects and meetings. Permanent deletion is offered separately for meetings; projects use recoverable archiving.
 - What minimum backup/restore actions belong in Settings?
 - Should speaker labels be renamed only in the transcript, or also through a project participant list?
 - How should the first-run meeting language be selected without coupling it to interface language?

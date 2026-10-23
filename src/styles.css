@@ -292,6 +292,8 @@ small {
 
 .app-main {
   position: relative;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -570,6 +572,14 @@ body.sidebar-resizing * {
   scrollbar-gutter: stable;
 }
 
+.app-main > .workspace {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+.mobile-topbar {
+  flex-shrink: 0;
+}
+
 .workspace > * {
   width: min(100%, 1240px);
   margin-right: auto;
@@ -644,6 +654,7 @@ body.sidebar-resizing * {
 .icon-button,
 .primary-action,
 .secondary-action,
+.quiet-action,
 .text-action {
   display: inline-flex;
   align-items: center;
@@ -705,6 +716,16 @@ body.sidebar-resizing * {
 }
 
 .secondary-action:hover:not(:disabled) {
+  background: var(--subtle);
+}
+
+.quiet-action {
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+}
+.quiet-action:hover:not(:disabled) {
+  color: var(--ink);
   background: var(--subtle);
 }
 
@@ -893,6 +914,7 @@ body.sidebar-resizing * {
 
 .project-header-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   align-items: center;
 }
@@ -2609,15 +2631,16 @@ button.review-summary[aria-pressed='true'] {
 /* Cross-workspace job notice and loading state */
 
 .global-job-strip {
-  position: absolute;
+  position: relative;
   z-index: 20;
-  top: 14px;
-  right: 18px;
+  flex: none;
+  align-self: flex-end;
+  margin: 14px 18px 0;
   display: grid;
   grid-template-columns: 10px minmax(0, 1fr) 18px;
   align-items: center;
   gap: 10px;
-  max-width: 330px;
+  max-width: min(330px, calc(100% - 36px));
   padding: 10px 12px;
   color: var(--ink);
   background: var(--raised);
@@ -2628,7 +2651,20 @@ button.review-summary[aria-pressed='true'] {
 }
 
 :root[data-window-chrome='macos-overlay'] .global-job-strip {
-  top: 48px;
+  margin-top: 48px;
+}
+:root[data-window-chrome='linux-integrated'] .global-job-strip {
+  margin-top: 40px;
+}
+.global-job-strip + .workspace {
+  padding-top: 24px;
+}
+@media (max-width: 900px) {
+  .global-job-strip,
+  :root[data-window-chrome='macos-overlay'] .global-job-strip,
+  :root[data-window-chrome='linux-integrated'] .global-job-strip {
+    margin-top: 8px;
+  }
 }
 .global-job-strip > span:nth-child(2) {
   display: grid;
@@ -4991,4 +5027,39 @@ button.review-summary[aria-pressed='true'] {
   .hero-copy {
     margin-bottom: 24px;
   }
+}
+
+.sidebar-project-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  align-items: center;
+  border-radius: 5px;
+}
+.sidebar-project-row.active {
+  background: var(--subtle);
+}
+.sidebar-project-row .project-actions {
+  color: var(--faint);
+}
+.sidebar-project-row:hover .project-actions,
+.sidebar-project-row:focus-within .project-actions {
+  color: var(--ink);
+}
+.project-row-menu {
+  position: fixed;
+  z-index: 60;
+  inset: auto;
+  width: min(232px, calc(100vw - 16px));
+  margin: 0;
+  padding: 5px;
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--raised);
+}
+.project-row-menu button {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
 }

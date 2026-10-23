@@ -651,13 +651,23 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async setProjectArchived(projectId: string, archived: boolean): Promise<void> {
-    if (this.workspaceStore) {
-      this.snapshot = {
-        ...this.snapshot,
-        ...(await this.workspaceStore.setProjectArchived(projectId, archived)),
-      };
-      this.emit();
-      return;
+    if (await this.durable((store) => store.setProjectArchived(projectId, archived))) return;
+    if (archived) {
+      if (!this.archivedProjectMeetings.has(projectId)) {
+        this.archivedProjectMeetings.set(
+          projectId,
+          this.snapshot.meetings.filter((meeting) => meeting.projectId === projectId),
+        );
+      }
+      this.snapshot.meetings = this.snapshot.meetings.filter(
+        (meeting) => meeting.projectId !== projectId,
+      );
+    } else {
+      this.snapshot.meetings = [
+        ...this.snapshot.meetings,
+        ...(this.archivedProjectMeetings.get(projectId) ?? []),
+      ];
+      this.archivedProjectMeetings.delete(projectId);
     }
     // The preview keeps its projects in memory, so archiving one hides it the
     // same way the database does: by taking it out of the list that is shown.
@@ -686,15 +696,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async setMeetingArchived(meetingId: string, archived: boolean): Promise<void> {
-    if (this.workspaceStore) {
-      this.snapshot = {
-        ...this.snapshot,
-        ...(await this.workspaceStore.setMeetingArchived(meetingId, archived)),
-      };
-      this.emit();
-      return;
-    }
-    // Taken out before either list is rebuilt, for the reason above.
+    if (await this.durable((store) => store.setMeetingArchived(meetingId, archived))) return;
     const [moving, staying] = archived
       ? [
           this.snapshot.meetings.filter((each) => each.id === meetingId),
@@ -713,6 +715,8 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     };
     this.emit();
   }
+
+  private archivedProjectMeetings = new Map<string, MeetingSummary[]>();
 
   private archived: import('./types').ArchivedWork = { projects: [], meetings: [] };
 
@@ -1514,9 +1518,11 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     this.snapshot.projects = workspace.projects;
     this.snapshot.meetings = workspace.meetings;
     this.snapshot.jobs = workspace.jobs;
+    const visibleMeetingIds = new Set(workspace.meetings.map((meeting) => meeting.id));
+    const visibleJobs = workspace.jobs.filter((job) => visibleMeetingIds.has(job.meetingId));
     this.snapshot.activeJob =
-      workspace.jobs.find((job) => ['queued', 'running', 'cancelling'].includes(job.state)) ??
-      workspace.jobs[0] ??
+      visibleJobs.find((job) => ['queued', 'running', 'cancelling'].includes(job.state)) ??
+      visibleJobs[0] ??
       null;
     this.snapshot.transcripts = workspace.transcripts;
     this.snapshot.protocols = workspace.protocols;

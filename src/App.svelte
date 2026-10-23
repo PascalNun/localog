@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { invoke } from '@tauri-apps/api/core';
   import LibraryView from './lib/components/LibraryView.svelte';
   import MeetingView from './lib/components/MeetingView.svelte';
   import NewMeetingView from './lib/components/NewMeetingView.svelte';
@@ -30,7 +31,12 @@
     clampSidebarWidth,
     parseStoredSidebarWidth,
   } from './lib/layout/sidebarSizing';
-  import { resolveWindowChrome } from './lib/platform/windowChrome';
+  import {
+    resolveWindowChrome,
+    parseWindowControlsChoice,
+    WINDOW_CONTROLS_KEY,
+    type WindowControlsChoice,
+  } from './lib/platform/windowChrome';
   import { FakeWorkflowBridge } from './lib/workflow/fakeBridge';
   import { createNativeWorkspaceStore } from './lib/workflow/workspaceStore';
   import { errorMessage } from './lib/errors';
@@ -58,6 +64,22 @@
   } from './lib/workflow/types';
 
   let windowChrome: ReturnType<typeof resolveWindowChrome> = 'standard';
+  let windowControlsChoice: WindowControlsChoice = 'auto';
+  let tilingSession = false;
+  function updateWindowChrome() {
+    windowChrome = resolveWindowChrome(
+      navigator.userAgent,
+      isDesktop,
+      windowControlsChoice,
+      tilingSession,
+    );
+    document.documentElement.dataset.windowChrome = windowChrome;
+  }
+  function chooseWindowControls(choice: WindowControlsChoice) {
+    windowControlsChoice = choice;
+    localStorage.setItem(WINDOW_CONTROLS_KEY, choice);
+    updateWindowChrome();
+  }
 
   /// Whether this is the desktop shell rather than a browser preview. A browser can
   /// fall back to a download; the desktop shell blocks it, so a failure there has to
@@ -343,9 +365,18 @@
   });
 
   onMount(() => {
-    windowChrome = resolveWindowChrome(navigator.userAgent, '__TAURI_INTERNALS__' in window);
-
-    document.documentElement.dataset.windowChrome = windowChrome;
+    windowControlsChoice = parseWindowControlsChoice(localStorage.getItem(WINDOW_CONTROLS_KEY));
+    updateWindowChrome();
+    if (windowChrome === 'linux-integrated' || windowChrome === 'linux-borderless') {
+      void invoke<boolean>('window_environment')
+        .then((tiled) => {
+          tilingSession = tiled;
+          updateWindowChrome();
+        })
+        .catch(() => {
+          /* Unknown hosts retain controls unless explicitly hidden. */
+        });
+    }
 
     sidebarWidth = parseStoredSidebarWidth(localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
 
@@ -709,6 +740,12 @@
       {themeChoice}
       onNavigate={navigate}
       onClose={() => (sidebarOpen = false)}
+      onArchiveProject={async (projectId: string) => {
+        const wasCurrent = currentProjectId === projectId;
+        await bridge.setProjectArchived(projectId, true);
+        if (wasCurrent) navigate({ name: 'start' });
+        announcement = $t.shell.projectArchived;
+      }}
       onToggleTheme={toggleTheme}
       onResize={resizeSidebar}
       onResizeEnd={finishSidebarResize}
@@ -746,7 +783,7 @@
           class="global-job-strip"
           onclick={() => navigate({ name: 'meeting', meetingId: snapshot!.activeJob!.meetingId })}
           ><span class="processing-dot"></span><span
-            ><strong>{snapshot.activeJob.stage}</strong><small
+            ><strong>{stageText(snapshot.activeJob.stage)}</strong><small
               >{compactJobStatus(snapshot.activeJob)}</small
             ></span
           ><Icon name="arrow" /></button
@@ -973,6 +1010,10 @@
         />
       {:else if route.name === 'settings'}
         <SettingsView
+          {windowControlsChoice}
+          windowControlsAvailable={windowChrome === 'linux-integrated' ||
+            windowChrome === 'linux-borderless'}
+          onChooseWindowControls={chooseWindowControls}
           {theme}
           {themeChoice}
           {runtimeStatus}

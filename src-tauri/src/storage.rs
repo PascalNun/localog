@@ -1553,7 +1553,7 @@ impl WorkspaceRepository {
 
     fn list_meetings(&self) -> Result<Vec<MeetingSummary>> {
         let mut statement = self.connection.prepare(
-            &format!("{MEETING_SELECT} WHERE m.archived_at_ms IS NULL ORDER BY m.occurred_at DESC, m.created_at_ms DESC, m.id"),
+            &format!("{MEETING_SELECT} WHERE m.archived_at_ms IS NULL AND EXISTS (SELECT 1 FROM projects p WHERE p.id = m.project_id AND p.archived_at_ms IS NULL) ORDER BY m.occurred_at DESC, m.created_at_ms DESC, m.id"),
         )?;
         let rows = statement.query_map([], meeting_from_row)?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
@@ -1574,6 +1574,19 @@ impl WorkspaceRepository {
     /// bringing the project back brings them back as they were rather than as a
     /// set of rows somebody now has to un-archive one by one.
     pub fn set_project_archived(&self, project_id: &str, archived: bool) -> Result<()> {
+        if archived {
+            let busy: bool = self.connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM jobs j JOIN meetings m ON m.id = j.meeting_id
+                 WHERE m.project_id = ?1 AND j.state IN ('queued', 'running', 'cancelling'))
+                 OR EXISTS(SELECT 1 FROM recordings r JOIN meetings m ON m.id = r.meeting_id
+                 WHERE m.project_id = ?1 AND r.state = 'recording')",
+                [project_id],
+                |row| row.get(0),
+            )?;
+            if busy {
+                return Err(StorageError::InvalidData("meetingBusy"));
+            }
+        }
         let changed = self.connection.execute(
             "UPDATE projects SET archived_at_ms = ?1, updated_at_ms = ?2 WHERE id = ?3",
             params![
@@ -3596,11 +3609,40 @@ mod tests {
         let mut repository = WorkspaceRepository::open(root).unwrap();
         let (project, meeting) = project_with_meeting(&mut repository, root);
 
-        // The ordinary lists have always filtered on this column. Nothing could
-        // write it until now, so the filter was doing nothing.
+        let audio = root
+            .join("projects")
+            .join(&project)
+            .join("meetings")
+            .join(&meeting)
+            .join("synthetic.wav");
+        fs::create_dir_all(audio.parent().unwrap()).unwrap();
+        fs::write(&audio, b"retained synthetic recording").unwrap();
+        assert!(matches!(
+            repository.set_project_archived(&project, true),
+            Err(StorageError::InvalidData("meetingBusy"))
+        ));
+        repository
+            .connection
+            .execute("UPDATE jobs SET state = 'cancelled'", [])
+            .unwrap();
+        repository
+            .connection
+            .execute("UPDATE recordings SET state = 'recording'", [])
+            .unwrap();
+        assert!(matches!(
+            repository.set_project_archived(&project, true),
+            Err(StorageError::InvalidData("meetingBusy"))
+        ));
+        repository
+            .connection
+            .execute("UPDATE recordings SET state = 'pending'", [])
+            .unwrap();
         repository.set_project_archived(&project, true).unwrap();
         let snapshot = repository.workspace_snapshot().unwrap();
         assert!(snapshot.projects.is_empty());
+        assert!(snapshot.meetings.is_empty());
+        drop(repository);
+        let repository = WorkspaceRepository::open(root).unwrap();
 
         let put_away = repository.archived_work().unwrap();
         assert_eq!(put_away.projects.len(), 1);
@@ -3616,6 +3658,7 @@ mod tests {
         assert_eq!(snapshot.projects.len(), 1);
         assert!(snapshot.meetings.iter().any(|each| each.id == meeting));
         assert!(repository.archived_work().unwrap().projects.is_empty());
+        assert_eq!(fs::read(audio).unwrap(), b"retained synthetic recording");
     }
 
     #[test]

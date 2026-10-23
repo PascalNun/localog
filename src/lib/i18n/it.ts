@@ -295,6 +295,9 @@ export const it: Strings = {
   },
 
   settings: {
+    windowControls: 'Controlli della finestra',
+    windowControlsDetail:
+      'La modalità automatica nasconde i pulsanti nei desktop a riquadri riconosciuti. Può anche mostrarli o nasconderli manualmente.',
     memoryReported: (gb: number) => `${gb} GB di memoria rilevati`,
     themeAutomatic: 'Automatico',
     themeLight: 'Chiaro',

@@ -304,6 +304,9 @@ export const fr: Strings = {
   },
 
   settings: {
+    windowControls: 'Commandes de fenêtre',
+    windowControlsDetail:
+      'Le mode automatique masque les boutons sur les bureaux en mosaïque reconnus. Vous pouvez aussi les afficher ou les masquer.',
     memoryReported: (gb: number) => `${gb} Go de mémoire détectés`,
     themeAutomatic: 'Automatique',
     themeLight: 'Clair',

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { open } from '@tauri-apps/plugin-dialog';
+  import type { WindowControlsChoice } from '../platform/windowChrome';
   import type {
     ArchivedWork,
     ExportFormat,
@@ -32,6 +33,9 @@
   import type { IconName } from './Icon.svelte';
 
   export let theme: 'light' | 'dark';
+  export let windowControlsAvailable = false;
+  export let windowControlsChoice: WindowControlsChoice = 'auto';
+  export let onChooseWindowControls: (choice: WindowControlsChoice) => void = () => undefined;
   export let themeChoice: 'auto' | 'light' | 'dark' = 'auto';
   export let nextJobOutcome: FakeJobOutcome;
   export let onChooseTheme: (choice: 'auto' | 'light' | 'dark') => void;
@@ -376,6 +380,24 @@
             {/each}
           </div>
         </div>
+        {#if windowControlsAvailable}
+          <div class="setting-row">
+            <div>
+              <h3>{$t.settings.windowControls}</h3>
+              <p>{$t.settings.windowControlsDetail}</p>
+            </div>
+            <select
+              aria-label={$t.settings.windowControls}
+              value={windowControlsChoice}
+              onchange={(event) =>
+                onChooseWindowControls(event.currentTarget.value as WindowControlsChoice)}
+            >
+              <option value="auto">{$t.settings.themeAutomatic}</option>
+              <option value="show">{$t.settings.show}</option>
+              <option value="hide">{$t.settings.hide}</option>
+            </select>
+          </div>
+        {/if}
       {:else if section === 'Models'}
         <div class="model-setting-intro">
           <p class="eyebrow">{$t.settings.defaultForProtocols}</p>

@@ -279,6 +279,9 @@ export const ko: Strings = {
   },
 
   settings: {
+    windowControls: '창 제어 버튼',
+    windowControlsDetail:
+      '자동 모드에서는 인식된 타일링 데스크톱에서 버튼을 숨깁니다. 필요에 따라 직접 표시하거나 숨길 수 있습니다.',
     memoryReported: (gb: number) => `메모리 ${gb}GB 확인됨`,
     themeAutomatic: '자동',
     themeLight: '밝게',

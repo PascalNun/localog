@@ -287,6 +287,9 @@ export const es: Strings = {
   },
 
   settings: {
+    windowControls: 'Controles de ventana',
+    windowControlsDetail:
+      'El modo automático oculta los botones en los escritorios en mosaico reconocidos. También puede mostrarlos u ocultarlos manualmente.',
     memoryReported: (gb: number) => `${gb} GB de memoria detectados`,
     themeAutomatic: 'Automático',
     themeLight: 'Claro',

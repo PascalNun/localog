@@ -351,6 +351,7 @@ describe('FakeWorkflowBridge', () => {
       const hidden = await bridge.getSnapshot();
       expect(hidden.projects.some((each) => each.id === project!.id)).toBe(false);
       expect(hidden.projects.length).toBe(before.projects.length - 1);
+      expect(hidden.meetings.some((meeting) => meeting.projectId === project!.id)).toBe(false);
 
       const away = await bridge.archivedWork();
       expect(away.projects.map((each) => each.id)).toEqual([project!.id]);
@@ -359,6 +360,9 @@ describe('FakeWorkflowBridge', () => {
       const back = await bridge.getSnapshot();
       expect(back.projects.some((each) => each.id === project!.id)).toBe(true);
       expect(back.projects.length).toBe(before.projects.length);
+      expect(back.meetings.filter((meeting) => meeting.projectId === project!.id)).toEqual(
+        before.meetings.filter((meeting) => meeting.projectId === project!.id),
+      );
       expect((await bridge.archivedWork()).projects).toHaveLength(0);
     });
 

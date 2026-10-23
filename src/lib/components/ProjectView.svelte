@@ -36,6 +36,15 @@
     }
   }
 
+  async function archiveProject() {
+    deleteError = '';
+    try {
+      await onArchiveProject(project.id);
+    } catch (cause) {
+      deleteError = errorMessage(cause);
+    }
+  }
+
   async function archive(meeting: MeetingSummary) {
     deleteError = '';
     try {
@@ -82,7 +91,7 @@
       <!-- Archiving is not deleting: everything under the project stays, and it
            comes back from Settings whenever somebody wants it. So it is a quiet
            action beside the loud one rather than behind a confirmation. -->
-      <button class="quiet-action" onclick={() => void onArchiveProject(project.id)}>
+      <button class="quiet-action" onclick={() => void archiveProject()}>
         {$t.project.archiveProject}
       </button>
       <button
@@ -94,6 +103,8 @@
       </button>
     </div>
   </header>
+
+  {#if deleteError}<p class="setting-error" role="alert">{deleteError}</p>{/if}
 
   <section class="document-section" aria-labelledby="meetings-heading">
     <div class="section-heading-row">
@@ -166,7 +177,6 @@
             {$t.project.deleteWarning}
           </p>
         {/if}
-        {#if deleteError}<p class="setting-error" role="alert">{deleteError}</p>{/if}
       </div>
     {:else}
       <div class="empty-inline">
