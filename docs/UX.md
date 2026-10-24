@@ -191,3 +191,13 @@ changes to a horizontal scrolling row when the workspace has insufficient width
 for two columns. Setting descriptions and controls stack based on the panel's
 available width, including when the project sidebar is resized; the description
 must never collapse to a column a word wide.
+
+### Export results
+
+Export saves the current editor text before preparing a file. Success and failure
+are shown beside the export controls (or in the workspace when the inspector is
+closed), with the result scrolled into view. Cancel remains quiet. A second export
+cannot open another dialog while one is pending. On Linux, PDF uses one save-file
+choice and renders directly through WebKitGTK without a print panel. Other native
+platforms retain their print route for now. Export never silently replaces an
+existing file.

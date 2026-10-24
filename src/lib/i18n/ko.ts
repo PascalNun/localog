@@ -116,6 +116,7 @@ const failures = {
   workspaceNotOpened: '작업 공간 폴더를 열지 못했습니다.',
   settingsPaneUnknown: '그런 설정 화면은 없습니다.',
   meetingBusy: '이 회의는 아직 처리 중입니다. 먼저 그 작업을 취소하십시오.',
+  pdfExportFailed: 'PDF를 저장하지 못했습니다. 사용 가능한 폴더를 선택하고 다시 시도하세요.',
   printDialogUnavailable: '이 창에서 인쇄 대화상자를 열지 못했습니다.',
 
   backupNameUnsafe: '해당 백업 이름은 폴더 이름으로 쓸 수 없습니다.',
@@ -1382,7 +1383,7 @@ export const ko: Strings = {
     exportMarkdown: 'Markdown으로 내보내기',
     exportPlainText: '일반 텍스트로 내보내기',
     exportNote:
-      'PDF는 지금 읽고 계신 문서를, 이 프로젝트가 회의록을 짜는 대로 인쇄한 것입니다. 인쇄 대화상자에서 「PDF로 저장」을 고르십시오.',
+      'PDF와 Word는 이 프로젝트의 문서 모양을 사용합니다. Markdown과 일반 텍스트는 편집 가능한 텍스트를 유지합니다.',
     source: '원본',
     findSelectedPassage: '선택한 대목 찾기',
     lookingFor: '찾는 것:',

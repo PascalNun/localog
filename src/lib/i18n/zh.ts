@@ -118,6 +118,7 @@ const failures = {
   workspaceNotOpened: '未能打开工作区文件夹。',
   settingsPaneUnknown: '没有这样的设置面板。',
   meetingBusy: '这场会议仍在处理中。请先取消该处理。',
+  pdfExportFailed: '无法保存 PDF。请选择可用的文件夹并重试。',
   printDialogUnavailable: '此窗口未能打开打印对话框。',
 
   backupNameUnsafe: '该备份名称不能用作文件夹名。',
@@ -1317,8 +1318,7 @@ export const zh: Strings = {
     exportWord: '导出 Word',
     exportMarkdown: '导出 Markdown',
     exportPlainText: '导出纯文本',
-    exportNote:
-      'PDF 就是把您正在读的这份文档，按这个项目排纪要的方式打印出来——请在打印对话框中选择“存储为 PDF”。',
+    exportNote: 'PDF 和 Word 使用此项目的文档样式。Markdown 和纯文本保留可编辑的文本。',
     source: '源文件',
     findSelectedPassage: '查找所选段落',
     lookingFor: '正在查找：',

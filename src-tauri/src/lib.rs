@@ -5,6 +5,10 @@ mod eval_harness;
 
 #[cfg(target_os = "linux")]
 mod audio_stream;
+#[cfg(target_os = "linux")]
+mod pdf_export;
+#[cfg(target_os = "linux")]
+mod pdf_print;
 
 mod backup;
 mod clustering;
@@ -1721,6 +1725,18 @@ async fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
         .map_err(|_| "printDialogUnavailable".to_string())
 }
 
+/// Save the prepared print sheet as PDF without opening a print panel.
+#[tauri::command]
+async fn export_pdf(window: tauri::WebviewWindow, destination: String) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    return pdf_export::save(window, destination).await;
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (window, destination);
+        Err("pdfExportFailed".into())
+    }
+}
+
 /// Write a document the interface built, such as a Word file.
 ///
 /// The bytes are assembled where the renderer lives, so that the screen, the PDF
@@ -2052,6 +2068,7 @@ pub fn run() {
             restore_protocol_revision,
             export_protocol,
             export_protocol_bytes,
+            export_pdf,
             print_window,
             refine_passage,
             protocol_set_aside,

@@ -1980,3 +1980,12 @@ Flatpak staging checks completeness of all seven sidecars; the Linux workflow ha
 an opt-in experimental bundle step. The sandbox workflow and distribution matrix
 in `packaging/flatpak/README.md` remain unvalidated. A successful staging test is
 not a Flatpak release or evidence that it works on every Linux machine.
+
+Export hardening now includes visible results, saving pending editor text before
+export, non-overwriting file publication and direct Linux PDF saving. The explicit
+graphical PDF smoke check runs on the OS main thread as an example executable; a
+Rust test-worker attempt saved its PDF but aborted during WebKit process teardown
+and was replaced. A standalone per-user test build avoids Vite reloads during
+user testing. The originally reported file-chooser non-response still needs
+confirmation in that stable copy; do not infer its cause from successful writer
+or PDF-renderer checks.

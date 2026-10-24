@@ -14,7 +14,6 @@ use crate::storage::{
 };
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
 use std::fs;
-use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -2559,13 +2558,8 @@ pub(crate) fn export_protocol(
     write_export(destination, content.as_bytes())
 }
 
-/// Write an exported file, or refuse for a reason that can be said out loud.
-///
-/// Shared by the formats built here and the ones built in the interface, so that a
-/// Word document is written with the same care as a text file: never over an
-/// existing file, and never half-written — the bytes go to a neighbouring temporary
-/// and are renamed into place, which is atomic on the same filesystem.
-pub(crate) fn write_export(destination: &str, contents: &[u8]) -> StorageResult<()> {
+/// Validate a destination before rendering or writing an export.
+pub(crate) fn export_destination(destination: &str) -> StorageResult<PathBuf> {
     let destination = PathBuf::from(destination);
     if !destination.is_absolute()
         || destination.to_string_lossy().contains('\0')
@@ -2576,30 +2570,31 @@ pub(crate) fn write_export(destination: &str, contents: &[u8]) -> StorageResult<
     if destination.exists() {
         return Err(StorageError::InvalidData("exportFileExists"));
     }
-    let parent = destination
-        .parent()
-        .ok_or(StorageError::InvalidData("exportDestinationInvalid"))?;
-    if !parent.is_dir() {
+    if !destination.parent().is_some_and(Path::is_dir) {
         return Err(StorageError::InvalidData("exportFolderMissing"));
     }
-    let temporary = parent.join(format!(
-        ".{}.localog-export-{}",
-        destination
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("protocol"),
-        new_id("tmp")
-    ));
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&temporary)?;
-    file.write_all(contents)?;
-    file.sync_all()?;
-    drop(file);
-    fs::rename(&temporary, &destination).map_err(|error| {
-        let _ = fs::remove_file(&temporary);
-        StorageError::Io(error)
+    Ok(destination)
+}
+
+/// Write an exported file, or refuse for a reason that can be said out loud.
+///
+/// Shared by the formats built here and the ones built in the interface, so that a
+/// Word document is written with the same care as a text file: never over an
+/// existing file, and never half-written — the bytes go to a neighbouring temporary
+/// and are published without replacing any file created in the meantime.
+pub(crate) fn write_export(destination: &str, contents: &[u8]) -> StorageResult<()> {
+    let destination = export_destination(destination)?;
+    let mut temporary = tempfile::NamedTempFile::new_in(destination.parent().unwrap())?;
+    temporary.write_all(contents)?;
+    temporary.as_file().sync_all()?;
+    // Publishing must also refuse a file created after the initial check. A
+    // normal rename would replace it on Unix. Drop cleans up every error path.
+    temporary.persist_noclobber(&destination).map_err(|error| {
+        if error.error.kind() == std::io::ErrorKind::AlreadyExists {
+            StorageError::InvalidData("exportFileExists")
+        } else {
+            StorageError::Io(error.error)
+        }
     })?;
     Ok(())
 }
@@ -3731,6 +3726,37 @@ mod tests {
         assert_eq!(before.meetings[0].lifecycle, after.meetings[0].lifecycle);
         assert_eq!(before.protocols, after.protocols);
     }
+    #[test]
+    fn exports_preserve_existing_files_and_clean_up_after_writing() {
+        let folder = tempfile::tempdir().unwrap();
+        let destination = folder.path().join("synthetic.docx");
+        let path = destination.to_str().unwrap();
+        write_export(path, b"synthetic document bytes").unwrap();
+        assert_eq!(
+            std::fs::read(&destination).unwrap(),
+            b"synthetic document bytes"
+        );
+        assert!(matches!(
+            write_export(path, b"replacement"),
+            Err(StorageError::InvalidData("exportFileExists"))
+        ));
+        assert_eq!(
+            std::fs::read(&destination).unwrap(),
+            b"synthetic document bytes"
+        );
+        assert_eq!(std::fs::read_dir(folder.path()).unwrap().count(), 1);
+        assert!(matches!(
+            write_export("relative.md", b"text"),
+            Err(StorageError::InvalidData("exportDestinationInvalid"))
+        ));
+        let missing = folder.path().join("missing/protocol.md");
+        assert!(matches!(
+            write_export(missing.to_str().unwrap(), b"text"),
+            Err(StorageError::InvalidData("exportFolderMissing"))
+        ));
+        assert_eq!(std::fs::read_dir(folder.path()).unwrap().count(), 1);
+    }
+
     #[test]
     fn concurrent_transcription_starts_admit_only_one_active_job() {
         let fixture = Fixture::source_ready();

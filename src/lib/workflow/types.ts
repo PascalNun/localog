@@ -840,6 +840,8 @@ export interface WorkflowBridge {
   exportProtocol(meetingId: string, format: 'markdown' | 'text', title: string): Promise<boolean>;
   /** The platform's own print panel, where the webview's does nothing. */
   nativePrint(): (() => Promise<void>) | undefined;
+  /** Save rendered PDF pages directly on Linux. */
+  exportPdf(title: string): Promise<boolean>;
   /** Save a document the interface built — a Word file, for now. */
   exportProtocolBytes(
     contents: Uint8Array,

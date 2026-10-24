@@ -130,6 +130,7 @@ const failures = {
   workspaceNotOpened: 'The workspace folder could not be opened.',
   settingsPaneUnknown: 'There is no such settings pane.',
   meetingBusy: 'This meeting is still being worked on. Cancel that first.',
+  pdfExportFailed: 'The PDF could not be saved. Choose an available folder and try again.',
   printDialogUnavailable: 'This window could not open the print dialog.',
 
   // Backing up and restoring.
@@ -1573,7 +1574,7 @@ export const en = {
     exportMarkdown: 'Export Markdown',
     exportPlainText: 'Export plain text',
     exportNote:
-      'The PDF is printed from the document you are reading, set the way this project sets its protocols — choose “Save as PDF” in the print dialog.',
+      'PDF and Word use this project’s document appearance. Markdown and plain text keep the editable text.',
     source: 'Source',
     findSelectedPassage: 'Find the selected passage',
     lookingFor: 'Looking for:',

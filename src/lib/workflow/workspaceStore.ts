@@ -182,6 +182,7 @@ export interface WorkspaceStore {
   ) => Promise<boolean>;
   /** Ask the platform for its own print panel; the webview's own does nothing here. */
   printWindow: () => Promise<void>;
+  exportPdf: (title: string) => Promise<boolean>;
   /** Save a document the interface built, choosing where through the file dialog. */
   exportProtocolBytes: (
     contents: Uint8Array,
@@ -707,6 +708,17 @@ class TauriWorkspaceStore implements WorkspaceStore {
     // Tauri's bridge carries JSON, so the bytes cross as numbers. A protocol is
     // tens of kilobytes; this is not the place that needs to be clever.
     await invoke('export_protocol_bytes', { destination, contents: Array.from(contents) });
+    return true;
+  }
+
+  async exportPdf(title: string): Promise<boolean> {
+    const destination = await save({
+      title: strings().dialog.exportTitle(title),
+      defaultPath: `${safeFileName(title)}.pdf`,
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    });
+    if (!destination) return false;
+    await invoke('export_pdf', { destination });
     return true;
   }
 

@@ -119,3 +119,12 @@ until portal import/export, model loading, playback, recording and updates pass
 on real desktops. No Flathub publication or automatic update channel is implied.
 The package uses a separate Flatpak workspace and explicit user backup/restore
 rather than silently migrating the development workspace. See packaging/flatpak.
+
+## 24 October 2026 — Direct PDF saving on Linux
+
+Keep the existing HTML print sheet and pagination as the PDF renderer. Use
+WebKitGTK’s print-to-file operation with explicit PDF settings, a private temporary
+file and the shared no-overwrite publication boundary. Linux Export PDF opens a
+save chooser, not a print panel. The macOS/Windows print path remains unchanged
+until a direct native implementation is validated. Errors must be visible; a
+screen-reader announcement alone is insufficient export feedback.

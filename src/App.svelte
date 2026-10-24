@@ -208,6 +208,10 @@
   let sidebarWidth = DEFAULT_SIDEBAR_WIDTH;
   let lastHandledJobId: string | null = null;
   let announcement = '';
+  let exportNotice = '';
+  let exportBusy = false;
+  let exportHasError = false;
+  let exportMeetingId: string | null = null;
   let startupError = '';
   let locationRestored = false;
   let runtimeStatus: TranscriptionRuntimeStatus = {
@@ -633,10 +637,54 @@
     navigate(projectId ? { name: 'project', projectId } : { name: 'start' });
   }
 
-  async function exportProtocol(format: ExportFormat, pageStarts: number[] = []) {
-    if (!meeting || !snapshot) return;
-    const protocol = snapshot.protocols[meeting.id];
-    if (!protocol) return;
+  async function exportProtocol(
+    format: ExportFormat,
+    pageStarts: number[] = [],
+    currentMarkdown?: string,
+  ) {
+    if (exportBusy || !meeting) return;
+    const meetingId = meeting.id;
+    exportBusy = true;
+    exportNotice = '';
+    exportHasError = false;
+    exportMeetingId = meetingId;
+    try {
+      // Export what is on screen even when the 420ms autosave is still pending.
+      if (currentMarkdown !== undefined) await bridge.autosaveProtocol(meetingId, currentMarkdown);
+      await performProtocolExport(format, pageStarts, meetingId);
+    } catch (cause) {
+      reportExport(
+        $t.shell.exportFailed(
+          format === 'pdf'
+            ? 'PDF'
+            : format === 'docx'
+              ? $t.shell.formatWordDocument
+              : format === 'markdown'
+                ? 'Markdown'
+                : $t.shell.formatPlainText,
+          errorMessage(cause),
+        ),
+        true,
+      );
+    } finally {
+      exportBusy = false;
+    }
+  }
+
+  function reportExport(message: string, failed = false) {
+    exportNotice = message;
+    exportHasError = failed;
+    announcement = message;
+  }
+
+  async function performProtocolExport(
+    format: ExportFormat,
+    pageStarts: number[],
+    meetingId: string,
+  ) {
+    const meeting = snapshot?.meetings.find((item) => item.id === meetingId);
+    const protocol = snapshot?.protocols[meetingId];
+    if (!meeting || !snapshot || !protocol) throw new Error('protocolNeededBeforeExport');
 
     // One document, handed to whichever exporter was asked for. print.ts and
     // docx.ts already take the same type for the same reason: a field added for
@@ -653,14 +701,25 @@
       facts: documentFacts(project, meeting, protocol, $t),
     };
 
-    // The PDF is the document printed, not a second rendering of it, so it needs
-    // no file dialog of its own: the print dialog is where a page size and a
-    // destination are chosen, and on macOS that includes saving as PDF.
+    // Linux can save the rendered pages straight to PDF. Other platforms keep
+    // their existing native print route until direct saving is implemented there.
     if (format === 'pdf') {
       try {
-        await printProtocol(exported, bridge.nativePrint(), pageStarts);
+        if (isDesktop && windowChrome.startsWith('linux')) {
+          let saved = false;
+          await printProtocol(
+            exported,
+            async () => {
+              saved = await bridge.exportPdf(exported.title);
+            },
+            pageStarts,
+          );
+          if (saved) reportExport($t.shell.exportSaved('PDF'));
+        } else {
+          await printProtocol(exported, bridge.nativePrint(), pageStarts);
+        }
       } catch (cause) {
-        announcement = `PDF export failed: ${errorMessage(cause)}`;
+        reportExport($t.shell.exportFailed('PDF', errorMessage(cause)), true);
       }
       return;
     }
@@ -674,11 +733,10 @@
           'docx',
           $t.shell.formatWordDocument,
         );
-        if (saved) announcement = $t.shell.exportSaved($t.shell.formatWordDocument);
-        else if (!isDesktop)
-          announcement = $t.shell.exportNeedsDesktop($t.shell.formatWordDocument);
+        if (saved) reportExport($t.shell.exportSaved($t.shell.formatWordDocument));
+        else if (!isDesktop) reportExport($t.shell.exportNeedsDesktop($t.shell.formatWordDocument));
       } catch (cause) {
-        announcement = $t.shell.exportFailed($t.shell.formatWordDocument, errorMessage(cause));
+        reportExport($t.shell.exportFailed($t.shell.formatWordDocument, errorMessage(cause)), true);
       }
       return;
     }
@@ -691,13 +749,13 @@
     try {
       const nativeExported = await bridge.exportProtocol(meeting.id, format, meeting.title);
       if (nativeExported) {
-        announcement = $t.shell.exportSaved(name);
+        reportExport($t.shell.exportSaved(name));
         return;
       }
       // A cancelled dialog is a choice, not a failure, and says nothing.
       if (isDesktop) return;
     } catch (cause) {
-      announcement = $t.shell.exportFailed(name, errorMessage(cause));
+      reportExport($t.shell.exportFailed(name, errorMessage(cause)), true);
       return;
     }
     const content =
@@ -712,8 +770,8 @@
     anchor.download = `${meeting.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.${format === 'markdown' ? 'md' : 'txt'}`;
     anchor.click();
     URL.revokeObjectURL(href);
-    announcement = $t.shell.exportPrepared(
-      format === 'markdown' ? 'Markdown' : $t.shell.formatPlainText,
+    reportExport(
+      $t.shell.exportPrepared(format === 'markdown' ? 'Markdown' : $t.shell.formatPlainText),
     );
   }
 </script>
@@ -966,6 +1024,9 @@
           onMarkReviewed={() => bridge.markProtocolReviewed(meeting.id)}
           onRestoreRevision={(revisionId) => bridge.restoreProtocolRevision(meeting.id, revisionId)}
           onExport={exportProtocol}
+          exportNotice={exportMeetingId === meeting.id ? exportNotice : ''}
+          {exportBusy}
+          {exportHasError}
           onSetAppearance={(appearance) => bridge.setProjectAppearance(project.id, appearance)}
           onSetFurniture={(furniture) => bridge.setProjectFurniture(project.id, furniture)}
           transcript={snapshot.transcripts[meeting.id] ?? null}

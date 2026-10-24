@@ -1,6 +1,6 @@
 <script lang="ts">
   import { styleDescription, styleName } from '../protocol/styleNames';
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy, onMount, tick } from 'svelte';
   import type {
     AppRoute,
     MeetingSummary,
@@ -59,7 +59,16 @@
   /// The page starts go with a PDF: print.ts cuts the sheet at them rather than
   /// asking the browser to paginate, because the browser it would ask does not
   /// repeat a running header across pages at all.
-  export let onExport: (format: ExportFormat, pageStarts?: number[]) => void;
+  let exportFeedback: HTMLParagraphElement | undefined;
+  $: if (exportNotice) void tick().then(() => exportFeedback?.scrollIntoView({ block: 'nearest' }));
+  export let exportNotice = '';
+  export let exportBusy = false;
+  export let exportHasError = false;
+  export let onExport: (
+    format: ExportFormat,
+    pageStarts?: number[],
+    markdown?: string,
+  ) => Promise<void>;
   export let onSetAppearance: (appearance: DocumentAppearance) => Promise<void> = async () =>
     undefined;
   export let onSetFurniture: (furniture: PageFurniture) => Promise<void> = async () => undefined;
@@ -300,7 +309,7 @@
       // protocol — and on macOS window.print() does nothing at all here, so it
       // would look broken rather than wrong.
       event.preventDefault();
-      onExport('pdf', pageStartsNow());
+      void onExport('pdf', pageStartsNow(), markdown);
       return;
     }
     if (event.key === 'Escape' && findOpen) {
@@ -1249,6 +1258,16 @@
   id="main-content"
   onscroll={readScroll}
 >
+  {#if exportNotice && (!inspectorOpen || inspectorTab !== 'document')}
+    <p
+      bind:this={exportFeedback}
+      class="notice-inline"
+      class:warning={exportHasError}
+      role={exportHasError ? 'alert' : 'status'}
+    >
+      {exportNotice}
+    </p>
+  {/if}
   <header class="workspace-header meeting-header protocol-header">
     <div>
       <p class="breadcrumb">{project.name} <span>›</span> {meeting.title}</p>
@@ -1863,20 +1882,31 @@
           </div>
           <div class="inspector-section">
             <p class="eyebrow">{$t.protocol.export}</p>
-            <div class="export-actions">
+            <div class="export-actions" aria-busy={exportBusy}>
               {#each exportOrder as format (format)}
                 <button
                   class:primary-action={format === defaultExport}
                   class:secondary-action={format !== defaultExport}
                   class="full-width"
+                  disabled={exportBusy}
                   onclick={() =>
-                    format === 'pdf' ? onExport('pdf', pageStartsNow()) : onExport(format)}
+                    onExport(format, format === 'pdf' ? pageStartsNow() : [], markdown)}
                 >
                   {#if format === defaultExport}<Icon name="download" size={16} />{/if}
                   {EXPORT_LABELS[format]}
                 </button>
               {/each}
             </div>
+            {#if exportNotice}
+              <p
+                bind:this={exportFeedback}
+                class="notice-inline"
+                class:warning={exportHasError}
+                role={exportHasError ? 'alert' : 'status'}
+              >
+                {exportNotice}
+              </p>
+            {/if}
             <p class="export-note">
               {$t.protocol.exportNote}
             </p>

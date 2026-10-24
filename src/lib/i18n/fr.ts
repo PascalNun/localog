@@ -126,6 +126,8 @@ const failures = {
   workspaceNotOpened: 'Le dossier de l’espace de travail n’a pas pu être ouvert.',
   settingsPaneUnknown: 'Ce volet de réglages n’existe pas.',
   meetingBusy: 'Cette réunion est encore en cours de traitement. Annulez-le d’abord.',
+  pdfExportFailed:
+    'Le PDF n’a pas pu être enregistré. Choisissez un dossier disponible et réessayez.',
   printDialogUnavailable: 'Cette fenêtre n’a pas pu ouvrir la boîte de dialogue d’impression.',
 
   backupNameUnsafe: 'Ce nom de sauvegarde ne peut pas servir de nom de dossier.',
@@ -1449,7 +1451,7 @@ export const fr: Strings = {
     exportMarkdown: 'Exporter en Markdown',
     exportPlainText: 'Exporter en texte brut',
     exportNote:
-      'Le PDF est imprimé depuis le document que vous lisez, composé comme ce projet compose ses comptes rendus — choisissez « Enregistrer au format PDF » dans la boîte de dialogue d’impression.',
+      'PDF et Word utilisent la mise en page du projet. Markdown et le texte brut conservent le texte modifiable.',
     source: 'Source',
     findSelectedPassage: 'Retrouver le passage sélectionné',
     lookingFor: 'Recherche de :',

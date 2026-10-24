@@ -113,6 +113,7 @@ const failures = {
   workspaceNotOpened: 'No se ha podido abrir la carpeta del espacio de trabajo.',
   settingsPaneUnknown: 'No existe ese panel de ajustes.',
   meetingBusy: 'Esta reunión aún se está procesando. Cancélelo primero.',
+  pdfExportFailed: 'No se pudo guardar el PDF. Elija una carpeta disponible y reinténtelo.',
   printDialogUnavailable: 'Esta ventana no ha podido abrir el diálogo de impresión.',
 
   backupNameUnsafe: 'Ese nombre de copia no se puede usar como nombre de carpeta.',
@@ -1422,7 +1423,7 @@ export const es: Strings = {
     exportMarkdown: 'Exportar a Markdown',
     exportPlainText: 'Exportar a texto sin formato',
     exportNote:
-      'El PDF se imprime desde el documento que está leyendo, compuesto como este proyecto compone sus actas: elija «Guardar como PDF» en el diálogo de impresión.',
+      'PDF y Word usan la apariencia del documento de este proyecto. Markdown y texto sin formato conservan el texto editable.',
     source: 'Origen',
     findSelectedPassage: 'Encontrar el pasaje seleccionado',
     lookingFor: 'Buscando:',

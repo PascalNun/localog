@@ -1322,6 +1322,11 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     return false;
   }
 
+  /** Direct PDF saving is available in the native Linux shell. */
+  async exportPdf(title: string): Promise<boolean> {
+    return this.workspaceStore?.exportPdf(title) ?? false;
+  }
+
   /** The platform's print panel, where there is one; the browser has its own. */
   nativePrint(): (() => Promise<void>) | undefined {
     const store = this.workspaceStore;

@@ -120,6 +120,8 @@ const failures = {
   workspaceNotOpened: 'Non è stato possibile aprire la cartella dello spazio di lavoro.',
   settingsPaneUnknown: 'Questo pannello delle impostazioni non esiste.',
   meetingBusy: 'Questa riunione è ancora in lavorazione. Annulli prima quell’operazione.',
+  pdfExportFailed:
+    'Non è stato possibile salvare il PDF. Scelga una cartella disponibile e riprovi.',
   printDialogUnavailable: 'Questa finestra non è riuscita ad aprire la finestra di stampa.',
 
   backupNameUnsafe: 'Questo nome di copia non può essere usato come nome di cartella.',
@@ -1440,7 +1442,7 @@ export const it: Strings = {
     exportMarkdown: 'Esporta in Markdown',
     exportPlainText: 'Esporta in testo semplice',
     exportNote:
-      'Il PDF viene stampato dal documento che sta leggendo, impaginato come questo progetto impagina i suoi verbali: scelga «Salva come PDF» nella finestra di stampa.',
+      'PDF e Word usano l’aspetto del documento di questo progetto. Markdown e testo semplice mantengono il testo modificabile.',
     source: 'Origine',
     findSelectedPassage: 'Trova il passaggio selezionato',
     lookingFor: 'In cerca di:',

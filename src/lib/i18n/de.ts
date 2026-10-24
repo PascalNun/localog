@@ -128,6 +128,8 @@ const failures = {
   workspaceNotOpened: 'Der Ordner konnte nicht geöffnet werden.',
   settingsPaneUnknown: 'Diesen Einstellungsbereich gibt es nicht.',
   meetingBusy: 'An dieser Besprechung wird noch gearbeitet. Brechen Sie das zuerst ab.',
+  pdfExportFailed:
+    'Die PDF konnte nicht gespeichert werden. Wählen Sie einen verfügbaren Ordner und versuchen Sie es erneut.',
   printDialogUnavailable: 'Dieses Fenster konnte den Druckdialog nicht öffnen.',
 
   // Sichern und Zurückspielen.
@@ -1466,7 +1468,7 @@ export const de: Strings = {
     exportMarkdown: 'Als Markdown exportieren',
     exportPlainText: 'Als reinen Text exportieren',
     exportNote:
-      'Das PDF wird aus dem Dokument gedruckt, das Sie lesen, gesetzt wie dieses Projekt seine Protokolle setzt — wählen Sie im Druckdialog „Als PDF sichern“.',
+      'PDF und Word verwenden die Dokumentgestaltung dieses Projekts. Markdown und Klartext behalten den bearbeitbaren Text.',
     source: 'Quelle',
     findSelectedPassage: 'Die markierte Passage suchen',
     lookingFor: 'Gesucht wird:',

@@ -194,3 +194,47 @@ Flathub. See [build/install instructions and the validation gate](../packaging/f
 Keep Debian/AppImage available while the Flatpak path is validated. Do not claim
 support for all distributions, desktop portals, CPUs or audio setups from a single
 Surface development run.
+
+## Direct PDF export
+
+Linux PDF export uses WebKitGTK’s print-to-file backend, with the same prepared
+print sheet and project appearance as the editor. It asks for a filename once and
+does not open a print panel. Rendering happens on the GTK thread; the bounded wait
+and file publication run off it. Incomplete files remain in a private temporary
+directory and are removed after success/failure. Existing files are refused.
+
+An explicit synthetic native check is available in a graphical Linux session:
+
+```sh
+cargo run --manifest-path src-tauri/Cargo.toml --example pdf_export_smoke
+```
+
+This checks the actual WebKitGTK backend. It does not automate a user's file
+chooser, validate the Flatpak sandbox or prove every printer backend works.
+
+## A standalone local test build
+
+For testing while source work continues, build an embedded frontend and install a
+per-user copy with its seven sidecars:
+
+```sh
+# Build the sidecars first if this is a fresh checkout.
+npm run build:sidecar
+npm run install:linux:test
+```
+
+After the first sidecar build, repeat only `npm run install:linux:test` to update
+the test app. Open **LocaLog (Test Build)**, or run `~/.local/bin/localog-test`.
+Unlike the development launcher, this copy needs no Vite server, Node or Rust to
+run, and source edits do not reload an open file chooser. It still needs the
+desktop libraries described above and uses the existing app-data workspace/models.
+Close an older LocaLog instance before testing a new copy. The existing process
+keeps its old native code even after files are updated.
+
+The installer copies only the built app, seven executables, licences and an icon
+to `~/.local/opt/localog-testing`. It retains one previous install in
+`~/.local/opt/localog-testing-previous` for rollback. It does not install models or
+move user data. Remove those app folders, `~/.local/bin/localog-test`, and
+`~/.local/share/applications/localog-testing.desktop` to uninstall the test copy;
+leave `~/.local/share/app.localog.desktop` intact. This is a local test build, not
+a signed release or Flatpak.

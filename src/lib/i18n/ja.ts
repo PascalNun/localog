@@ -120,6 +120,7 @@ const failures = {
   workspaceNotOpened: '作業領域のフォルダを開けませんでした。',
   settingsPaneUnknown: 'そのような設定画面はありません。',
   meetingBusy: 'この会議はまだ処理中です。先にそちらを中止してください。',
+  pdfExportFailed: 'PDFを保存できませんでした。利用可能なフォルダーを選択して再試行してください。',
   printDialogUnavailable: 'このウインドウでは印刷ダイアログを開けませんでした。',
 
   backupNameUnsafe: 'そのバックアップ名はフォルダ名として使えません。',
@@ -1395,7 +1396,7 @@ export const ja: Strings = {
     exportMarkdown: 'Markdownで書き出す',
     exportPlainText: 'テキストで書き出す',
     exportNote:
-      'PDFは、いま読んでいる文書を、このプロジェクトが議事録を組むとおりに印刷したものです。印刷ダイアログで「PDFとして保存」を選んでください。',
+      'PDFとWordはこのプロジェクトの文書の外観を使用します。Markdownとプレーンテキストには編集可能なテキストが保持されます。',
     source: '元ファイル',
     findSelectedPassage: '選択した箇所を探す',
     lookingFor: '探しているもの：',
