@@ -1972,3 +1972,11 @@ Every milestone should end with:
 - a clear statement of whether code is production, provisional, experimental, or discarded.
 
 Green unit tests alone are not enough for a milestone involving real models, long files, user experience, or distribution.
+
+## Linux packaging hardening — 24 October 2026
+
+A per-user development launcher and compact settings dropdowns are available.
+Flatpak staging checks completeness of all seven sidecars; the Linux workflow has
+an opt-in experimental bundle step. The sandbox workflow and distribution matrix
+in `packaging/flatpak/README.md` remain unvalidated. A successful staging test is
+not a Flatpak release or evidence that it works on every Linux machine.

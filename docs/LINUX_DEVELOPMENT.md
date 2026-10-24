@@ -78,6 +78,24 @@ Native workspace data is stored under the platform's app-data directory for
 can open the actual workspace location. Keep its recordings, database and models
 out of the checkout and out of version control.
 
+## A launcher for a development checkout
+
+After installing the prerequisites and running `npm ci`, install a per-user entry:
+
+```sh
+python3 scripts/install-linux-dev-launcher.py
+```
+
+Open **LocaLog (Development)** in your application launcher, or run
+`~/.local/bin/localog-dev`. It opens a terminal and starts `npm run tauri dev` in
+this checkout. The terminal shows build/runtime errors. Close the development
+session before starting another one. Stop a separate browser-preview Vite server
+first, since both use port 1420. This is a developer shortcut, not a standalone
+release: keep the checkout and toolchains installed. It uses your real workspace.
+To remove the shortcut, delete `~/.local/bin/localog-dev` and
+`~/.local/share/applications/localog-development.desktop` (or the selected XDG data
+location); workspace data is retained.
+
 ## Checks and packaging
 
 Run the checks in [CONTRIBUTING.md](../CONTRIBUTING.md). Rust checks can run before
@@ -164,3 +182,15 @@ and are saved locally. macOS and Windows retain their existing window controls.
 Workspace recovery now runs once per native process. Later frontend reloads read
 the current snapshot rather than interrupting live jobs or discarding active
 staged downloads. A real process restart still recovers abandoned work.
+
+## Experimental Flatpak
+
+The manual Linux workflow now has an optional Flatpak build after the Debian
+bundle. Its manifest includes the seven sidecars, GNOME runtime, desktop metadata,
+portal file selection and explicit audio/network permissions without blanket home
+access. It has not yet passed sandbox workflow validation or been published to
+Flathub. See [build/install instructions and the validation gate](../packaging/flatpak/README.md).
+
+Keep Debian/AppImage available while the Flatpak path is validated. Do not claim
+support for all distributions, desktop portals, CPUs or audio setups from a single
+Surface development run.

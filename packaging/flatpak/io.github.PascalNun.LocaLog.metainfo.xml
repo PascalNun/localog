@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.PascalNun.LocaLog</id>
+  <name>LocaLog</name>
+  <summary>Create meeting protocols with local AI</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <developer_name>LocaLog contributors</developer_name>
+  <description>
+    <p>LocaLog turns meeting recordings into reviewable transcripts and protocol drafts using local AI. Organize recordings in projects, correct transcripts, edit drafts, and export Markdown or plain text.</p>
+    <p>No account or cloud AI service is required. AI models are downloaded separately with your consent. This is an early prototype; review generated documents before relying on them.</p>
+  </description>
+  <launchable type="desktop-id">io.github.PascalNun.LocaLog.desktop</launchable>
+  <url type="homepage">https://github.com/PascalNun/localog</url>
+  <url type="bugtracker">https://github.com/PascalNun/localog/issues</url>
+  <content_rating type="oars-1.1"/>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Start with a recording, using local processing</caption>
+      <image>https://raw.githubusercontent.com/PascalNun/localog/main/docs/assets/screenshots/localog-start-light.png</image>
+    </screenshot>
+  </screenshots>
+</component>

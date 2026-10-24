@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=LocaLog
+Comment=Create meeting protocols with local AI
+Exec=localog
+Icon=io.github.PascalNun.LocaLog
+Terminal=false
+Categories=Office;
+StartupNotify=true

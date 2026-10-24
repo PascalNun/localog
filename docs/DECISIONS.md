@@ -110,3 +110,12 @@ When a decision changes, update the accepted summary and the affected product or
 - The model evaluation showed that vocabulary helps proper nouns, long context is expensive, and protocol quality—not model size alone—is the critical question.
 
 The detailed measurements remain in the research and spike documents. They should be read as evidence for the decisions above, not as additional requirements.
+
+## 24 October 2026 — Trial Linux Flatpak packaging
+
+Add an opt-in binary-based Flatpak build from the same sidecar-bearing Debian
+artifact. Keep Debian/AppImage as the existing outputs; the Flatpak is experimental
+until portal import/export, model loading, playback, recording and updates pass
+on real desktops. No Flathub publication or automatic update channel is implied.
+The package uses a separate Flatpak workspace and explicit user backup/restore
+rather than silently migrating the development workspace. See packaging/flatpak.
