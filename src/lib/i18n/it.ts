@@ -641,6 +641,11 @@ export const it: Strings = {
       detail:
         'La versione dell’ambiente Ollama è cambiata dopo che questa operazione era in coda. Riprovi per prendere l’ambiente attuale.',
     },
+    provider_stalled: {
+      title: 'La generazione del verbale non risponde più',
+      detail:
+        'Il modello locale non ha risposto in tempo. Nessuna bozza parziale è stata salvata; la trascrizione e le bozze precedenti restano disponibili. Riprovi oppure usi un modello più piccolo se il problema si ripete.',
+    },
     provider_unavailable: {
       title: 'La generazione locale del verbale non è riuscita a connettersi',
       detail:

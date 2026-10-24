@@ -651,6 +651,11 @@ export const fr: Strings = {
       detail:
         'La version de l’environnement Ollama a changé après la mise en file de cette tâche. Réessayez pour prendre l’environnement actuel.',
     },
+    provider_stalled: {
+      title: 'La génération du compte rendu ne répond plus',
+      detail:
+        'Le modèle local n’a pas répondu à temps. Aucun brouillon partiel n’a été enregistré ; la transcription et les brouillons précédents restent disponibles. Réessayez ou utilisez un modèle plus petit si cela se reproduit.',
+    },
     provider_unavailable: {
       title: 'La génération locale du compte rendu n’a pas pu se connecter',
       detail:

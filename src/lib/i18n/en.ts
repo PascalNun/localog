@@ -726,6 +726,11 @@ export const en = {
       detail:
         'The Ollama runtime version changed after this job was queued. Retry to capture the current runtime.',
     },
+    provider_stalled: {
+      title: 'Protocol generation stopped responding',
+      detail:
+        'The local model did not respond in time. No partial draft was saved; your transcript and previous drafts remain available. Retry, or try a smaller model if this happens again.',
+    },
     provider_unavailable: {
       title: 'Local protocol generation could not connect',
       detail:

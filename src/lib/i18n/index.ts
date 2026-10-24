@@ -26,6 +26,7 @@ import { ja } from './ja';
 import { ko } from './ko';
 import { zh } from './zh';
 import type { Strings } from './en';
+import type { JobKind } from '../workflow/types';
 
 export type { Strings };
 
@@ -196,14 +197,29 @@ export function stageText(raw: string): string {
  * fit. It arrives as a code too, so it goes through the same funnel; a plain sentence
  * from an older build passes through unchanged.
  */
-export function jobErrorTitle(code: string): string {
+function jobErrorEntry(code: string, kind: JobKind = 'import') {
   const errors = get(t).jobErrors as Record<string, { title: string; detail: string } | undefined>;
-  return (errors[code] ?? get(t).jobErrors.unknown).title;
+  // The historical interrupted message describes an imported file, not a
+  // transcript or protocol. Unknown processing failures need the same distinction.
+  if (kind !== 'import' && code === 'interrupted') return get(t).jobErrors.processing_failed;
+  return (
+    errors[code] ??
+    (kind === 'import' ? get(t).jobErrors.unknown : get(t).jobErrors.processing_failed)
+  );
 }
 
-export function jobErrorDetail(code: string, stored: string): string {
+export function jobErrorTitle(code: string, kind: JobKind = 'import'): string {
+  return jobErrorEntry(code, kind).title;
+}
+
+export function jobErrorDetail(code: string, stored: string, kind: JobKind = 'import'): string {
   const said = stored.trim();
+  // Replace the old diagnosis: an idle stream does not prove an out-of-memory failure.
+  if (
+    code === 'provider_stalled' &&
+    said.startsWith('The local model stopped responding partway through and the draft was not')
+  )
+    return jobErrorEntry(code, kind).detail;
   if (said !== '') return isFailureCode(said) ? failureText(said) : said;
-  const errors = get(t).jobErrors as Record<string, { title: string; detail: string } | undefined>;
-  return (errors[code] ?? get(t).jobErrors.unknown).detail;
+  return jobErrorEntry(code, kind).detail;
 }

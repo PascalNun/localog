@@ -73,3 +73,14 @@ The person reviewing the document remains responsible for deciding whether the w
 Sectioned generation, fact scanning, subject discovery, subject grouping, and unclaimed-segment reporting have been explored. The production provider still uses the simpler validated generation path while the structured approach is measured and connected carefully.
 
 The next proof is a complete German run whose quality is judged against the human reference on completeness, correctness, attribution, length, and editing effort. An English run should follow.
+
+## Failure messages
+
+A stalled model response is reported as a protocol-generation failure, with a
+localized explanation that keeps the transcript and previous drafts available.
+Silence alone does not establish that the machine ran out of memory. A smaller
+model is a possible next step if retrying repeatedly fails, not a guaranteed fix.
+Unknown generation/transcription failures and interrupted processing use the local
+processing message rather than the import-specific fallback. Existing stored
+stall messages with the old memory diagnosis are corrected when displayed; saved
+meeting artifacts are unchanged.

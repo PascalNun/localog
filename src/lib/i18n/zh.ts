@@ -586,6 +586,11 @@ export const zh: Strings = {
       title: '本地提供方发生了变化',
       detail: '此任务入队后，Ollama 运行环境的版本变了。请重试以采用当前的运行环境。',
     },
+    provider_stalled: {
+      title: '会议纪要生成停止响应',
+      detail:
+        '本地模型未能及时响应。未保存未完成的草稿；转录文本和以前的草稿仍然可用。请重试；如果再次出现此问题，可尝试更小的模型。',
+    },
     provider_unavailable: {
       title: '本地纪要生成未能连接',
       detail: '请启动您已安装的 Ollama 后重试。LocaLog 既不启动也不下载运行环境。',

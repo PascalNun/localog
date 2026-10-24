@@ -454,10 +454,9 @@ fn provider_processing_error(error: provider::ProviderError) -> ProcessingError 
         // a person watching a progress bar that will never move again.
         provider::ProviderError::Stalled => ProcessingError::Runtime {
             code: "provider_stalled",
-            message: "The local model stopped responding partway through and the draft was not \
-                      committed. This usually means it needs more memory than is free — a smaller \
-                      model, or closing other applications, should let it finish."
-                .into(),
+            // The interface supplies the localized explanation for this code.
+            // Silence alone does not establish memory exhaustion.
+            message: String::new(),
         },
     }
 }

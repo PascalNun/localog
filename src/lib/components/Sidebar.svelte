@@ -122,7 +122,7 @@
 
   function jobDetail(job: ActiveJob) {
     if (jobNeedsAttention || job.state === 'queued')
-      return job.error ? jobErrorTitle(job.error.code) : stageText(job.stage);
+      return job.error ? jobErrorTitle(job.error.code, job.kind) : stageText(job.stage);
     // Without a meeting name above it, the stage would be the only line, so the
     // work is named here instead of being lost.
     if (!activeJobMeeting) return `${stageLabel(job)} · ${progressLabel(job)}`;

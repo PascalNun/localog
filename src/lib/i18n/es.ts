@@ -635,6 +635,11 @@ export const es: Strings = {
       detail:
         'La versión del entorno de Ollama cambió después de encolar esta tarea. Reinténtelo para tomar el entorno actual.',
     },
+    provider_stalled: {
+      title: 'La generación del acta dejó de responder',
+      detail:
+        'El modelo local no respondió a tiempo. No se guardó ningún borrador parcial; la transcripción y los borradores anteriores siguen disponibles. Reinténtelo o pruebe un modelo más pequeño si vuelve a ocurrir.',
+    },
     provider_unavailable: {
       title: 'La generación local del acta no ha podido conectar',
       detail:

@@ -662,6 +662,11 @@ export const de: Strings = {
       detail:
         'Die Version der Ollama-Laufzeit hat sich geändert, nachdem dieser Vorgang eingereiht wurde. Versuchen Sie es erneut, um die aktuelle Laufzeit zu übernehmen.',
     },
+    provider_stalled: {
+      title: 'Die Protokollerzeugung antwortet nicht mehr',
+      detail:
+        'Das lokale Modell hat nicht rechtzeitig geantwortet. Es wurde kein unvollständiger Entwurf gespeichert; Ihr Transkript und frühere Entwürfe bleiben verfügbar. Versuchen Sie es erneut oder verwenden Sie ein kleineres Modell, wenn dies wieder passiert.',
+    },
     provider_unavailable: {
       title: 'Die lokale Protokollerzeugung konnte keine Verbindung herstellen',
       detail:

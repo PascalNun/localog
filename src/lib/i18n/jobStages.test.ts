@@ -123,6 +123,34 @@ describe('a job that failed', () => {
     expect(jobErrorDetail('a_failure_nobody_named', '')).toContain('remains in Draft');
   });
 
+  it('keeps generation failures separate from import failures', () => {
+    chooseLanguage('en');
+    expect(jobErrorTitle('provider_stalled', 'generation')).toBe(
+      'Protocol generation stopped responding',
+    );
+    const detail = jobErrorDetail('provider_stalled', '', 'generation');
+    expect(detail).toContain('your transcript and previous drafts remain available');
+    expect(detail).not.toContain('memory');
+    expect(
+      jobErrorDetail(
+        'provider_stalled',
+        'The local model stopped responding partway through and the draft was not committed. This usually means it needs more memory than is free.',
+        'generation',
+      ),
+    ).toBe(detail);
+    for (const kind of ['generation', 'transcription'] as const) {
+      for (const code of ['interrupted', 'a_new_processing_failure']) {
+        expect(jobErrorTitle(code, kind)).toBe('Local processing could not finish');
+        expect(jobErrorDetail(code, '', kind)).toContain('latest stable work remains available');
+      }
+    }
+    chooseLanguage('de');
+    expect(jobErrorTitle('provider_stalled', 'generation')).toBe(
+      'Die Protokollerzeugung antwortet nicht mehr',
+    );
+    chooseLanguage('en');
+  });
+
   it('lets a plain sentence from an older build through unchanged', () => {
     const older = 'Something the previous build wrote out in full.';
     expect(jobErrorDetail('processing_failed', older)).toBe(older);
