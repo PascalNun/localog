@@ -26,6 +26,7 @@
   import type { GenerationModelEntry } from '../models/modelCatalog';
   import { formatModelSize } from '../models/modelSize';
   import { INTERFACE_LANGUAGES, chooseLanguage, language, listOf, t } from '../i18n';
+  import type { LanguageId } from '../i18n';
   import { formatMeetingDate } from '../protocol/document';
   import { showInFileManagerKey } from '../platform/fileManager';
   import Icon from './Icon.svelte';
@@ -321,7 +322,7 @@
   }
 </script>
 
-<main class="workspace" id="main-content">
+<main class="workspace settings-workspace" id="main-content">
   <header class="workspace-header compact-header">
     <div>
       <p class="eyebrow">{$t.settings.application}</p>
@@ -353,32 +354,30 @@
             <h3>{$t.settings.interfaceLanguage}</h3>
             <p>{$t.settings.interfaceLanguageDetail}</p>
           </div>
-          <div class="choice-row" role="group" aria-label={$t.settings.interfaceLanguage}>
+          <select
+            aria-label={$t.settings.interfaceLanguage}
+            value={$language}
+            onchange={(event) => chooseLanguage(event.currentTarget.value as LanguageId)}
+          >
             {#each INTERFACE_LANGUAGES as option (option.id)}
-              <button
-                class="choice"
-                class:chosen={$language === option.id}
-                aria-pressed={$language === option.id}
-                onclick={() => chooseLanguage(option.id)}>{option.label}</button
-              >
+              <option value={option.id}>{option.label}</option>
             {/each}
-          </div>
+          </select>
         </div>
         <div class="setting-row">
           <div>
             <h3>{$t.settings.defaultExport}</h3>
             <p>{$t.settings.defaultExportDetail}</p>
           </div>
-          <div class="choice-row" role="group" aria-label={$t.settings.defaultExportLabel}>
+          <select
+            aria-label={$t.settings.defaultExportLabel}
+            value={defaultExport}
+            onchange={(event) => onChooseDefaultExport(event.currentTarget.value as ExportFormat)}
+          >
             {#each EXPORT_CHOICES as option (option.id)}
-              <button
-                class="choice"
-                class:chosen={defaultExport === option.id}
-                aria-pressed={defaultExport === option.id}
-                onclick={() => onChooseDefaultExport(option.id)}>{option.label}</button
-              >
+              <option value={option.id}>{option.label}</option>
             {/each}
-          </div>
+          </select>
         </div>
         {#if windowControlsAvailable}
           <div class="setting-row">

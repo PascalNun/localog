@@ -183,3 +183,11 @@ The supplied reference images guide the visual character and spacing. They do no
 - Should speaker labels be renamed only in the transcript, or also through a project participant list?
 - How should the first-run meeting language be selected without coupling it to interface language?
 - What is the most useful way to show generation evidence without making the editor feel like a diagnostic console?
+
+### Compact settings
+
+Interface language and default export use labelled dropdowns. Settings navigation
+changes to a horizontal scrolling row when the workspace has insufficient width
+for two columns. Setting descriptions and controls stack based on the panel's
+available width, including when the project sidebar is resized; the description
+must never collapse to a column a word wide.
