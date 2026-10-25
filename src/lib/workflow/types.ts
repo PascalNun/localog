@@ -722,6 +722,7 @@ export interface WorkflowBridge {
   confirmDuplicateImport(meetingId: string): Promise<void>;
   reselectImportSource(meetingId: string): Promise<void>;
   updateMeetingTitle(meetingId: string, title: string): Promise<void>;
+  updateProjectName(projectId: string, name: string): Promise<void>;
   updateMeetingLanguage(meetingId: string, language: string): Promise<void>;
   updateTranscriptSegment(meetingId: string, segmentId: string, text: string): Promise<void>;
   deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<void>;

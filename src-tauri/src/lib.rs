@@ -1946,6 +1946,20 @@ async fn update_meeting_title(
     .await
 }
 
+/// Rename a project. Its meetings, names and protocols are untouched.
+#[tauri::command]
+async fn rename_project(
+    state: State<'_, StorageState>,
+    project_id: String,
+    name: String,
+) -> Result<WorkspaceSnapshot, String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.update_project_name(&project_id, &name)?;
+        repository.workspace_snapshot()
+    })
+    .await
+}
+
 #[tauri::command]
 async fn update_meeting_language(
     state: State<'_, StorageState>,
@@ -2048,6 +2062,7 @@ pub fn run() {
             retry_import,
             replace_import_source,
             update_meeting_title,
+            rename_project,
             update_meeting_language,
             start_transcription,
             start_generation,

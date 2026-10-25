@@ -506,6 +506,15 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     this.emit();
   }
 
+  async updateProjectName(projectId: string, name: string): Promise<void> {
+    const nextName = name.trim();
+    if (!nextName) return;
+    if (await this.durable((store) => store.updateProjectName(projectId, nextName))) return;
+    const project = this.snapshot.projects.find((candidate) => candidate.id === projectId);
+    if (project) project.name = nextName;
+    this.emit();
+  }
+
   async updateMeetingLanguage(meetingId: string, language: string): Promise<void> {
     const nextLanguage = language.trim();
     if (!nextLanguage) throw new Error('Choose a meeting language.');

@@ -894,6 +894,7 @@
             .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))}
           onNavigate={navigate}
           onDeleteMeeting={(meetingId: string) => bridge.deleteMeeting(meetingId)}
+          onRenameProject={(name) => bridge.updateProjectName(project.id, name)}
           onArchiveMeeting={async (meetingId: string) => {
             await bridge.setMeetingArchived(meetingId, true);
             announcement = $t.shell.meetingArchived;

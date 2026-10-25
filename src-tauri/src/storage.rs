@@ -896,6 +896,19 @@ impl WorkspaceRepository {
         Ok(())
     }
 
+    pub fn update_project_name(&self, project_id: &str, name: &str) -> Result<()> {
+        let project_id = required_text(project_id, 128, "projectInvalid")?;
+        let name = required_text(name, 200, "projectNameRequired")?;
+        let updated = self.connection.execute(
+            "UPDATE projects SET name = ?1, updated_at_ms = ?2 WHERE id = ?3",
+            params![name, unix_time_millis(), project_id],
+        )?;
+        if updated == 0 {
+            return Err(StorageError::MissingProject);
+        }
+        Ok(())
+    }
+
     pub(crate) fn import_job_for_meeting(&self, meeting_id: &str) -> Result<ImportJobRecord> {
         self.connection
             .query_row(
@@ -4241,6 +4254,41 @@ mod tests {
             .unwrap();
         assert_eq!(reopened.projects[0].default_language, "");
         assert_eq!(reopened.meetings[0].language, "");
+    }
+
+    #[test]
+    fn renaming_a_project_keeps_everything_under_it() {
+        let temporary = tempdir().unwrap();
+        let source = synthetic_source(temporary.path());
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let project = repository.create_project(project_input()).unwrap();
+        let meeting = repository
+            .create_meeting(meeting_input(&project.id, &source))
+            .unwrap();
+        repository
+            .update_project_name(&project.id, "Halde Nord")
+            .unwrap();
+        let snapshot = repository.workspace_snapshot().unwrap();
+        assert_eq!(snapshot.projects[0].name, "Halde Nord");
+        // The meeting and the project it belongs to do not move.
+        assert_eq!(snapshot.meetings[0].id, meeting.id);
+        assert_eq!(snapshot.meetings[0].project_id, project.id);
+    }
+
+    #[test]
+    fn a_project_name_cannot_be_blank_or_name_nobody() {
+        let temporary = tempdir().unwrap();
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let project = repository.create_project(project_input()).unwrap();
+        let original = project.name.clone();
+        assert!(repository.update_project_name(&project.id, "   ").is_err());
+        assert!(
+            repository
+                .update_project_name("project-nobody", "Name")
+                .is_err()
+        );
+        let snapshot = repository.workspace_snapshot().unwrap();
+        assert_eq!(snapshot.projects[0].name, original);
     }
 
     #[test]
