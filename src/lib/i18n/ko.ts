@@ -118,6 +118,7 @@ const failures = {
   meetingBusy: '이 회의는 아직 처리 중입니다. 먼저 그 작업을 취소하십시오.',
   pdfExportFailed: 'PDF를 저장하지 못했습니다. 사용 가능한 폴더를 선택하고 다시 시도하세요.',
   printDialogUnavailable: '이 창에서 인쇄 대화상자를 열지 못했습니다.',
+  dialogUnavailable: '파일 대화상자를 열 수 없습니다.',
 
   backupNameUnsafe: '해당 백업 이름은 폴더 이름으로 쓸 수 없습니다.',
   notABackup: '해당 폴더는 LocaLog 백업이 아닙니다. manifest.json이 없습니다.',

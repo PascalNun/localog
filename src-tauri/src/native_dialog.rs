@@ -53,24 +53,37 @@ fn choose(
     filters: &[DialogFilter],
     configure: impl FnOnce(&gtk::FileChooserNative) + Send + 'static,
 ) -> Result<Option<PathBuf>, String> {
-    let (sender, receiver) = std::sync::mpsc::channel::<Option<PathBuf>>();
+    let (sender, receiver) = std::sync::mpsc::channel::<Result<Option<PathBuf>, String>>();
     let window = window.clone();
     let title = title.to_owned();
     let filters = filters.to_vec();
     let handle = window.clone();
-    let _ = handle.run_on_main_thread(move || {
-        let parent = window.gtk_window().ok();
-        let dialog = gtk::FileChooserNative::new(Some(&title), parent.as_ref(), action, None, None);
-        apply_filters(&dialog, &filters);
-        configure(&dialog);
-        let chosen = if dialog.run() == gtk::ResponseType::Accept {
-            dialog.filename()
-        } else {
-            None
-        };
-        let _ = sender.send(chosen);
-    });
-    receiver.recv().map_err(|_| "dialogUnavailable".to_string())
+    // A modal dialog runs on the GTK main loop. Scheduling it can fail before it
+    // answers, and a panic inside the loop would otherwise leave this command
+    // waiting forever; both are caught so it returns an error instead of hanging.
+    handle
+        .run_on_main_thread(move || {
+            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let parent = window.gtk_window().ok();
+                let dialog =
+                    gtk::FileChooserNative::new(Some(&title), parent.as_ref(), action, None, None);
+                apply_filters(&dialog, &filters);
+                configure(&dialog);
+                if dialog.run() == gtk::ResponseType::Accept {
+                    dialog.filename()
+                } else {
+                    None
+                }
+            }));
+            let _ = sender.send(match outcome {
+                Ok(chosen) => Ok(chosen),
+                Err(_) => Err("dialogUnavailable".to_string()),
+            });
+        })
+        .map_err(|_| "dialogUnavailable".to_string())?;
+    receiver
+        .recv()
+        .map_err(|_| "dialogUnavailable".to_string())?
 }
 
 #[tauri::command]
@@ -99,8 +112,9 @@ pub async fn native_open_path(
     }
     #[cfg(not(target_os = "linux"))]
     {
+        // Unreachable: the frontend routes non-Linux through the dialog plugin.
         let _ = (window, title, directory, multiple, filters);
-        Err("notSupported".to_string())
+        Err("dialogUnavailable".to_string())
     }
 }
 
@@ -141,7 +155,8 @@ pub async fn native_save_path(
     }
     #[cfg(not(target_os = "linux"))]
     {
+        // Unreachable: the frontend routes non-Linux through the dialog plugin.
         let _ = (window, title, default_path, filters);
-        Err("notSupported".to_string())
+        Err("dialogUnavailable".to_string())
     }
 }

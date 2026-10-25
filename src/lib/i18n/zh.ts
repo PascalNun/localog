@@ -120,6 +120,7 @@ const failures = {
   meetingBusy: '这场会议仍在处理中。请先取消该处理。',
   pdfExportFailed: '无法保存 PDF。请选择可用的文件夹并重试。',
   printDialogUnavailable: '此窗口未能打开打印对话框。',
+  dialogUnavailable: '无法打开文件对话框。',
 
   backupNameUnsafe: '该备份名称不能用作文件夹名。',
   notABackup: '该文件夹不是 LocaLog 备份：其中没有 manifest.json。',

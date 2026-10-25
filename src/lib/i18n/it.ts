@@ -123,6 +123,7 @@ const failures = {
   pdfExportFailed:
     'Non è stato possibile salvare il PDF. Scelga una cartella disponibile e riprovi.',
   printDialogUnavailable: 'Questa finestra non è riuscita ad aprire la finestra di stampa.',
+  dialogUnavailable: 'Non è stato possibile aprire la finestra di selezione file.',
 
   backupNameUnsafe: 'Questo nome di copia non può essere usato come nome di cartella.',
   notABackup: 'Questa cartella non è una copia di LocaLog: non ha un manifest.json.',

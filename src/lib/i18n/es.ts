@@ -115,6 +115,7 @@ const failures = {
   meetingBusy: 'Esta reunión aún se está procesando. Cancélelo primero.',
   pdfExportFailed: 'No se pudo guardar el PDF. Elija una carpeta disponible y reinténtelo.',
   printDialogUnavailable: 'Esta ventana no ha podido abrir el diálogo de impresión.',
+  dialogUnavailable: 'No se pudo abrir el diálogo de archivos.',
 
   backupNameUnsafe: 'Ese nombre de copia no se puede usar como nombre de carpeta.',
   notABackup: 'Esa carpeta no es una copia de LocaLog: no tiene manifest.json.',

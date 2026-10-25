@@ -129,6 +129,7 @@ const failures = {
   pdfExportFailed:
     'Le PDF n’a pas pu être enregistré. Choisissez un dossier disponible et réessayez.',
   printDialogUnavailable: 'Cette fenêtre n’a pas pu ouvrir la boîte de dialogue d’impression.',
+  dialogUnavailable: 'La boîte de dialogue de fichier n’a pas pu être ouverte.',
 
   backupNameUnsafe: 'Ce nom de sauvegarde ne peut pas servir de nom de dossier.',
   notABackup: 'Ce dossier n’est pas une sauvegarde LocaLog : il n’a pas de manifest.json.',

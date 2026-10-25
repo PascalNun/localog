@@ -122,6 +122,7 @@ const failures = {
   meetingBusy: 'この会議はまだ処理中です。先にそちらを中止してください。',
   pdfExportFailed: 'PDFを保存できませんでした。利用可能なフォルダーを選択して再試行してください。',
   printDialogUnavailable: 'このウインドウでは印刷ダイアログを開けませんでした。',
+  dialogUnavailable: 'ファイルダイアログを開けませんでした。',
 
   backupNameUnsafe: 'そのバックアップ名はフォルダ名として使えません。',
   notABackup: 'そのフォルダはLocaLogのバックアップではありません。manifest.jsonがありません。',

@@ -131,6 +131,7 @@ const failures = {
   pdfExportFailed:
     'Die PDF konnte nicht gespeichert werden. Wählen Sie einen verfügbaren Ordner und versuchen Sie es erneut.',
   printDialogUnavailable: 'Dieses Fenster konnte den Druckdialog nicht öffnen.',
+  dialogUnavailable: 'Der Dateidialog konnte nicht geöffnet werden.',
 
   // Sichern und Zurückspielen.
   backupNameUnsafe: 'Dieser Name kann nicht als Ordnername verwendet werden.',

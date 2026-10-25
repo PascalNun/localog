@@ -132,6 +132,7 @@ const failures = {
   meetingBusy: 'This meeting is still being worked on. Cancel that first.',
   pdfExportFailed: 'The PDF could not be saved. Choose an available folder and try again.',
   printDialogUnavailable: 'This window could not open the print dialog.',
+  dialogUnavailable: 'The file dialog could not be opened.',
 
   // Backing up and restoring.
   backupNameUnsafe: 'That backup name cannot be used as a folder name.',
