@@ -211,7 +211,9 @@
           <label
             ><span>{$t.newMeeting.title}</span><input
               bind:value={title}
-              placeholder={$t.newMeeting.titlePlaceholder}
+              placeholder={forRecording
+                ? $t.newMeeting.titlePlaceholderRecording
+                : $t.newMeeting.titlePlaceholder}
             /></label
           >
           <label

@@ -970,6 +970,7 @@ export const it: Strings = {
     meetingInformation: 'Dati della riunione',
     title: 'Titolo',
     titlePlaceholder: 'Ricavato dal file se lasciato vuoto',
+    titlePlaceholderRecording: 'Dia un nome a questa riunione',
     date: 'Data',
     language: 'Lingua della riunione',
     protocolStyle: 'Stile del verbale',

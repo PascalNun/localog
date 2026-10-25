@@ -1065,6 +1065,7 @@ export const en = {
     meetingInformation: 'Meeting information',
     title: 'Title',
     titlePlaceholder: 'Derived from the file if left empty',
+    titlePlaceholderRecording: 'Name this meeting',
     date: 'Date',
     language: 'Meeting language',
     protocolStyle: 'Protocol style',

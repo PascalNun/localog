@@ -977,6 +977,7 @@ export const fr: Strings = {
     meetingInformation: 'Informations sur la réunion',
     title: 'Titre',
     titlePlaceholder: 'Repris du fichier s’il est laissé vide',
+    titlePlaceholderRecording: 'Nommez cette réunion',
     date: 'Date',
     language: 'Langue de la réunion',
     protocolStyle: 'Style de compte rendu',

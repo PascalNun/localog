@@ -880,6 +880,7 @@ export const zh: Strings = {
     meetingInformation: '会议信息',
     title: '标题',
     titlePlaceholder: '留空则取自文件名',
+    titlePlaceholderRecording: '为此会议命名',
     date: '日期',
     language: '会议语言',
     protocolStyle: '纪要样式',

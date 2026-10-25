@@ -931,6 +931,7 @@ export const ko: Strings = {
     meetingInformation: '회의 정보',
     title: '제목',
     titlePlaceholder: '비워 두시면 파일 이름에서 가져옵니다',
+    titlePlaceholderRecording: '이 회의에 이름을 붙이십시오',
     date: '날짜',
     language: '회의 언어',
     protocolStyle: '회의록 스타일',

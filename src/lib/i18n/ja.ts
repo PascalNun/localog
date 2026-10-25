@@ -942,6 +942,7 @@ export const ja: Strings = {
     meetingInformation: '会議の情報',
     title: '題名',
     titlePlaceholder: '空欄ならファイル名から取ります',
+    titlePlaceholderRecording: 'この会議に名前を付けてください',
     date: '日付',
     language: '会議の言語',
     protocolStyle: '議事録スタイル',

@@ -954,6 +954,7 @@ export const es: Strings = {
     meetingInformation: 'Datos de la reunión',
     title: 'Título',
     titlePlaceholder: 'Se toma del archivo si se deja vacío',
+    titlePlaceholderRecording: 'Ponga nombre a esta reunión',
     date: 'Fecha',
     language: 'Idioma de la reunión',
     protocolStyle: 'Estilo del acta',

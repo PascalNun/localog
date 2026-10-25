@@ -994,6 +994,7 @@ export const de: Strings = {
     meetingInformation: 'Angaben zur Besprechung',
     title: 'Titel',
     titlePlaceholder: 'Wird aus der Datei abgeleitet, wenn leer',
+    titlePlaceholderRecording: 'Benennen Sie diese Besprechung',
     date: 'Datum',
     language: 'Sprache der Besprechung',
     protocolStyle: 'Protokollstil',
