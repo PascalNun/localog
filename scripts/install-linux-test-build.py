@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Install a locally built standalone test app and its sidecars in the user's home."""
 import os
-from pathlib import Path
 import shlex
 import shutil
 import subprocess
-import tempfile
 import sys
+import tempfile
+from pathlib import Path
 
 sys.dont_write_bytecode = True
 
@@ -59,6 +59,8 @@ def main():
     # Reuse the desktop Exec quoting boundary, including literal percent signs.
     import importlib.util
     spec = importlib.util.spec_from_file_location('launcher_installer', ROOT / 'scripts/install-linux-dev-launcher.py')
+    if spec is None or spec.loader is None:
+        raise SystemExit('Could not load the launcher installer.')
     installer = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(installer)
     desktop.write_text('\n'.join([
