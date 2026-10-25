@@ -1060,6 +1060,7 @@ export const it: Strings = {
     nothingFlaggedNote:
       'Non è stato segnalato nulla come poco chiaro. Anche una trascrizione fatta prima che questo esistesse non mostra nulla qui, quindi conviene rileggere una trascrizione vecchia anziché fidarsene.',
     workingAudioLater: 'L’audio di lavoro sarà disponibile una volta trascritta questa riunione.',
+    loadingAudio: 'Preparazione dell’audio di questa riunione per la riproduzione…',
     recordingEndsNote:
       'Se la riunione è proseguita oltre, la registrazione non l’ha captato e il verbale non lo conterrà.',
     heading: 'Revisione della trascrizione',

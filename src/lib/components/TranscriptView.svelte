@@ -268,6 +268,7 @@
   let saveState: 'saved' | 'saving' | 'failed' = transcript?.saveState ?? 'saved';
   let audioElement: HTMLAudioElement | null = null;
   let audioSource: string | null = null;
+  let audioLoading = true;
   let audioDuration = 0;
   let followPlayback = true;
   let audioError: string | null = null;
@@ -287,14 +288,24 @@
   async function loadAudio(meetingId: string) {
     // Snapshot events fire often; only reload when the meeting actually changes.
     if (loadedAudioFor === meetingId) return;
-    loadedAudioFor = meetingId;
-    const audio = await onLoadAudio(meetingId);
-    audioSource = audio?.source ?? null;
-    // A different source means the previous transport state no longer applies.
-    currentSeconds = 0;
-    isPlaying = false;
+    audioLoading = true;
     audioError = null;
-    audioDuration = audio?.durationMs ? audio.durationMs / 1000 : 0;
+    try {
+      const audio = await onLoadAudio(meetingId);
+      audioSource = audio?.source ?? null;
+      // A different source means the previous transport state no longer applies.
+      currentSeconds = 0;
+      isPlaying = false;
+      audioDuration = audio?.durationMs ? audio.durationMs / 1000 : 0;
+      // Mark the meeting only after it has answered, so a failed attempt is tried
+      // again rather than leaving the page saying the audio does not exist.
+      loadedAudioFor = meetingId;
+    } catch {
+      audioSource = null;
+      audioError = $t.transcript.audioCouldNotLoad;
+    } finally {
+      audioLoading = false;
+    }
   }
 
   // The segment under the playhead, used to highlight and to follow along.
@@ -553,13 +564,21 @@
             title={$t.transcript.followLabel}
             onclick={() => (followPlayback = !followPlayback)}>{$t.transcript.follow}</button
           >
+        {:else if audioLoading}
+          <p class="transport-empty">
+            {$t.transcript.loadingAudio}
+          </p>
+        {:else if audioError}
+          <p class="transport-empty">
+            {audioError}
+          </p>
         {:else}
           <p class="transport-empty">
             {$t.transcript.workingAudioLater}
           </p>
         {/if}
       </section>
-      {#if audioError}<p class="setting-error" role="alert">{audioError}</p>{/if}
+      {#if audioError && audioSource}<p class="setting-error" role="alert">{audioError}</p>{/if}
 
       <div class="transcript-toolbar">
         <label class="search-field"

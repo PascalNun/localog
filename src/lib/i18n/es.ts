@@ -1043,6 +1043,7 @@ export const es: Strings = {
       'No se ha marcado nada como poco claro. Una transcripción hecha antes de que esto existiera tampoco muestra nada aquí, así que conviene releer una antigua en vez de fiarse de ella.',
     workingAudioLater:
       'El audio de trabajo estará disponible cuando se haya transcrito esta reunión.',
+    loadingAudio: 'Preparando el audio de esta reunión para la reproducción…',
     recordingEndsNote:
       'Si la reunión siguió más allá, la grabación no lo captó y el acta no lo contendrá.',
     heading: 'Revisión de la transcripción',

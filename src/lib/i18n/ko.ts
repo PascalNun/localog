@@ -1015,6 +1015,7 @@ export const ko: Strings = {
     nothingFlaggedNote:
       '불명확하다고 표시된 것이 없습니다. 이 기능이 생기기 전에 만든 전사본도 여기에 아무것도 보이지 않으므로, 오래된 전사본은 믿기보다 다시 읽어 보시는 편이 낫습니다.',
     workingAudioLater: '작업용 오디오는 이 회의를 전사한 뒤에 쓸 수 있게 됩니다.',
+    loadingAudio: '이 회의의 오디오를 재생할 수 있도록 준비하는 중…',
     recordingEndsNote:
       '회의가 이 뒤로도 이어졌다면 녹음이 그것을 담지 못했고, 회의록에도 들어가지 않습니다.',
     heading: '전사본 검토',

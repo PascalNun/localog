@@ -1163,6 +1163,7 @@ export const en = {
     nothingFlaggedNote:
       'Nothing was flagged as unclear. A transcript made before this was recorded also shows nothing here, so an older one may be worth reading rather than trusting.',
     workingAudioLater: 'Working audio becomes available once this meeting has been transcribed.',
+    loadingAudio: 'Preparing this meeting’s audio for playback…',
     recordingEndsNote:
       'If the meeting carried on past this, the recording did not capture it and the protocol will not contain it.',
     heading: 'Transcript review',

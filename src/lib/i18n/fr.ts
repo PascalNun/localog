@@ -1068,6 +1068,7 @@ export const fr: Strings = {
     nothingFlaggedNote:
       'Rien n’a été signalé comme peu clair. Une transcription faite avant cette fonction n’affiche rien non plus ici : mieux vaut donc relire une ancienne transcription que lui faire confiance.',
     workingAudioLater: 'L’audio de travail devient disponible une fois cette réunion transcrite.',
+    loadingAudio: 'Préparation de l’audio de cette réunion pour la lecture…',
     recordingEndsNote:
       'Si la réunion s’est poursuivie au-delà, l’enregistrement ne l’a pas capté et le compte rendu ne le contiendra pas.',
     heading: 'Relecture de la transcription',

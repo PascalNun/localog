@@ -1796,7 +1796,9 @@ textarea::placeholder {
 .transcript-segment {
   position: relative;
   display: grid;
-  grid-template-columns: 78px 104px minmax(0, 1fr);
+  /* The last track is the remove action, which used to fall onto a second row
+     beneath the timestamp because the grid named only three tracks. */
+  grid-template-columns: 78px 104px minmax(0, 1fr) 24px;
   gap: 14px;
   padding: 19px 8px;
   border-bottom: 1px solid var(--line);
@@ -2968,7 +2970,7 @@ button.review-summary[aria-pressed='true'] {
     width: 100%;
   }
   .transcript-segment {
-    grid-template-columns: 72px minmax(0, 1fr);
+    grid-template-columns: 72px minmax(0, 1fr) 24px;
   }
   .transcript-segment label {
     grid-column: 1 / -1;
@@ -3201,6 +3203,8 @@ button.review-summary[aria-pressed='true'] {
    appearing on hover, because an action somebody cannot see is one they cannot
    use, and a keyboard never hovers. */
 .segment-remove {
+  grid-column: -2 / -1;
+  grid-row: 1;
   align-self: start;
   margin-top: 4px;
   padding: 4px;

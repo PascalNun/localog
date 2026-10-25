@@ -1085,6 +1085,7 @@ export const de: Strings = {
       'Nichts wurde als unklar markiert. Ein Transkript, das vor dieser Aufzeichnung entstand, zeigt hier ebenfalls nichts — ein älteres liest man daher besser, als dass man ihm vertraut.',
     workingAudioLater:
       'Die Arbeitsdatei steht zur Verfügung, sobald diese Besprechung transkribiert wurde.',
+    loadingAudio: 'Die Audiodatei dieser Besprechung wird für die Wiedergabe vorbereitet …',
     recordingEndsNote:
       'Wenn die Besprechung darüber hinaus weiterging, hat die Aufnahme das nicht erfasst — und das Protokoll enthält es nicht.',
     heading: 'Transkript prüfen',

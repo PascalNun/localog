@@ -959,6 +959,7 @@ export const zh: Strings = {
     nothingFlaggedNote:
       '没有任何内容被标为不清楚。在此功能出现之前做的转写稿在这里同样什么都不显示，所以旧的转写稿值得重读，而不是信任。',
     workingAudioLater: '工作音频会在这场会议转写之后可用。',
+    loadingAudio: '正在准备这场会议的音频以供播放…',
     recordingEndsNote: '如果会议在此之后还在继续，录音没有录到，纪要中也不会有。',
     heading: '校阅转写稿',
     exportTranscript: '导出转写稿…',
