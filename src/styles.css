@@ -1117,9 +1117,15 @@ body.sidebar-resizing * {
   align-items: center;
   gap: 18px;
   width: 100%;
+  min-width: 0;
   padding: 0;
   background: transparent;
   text-align: left;
+}
+
+/* Long record names shrink rather than pushing the status out of the window. */
+.meeting-open > span {
+  min-width: 0;
 }
 
 /* Quiet until wanted, and reachable from the keyboard rather than by hovering. */
@@ -2747,9 +2753,11 @@ button.review-summary[aria-pressed='true'] {
     padding-right: 13px;
     padding-left: 13px;
   }
-  .meeting-index-header,
-  .meeting-row {
-    grid-template-columns: 104px minmax(200px, 1.5fr) 80px minmax(130px, 1fr) 20px;
+  /* The row keeps its two tracks: the opening button and the delete action.
+     The four columns being narrowed are inside the button and the header. */
+  .meeting-index-columns,
+  .meeting-open {
+    grid-template-columns: 104px minmax(190px, 1.5fr) 80px minmax(130px, 1fr);
     gap: 12px;
   }
   .context-layout {
@@ -2847,14 +2855,28 @@ button.review-summary[aria-pressed='true'] {
   .meeting-index-header {
     display: none;
   }
-  .meeting-row {
-    grid-template-columns: 104px minmax(0, 1fr) 24px;
+  /* Two lines: date beside the title, status beneath it. The duration column
+     goes away rather than squeezing every other column into nothing. */
+  .meeting-open {
+    grid-template-columns: 88px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 2px 12px;
+    align-items: start;
   }
-  .meeting-row > span:nth-child(3) {
+  .meeting-open > span:nth-child(1) {
+    grid-row: 1 / span 2;
+  }
+  .meeting-open > span:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .meeting-open > span:nth-child(3) {
     display: none;
   }
-  .meeting-row > span:nth-child(4) {
+  .meeting-open > span:nth-child(4) {
     grid-column: 2;
+    grid-row: 2;
+    margin-top: 2px;
   }
   .progress-panel {
     grid-template-columns: 1fr;
@@ -2929,11 +2951,13 @@ button.review-summary[aria-pressed='true'] {
     width: 100%;
   }
   .meeting-row {
-    grid-template-columns: 84px minmax(0, 1fr) 18px;
     padding-right: 3px;
     padding-left: 3px;
   }
-  .meeting-row > span:nth-child(4) {
+  .meeting-open {
+    grid-template-columns: 74px minmax(0, 1fr);
+  }
+  .meeting-open > span:nth-child(4) {
     font-size: 0.72rem;
   }
   .stage-rail {
