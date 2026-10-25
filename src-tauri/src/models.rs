@@ -474,6 +474,15 @@ pub(crate) fn diarisation_model_paths(root: &Path) -> Option<(PathBuf, PathBuf)>
     Some((segmentation, embedding))
 }
 
+/// The embedding model alone, for the embedding sidecar.
+///
+/// Unlike the sherpa diariser, that pass does not segment: it embeds transcript
+/// segments the transcription already placed, so it has no use for the
+/// segmentation model and should not be refused when that one file is absent.
+pub(crate) fn embedding_model_path(root: &Path) -> Option<PathBuf> {
+    installed_model_path(root, "speaker-embedding")
+}
+
 /// Total download size of whatever the diariser is still missing, so the user can
 /// be told the cost before agreeing to it.
 pub(crate) fn diarisation_download_bytes(root: &Path) -> u64 {
@@ -766,6 +775,18 @@ mod tests {
         fs::File::create(&emb).unwrap().set_len(39_593_761).unwrap();
         assert_eq!(diarisation_model_paths(root), Some((seg, emb)));
         assert_eq!(diarisation_download_bytes(root), 0);
+    }
+
+    #[test]
+    fn the_embedding_pass_needs_only_its_own_model() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        fs::create_dir_all(models_dir(root)).unwrap();
+        // The segmentation model is not needed by the embedding sidecar.
+        assert!(embedding_model_path(root).is_none());
+        let emb = models_dir(root).join("speaker-embedding.onnx");
+        fs::File::create(&emb).unwrap().set_len(39_593_761).unwrap();
+        assert_eq!(embedding_model_path(root), Some(emb));
     }
 
     #[test]

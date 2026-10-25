@@ -1590,7 +1590,7 @@ fn embed_and_group(
     };
     // The embedding model is the one the diarisation pass already manages; this
     // pass simply does not need the segmentation model beside it.
-    let Some((_, embedding_model)) = models::diarisation_model_paths(&repository.root) else {
+    let Some(embedding_model) = models::embedding_model_path(&repository.root) else {
         return Ok(None);
     };
     if timings.is_empty() {

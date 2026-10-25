@@ -553,19 +553,31 @@ async fn speaker_separation_status(
 }
 
 fn speaker_status(repository: &WorkspaceRepository) -> SpeakerSeparationStatus {
-    let runtime_path = repository
+    let configured = repository
         .read_setting("diarisation.executable")
         .ok()
         .flatten()
         .map(PathBuf::from)
-        .filter(|path| path.is_file())
-        .or_else(|| runtime::discover_executable(runtime::DIARISER_NAMES));
-    let runtime_healthy = runtime_path
-        .as_deref()
-        .is_some_and(runtime::executable_health);
-    let runtime_version = runtime_path
-        .as_deref()
-        .and_then(runtime::executable_version);
+        .filter(|path| path.is_file());
+    // The embedding sidecar is what the app runs first; the sherpa diariser is a
+    // fallback for machines without it. Report whichever will actually be used, so
+    // the settings page does not claim a runtime is missing when the shipped one is
+    // present, or name the fallback while the embedding pass runs.
+    let embedding = runtime::discover_executable(runtime::EMBEDDING_NAMES);
+    let diariser = configured.or_else(|| runtime::discover_executable(runtime::DIARISER_NAMES));
+    let (runtime_path, runtime_healthy, runtime_version) = if let Some(path) = embedding {
+        // The shipped sidecar has no --version; presence beside the application is
+        // the health signal, since it is built and reviewed with the release.
+        (Some(path), true, None)
+    } else if let Some(path) = diariser {
+        (
+            Some(path.clone()),
+            runtime::executable_health(&path),
+            runtime::executable_version(&path),
+        )
+    } else {
+        (None, false, None)
+    };
     SpeakerSeparationStatus {
         models_installed: models::diarisation_model_paths(&repository.root).is_some(),
         runtime_configured: runtime_path.is_some(),
