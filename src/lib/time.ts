@@ -26,3 +26,14 @@ export function clock(seconds: number): string {
 export function clockFromMillis(milliseconds: number): string {
   return clock(milliseconds / 1000);
 }
+
+/**
+ * The local calendar day, in the form a date input expects.
+ *
+ * `toISOString()` is UTC, so in a timezone ahead of UTC it names yesterday
+ * between midnight and the offset — a meeting created at 00:30 would be filed
+ * under the previous day. A meeting's date belongs to the person's own day.
+ */
+export function localDateInput(date: Date = new Date()): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
