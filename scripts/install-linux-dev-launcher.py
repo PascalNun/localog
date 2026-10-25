@@ -2,8 +2,8 @@
 """Install a per-user launcher for this checkout; no runtime or model installation."""
 import argparse
 import os
-from pathlib import Path
 import shlex
+from pathlib import Path
 
 
 def desktop_quote(value):
