@@ -709,14 +709,20 @@
           let saved = false;
           await printProtocol(
             exported,
-            async () => {
-              saved = await bridge.exportPdf(exported.title);
+            async (sideMarginMm) => {
+              saved = await bridge.exportPdf(exported.title, sideMarginMm);
             },
             pageStarts,
           );
           if (saved) reportExport($t.shell.exportSaved('PDF'));
         } else {
-          await printProtocol(exported, bridge.nativePrint(), pageStarts);
+          await printProtocol(
+            exported,
+            async () => {
+              await bridge.nativePrint()?.();
+            },
+            pageStarts,
+          );
         }
       } catch (cause) {
         reportExport($t.shell.exportFailed('PDF', errorMessage(cause)), true);

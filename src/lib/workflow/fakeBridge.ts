@@ -1323,8 +1323,8 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   /** Direct PDF saving is available in the native Linux shell. */
-  async exportPdf(title: string): Promise<boolean> {
-    return this.workspaceStore?.exportPdf(title) ?? false;
+  async exportPdf(title: string, sideMarginMm: number): Promise<boolean> {
+    return this.workspaceStore?.exportPdf(title, sideMarginMm) ?? false;
   }
 
   /** The platform's print panel, where there is one; the browser has its own. */

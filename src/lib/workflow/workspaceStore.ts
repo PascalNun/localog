@@ -1,7 +1,7 @@
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { open, save } from '@tauri-apps/plugin-dialog';
+import { openDialog, saveDialog } from '../platform/fileDialog';
 import { strings } from '../i18n';
 import type {
   ActiveJob,
@@ -182,7 +182,7 @@ export interface WorkspaceStore {
   ) => Promise<boolean>;
   /** Ask the platform for its own print panel; the webview's own does nothing here. */
   printWindow: () => Promise<void>;
-  exportPdf: (title: string) => Promise<boolean>;
+  exportPdf: (title: string, sideMarginMm: number) => Promise<boolean>;
   /** Save a document the interface built, choosing where through the file dialog. */
   exportProtocolBytes: (
     contents: Uint8Array,
@@ -230,7 +230,7 @@ class TauriWorkspaceStore implements WorkspaceStore {
   }
 
   async selectMediaSource(): Promise<SourceSelection | null> {
-    const path = await open({
+    const path = await openDialog({
       multiple: false,
       directory: false,
       title: strings().dialog.chooseRecording,
@@ -253,7 +253,7 @@ class TauriWorkspaceStore implements WorkspaceStore {
         },
       ],
     });
-    if (!path) return null;
+    if (!path || typeof path !== 'string') return null;
     const name = path.split(/[\\/]/).pop();
     return name ? { name, path } : null;
   }
@@ -678,7 +678,7 @@ class TauriWorkspaceStore implements WorkspaceStore {
     title: string,
   ): Promise<boolean> {
     const extension = format === 'markdown' ? 'md' : 'txt';
-    const destination = await save({
+    const destination = await saveDialog({
       title: strings().dialog.exportTitle(title),
       defaultPath: `${safeFileName(title)}.${extension}`,
       filters: [
@@ -699,7 +699,7 @@ class TauriWorkspaceStore implements WorkspaceStore {
     extension: string,
     formatName: string,
   ): Promise<boolean> {
-    const destination = await save({
+    const destination = await saveDialog({
       title: strings().dialog.exportTitle(title),
       defaultPath: `${safeFileName(title)}.${extension}`,
       filters: [{ name: formatName, extensions: [extension] }],
@@ -711,14 +711,14 @@ class TauriWorkspaceStore implements WorkspaceStore {
     return true;
   }
 
-  async exportPdf(title: string): Promise<boolean> {
-    const destination = await save({
+  async exportPdf(title: string, sideMarginMm: number): Promise<boolean> {
+    const destination = await saveDialog({
       title: strings().dialog.exportTitle(title),
       defaultPath: `${safeFileName(title)}.pdf`,
       filters: [{ name: 'PDF', extensions: ['pdf'] }],
     });
     if (!destination) return false;
-    await invoke('export_pdf', { destination });
+    await invoke('export_pdf', { destination, sideMarginMm });
     return true;
   }
 

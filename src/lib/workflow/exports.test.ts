@@ -17,19 +17,20 @@ afterEach(() => vi.unstubAllGlobals());
 describe('native document exports', () => {
   it('saves PDF directly after one destination choice', async () => {
     dialogs.save.mockResolvedValue('/tmp/synthetic.pdf');
-    expect(await createNativeWorkspaceStore()!.exportPdf('Synthetic meeting')).toBe(true);
+    expect(await createNativeWorkspaceStore()!.exportPdf('Synthetic meeting', 20)).toBe(true);
     expect(dialogs.save).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ defaultPath: 'Synthetic-meeting.pdf' }),
     );
     expect(dialogs.invoke).toHaveBeenCalledExactlyOnceWith('export_pdf', {
       destination: '/tmp/synthetic.pdf',
+      sideMarginMm: 20,
     });
   });
 
   it('does not print or write when the destination choice is cancelled', async () => {
     dialogs.save.mockResolvedValue(null);
     const store = createNativeWorkspaceStore()!;
-    expect(await store.exportPdf('Synthetic')).toBe(false);
+    expect(await store.exportPdf('Synthetic', 20)).toBe(false);
     expect(await store.exportProtocol('meeting', 'markdown', 'Synthetic')).toBe(false);
     expect(await store.exportProtocolBytes(new Uint8Array([1]), 'Synthetic', 'docx', 'Word')).toBe(
       false,
@@ -70,7 +71,7 @@ describe('native document exports', () => {
   it('propagates a failed write so it cannot be reported as saved', async () => {
     dialogs.save.mockResolvedValue('/tmp/synthetic.pdf');
     dialogs.invoke.mockRejectedValue('exportFileExists');
-    await expect(createNativeWorkspaceStore()!.exportPdf('Synthetic')).rejects.toBe(
+    await expect(createNativeWorkspaceStore()!.exportPdf('Synthetic', 20)).rejects.toBe(
       'exportFileExists',
     );
   });

@@ -19,7 +19,7 @@ fn main() {
     let (sender, receiver) = mpsc::sync_channel(1);
     view.connect_load_changed(move |view, event| {
         if event == webkit2gtk::LoadEvent::Finished {
-            pdf_print::print_to_file(view, &uri, sender.clone());
+            pdf_print::print_to_file(view, &uri, 20.0, sender.clone());
         }
     });
     let outcome = std::rc::Rc::new(std::cell::RefCell::new(None));

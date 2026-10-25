@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { open } from '@tauri-apps/plugin-dialog';
+  import { openDialog } from '../platform/fileDialog';
   import type { WindowControlsChoice } from '../platform/windowChrome';
   import type {
     ArchivedWork,
@@ -249,7 +249,7 @@
 
   async function backUpNow() {
     if (!('__TAURI_INTERNALS__' in window)) return;
-    const parent = await open({
+    const parent = await openDialog({
       directory: true,
       multiple: false,
       title: $t.settings.whereToKeepBackup,
@@ -274,7 +274,7 @@
 
   async function chooseBackupToRestore() {
     if (!('__TAURI_INTERNALS__' in window)) return;
-    const folder = await open({
+    const folder = await openDialog({
       directory: true,
       multiple: false,
       title: $t.settings.chooseBackupTitle,
@@ -313,7 +313,7 @@
 
   async function chooseExecutable() {
     if (!('__TAURI_INTERNALS__' in window)) return;
-    const selected = await open({
+    const selected = await openDialog({
       multiple: false,
       directory: false,
       title: $t.settings.chooseWhisper,

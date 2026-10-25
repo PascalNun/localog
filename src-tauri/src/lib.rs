@@ -23,6 +23,7 @@ mod llama;
 mod machine;
 mod media;
 mod models;
+mod native_dialog;
 mod process;
 mod processing;
 mod provider;
@@ -1727,12 +1728,16 @@ async fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
 
 /// Save the prepared print sheet as PDF without opening a print panel.
 #[tauri::command]
-async fn export_pdf(window: tauri::WebviewWindow, destination: String) -> Result<(), String> {
+async fn export_pdf(
+    window: tauri::WebviewWindow,
+    destination: String,
+    side_margin_mm: f64,
+) -> Result<(), String> {
     #[cfg(target_os = "linux")]
-    return pdf_export::save(window, destination).await;
+    return pdf_export::save(window, destination, side_margin_mm).await;
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (window, destination);
+        let _ = (window, destination, side_margin_mm);
         Err("pdfExportFailed".into())
     }
 }
@@ -2002,6 +2007,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_identity,
             window_environment,
+            native_dialog::native_open_path,
+            native_dialog::native_save_path,
             transcription_runtime_status,
             configure_transcription_runtime,
             transcription_capability,
