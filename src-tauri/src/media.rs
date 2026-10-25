@@ -353,16 +353,6 @@ pub(crate) fn condense_for_diarisation(
     write_pcm16_mono_16k(destination, &condensed)
 }
 
-/// Write the working audio a person's edits leave behind.
-///
-/// The same arithmetic as the speaker pass: the working file is 16 kHz mono 16-bit
-/// PCM that this module wrote, so keeping part of it is a byte range and not a
-/// question for a tool. Exact by construction, and quick enough that trimming a
-/// long meeting is not something to wait for.
-///
-/// The recording this reads is never modified. That is the whole point of holding
-/// the edits as a description: somebody who trims two minutes and then finds the
-/// decision was inside them has lost nothing.
 /// Store a recording as Opus.
 ///
 /// A recorder writes plain PCM, because a format that survives being killed is
@@ -379,10 +369,6 @@ pub(crate) fn condense_for_diarisation(
 /// can stay as small as possible. Writing a WAV is something a few dozen lines of
 /// any language can do; encoding is not, and doing it once here means the Linux
 /// and Windows recorders inherit it.
-// Reachable once a recorder writes into the application. The encoding lands with
-// the rest of the recording work rather than after it, because it is the one part
-// that needs no permission from anybody's operating system to be proven.
-#[allow(dead_code)]
 pub(crate) fn encode_to_opus(
     ffmpeg: &Path,
     source: &Path,
@@ -417,11 +403,10 @@ pub(crate) fn encode_to_opus(
         let _ = fs::remove_file(&temporary);
         return Err("recordingEmpty".into());
     }
-    let (_, data_length) = pcm16_mono_16k_data(source).unwrap_or((0, 0));
-    if data_length > 0 {
+    if let Some(milliseconds) = wav_duration_ms(source) {
         // Roughly what this many seconds should cost at this rate, allowing that
         // a variable bitrate spends less on quiet passages than on speech.
-        let seconds = data_length as f64 / (BYTES_PER_MS * 1000) as f64;
+        let seconds = milliseconds as f64 / 1000.0;
         let least = (seconds * kilobits as f64 * 1000.0 / 8.0 * 0.25) as u64;
         if written < least {
             let _ = fs::remove_file(&temporary);
@@ -490,6 +475,16 @@ pub(crate) fn waveform(source: &Path, buckets: usize) -> Result<Vec<f32>, String
     Ok(peaks)
 }
 
+/// Write the working audio a person's edits leave behind.
+///
+/// The same arithmetic as the speaker pass: the working file is 16 kHz mono 16-bit
+/// PCM that this module wrote, so keeping part of it is a byte range and not a
+/// question for a tool. Exact by construction, and quick enough that trimming a
+/// long meeting is not something to wait for.
+///
+/// The recording this reads is never modified. That is the whole point of holding
+/// the edits as a description: somebody who trims two minutes and then finds the
+/// decision was inside them has lost nothing.
 // Reachable once the review screen exists; the cutting is proven first because a
 // screen built on unchecked arithmetic loses minutes of a meeting quietly.
 #[allow(dead_code)]
@@ -583,6 +578,60 @@ fn pcm16_mono_16k_data(path: &Path) -> Result<(u64, u64), String> {
         file.seek(SeekFrom::Start(position))
             .map_err(|error| error.to_string())?;
     }
+}
+
+/// How long a PCM WAV runs, in milliseconds, read from its own header.
+///
+/// `pcm16_mono_16k_data` is the strict sibling: it hands back the data range and
+/// refuses anything but the 16 kHz mono 16-bit working format, because the
+/// arithmetic built on it is only right for that. The encoder's length check wants
+/// only a duration, and the recording it reads may be whatever rate and channel
+/// count the recorder captured, so this accepts any PCM and answers nothing rather
+/// than guessing at a file it cannot read.
+fn wav_duration_ms(path: &Path) -> Option<u64> {
+    let mut file = fs::File::open(path).ok()?;
+    let mut header = [0u8; 12];
+    file.read_exact(&mut header).ok()?;
+    if &header[0..4] != b"RIFF" || &header[8..12] != b"WAVE" {
+        return None;
+    }
+    let mut position = 12u64;
+    let mut byte_rate = 0u64;
+    let mut data_length = 0u64;
+    let mut saw_data = false;
+    loop {
+        let mut chunk = [0u8; 8];
+        file.read_exact(&mut chunk).ok()?;
+        let id = [chunk[0], chunk[1], chunk[2], chunk[3]];
+        let length = u32::from_le_bytes([chunk[4], chunk[5], chunk[6], chunk[7]]) as u64;
+        position += 8;
+        if &id == b"fmt " {
+            let mut format = [0u8; 16];
+            file.read_exact(&mut format).ok()?;
+            // Only uncompressed PCM has a fixed bytes-per-frame; a duration derived
+            // from a compressed byte count would be a guess rather than a fact.
+            if u16::from_le_bytes([format[0], format[1]]) != 1 {
+                return None;
+            }
+            let channels = u16::from_le_bytes([format[2], format[3]]);
+            let rate = u32::from_le_bytes([format[4], format[5], format[6], format[7]]);
+            let bits = u16::from_le_bytes([format[14], format[15]]);
+            byte_rate = rate as u64 * channels as u64 * (bits as u64 / 8);
+        } else if &id == b"data" {
+            data_length = length;
+            saw_data = true;
+        }
+        // Chunks are padded to an even length.
+        position += length + (length % 2);
+        file.seek(SeekFrom::Start(position)).ok()?;
+        if saw_data {
+            break;
+        }
+    }
+    if byte_rate == 0 {
+        return None;
+    }
+    Some(data_length * 1000 / byte_rate)
 }
 
 /// Write 16 kHz mono 16-bit PCM as a plain WAV, which is what the diariser reads.
@@ -695,7 +744,7 @@ pub(crate) fn parse_whisper_progress(line: &str) -> Option<u8> {
     number.parse::<u8>().ok().map(|value| value.min(100))
 }
 
-/// Combine a recording's two tracks into the one file everything downstream expects.
+/// Mix a recording's two tracks into one transient PCM file.
 ///
 /// A meeting recorded here arrives as two: the room and the call. Everything after
 /// this point — normalising, transcribing, separating speakers — takes one source,
@@ -707,10 +756,10 @@ pub(crate) fn parse_whisper_progress(line: &str) -> Option<u8> {
 /// differ by a checkpoint, and truncating to the shorter would silently drop the end
 /// of a meeting.
 ///
-/// Both originals are kept. Mixing is the only step in this pipeline that cannot be
-/// undone from what it produces, and the tracks are worth keeping for their own sake:
-/// knowing which words came from the room and which from the call is speaker
-/// separation of the coarsest and most reliable kind, and nothing uses it yet.
+/// The result is a stepping stone. `finish_recording` encodes it to Opus for storage
+/// and removes it, and removes the two recorder WAVs only once that Opus is committed.
+/// Mixing is the only step in this pipeline that cannot be undone from what it
+/// produces, so it happens while the two originals are still on disk.
 pub(crate) fn combine_tracks(
     ffmpeg: &Path,
     system: &Path,
@@ -942,6 +991,39 @@ mod tests {
         assert!(stored > 60 * 32 * 1000 / 8 / 4, "too small to be a minute");
         // The partial file must never be left behind.
         assert!(!directory.join("recording.opus.part").exists());
+        let _ = std::fs::remove_dir_all(&directory);
+    }
+
+    /// The encoder's length check reads any PCM rate, not just the working 16 kHz.
+    ///
+    /// The recorder captures 48 kHz, and a guard that only understood the working
+    /// rate would silently stop checking exactly the recordings it exists to protect.
+    #[test]
+    fn the_encoder_length_check_reads_any_pcm_rate() {
+        let directory = std::env::temp_dir().join("localog-wav-duration");
+        std::fs::create_dir_all(&directory).unwrap();
+        let path = directory.join("fortyeight.wav");
+
+        // 48 kHz mono 16-bit, two seconds long, with the header built by hand the
+        // way the recorder's own WAV header is.
+        let data = vec![0u8; 48_000 * 2 * 2];
+        let mut wav = Vec::with_capacity(44 + data.len());
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(36 + data.len() as u32).to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&16u32.to_le_bytes());
+        wav.extend_from_slice(&1u16.to_le_bytes()); // PCM
+        wav.extend_from_slice(&1u16.to_le_bytes()); // mono
+        wav.extend_from_slice(&48_000u32.to_le_bytes());
+        wav.extend_from_slice(&(48_000u32 * 2).to_le_bytes()); // byte rate
+        wav.extend_from_slice(&2u16.to_le_bytes()); // block align
+        wav.extend_from_slice(&16u16.to_le_bytes()); // bits
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&(data.len() as u32).to_le_bytes());
+        wav.extend_from_slice(&data);
+        std::fs::write(&path, wav).unwrap();
+
+        assert_eq!(wav_duration_ms(&path), Some(2_000));
         let _ = std::fs::remove_dir_all(&directory);
     }
 

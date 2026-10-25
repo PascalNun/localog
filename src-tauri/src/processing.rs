@@ -2887,8 +2887,15 @@ pub(crate) fn begin_recording(
     Ok((recording, recording_id))
 }
 
-/// Finish a recording: combine its two tracks, check the result, and hand the
-/// meeting to the rest of the pipeline.
+/// Bitrate for a stored Opus recording, in kilobits a second.
+///
+/// 32 kbps mono is transparent for speech and is the project's recorded figure: it
+/// turns the uncompressed mix — about 345 MB an hour at 48 kHz mono — into roughly
+/// 14 MB an hour. The `encode_to_opus` length check and its test share the number.
+const OPUS_KBPS: u32 = 32;
+
+/// Finish a recording: mix its two tracks into a stored Opus original, check the
+/// result, and hand the meeting to the rest of the pipeline.
 ///
 /// The state written here is `committed` rather than `ready`, and a checksum is
 /// recorded, because that is what transcription looks for — a recording finished any
@@ -2905,49 +2912,88 @@ pub(crate) fn finish_recording(
     let ffmpeg =
         find_tool("ffmpeg").ok_or(StorageError::InvalidData("ffmpegMissingForRecording"))?;
 
+    let cancellation = std::sync::atomic::AtomicBool::new(false);
+
+    // Mix the two tracks into one transient PCM file, then store the mix and each
+    // track as Opus. The recorder's own WAVs are the crash-safe originals and stay
+    // until all three files are on disk and the row is committed, so a failure at
+    // any step still leaves a playable recording behind.
     let combined = system_path.with_file_name(format!("{recording_id}.wav"));
     crate::media::combine_tracks(
         &ffmpeg,
         system_path,
         microphone_path,
         &combined,
-        &std::sync::atomic::AtomicBool::new(false),
+        &cancellation,
     )
     .map_err(|_| StorageError::InvalidData("tracksNotCombined"))?;
 
-    let relative = combined
+    // The mixed Opus is what transcription reads; the two beside it keep the room
+    // apart from the call for a future that wants to know which words came from
+    // where. Each recorder WAV may be 48 kHz stereo, so the encoder downmixes it
+    // to mono before it is stored.
+    let stored = system_path.with_file_name(format!("{recording_id}.opus"));
+    let system_opus = system_path.with_extension("opus");
+    let microphone_opus = microphone_path.with_extension("opus");
+    let encode = |source: &Path, destination: &Path| {
+        crate::media::encode_to_opus(&ffmpeg, source, destination, OPUS_KBPS, &cancellation)
+    };
+    if encode(&combined, &stored)
+        .and_then(|_| encode(system_path, &system_opus))
+        .and_then(|_| encode(microphone_path, &microphone_opus))
+        .is_err()
+    {
+        let _ = std::fs::remove_file(&combined);
+        let _ = std::fs::remove_file(&stored);
+        let _ = std::fs::remove_file(&system_opus);
+        let _ = std::fs::remove_file(&microphone_opus);
+        return Err(StorageError::InvalidData("tracksNotCombined"));
+    }
+    // The mixed PCM was a stepping stone, not a keeper: the Opus is the recording now.
+    let _ = std::fs::remove_file(&combined);
+
+    let relative = stored
         .strip_prefix(root)
-        .unwrap_or(&combined)
+        .unwrap_or(&stored)
         .to_string_lossy()
         .to_string();
-    // Read in chunks rather than whole. The kept recording is uncompressed PCM and
-    // combine_tracks sets no sample rate, so it stays at whatever was captured —
-    // 48 kHz mono is about 345 MB an hour. Loading a two-hour meeting into memory
-    // to take its checksum asked for most of a gigabyte at the moment somebody
-    // pressed stop, on a machine whose baseline is eight.
+    let system_relative = system_opus
+        .strip_prefix(root)
+        .unwrap_or(&system_opus)
+        .to_string_lossy()
+        .to_string();
+    let microphone_relative = microphone_opus
+        .strip_prefix(root)
+        .unwrap_or(&microphone_opus)
+        .to_string_lossy()
+        .to_string();
+    // Read in chunks rather than whole. The kept recording is now Opus rather than
+    // the uncompressed mix, so a long meeting is tens of megabytes instead of most
+    // of a gigabyte — but a file on disk is still never trusted to fit in memory,
+    // and the habit costs nothing.
     let (checksum, byte_count) =
-        streamed_checksum(root, &relative, &std::sync::atomic::AtomicBool::new(false))
-            .map_err(processing_to_storage)?;
+        streamed_checksum(root, &relative, &cancellation).map_err(processing_to_storage)?;
 
     repository.connection.execute(
         "UPDATE recordings
             SET state = 'committed', managed_path = ?2, checksum = ?3, byte_count = ?4,
-                media_type = 'audio/wav', original_name = ?5
+                media_type = 'audio/opus', original_name = ?5, system_path = ?6,
+                microphone_path = ?7
           WHERE id = ?1",
-        // The two tracks are combined into one WAV, so that is what this recording
+        // The two tracks are mixed into one Opus file, so that is what this recording
         // is — and its name is the file that exists, not the system track it was
-        // built from. A recorded meeting showed no media type at all where an
-        // imported one showed audio/wav, and named a file the workspace does not
-        // keep.
+        // built from.
         rusqlite::params![
             recording_id,
             relative,
             checksum,
             byte_count as i64,
-            combined
+            stored
                 .file_name()
                 .and_then(|name| name.to_str())
-                .unwrap_or("recording.wav")
+                .unwrap_or("recording.opus"),
+            system_relative,
+            microphone_relative
         ],
     )?;
     // The meeting has a source now, which is what every screen keys off.
@@ -2956,6 +3002,10 @@ pub(crate) fn finish_recording(
           WHERE id = (SELECT meeting_id FROM recordings WHERE id = ?1)",
         [recording_id],
     )?;
+    // Only now, with the Opus committed and checksummed, are the recorder's raw WAVs
+    // no longer the only thing standing between the meeting and silence.
+    let _ = std::fs::remove_file(system_path);
+    let _ = std::fs::remove_file(microphone_path);
     repository.workspace_snapshot()
 }
 
@@ -3055,12 +3105,17 @@ mod recording_contract {
             .expect("a recording must finish");
 
         let repository = crate::storage::WorkspaceRepository::open(root).unwrap();
-        let (state, checksum, relative): (String, Option<String>, Option<String>) = repository
+        let (state, checksum, relative, media_type): (
+            String,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+        ) = repository
             .connection
             .query_row(
-                "SELECT state, checksum, managed_path FROM recordings WHERE id = ?1",
+                "SELECT state, checksum, managed_path, media_type FROM recordings WHERE id = ?1",
                 [recording_id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )
             .unwrap();
 
@@ -3068,14 +3123,54 @@ mod recording_contract {
             state, "committed",
             "transcription only reads committed rows"
         );
+        assert_eq!(
+            media_type.as_deref(),
+            Some("audio/opus"),
+            "the stored original is Opus"
+        );
         let checksum = checksum.expect("transcription verifies a checksum");
         assert_eq!(checksum.len(), 64, "a sha-256 digest, as everywhere else");
-        let combined = root.join(relative.expect("a committed recording has a path"));
-        assert!(combined.is_file(), "the file the row points at must exist");
+        let stored = root.join(relative.expect("a committed recording has a path"));
+        assert!(stored.is_file(), "the file the row points at must exist");
         assert!(
-            combined.metadata().unwrap().len() > 1024,
-            "a two-second mix of two tracks is not a stub"
+            stored.metadata().unwrap().len() > 1024,
+            "a second of Opus is not a stub"
         );
+        assert!(
+            stored.to_string_lossy().ends_with(".opus"),
+            "the original is stored as Opus"
+        );
+
+        // The two tracks survive as Opus beside the mix, so the room can still be
+        // told apart from the call later.
+        let (system_relative, microphone_relative): (Option<String>, Option<String>) = repository
+            .connection
+            .query_row(
+                "SELECT system_path, microphone_path FROM recordings WHERE id = ?1",
+                [recording_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        let kept_system = root.join(system_relative.expect("the system track is kept"));
+        let kept_microphone = root.join(microphone_relative.expect("the microphone track is kept"));
+        assert!(kept_system.is_file(), "the system track Opus must exist");
+        assert!(
+            kept_microphone.is_file(),
+            "the microphone track Opus must exist"
+        );
+
+        // The transient mix and the recorder's own WAVs are gone once the Opus is
+        // committed: keeping them would be the gigabyte this format exists to avoid.
+        assert!(
+            !system_path.exists(),
+            "the recorder's system WAV must be removed"
+        );
+        assert!(
+            !microphone_path.exists(),
+            "the recorder's microphone WAV must be removed"
+        );
+        let mixed = system_path.with_file_name(format!("{recording_id}.wav"));
+        assert!(!mixed.exists(), "the transient mixed WAV must be removed");
     }
 
     /// What transcription reads before it will touch a recording.

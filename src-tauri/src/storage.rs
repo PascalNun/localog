@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 23;
+const CURRENT_SCHEMA_VERSION: i64 = 24;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -2655,6 +2655,20 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             [],
         )?;
         connection.pragma_update(None, "user_version", 23)?;
+        version = 23;
+    }
+    if version == 23 {
+        // A recorded meeting now keeps its two tracks — the room and the call — as
+        // separate Opus files beside the mixed one transcription reads, so the
+        // coarsest kind of speaker separation (which words came from where) survives
+        // the move from uncompressed WAV to Opus.
+        if !has_column(connection, "recordings", "system_path")? {
+            connection.execute("ALTER TABLE recordings ADD COLUMN system_path TEXT", [])?;
+        }
+        if !has_column(connection, "recordings", "microphone_path")? {
+            connection.execute("ALTER TABLE recordings ADD COLUMN microphone_path TEXT", [])?;
+        }
+        connection.pragma_update(None, "user_version", 24)?;
     }
     Ok(())
 }
