@@ -678,7 +678,7 @@
         {#if speakerResolution !== 'resolved'}
           <p class="speaker-status" role="status">
             <Icon name="info" size={14} />
-            {speakerResolution === 'failed'
+            {speakerResolution === 'unavailable'
               ? $t.transcript.separationUnavailableHere
               : speakerResolution === 'unknown'
                 ? $t.transcript.rerunForSeparation

@@ -1567,6 +1567,39 @@ enum DiarisationOutcome {
     Resolved(Vec<String>),
 }
 
+/// One transcript segment as the embedding sidecar expects it.
+///
+/// A struct rather than `serde_json::json!` because the sidecar's reader is
+/// order-sensitive: it wants `startMs` before `endMs`. With `serde_json` built
+/// without `preserve_order`, a `json!` object sorts its keys alphabetically
+/// (`endMs` first), and the sidecar refuses the file with "A startMs has no
+/// endMs after it." — which made every speaker pass fail. A struct serialises its
+/// fields in declaration order.
+#[derive(serde::Serialize)]
+struct EmbeddedSegment {
+    #[serde(rename = "startMs")]
+    start_ms: u64,
+    #[serde(rename = "endMs")]
+    end_ms: u64,
+}
+
+#[cfg(test)]
+mod embedding_segments {
+    use super::*;
+
+    #[test]
+    fn start_comes_before_end() {
+        let segment = EmbeddedSegment {
+            start_ms: 0,
+            end_ms: 1_500,
+        };
+        assert_eq!(
+            serde_json::to_string(&[segment]).unwrap(),
+            r#"[{"startMs":0,"endMs":1500}]"#
+        );
+    }
+}
+
 /// Separate speakers by embedding each segment and grouping the vectors.
 ///
 /// `Ok(None)` means the runtime or its model is not installed and the older
@@ -1604,7 +1637,10 @@ fn embed_and_group(
     let segments_json = serde_json::to_string(
         &timings
             .iter()
-            .map(|(start, end)| serde_json::json!({"startMs": start, "endMs": end}))
+            .map(|(start, end)| EmbeddedSegment {
+                start_ms: *start,
+                end_ms: *end,
+            })
             .collect::<Vec<_>>(),
     )
     .map_err(|error| ProcessingError::Runtime {
