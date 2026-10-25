@@ -70,6 +70,10 @@ impl ProviderError {
 /// catches is the case with no pauses at all — a model that has stopped answering
 /// and will never resume, which had no limit before this and would have been waited
 /// on until somebody gave up.
+///
+/// This measures only a completely silent stream. `llama-server` sends a
+/// keep-alive comment every thirty seconds while it is still working, and those
+/// reset the clock; a genuinely dead connection sends nothing at all.
 const SILENCE_BEFORE_GIVING_UP: Duration = Duration::from_secs(300);
 
 impl Display for ProviderError {
@@ -1936,7 +1940,7 @@ impl OllamaProvider {
         let mut generated = String::new();
         let mut done = false;
         let mut last_progress = Instant::now() - Duration::from_millis(100);
-        // When the last token arrived, so a model that has stopped answering can be
+        // When the last byte arrived, so a model that has stopped answering can be
         // told from one that is still working.
         //
         // There was no deadline here at all: the global timeout is off and the
@@ -1944,6 +1948,10 @@ impl OllamaProvider {
         // that follows. A model that stalled after its first token would have been
         // waited on indefinitely while the interface showed a fixed seventy per cent
         // — which is exactly the state somebody cannot distinguish from progress.
+        //
+        // Any line resets the clock, not only a parsed token: the bundled server
+        // sends an SSE keep-alive comment every thirty seconds during a long prompt
+        // prefill, and counting those as silence would call a working model stalled.
         let mut last_chunk = Instant::now();
         loop {
             if cancelled.load(Ordering::Acquire) {
@@ -1959,6 +1967,9 @@ impl OllamaProvider {
             if read == 0 {
                 break;
             }
+            // Keep-alive comments and blank separators count as the server being
+            // alive, even though they carry no token.
+            last_chunk = Instant::now();
             if line.len() > MAX_RESPONSE_BYTES {
                 return Err(ProviderError::ResponseTooLarge);
             }
@@ -2006,7 +2017,6 @@ impl OllamaProvider {
                     }
                 },
             };
-            last_chunk = Instant::now();
             generated.push_str(if chunk.response.is_empty() {
                 &chunk.thinking
             } else {
