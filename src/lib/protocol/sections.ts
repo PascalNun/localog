@@ -19,6 +19,24 @@ export interface Section {
 const HEADING = /^(#{1,6})\s+(.*)$/;
 
 /**
+ * A heading as a reader sees it, with inline Markdown reduced to its words.
+ *
+ * The document may be authored as `## **Decisions Made**` or `## [Budget](x)`, and
+ * the section list should not carry asterisks or brackets into the reader's view —
+ * nor should the stripped title fail to match the rendered heading it came from.
+ */
+function plainHeadingText(heading: string): string {
+  return heading
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/(\*\*|__)(?=\S)(.*?\S)\1/g, '$2')
+    .replace(/(\*|_)(?=\S)(.*?\S)\1/g, '$2')
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/~~(?=\S)(.*?\S)~~/g, '$1')
+    .trim();
+}
+
+/**
  * Which heading level counts as a section.
  *
  * The shallowest level that occurs more than once: a protocol usually opens with a
@@ -45,7 +63,11 @@ export function readSections(markdown: string): Section[] {
     if (insideFence) return;
     const found = HEADING.exec(line);
     if (found) {
-      headings.push({ level: (found[1] ?? '').length, title: (found[2] ?? '').trim(), at });
+      headings.push({
+        level: (found[1] ?? '').length,
+        title: plainHeadingText((found[2] ?? '').trim()),
+        at,
+      });
     }
   });
 
