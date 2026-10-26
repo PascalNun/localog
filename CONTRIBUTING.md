@@ -87,6 +87,12 @@ cargo clippy --all-targets -- -D warnings
 
 The isolated spikes have their own READMEs and checks. Real-runtime tests are normally explicit or ignored because they require local tools and models.
 
+On macOS 27, the pinned Rust compiler can produce build-time libraries that the
+system refuses to load after stripping, sometimes reported as a missing
+`tauri_macros` crate. The release profile keeps those libraries unstripped to
+avoid [the compiler issue](https://github.com/rust-lang/rust/issues/157750).
+This setting affects build tools, not the application's runtime behaviour.
+
 ## Licence
 
 LocaLog is licensed under `GPL-3.0-or-later`. Contributions are accepted under the same terms unless a separate written agreement exists. Third-party code, assets, models, and runtimes retain their own licences; see [LICENSE-NOTES.md](LICENSE-NOTES.md).
