@@ -286,6 +286,8 @@ fn does_attribution_improve_the_protocol() {
                     revision_id: String::new(),
                     language: language.clone(),
                     speaker_resolution: crate::domain::SpeakerResolution::Unknown,
+                    separate_speakers: false,
+                    expected_speakers: None,
                     segments,
                     base_revision_id: String::new(),
                     is_dirty: false,

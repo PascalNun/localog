@@ -11,10 +11,10 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 23;
+const CURRENT_SCHEMA_VERSION: i64 = 25;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -34,6 +34,10 @@ pub(crate) struct ImportJobRecord {
     pub byte_count: Option<u64>,
     pub media_type: Option<String>,
     pub final_relative_path: Option<PathBuf>,
+    /// The checksum of the file somebody chose, before any conversion. It is what
+    /// duplicate detection compares, because a WAV converted to Opus does not
+    /// contain the bytes that were imported.
+    pub original_checksum: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -276,7 +280,12 @@ impl WorkspaceRepository {
     pub fn open(root: impl AsRef<Path>) -> Result<Self> {
         let root = root.as_ref();
         fs::create_dir_all(root)?;
+        // Startup commands can arrive together, including from another process.
+        // Lock before reading the version: per-migration SQL transactions cannot
+        // protect a version another opener already read before waiting its turn.
+        let _initialization = lock_initialization(root)?;
         let connection = Connection::open(root.join("localog.sqlite3"))?;
+        connection.busy_timeout(Duration::from_secs(5))?;
         let version = schema_version(&connection)?;
         if version > CURRENT_SCHEMA_VERSION {
             // Do not change persistent database settings before compatibility is known.
@@ -731,7 +740,7 @@ impl WorkspaceRepository {
         let name = required_text(&input.name, 200, "projectNameRequired")?;
         let description = optional_text(&input.description, 2_000, "descriptionTooLong")?;
         let default_language =
-            required_text(&input.default_language, 64, "meetingLanguageInvalid")?;
+            optional_text(&input.default_language, 64, "meetingLanguageInvalid")?;
 
         // Every name is validated before anything at all is written. A term too long
         // or a category missing must not leave behind a project the person then has
@@ -808,7 +817,7 @@ impl WorkspaceRepository {
             title_from_source(&source_name)
         };
         let occurred_at = meeting_date(&input.occurred_at)?;
-        let language = required_text(&input.language, 64, "meetingLanguageInvalid")?;
+        let language = optional_text(&input.language, 64, "meetingLanguageInvalid")?;
         let style_id = required_text(&input.style_id, 128, "styleInvalid")?;
         let source_path = if to_record {
             String::new()
@@ -880,13 +889,26 @@ impl WorkspaceRepository {
 
     pub fn update_meeting_language(&self, meeting_id: &str, language: &str) -> Result<()> {
         let meeting_id = required_text(meeting_id, 128, "meetingInvalid")?;
-        let language = required_text(language, 64, "meetingLanguageRequired")?;
+        let language = optional_text(language, 64, "meetingLanguageRequired")?;
         let updated = self.connection.execute(
             "UPDATE meetings SET language = ?1, updated_at_ms = ?2 WHERE id = ?3",
             params![language, unix_time_millis(), meeting_id],
         )?;
         if updated == 0 {
             return Err(StorageError::MissingMeeting);
+        }
+        Ok(())
+    }
+
+    pub fn update_project_name(&self, project_id: &str, name: &str) -> Result<()> {
+        let project_id = required_text(project_id, 128, "projectInvalid")?;
+        let name = required_text(name, 200, "projectNameRequired")?;
+        let updated = self.connection.execute(
+            "UPDATE projects SET name = ?1, updated_at_ms = ?2 WHERE id = ?3",
+            params![name, unix_time_millis(), project_id],
+        )?;
+        if updated == 0 {
+            return Err(StorageError::MissingProject);
         }
         Ok(())
     }
@@ -981,12 +1003,13 @@ impl WorkspaceRepository {
         byte_count: u64,
         media_type: &str,
         final_relative_path: &Path,
+        original_checksum: &str,
     ) -> Result<()> {
         self.connection.execute(
             "UPDATE jobs
              SET stage = 'temporary_complete', progress_bytes = ?1, total_bytes = ?1,
                  result_checksum = ?2, result_byte_count = ?1, result_media_type = ?3,
-                 final_relative_path = ?4, updated_at_ms = ?5
+                 final_relative_path = ?4, original_checksum = ?7, updated_at_ms = ?5
              WHERE id = ?6 AND state = 'running'",
             params![
                 byte_count as i64,
@@ -994,24 +1017,33 @@ impl WorkspaceRepository {
                 media_type,
                 relative_path_text(final_relative_path)?,
                 unix_time_millis(),
-                job_id
+                job_id,
+                original_checksum
             ],
         )?;
         Ok(())
     }
 
+    /// Whether this recording's original file is already in the workspace.
+    ///
+    /// Compares the checksum of what was chosen rather than of what is stored: a
+    /// WAV stored as Opus has different bytes, and Ogg gives every encode a fresh
+    /// serial number, so two imports of the same file would never have matched.
+    /// Rows written before the original checksum was recorded fall back to the
+    /// stored checksum, which is exactly right for the copies they are.
     pub(crate) fn probable_duplicate_exists(
         &self,
         recording_id: &str,
-        checksum: &str,
+        original_checksum: &str,
     ) -> Result<bool> {
         Ok(self
             .connection
             .query_row(
                 "SELECT 1 FROM recordings
-                 WHERE id != ?1 AND state = 'committed' AND checksum = ?2
+                 WHERE id != ?1 AND state = 'committed'
+                   AND COALESCE(original_checksum, checksum) = ?2
                  LIMIT 1",
-                params![recording_id, checksum],
+                params![recording_id, original_checksum],
                 |_| Ok(()),
             )
             .optional()?
@@ -1047,7 +1079,7 @@ impl WorkspaceRepository {
         transaction.execute(
             "UPDATE recordings
              SET state = 'committed', managed_path = ?1, checksum = ?2,
-                 byte_count = ?3, media_type = ?4
+                 byte_count = ?3, media_type = ?4, original_checksum = COALESCE(?7, original_checksum)
              WHERE id = ?5 AND meeting_id = ?6",
             params![
                 relative_path_text(&source.final_relative_path)?,
@@ -1055,7 +1087,8 @@ impl WorkspaceRepository {
                 source.byte_count as i64,
                 source.media_type,
                 job.recording_id,
-                job.meeting_id
+                job.meeting_id,
+                job.original_checksum
             ],
         )?;
         transaction.execute(
@@ -1548,7 +1581,7 @@ impl WorkspaceRepository {
 
     fn list_meetings(&self) -> Result<Vec<MeetingSummary>> {
         let mut statement = self.connection.prepare(
-            &format!("{MEETING_SELECT} WHERE m.archived_at_ms IS NULL ORDER BY m.occurred_at DESC, m.created_at_ms DESC, m.id"),
+            &format!("{MEETING_SELECT} WHERE m.archived_at_ms IS NULL AND EXISTS (SELECT 1 FROM projects p WHERE p.id = m.project_id AND p.archived_at_ms IS NULL) ORDER BY m.occurred_at DESC, m.created_at_ms DESC, m.id"),
         )?;
         let rows = statement.query_map([], meeting_from_row)?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
@@ -1569,6 +1602,19 @@ impl WorkspaceRepository {
     /// bringing the project back brings them back as they were rather than as a
     /// set of rows somebody now has to un-archive one by one.
     pub fn set_project_archived(&self, project_id: &str, archived: bool) -> Result<()> {
+        if archived {
+            let busy: bool = self.connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM jobs j JOIN meetings m ON m.id = j.meeting_id
+                 WHERE m.project_id = ?1 AND j.state IN ('queued', 'running', 'cancelling'))
+                 OR EXISTS(SELECT 1 FROM recordings r JOIN meetings m ON m.id = r.meeting_id
+                 WHERE m.project_id = ?1 AND r.state = 'recording')",
+                [project_id],
+                |row| row.get(0),
+            )?;
+            if busy {
+                return Err(StorageError::InvalidData("meetingBusy"));
+            }
+        }
         let changed = self.connection.execute(
             "UPDATE projects SET archived_at_ms = ?1, updated_at_ms = ?2 WHERE id = ?3",
             params![
@@ -1759,10 +1805,29 @@ impl WorkspaceRepository {
         Ok(())
     }
 
+    /// What the run that made this transcript asked about speakers.
+    ///
+    /// Re-running a transcript has to carry this forward: the rerun used to pass no
+    /// request at all, which quietly meant "leave the speakers together" and turned a
+    /// separation the person had already chosen into a single neutral label.
+    fn speaker_request(settings_json: &str) -> (bool, Option<u32>) {
+        let settings: serde_json::Value =
+            serde_json::from_str(settings_json).unwrap_or(serde_json::Value::Null);
+        let expected = settings
+            .get("expectedSpeakers")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|count| u32::try_from(count).ok());
+        let separate = settings
+            .get("separateSpeakers")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(expected.is_some());
+        (separate, expected)
+    }
+
     fn load_transcript_documents(&self) -> Result<HashMap<String, TranscriptDocument>> {
         let mut statement = self.connection.prepare(
             "SELECT w.meeting_id, w.base_revision_id, w.artifact_path, w.checksum,
-                    w.updated_at_ms, r.checksum
+                    w.updated_at_ms, r.checksum, r.settings_json
              FROM transcript_working w
              JOIN transcript_revisions r ON r.id = w.base_revision_id",
         )?;
@@ -1774,16 +1839,25 @@ impl WorkspaceRepository {
                 row.get::<_, String>(3)?,
                 row.get::<_, i64>(4)?,
                 row.get::<_, String>(5)?,
+                row.get::<_, String>(6)?,
             ))
         })?;
         let mut documents = HashMap::new();
         for row in rows {
-            let (meeting_id, base_revision_id, path, working_checksum, saved_at_ms, base_checksum) =
-                row?;
+            let (
+                meeting_id,
+                base_revision_id,
+                path,
+                working_checksum,
+                saved_at_ms,
+                base_checksum,
+                settings_json,
+            ) = row?;
             let bytes = read_verified_artifact(&self.root, &path, &working_checksum)?;
             let artifact: TranscriptArtifact = serde_json::from_slice(&bytes)
                 .map_err(|_| StorageError::InvalidData("transcriptInvalid"))?;
             validate_transcript_artifact(&artifact, &meeting_id)?;
+            let (separate_speakers, expected_speakers) = Self::speaker_request(&settings_json);
             documents.insert(
                 meeting_id,
                 TranscriptDocument {
@@ -1792,6 +1866,8 @@ impl WorkspaceRepository {
                     revision_id: artifact.revision_id,
                     language: artifact.language,
                     speaker_resolution: artifact.speaker_resolution,
+                    separate_speakers,
+                    expected_speakers,
                     segments: artifact.segments,
                     base_revision_id,
                     is_dirty: working_checksum != base_checksum,
@@ -1898,6 +1974,33 @@ impl WorkspaceRepository {
             |row| row.get(0),
         )?;
         Ok(count as u32)
+    }
+}
+
+/// Coordinate only opening/migration, not the lifetime of a repository. The OS
+/// releases this lock on close or process exit; the empty file is not a PID marker.
+fn lock_initialization(root: &Path) -> std::io::Result<fs::File> {
+    let lock = fs::File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(root.join(".workspace-open.lock"))?;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        match lock.try_lock() {
+            Ok(()) => return Ok(lock),
+            Err(fs::TryLockError::Error(error)) => return Err(error),
+            Err(fs::TryLockError::WouldBlock) if Instant::now() >= deadline => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "workspace initialization is busy",
+                ));
+            }
+            Err(fs::TryLockError::WouldBlock) => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        }
     }
 }
 
@@ -2610,6 +2713,38 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             [],
         )?;
         connection.pragma_update(None, "user_version", 23)?;
+        version = 23;
+    }
+    if version == 23 {
+        // A recorded meeting now keeps its two tracks — the room and the call — as
+        // separate Opus files beside the mixed one transcription reads, so the
+        // coarsest kind of speaker separation (which words came from where) survives
+        // the move from uncompressed WAV to Opus.
+        if !has_column(connection, "recordings", "system_path")? {
+            connection.execute("ALTER TABLE recordings ADD COLUMN system_path TEXT", [])?;
+        }
+        if !has_column(connection, "recordings", "microphone_path")? {
+            connection.execute("ALTER TABLE recordings ADD COLUMN microphone_path TEXT", [])?;
+        }
+        connection.pragma_update(None, "user_version", 24)?;
+        version = 24;
+    }
+    if version == 24 {
+        // Imports no longer keep an uncompressed WAV verbatim: it is converted to
+        // Opus, which has different bytes. Duplicate detection still has to answer
+        // "was this same file brought in before?", so the checksum of the file
+        // somebody chose is recorded beside the checksum of what is stored. Null on
+        // every earlier row, where the two were the same.
+        if !has_column(connection, "recordings", "original_checksum")? {
+            connection.execute(
+                "ALTER TABLE recordings ADD COLUMN original_checksum TEXT",
+                [],
+            )?;
+        }
+        if !has_column(connection, "jobs", "original_checksum")? {
+            connection.execute("ALTER TABLE jobs ADD COLUMN original_checksum TEXT", [])?;
+        }
+        connection.pragma_update(None, "user_version", 25)?;
     }
     Ok(())
 }
@@ -2917,7 +3052,7 @@ const IMPORT_JOB_SELECT: &str = "SELECT
         j.id, j.meeting_id, m.project_id, j.recording_id, r.original_name,
         j.state, j.stage, j.source_path, j.duplicate_allowed,
         j.result_checksum, j.result_byte_count, j.result_media_type,
-        j.final_relative_path
+        j.final_relative_path, j.original_checksum
      FROM jobs j
      JOIN meetings m ON m.id = j.meeting_id
      JOIN recordings r ON r.id = j.recording_id";
@@ -2939,6 +3074,7 @@ fn import_job_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ImportJobRec
         byte_count: row.get::<_, Option<i64>>(10)?.map(|value| value as u64),
         media_type: row.get(11)?,
         final_relative_path: final_relative_path.map(PathBuf::from),
+        original_checksum: row.get(13)?,
     })
 }
 
@@ -3136,6 +3272,35 @@ pub(crate) fn unix_time_millis() -> i64 {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn simultaneous_first_opens_share_one_complete_migration() {
+        let root = tempfile::tempdir().unwrap();
+        let start = std::sync::Arc::new(std::sync::Barrier::new(8));
+        let workers: Vec<_> = (0..8)
+            .map(|_| {
+                let root = root.path().to_path_buf();
+                let start = start.clone();
+                std::thread::spawn(move || {
+                    start.wait();
+                    let repository = WorkspaceRepository::open(root)?;
+                    let version = schema_version(&repository.connection)?;
+                    repository.workspace_snapshot()?;
+                    Ok::<_, StorageError>(version)
+                })
+            })
+            .collect();
+        let results: Vec<_> = workers
+            .into_iter()
+            .map(|worker| worker.join().unwrap())
+            .collect();
+        assert!(
+            results
+                .iter()
+                .all(|result| matches!(result, Ok(CURRENT_SCHEMA_VERSION))),
+            "{results:?}"
+        );
+    }
 
     /// A new workspace has not been edited by anybody, and should say so.
     ///
@@ -3535,11 +3700,40 @@ mod tests {
         let mut repository = WorkspaceRepository::open(root).unwrap();
         let (project, meeting) = project_with_meeting(&mut repository, root);
 
-        // The ordinary lists have always filtered on this column. Nothing could
-        // write it until now, so the filter was doing nothing.
+        let audio = root
+            .join("projects")
+            .join(&project)
+            .join("meetings")
+            .join(&meeting)
+            .join("synthetic.wav");
+        fs::create_dir_all(audio.parent().unwrap()).unwrap();
+        fs::write(&audio, b"retained synthetic recording").unwrap();
+        assert!(matches!(
+            repository.set_project_archived(&project, true),
+            Err(StorageError::InvalidData("meetingBusy"))
+        ));
+        repository
+            .connection
+            .execute("UPDATE jobs SET state = 'cancelled'", [])
+            .unwrap();
+        repository
+            .connection
+            .execute("UPDATE recordings SET state = 'recording'", [])
+            .unwrap();
+        assert!(matches!(
+            repository.set_project_archived(&project, true),
+            Err(StorageError::InvalidData("meetingBusy"))
+        ));
+        repository
+            .connection
+            .execute("UPDATE recordings SET state = 'pending'", [])
+            .unwrap();
         repository.set_project_archived(&project, true).unwrap();
         let snapshot = repository.workspace_snapshot().unwrap();
         assert!(snapshot.projects.is_empty());
+        assert!(snapshot.meetings.is_empty());
+        drop(repository);
+        let repository = WorkspaceRepository::open(root).unwrap();
 
         let put_away = repository.archived_work().unwrap();
         assert_eq!(put_away.projects.len(), 1);
@@ -3555,6 +3749,7 @@ mod tests {
         assert_eq!(snapshot.projects.len(), 1);
         assert!(snapshot.meetings.iter().any(|each| each.id == meeting));
         assert!(repository.archived_work().unwrap().projects.is_empty());
+        assert_eq!(fs::read(audio).unwrap(), b"retained synthetic recording");
     }
 
     #[test]
@@ -3687,6 +3882,35 @@ mod tests {
             .record_transcription_vocabulary(&job_id, None)
             .unwrap();
         assert_eq!(recorded(&repository).as_deref(), Some("none"));
+    }
+
+    #[test]
+    fn a_transcript_remembers_what_was_asked_about_speakers() {
+        assert_eq!(
+            WorkspaceRepository::speaker_request(
+                r#"{"separateSpeakers":true,"expectedSpeakers":3}"#
+            ),
+            (true, Some(3))
+        );
+        assert_eq!(
+            WorkspaceRepository::speaker_request(
+                r#"{"separateSpeakers":true,"expectedSpeakers":null}"#
+            ),
+            (true, None)
+        );
+        // An older run wrote only the count; already an answer meaning separate.
+        assert_eq!(
+            WorkspaceRepository::speaker_request(r#"{"expectedSpeakers":4}"#),
+            (true, Some(4))
+        );
+        assert_eq!(
+            WorkspaceRepository::speaker_request(r#"{"separateSpeakers":false}"#),
+            (false, None)
+        );
+        assert_eq!(
+            WorkspaceRepository::speaker_request("not json"),
+            (false, None)
+        );
     }
 
     /// Density is what a style asks for, so the styles that ship must actually
@@ -4095,6 +4319,72 @@ mod tests {
     }
 
     #[test]
+    fn automatic_language_survives_project_and_meeting_creation() {
+        let temporary = tempdir().unwrap();
+        let source = synthetic_source(temporary.path());
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let project = repository
+            .create_project(NewProjectInput {
+                default_language: "  ".into(),
+                ..project_input()
+            })
+            .unwrap();
+        assert_eq!(project.default_language, "");
+        let mut input = meeting_input(&project.id, &source);
+        input.language = "  ".into();
+        let meeting = repository.create_meeting(input).unwrap();
+        assert_eq!(meeting.language, "");
+        repository
+            .update_meeting_language(&meeting.id, "German")
+            .unwrap();
+        repository
+            .update_meeting_language(&meeting.id, "  ")
+            .unwrap();
+        drop(repository);
+        let reopened = WorkspaceRepository::open(temporary.path())
+            .unwrap()
+            .workspace_snapshot()
+            .unwrap();
+        assert_eq!(reopened.projects[0].default_language, "");
+        assert_eq!(reopened.meetings[0].language, "");
+    }
+
+    #[test]
+    fn renaming_a_project_keeps_everything_under_it() {
+        let temporary = tempdir().unwrap();
+        let source = synthetic_source(temporary.path());
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let project = repository.create_project(project_input()).unwrap();
+        let meeting = repository
+            .create_meeting(meeting_input(&project.id, &source))
+            .unwrap();
+        repository
+            .update_project_name(&project.id, "Halde Nord")
+            .unwrap();
+        let snapshot = repository.workspace_snapshot().unwrap();
+        assert_eq!(snapshot.projects[0].name, "Halde Nord");
+        // The meeting and the project it belongs to do not move.
+        assert_eq!(snapshot.meetings[0].id, meeting.id);
+        assert_eq!(snapshot.meetings[0].project_id, project.id);
+    }
+
+    #[test]
+    fn a_project_name_cannot_be_blank_or_name_nobody() {
+        let temporary = tempdir().unwrap();
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let project = repository.create_project(project_input()).unwrap();
+        let original = project.name.clone();
+        assert!(repository.update_project_name(&project.id, "   ").is_err());
+        assert!(
+            repository
+                .update_project_name("project-nobody", "Name")
+                .is_err()
+        );
+        let snapshot = repository.workspace_snapshot().unwrap();
+        assert_eq!(snapshot.projects[0].name, original);
+    }
+
+    #[test]
     fn project_and_meeting_survive_repository_reopen() {
         let temporary = tempdir().unwrap();
         let source = synthetic_source(temporary.path());
@@ -4186,7 +4476,7 @@ mod tests {
             .update_meeting_language(&meeting.id, "German")
             .unwrap();
         assert!(matches!(
-            repository.update_meeting_language(&meeting.id, " "),
+            repository.update_meeting_language(&meeting.id, &"x".repeat(65)),
             Err(StorageError::InvalidData(_))
         ));
         drop(repository);

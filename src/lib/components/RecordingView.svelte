@@ -23,6 +23,7 @@
 
   let error = '';
   let working = false;
+  const macOS = typeof navigator !== 'undefined' && /Macintosh|Mac OS X/.test(navigator.userAgent);
 
   /// What the machine will allow, before anything is recorded.
   ///
@@ -209,23 +210,27 @@
         {#if systemBlocked}
           <p>
             <strong>{$t.record.callWouldNotRecordTitle}</strong>
-            {$t.record.callWouldNotRecordBody}
+            {#if macOS}{$t.record.callWouldNotRecordBody}{/if}
           </p>
-          <button class="secondary-action" onclick={() => onOpenSettings('screen')}>
-            {$t.record.openTheSetting}
-          </button>
+          {#if macOS}
+            <button class="secondary-action" onclick={() => onOpenSettings('screen')}>
+              {$t.record.openTheSetting}
+            </button>
+          {/if}
         {/if}
         {#if microphoneBlocked}
           <p>
             <strong>{$t.record.roomWouldNotRecordTitle}</strong>
-            {$t.record.roomWouldNotRecordBody}
+            {#if macOS}{$t.record.roomWouldNotRecordBody}{/if}
           </p>
-          <button class="secondary-action" onclick={() => onOpenSettings('microphone')}>
-            {$t.record.openTheSetting}
-          </button>
+          {#if macOS}
+            <button class="secondary-action" onclick={() => onOpenSettings('microphone')}>
+              {$t.record.openTheSetting}
+            </button>
+          {/if}
         {/if}
         <p class="recording-permission-aside">
-          {$t.record.grantedInSettings}
+          {macOS ? $t.record.grantedInSettings : $t.record.desktopAudioHint}
         </p>
       </div>
     {/if}

@@ -1,7 +1,7 @@
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { open, save } from '@tauri-apps/plugin-dialog';
+import { openDialog, saveDialog } from '../platform/fileDialog';
 import { strings } from '../i18n';
 import type {
   ActiveJob,
@@ -43,6 +43,8 @@ import type {
   BackupManifest,
   RecordingPermissions,
   RestoreOutcome,
+  WorkspaceUsage,
+  PreparedAudioCleanup,
   RecordingStatus,
   CorrectionMatch,
   AppliedCorrection,
@@ -69,6 +71,7 @@ export interface WorkspaceStore {
   createProject(input: NewProjectInput): Promise<ProjectSummary>;
   createMeeting(input: NewMeetingInput): Promise<MeetingSummary>;
   updateMeetingTitle(meetingId: string, title: string): Promise<void>;
+  updateProjectName(projectId: string, name: string): Promise<WorkspaceData>;
   updateMeetingLanguage: (meetingId: string, language: string) => Promise<void>;
   selectMediaSource(): Promise<SourceSelection | null>;
   startImport(meetingId: string): Promise<void>;
@@ -129,6 +132,8 @@ export interface WorkspaceStore {
   createBackup(parent: string, folderName: string): Promise<BackupManifest>;
   inspectBackup(folder: string): Promise<BackupManifest>;
   restoreBackup(folder: string): Promise<RestoreOutcome>;
+  workspaceUsage(): Promise<WorkspaceUsage>;
+  freePreparedAudio(): Promise<PreparedAudioCleanup>;
   recordingPermissions(): Promise<RecordingPermissions>;
   openPrivacySettings(pane: 'screen' | 'microphone'): Promise<void>;
   startRecording(meetingId: string): Promise<void>;
@@ -182,6 +187,7 @@ export interface WorkspaceStore {
   ) => Promise<boolean>;
   /** Ask the platform for its own print panel; the webview's own does nothing here. */
   printWindow: () => Promise<void>;
+  exportPdf: (title: string, sideMarginMm: number) => Promise<boolean>;
   /** Save a document the interface built, choosing where through the file dialog. */
   exportProtocolBytes: (
     contents: Uint8Array,
@@ -191,7 +197,7 @@ export interface WorkspaceStore {
   ) => Promise<boolean>;
   getProtocolProviderStatus: () => Promise<ProtocolProviderStatus>;
   getGenerationRuntimeStatus: () => Promise<ProtocolProviderStatus>;
-  selectGenerationModel: (modelId: string) => Promise<ProtocolProviderStatus>;
+  configureGenerationModel: (model: string) => Promise<ProtocolProviderStatus>;
   getModelTerms: () => Promise<ModelTerms[]>;
   acceptModelLicence: (modelId: string) => Promise<ModelTerms[]>;
   configureProtocolProvider: (model: string | null) => Promise<ProtocolProviderStatus>;
@@ -224,12 +230,16 @@ class TauriWorkspaceStore implements WorkspaceStore {
     return invoke('update_meeting_title', { meetingId, title });
   }
 
+  updateProjectName(projectId: string, name: string): Promise<WorkspaceData> {
+    return invoke('rename_project', { projectId, name });
+  }
+
   updateMeetingLanguage(meetingId: string, language: string): Promise<void> {
     return invoke('update_meeting_language', { meetingId, language });
   }
 
   async selectMediaSource(): Promise<SourceSelection | null> {
-    const path = await open({
+    const path = await openDialog({
       multiple: false,
       directory: false,
       title: strings().dialog.chooseRecording,
@@ -252,7 +262,7 @@ class TauriWorkspaceStore implements WorkspaceStore {
         },
       ],
     });
-    if (!path) return null;
+    if (!path || typeof path !== 'string') return null;
     const name = path.split(/[\\/]/).pop();
     return name ? { name, path } : null;
   }
@@ -450,6 +460,14 @@ class TauriWorkspaceStore implements WorkspaceStore {
     return invoke('restore_backup', { folder });
   }
 
+  workspaceUsage(): Promise<WorkspaceUsage> {
+    return invoke('workspace_usage');
+  }
+
+  freePreparedAudio(): Promise<PreparedAudioCleanup> {
+    return invoke('free_prepared_audio');
+  }
+
   recordingPermissions(): Promise<RecordingPermissions> {
     return invoke('recording_permissions');
   }
@@ -609,16 +627,17 @@ class TauriWorkspaceStore implements WorkspaceStore {
   }
 
   async getMeetingAudio(meetingId: string): Promise<MeetingAudio | null> {
-    const found = await invoke<{ path: string; durationMs: number | null } | null>(
-      'meeting_audio',
-      {
-        meetingId,
-      },
-    );
+    const found = await invoke<{
+      path: string;
+      source?: string | null;
+      durationMs: number | null;
+    } | null>('meeting_audio', {
+      meetingId,
+    });
     if (!found) return null;
-    // The asset protocol streams the file with range requests instead of
-    // holding a long recording in memory.
-    return { source: convertFileSrc(found.path), durationMs: found.durationMs };
+    // Linux supplies a loopback streaming URL because WebKitGTK cannot play
+    // custom-scheme media reliably. Other hosts retain the asset protocol.
+    return { source: found.source ?? convertFileSrc(found.path), durationMs: found.durationMs };
   }
 
   getTranscriptionCapability(): Promise<TranscriptionCapability> {
@@ -676,7 +695,7 @@ class TauriWorkspaceStore implements WorkspaceStore {
     title: string,
   ): Promise<boolean> {
     const extension = format === 'markdown' ? 'md' : 'txt';
-    const destination = await save({
+    const destination = await saveDialog({
       title: strings().dialog.exportTitle(title),
       defaultPath: `${safeFileName(title)}.${extension}`,
       filters: [
@@ -697,7 +716,7 @@ class TauriWorkspaceStore implements WorkspaceStore {
     extension: string,
     formatName: string,
   ): Promise<boolean> {
-    const destination = await save({
+    const destination = await saveDialog({
       title: strings().dialog.exportTitle(title),
       defaultPath: `${safeFileName(title)}.${extension}`,
       filters: [{ name: formatName, extensions: [extension] }],
@@ -706,6 +725,17 @@ class TauriWorkspaceStore implements WorkspaceStore {
     // Tauri's bridge carries JSON, so the bytes cross as numbers. A protocol is
     // tens of kilobytes; this is not the place that needs to be clever.
     await invoke('export_protocol_bytes', { destination, contents: Array.from(contents) });
+    return true;
+  }
+
+  async exportPdf(title: string, sideMarginMm: number): Promise<boolean> {
+    const destination = await saveDialog({
+      title: strings().dialog.exportTitle(title),
+      defaultPath: `${safeFileName(title)}.pdf`,
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    });
+    if (!destination) return false;
+    await invoke('export_pdf', { destination, sideMarginMm });
     return true;
   }
 
@@ -721,8 +751,8 @@ class TauriWorkspaceStore implements WorkspaceStore {
     return invoke<ProtocolProviderStatus>('generation_runtime_status');
   }
 
-  selectGenerationModel(modelId: string): Promise<ProtocolProviderStatus> {
-    return invoke<ProtocolProviderStatus>('select_generation_model', { modelId });
+  configureGenerationModel(model: string): Promise<ProtocolProviderStatus> {
+    return invoke<ProtocolProviderStatus>('configure_generation_model', { model });
   }
 
   getModelTerms(): Promise<ModelTerms[]> {

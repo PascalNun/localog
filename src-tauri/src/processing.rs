@@ -14,7 +14,6 @@ use crate::storage::{
 };
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
 use std::fs;
-use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -165,6 +164,32 @@ fn context_within(supported: u32, model_bytes: u64, machine_bytes: u64) -> u32 {
         .saturating_sub(model_bytes);
     let affordable = u32::try_from(spare / BYTES_PER_TOKEN).unwrap_or(u32::MAX);
     supported.min(affordable).max(LEAST_USEFUL)
+}
+
+fn bundled_model_for_generation(
+    root: &Path,
+    preferred: Option<&str>,
+    backend: Option<&str>,
+    server_available: bool,
+    memory_gb: Option<u32>,
+) -> storage::Result<Option<models::ModelTerms>> {
+    if backend == Some("ollama") {
+        return Ok(None);
+    }
+    let selected = models::selected_generation_model(root, preferred, memory_gb);
+    let explicit = backend == Some("bundled") || preferred.is_some();
+    if explicit && selected.is_none() {
+        return Err(StorageError::InvalidData("generationModelNotDownloaded"));
+    }
+    if let Some(model) = &selected {
+        if !models::generation_fits(&model.model_id, memory_gb) {
+            return Err(StorageError::InvalidData("generationModelNeedsMoreMemory"));
+        }
+        if !server_available && explicit {
+            return Err(StorageError::InvalidData("generationRuntimeMissing"));
+        }
+    }
+    Ok(selected.filter(|_| server_available))
 }
 
 /// How much memory this machine has, or zero where that cannot be established —
@@ -428,10 +453,9 @@ fn provider_processing_error(error: provider::ProviderError) -> ProcessingError 
         // a person watching a progress bar that will never move again.
         provider::ProviderError::Stalled => ProcessingError::Runtime {
             code: "provider_stalled",
-            message: "The local model stopped responding partway through and the draft was not \
-                      committed. This usually means it needs more memory than is free — a smaller \
-                      model, or closing other applications, should let it finish."
-                .into(),
+            // The interface supplies the localized explanation for this code.
+            // Silence alone does not establish memory exhaustion.
+            message: String::new(),
         },
     }
 }
@@ -873,29 +897,21 @@ fn generation_metadata(
             None,
         ));
     }
-    // What LocaLog brought, if it is here. A saved choice is strict: silently
-    // using another installed model would make a retry look reproducible while
-    // changing the model that wrote it. Before somebody chooses, the first
-    // catalogued model is the sensible default.
-    let selected_bundled_model = repository
+    // What LocaLog brought, if it is here. Preferred without being forced: it is
+    // the answer for almost everybody, and nothing has to be started or installed
+    // for it to work. Ollama remains for a machine that has one and no model of
+    // ours, and for somebody who chose it.
+    let preferred = repository
         .read_setting("generation.model")?
         .filter(|value| !value.is_empty());
-    let bundled = crate::llama::server_path().and_then(|_| {
-        let catalogued = models::generation_models(root);
-        match selected_bundled_model.as_deref() {
-            Some(model_id) => catalogued
-                .into_iter()
-                .find(|model| model.model_id == model_id && model.installed),
-            None => catalogued.into_iter().find(|model| model.installed),
-        }
-    });
-
-    if selected_bundled_model.is_some()
-        && bundled.is_none()
-        && crate::llama::server_path().is_some()
-    {
-        return Err(StorageError::InvalidData("generationModelNotDownloaded"));
-    }
+    let backend = repository.read_setting("generation.backend")?;
+    let bundled = bundled_model_for_generation(
+        root,
+        preferred.as_deref(),
+        backend.as_deref(),
+        crate::llama::server_path().is_some(),
+        crate::machine::memory_gb(),
+    )?;
 
     let (runtime, model, model_digest, runtime_version, model_bytes) = match bundled {
         Some(model) => {
@@ -929,6 +945,9 @@ fn generation_metadata(
             let model = status
                 .selected_model
                 .ok_or(StorageError::InvalidData("providerModelRequired"))?;
+            if !models::generation_fits(&model, crate::machine::memory_gb()) {
+                return Err(StorageError::InvalidData("generationModelNeedsMoreMemory"));
+            }
             let model_digest = status
                 .selected_model_digest
                 .ok_or(StorageError::InvalidData("ollamaModelGone"))?;
@@ -976,8 +995,9 @@ fn generation_metadata(
         temperature_milli: GENERATION_TEMPERATURE_MILLI,
         // Decided here, before anything is started. With the bundled runtime this
         // is not advice: it becomes the --ctx-size the server is launched with,
-        // so a width the machine cannot afford is refused rather than discovered
-        // while it swaps.
+        // so the configured context is consistent with the queued request.
+        // The protocol's minimum context can still exceed the free-memory budget;
+        // Settings warns about this on small machines.
         context_tokens: affordable_context(
             &provider::OllamaProvider::loopback(),
             &model,
@@ -1571,6 +1591,39 @@ enum DiarisationOutcome {
     Resolved(Vec<String>),
 }
 
+/// One transcript segment as the embedding sidecar expects it.
+///
+/// A struct rather than `serde_json::json!` because the sidecar's reader is
+/// order-sensitive: it wants `startMs` before `endMs`. With `serde_json` built
+/// without `preserve_order`, a `json!` object sorts its keys alphabetically
+/// (`endMs` first), and the sidecar refuses the file with "A startMs has no
+/// endMs after it." — which made every speaker pass fail. A struct serialises its
+/// fields in declaration order.
+#[derive(serde::Serialize)]
+struct EmbeddedSegment {
+    #[serde(rename = "startMs")]
+    start_ms: u64,
+    #[serde(rename = "endMs")]
+    end_ms: u64,
+}
+
+#[cfg(test)]
+mod embedding_segments {
+    use super::*;
+
+    #[test]
+    fn start_comes_before_end() {
+        let segment = EmbeddedSegment {
+            start_ms: 0,
+            end_ms: 1_500,
+        };
+        assert_eq!(
+            serde_json::to_string(&[segment]).unwrap(),
+            r#"[{"startMs":0,"endMs":1500}]"#
+        );
+    }
+}
+
 /// Separate speakers by embedding each segment and grouping the vectors.
 ///
 /// `Ok(None)` means the runtime or its model is not installed and the older
@@ -1594,7 +1647,7 @@ fn embed_and_group(
     };
     // The embedding model is the one the diarisation pass already manages; this
     // pass simply does not need the segmentation model beside it.
-    let Some((_, embedding_model)) = models::diarisation_model_paths(&repository.root) else {
+    let Some(embedding_model) = models::embedding_model_path(&repository.root) else {
         return Ok(None);
     };
     if timings.is_empty() {
@@ -1608,7 +1661,10 @@ fn embed_and_group(
     let segments_json = serde_json::to_string(
         &timings
             .iter()
-            .map(|(start, end)| serde_json::json!({"startMs": start, "endMs": end}))
+            .map(|(start, end)| EmbeddedSegment {
+                start_ms: *start,
+                end_ms: *end,
+            })
             .collect::<Vec<_>>(),
     )
     .map_err(|error| ProcessingError::Runtime {
@@ -2562,13 +2618,8 @@ pub(crate) fn export_protocol(
     write_export(destination, content.as_bytes())
 }
 
-/// Write an exported file, or refuse for a reason that can be said out loud.
-///
-/// Shared by the formats built here and the ones built in the interface, so that a
-/// Word document is written with the same care as a text file: never over an
-/// existing file, and never half-written — the bytes go to a neighbouring temporary
-/// and are renamed into place, which is atomic on the same filesystem.
-pub(crate) fn write_export(destination: &str, contents: &[u8]) -> StorageResult<()> {
+/// Validate a destination before rendering or writing an export.
+pub(crate) fn export_destination(destination: &str) -> StorageResult<PathBuf> {
     let destination = PathBuf::from(destination);
     if !destination.is_absolute()
         || destination.to_string_lossy().contains('\0')
@@ -2579,30 +2630,31 @@ pub(crate) fn write_export(destination: &str, contents: &[u8]) -> StorageResult<
     if destination.exists() {
         return Err(StorageError::InvalidData("exportFileExists"));
     }
-    let parent = destination
-        .parent()
-        .ok_or(StorageError::InvalidData("exportDestinationInvalid"))?;
-    if !parent.is_dir() {
+    if !destination.parent().is_some_and(Path::is_dir) {
         return Err(StorageError::InvalidData("exportFolderMissing"));
     }
-    let temporary = parent.join(format!(
-        ".{}.localog-export-{}",
-        destination
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("protocol"),
-        new_id("tmp")
-    ));
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&temporary)?;
-    file.write_all(contents)?;
-    file.sync_all()?;
-    drop(file);
-    fs::rename(&temporary, &destination).map_err(|error| {
-        let _ = fs::remove_file(&temporary);
-        StorageError::Io(error)
+    Ok(destination)
+}
+
+/// Write an exported file, or refuse for a reason that can be said out loud.
+///
+/// Shared by the formats built here and the ones built in the interface, so that a
+/// Word document is written with the same care as a text file: never over an
+/// existing file, and never half-written — the bytes go to a neighbouring temporary
+/// and are published without replacing any file created in the meantime.
+pub(crate) fn write_export(destination: &str, contents: &[u8]) -> StorageResult<()> {
+    let destination = export_destination(destination)?;
+    let mut temporary = tempfile::NamedTempFile::new_in(destination.parent().unwrap())?;
+    temporary.write_all(contents)?;
+    temporary.as_file().sync_all()?;
+    // Publishing must also refuse a file created after the initial check. A
+    // normal rename would replace it on Unix. Drop cleans up every error path.
+    temporary.persist_noclobber(&destination).map_err(|error| {
+        if error.error.kind() == std::io::ErrorKind::AlreadyExists {
+            StorageError::InvalidData("exportFileExists")
+        } else {
+            StorageError::Io(error.error)
+        }
     })?;
     Ok(())
 }
@@ -2895,8 +2947,8 @@ pub(crate) fn begin_recording(
     Ok((recording, recording_id))
 }
 
-/// Finish a recording: combine its two tracks, check the result, and hand the
-/// meeting to the rest of the pipeline.
+/// Finish a recording: mix its two tracks into a stored Opus original, check the
+/// result, and hand the meeting to the rest of the pipeline.
 ///
 /// The state written here is `committed` rather than `ready`, and a checksum is
 /// recorded, because that is what transcription looks for — a recording finished any
@@ -2913,49 +2965,94 @@ pub(crate) fn finish_recording(
     let ffmpeg =
         find_tool("ffmpeg").ok_or(StorageError::InvalidData("ffmpegMissingForRecording"))?;
 
+    let cancellation = std::sync::atomic::AtomicBool::new(false);
+
+    // Mix the two tracks into one transient PCM file, then store the mix and each
+    // track as Opus. The recorder's own WAVs are the crash-safe originals and stay
+    // until all three files are on disk and the row is committed, so a failure at
+    // any step still leaves a playable recording behind.
     let combined = system_path.with_file_name(format!("{recording_id}.wav"));
     crate::media::combine_tracks(
         &ffmpeg,
         system_path,
         microphone_path,
         &combined,
-        &std::sync::atomic::AtomicBool::new(false),
+        &cancellation,
     )
     .map_err(|_| StorageError::InvalidData("tracksNotCombined"))?;
 
-    let relative = combined
+    // The mixed Opus is what transcription reads; the two beside it keep the room
+    // apart from the call for a future that wants to know which words came from
+    // where. Each recorder WAV may be 48 kHz stereo, so the encoder downmixes it
+    // to mono before it is stored.
+    let stored = system_path.with_file_name(format!("{recording_id}.opus"));
+    let system_opus = system_path.with_extension("opus");
+    let microphone_opus = microphone_path.with_extension("opus");
+    let encode = |source: &Path, destination: &Path| {
+        crate::media::encode_to_opus(
+            &ffmpeg,
+            source,
+            destination,
+            crate::media::OPUS_KBPS,
+            &cancellation,
+        )
+    };
+    if encode(&combined, &stored)
+        .and_then(|_| encode(system_path, &system_opus))
+        .and_then(|_| encode(microphone_path, &microphone_opus))
+        .is_err()
+    {
+        let _ = std::fs::remove_file(&combined);
+        let _ = std::fs::remove_file(&stored);
+        let _ = std::fs::remove_file(&system_opus);
+        let _ = std::fs::remove_file(&microphone_opus);
+        return Err(StorageError::InvalidData("tracksNotCombined"));
+    }
+    // The mixed PCM was a stepping stone, not a keeper: the Opus is the recording now.
+    let _ = std::fs::remove_file(&combined);
+
+    let relative = stored
         .strip_prefix(root)
-        .unwrap_or(&combined)
+        .unwrap_or(&stored)
         .to_string_lossy()
         .to_string();
-    // Read in chunks rather than whole. The kept recording is uncompressed PCM and
-    // combine_tracks sets no sample rate, so it stays at whatever was captured —
-    // 48 kHz mono is about 345 MB an hour. Loading a two-hour meeting into memory
-    // to take its checksum asked for most of a gigabyte at the moment somebody
-    // pressed stop, on a machine whose baseline is eight.
+    let system_relative = system_opus
+        .strip_prefix(root)
+        .unwrap_or(&system_opus)
+        .to_string_lossy()
+        .to_string();
+    let microphone_relative = microphone_opus
+        .strip_prefix(root)
+        .unwrap_or(&microphone_opus)
+        .to_string_lossy()
+        .to_string();
+    // Read in chunks rather than whole. The kept recording is now Opus rather than
+    // the uncompressed mix, so a long meeting is tens of megabytes instead of most
+    // of a gigabyte — but a file on disk is still never trusted to fit in memory,
+    // and the habit costs nothing.
     let (checksum, byte_count) =
-        streamed_checksum(root, &relative, &std::sync::atomic::AtomicBool::new(false))
-            .map_err(processing_to_storage)?;
+        streamed_checksum(root, &relative, &cancellation).map_err(processing_to_storage)?;
 
     repository.connection.execute(
         "UPDATE recordings
             SET state = 'committed', managed_path = ?2, checksum = ?3, byte_count = ?4,
-                media_type = 'audio/wav', original_name = ?5
+                media_type = 'audio/opus', original_name = ?5, system_path = ?6,
+                microphone_path = ?7
           WHERE id = ?1",
-        // The two tracks are combined into one WAV, so that is what this recording
+        // The two tracks are mixed into one Opus file, so that is what this recording
         // is — and its name is the file that exists, not the system track it was
-        // built from. A recorded meeting showed no media type at all where an
-        // imported one showed audio/wav, and named a file the workspace does not
-        // keep.
+        // built from.
         rusqlite::params![
             recording_id,
             relative,
             checksum,
             byte_count as i64,
-            combined
+            stored
                 .file_name()
                 .and_then(|name| name.to_str())
-                .unwrap_or("recording.wav")
+                .unwrap_or("recording.opus"),
+            system_relative,
+            microphone_relative
         ],
     )?;
     // The meeting has a source now, which is what every screen keys off.
@@ -2964,6 +3061,10 @@ pub(crate) fn finish_recording(
           WHERE id = (SELECT meeting_id FROM recordings WHERE id = ?1)",
         [recording_id],
     )?;
+    // Only now, with the Opus committed and checksummed, are the recorder's raw WAVs
+    // no longer the only thing standing between the meeting and silence.
+    let _ = std::fs::remove_file(system_path);
+    let _ = std::fs::remove_file(microphone_path);
     repository.workspace_snapshot()
 }
 
@@ -3063,12 +3164,17 @@ mod recording_contract {
             .expect("a recording must finish");
 
         let repository = crate::storage::WorkspaceRepository::open(root).unwrap();
-        let (state, checksum, relative): (String, Option<String>, Option<String>) = repository
+        let (state, checksum, relative, media_type): (
+            String,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+        ) = repository
             .connection
             .query_row(
-                "SELECT state, checksum, managed_path FROM recordings WHERE id = ?1",
+                "SELECT state, checksum, managed_path, media_type FROM recordings WHERE id = ?1",
                 [recording_id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )
             .unwrap();
 
@@ -3076,14 +3182,54 @@ mod recording_contract {
             state, "committed",
             "transcription only reads committed rows"
         );
+        assert_eq!(
+            media_type.as_deref(),
+            Some("audio/opus"),
+            "the stored original is Opus"
+        );
         let checksum = checksum.expect("transcription verifies a checksum");
         assert_eq!(checksum.len(), 64, "a sha-256 digest, as everywhere else");
-        let combined = root.join(relative.expect("a committed recording has a path"));
-        assert!(combined.is_file(), "the file the row points at must exist");
+        let stored = root.join(relative.expect("a committed recording has a path"));
+        assert!(stored.is_file(), "the file the row points at must exist");
         assert!(
-            combined.metadata().unwrap().len() > 1024,
-            "a two-second mix of two tracks is not a stub"
+            stored.metadata().unwrap().len() > 1024,
+            "a second of Opus is not a stub"
         );
+        assert!(
+            stored.to_string_lossy().ends_with(".opus"),
+            "the original is stored as Opus"
+        );
+
+        // The two tracks survive as Opus beside the mix, so the room can still be
+        // told apart from the call later.
+        let (system_relative, microphone_relative): (Option<String>, Option<String>) = repository
+            .connection
+            .query_row(
+                "SELECT system_path, microphone_path FROM recordings WHERE id = ?1",
+                [recording_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        let kept_system = root.join(system_relative.expect("the system track is kept"));
+        let kept_microphone = root.join(microphone_relative.expect("the microphone track is kept"));
+        assert!(kept_system.is_file(), "the system track Opus must exist");
+        assert!(
+            kept_microphone.is_file(),
+            "the microphone track Opus must exist"
+        );
+
+        // The transient mix and the recorder's own WAVs are gone once the Opus is
+        // committed: keeping them would be the gigabyte this format exists to avoid.
+        assert!(
+            !system_path.exists(),
+            "the recorder's system WAV must be removed"
+        );
+        assert!(
+            !microphone_path.exists(),
+            "the recorder's microphone WAV must be removed"
+        );
+        let mixed = system_path.with_file_name(format!("{recording_id}.wav"));
+        assert!(!mixed.exists(), "the transient mixed WAV must be removed");
     }
 
     /// What transcription reads before it will touch a recording.
@@ -3127,6 +3273,58 @@ mod tests {
     /// Read as text because the honest check needs a live Ollama and a repository:
     /// what can be checked without one is that the number is not typed in beside
     /// the code that resolves it.
+    #[test]
+    fn explicit_runtime_and_model_choices_survive_other_installed_models() {
+        let root =
+            std::env::temp_dir().join(format!("localog-backend-choice-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("models")).unwrap();
+        let terms = models::terms(&root, "qwen3.5-4b").unwrap();
+        fs::File::create(root.join("models/Qwen3.5-4B-Q4_K_M.gguf"))
+            .unwrap()
+            .set_len(terms.byte_count)
+            .unwrap();
+        // Choosing Ollama wins even though a managed model is installed.
+        assert!(
+            bundled_model_for_generation(&root, Some("qwen3.5-4b"), Some("ollama"), true, Some(8))
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            bundled_model_for_generation(&root, Some("qwen3.5-4b"), Some("bundled"), true, Some(8))
+                .unwrap()
+                .unwrap()
+                .model_id,
+            "qwen3.5-4b"
+        );
+        // A missing choice or runtime is an actionable failure, never substitution.
+        assert!(
+            bundled_model_for_generation(
+                &root,
+                Some("ministral-3b"),
+                Some("bundled"),
+                true,
+                Some(8)
+            )
+            .is_err()
+        );
+        assert!(
+            bundled_model_for_generation(
+                &root,
+                Some("qwen3.5-4b"),
+                Some("bundled"),
+                false,
+                Some(8)
+            )
+            .is_err()
+        );
+        assert!(
+            bundled_model_for_generation(&root, Some("qwen3.5-4b"), Some("bundled"), true, Some(4))
+                .is_err()
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
     #[test]
     fn the_recorded_settings_are_not_typed_in_beside_the_run() {
         let source = include_str!("processing.rs");
@@ -3353,7 +3551,7 @@ mod tests {
         fn source_ready() -> Self {
             let temporary = tempdir().unwrap();
             let root = temporary.path().join("managed");
-            let source = temporary.path().join("synthetic-workflow.wav");
+            let source = temporary.path().join("synthetic-workflow.mp3");
             fs::write(&source, b"synthetic audio boundary".repeat(40_000)).unwrap();
             let mut repository = WorkspaceRepository::open(&root).unwrap();
             let project = repository
@@ -3370,7 +3568,7 @@ mod tests {
                     title: "Synthetic design review".to_string(),
                     occurred_at: "2026-08-02".to_string(),
                     language: "English".to_string(),
-                    source_name: "synthetic-workflow.wav".to_string(),
+                    source_name: "synthetic-workflow.mp3".to_string(),
                     source_path: Some(source.to_string_lossy().into_owned()),
                     style_id: "style-formal".to_string(),
                 })
@@ -3682,6 +3880,37 @@ mod tests {
         assert_eq!(before.meetings[0].lifecycle, after.meetings[0].lifecycle);
         assert_eq!(before.protocols, after.protocols);
     }
+    #[test]
+    fn exports_preserve_existing_files_and_clean_up_after_writing() {
+        let folder = tempfile::tempdir().unwrap();
+        let destination = folder.path().join("synthetic.docx");
+        let path = destination.to_str().unwrap();
+        write_export(path, b"synthetic document bytes").unwrap();
+        assert_eq!(
+            std::fs::read(&destination).unwrap(),
+            b"synthetic document bytes"
+        );
+        assert!(matches!(
+            write_export(path, b"replacement"),
+            Err(StorageError::InvalidData("exportFileExists"))
+        ));
+        assert_eq!(
+            std::fs::read(&destination).unwrap(),
+            b"synthetic document bytes"
+        );
+        assert_eq!(std::fs::read_dir(folder.path()).unwrap().count(), 1);
+        assert!(matches!(
+            write_export("relative.md", b"text"),
+            Err(StorageError::InvalidData("exportDestinationInvalid"))
+        ));
+        let missing = folder.path().join("missing/protocol.md");
+        assert!(matches!(
+            write_export(missing.to_str().unwrap(), b"text"),
+            Err(StorageError::InvalidData("exportFolderMissing"))
+        ));
+        assert_eq!(std::fs::read_dir(folder.path()).unwrap().count(), 1);
+    }
+
     #[test]
     fn concurrent_transcription_starts_admit_only_one_active_job() {
         let fixture = Fixture::source_ready();

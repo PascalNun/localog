@@ -4,6 +4,11 @@ name: Linux build
 # and FFmpeg from source, which is tens of minutes even with the cache warm.
 on:
   workflow_dispatch:
+    inputs:
+      flatpak:
+        description: Build the experimental Flatpak bundle as well
+        type: boolean
+        default: false
   push:
     tags: ['v*']
 
@@ -36,10 +41,8 @@ jobs:
       # What Tauri v2 needs to build a GTK/WebKit application. libwebkit2gtk-4.1
       # is the v2 one; 4.0 is Tauri v1 and silently gives a configure failure.
       #
-      # libasound2-dev belongs to the recorder rather than to Tauri: cpal speaks
-      # ALSA on Linux, and on a PipeWire desktop it reaches the monitor source
-      # through ALSA's compatibility layer. Without the headers the sidecar does
-      # not build, and the failure names alsa-sys rather than anything of ours.
+      # The Linux recorder uses libpulse directly, including on PipeWire-Pulse.
+      # ALSA's device list does not expose the sound server's monitor sources.
       - name: Install the desktop toolchain
         run: |
           sudo apt-get update
@@ -47,8 +50,9 @@ jobs:
             libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev patchelf \
             libayatana-appindicator3-dev build-essential curl wget file libssl-dev \
             cmake ninja-build pkg-config \
-            libopus-dev nasm \
-            libasound2-dev
+            libopus-dev nasm libarchive-tools desktop-file-utils \
+            libasound2-dev libpulse-dev \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good
 
       # The FFmpeg sidecar links libopus statically on purpose, so the binary
       # carries no dependency on the machine that built it. Prove the archive is
@@ -94,19 +98,43 @@ jobs:
           npm run check
           npm test
 
+      # Sidecars are release inputs. The bundle config is explicitly passed only
+      # below, so ordinary development and Rust tests also work without them.
+      - name: Check Linux packaging inputs
+        run: python3 scripts/test-linux-packaging.py
+
+      - name: Check the Rust side
+        run: |
+          cargo test --locked --manifest-path src-tauri/Cargo.toml
+          cargo test --locked --manifest-path sidecars/record-meeting/Cargo.toml
+
       - name: Build the sidecars
         run: npm run build:sidecar
 
-      # After the sidecars, and it has to be: Tauri's build script resolves
-      # externalBin at compile time, so the crate does not build until every
-      # binary named in the config is on disk. On Linux that config is merged in
-      # by filename, so this applies to a test run just as much as to a bundle.
-      - name: Check the Rust side
-        run: cargo test --manifest-path src-tauri/Cargo.toml
-
       # Named so a failure here is obviously the bundle rather than the compile.
       - name: Bundle the application
-        run: npx tauri build --config src-tauri/tauri.linux.conf.json
+        run: npx tauri build --config src-tauri/tauri.linux-bundle.conf.json
+
+      # Experimental until the sandbox workflow is exercised on real desktops.
+      # Reuse the complete sidecar-bearing Debian build, rather than recompiling
+      # Rust/Node and seven toolchains inside a second build environment.
+      - name: Build an experimental Flatpak
+        if: github.event_name == 'workflow_dispatch' && inputs.flatpak
+        run: |
+          sudo apt-get install -y flatpak flatpak-builder libarchive-tools appstream
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive flathub org.gnome.Platform//49 org.gnome.Sdk//49
+          mapfile -t packages < <(find src-tauri/target/release/bundle/deb -name '*.deb' -type f)
+          test "${#packages[@]}" -eq 1
+          staging="$RUNNER_TEMP/localog-flatpak"
+          python3 scripts/prepare-flatpak.py "${packages[0]}" "$staging"
+          appstreamcli validate --no-net "$staging/io.github.PascalNun.LocaLog.metainfo.xml"
+          flatpak-builder --user --force-clean --repo="$RUNNER_TEMP/localog-flatpak-repo" \
+            "$RUNNER_TEMP/localog-flatpak-build" "$staging/io.github.PascalNun.LocaLog.json"
+          mkdir -p src-tauri/target/release/bundle/flatpak
+          flatpak build-bundle "$RUNNER_TEMP/localog-flatpak-repo" \
+            "src-tauri/target/release/bundle/flatpak/LocaLog_${{ matrix.arch }}.flatpak" \
+            io.github.PascalNun.LocaLog --runtime-repo=https://flathub.org/repo/flathub.flatpakrepo
 
       - name: What came out
         if: always()
@@ -121,4 +149,5 @@ jobs:
           path: |
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/flatpak/*.flatpak
           if-no-files-found: warn

@@ -33,10 +33,12 @@
 import type { Strings } from './en';
 
 const failures = {
+  generationModelNeedsMoreMemory: '此模型所需内存超过此电脑的容量。请选择更小的模型。',
   missingProject: '所选项目已不存在。',
   missingMeeting: '所选会议已不存在。',
   missingJob: '该导入任务已不可用。',
   importBusy: '已有另一段录音正在导入。请先完成或取消。',
+  workspaceBusy: '请先完成或取消正在进行的工作，然后再尝试释放空间。',
   unsupportedSchema: (version: string) =>
     `这些 LocaLog 数据由更新且不受支持的版本（${version}）创建。`,
   storageUnavailable: 'LocaLog 无法访问本地工作区。',
@@ -117,7 +119,9 @@ const failures = {
   workspaceNotOpened: '未能打开工作区文件夹。',
   settingsPaneUnknown: '没有这样的设置面板。',
   meetingBusy: '这场会议仍在处理中。请先取消该处理。',
+  pdfExportFailed: '无法保存 PDF。请选择可用的文件夹并重试。',
   printDialogUnavailable: '此窗口未能打开打印对话框。',
+  dialogUnavailable: '无法打开文件对话框。',
 
   backupNameUnsafe: '该备份名称不能用作文件夹名。',
   notABackup: '该文件夹不是 LocaLog 备份：其中没有 manifest.json。',
@@ -272,6 +276,8 @@ export const zh: Strings = {
   },
 
   settings: {
+    windowControls: '窗口控制按钮',
+    windowControlsDetail: '自动模式会在识别到的平铺式桌面中隐藏按钮。您也可以手动选择显示或隐藏。',
     memoryReported: (gb: number) => `检测到 ${gb} GB 内存`,
     themeAutomatic: '自动',
     themeLight: '浅色',
@@ -328,6 +334,13 @@ export const zh: Strings = {
     european: '欧洲出品',
     checkInstalled: '检查已安装的模型',
     curatedModels: '甄选的纪要模型',
+    downloadIntro: '请选择适合此电脑的模型。下载保存在本机，无需单独的 AI 服务。',
+    memoryMinimum: (gb: number) => `最低内存档位：${gb} GB`,
+    memoryTooSmall: (gb: number) => `需要至少 ${gb} GB 的内存档位。此电脑无法下载或选择此模型。`,
+    memoryUnknown: '无法检测内存。下载前请检查模型的内存需求。',
+    memoryTight:
+      '8 GB 电脑处理长会议的余量很小。请关闭其他应用；CPU 生成可能较慢。下载大小不等于总内存用量。',
+    qualityCaution: '内存适合并不保证会议纪要质量。小模型需要仔细审核；之前的测量来自另一台电脑。',
     bundledRuntime: '在本机上',
     bundledAlternative: '同样可用',
     wantsMemory: (gb: number) => `需要约 ${gb} GB`,
@@ -352,6 +365,8 @@ export const zh: Strings = {
     downloadingPreset: (name: string) => `正在下载${name}`,
     /** 参见 en.ts 中的说明。 */
     modelDescription: {
+      'qwen3.5-0.8b':
+        '用于开发和功能测试的小模型。尚未评估会议纪要质量，请勿依赖它生成专业会议记录。',
       'gemma4-12b':
         '在测得的模型中最准确、也最稳定：三次运行保留了会议 35 个数字里的 27 到 31 个，而次优者最少只保留 6 个。速度较慢——80 分钟的会议约需 14 分钟。',
       'ministral-8b':
@@ -426,6 +441,23 @@ export const zh: Strings = {
     backupContents:
       '其中含有每个项目、会议、转写稿和纪要，以及录音本身。有两样是有意不放进去的，因为它们都不是您的工作，且需要时都能重新生成：已下载的模型，以及每段录音的已准备副本。在真实工作区中量过，仅那份已准备音频就占了备份的四分之三。',
     restore: '还原',
+    storageUsage: '已用空间',
+    storageUsageLead:
+      '此工作区在此设备上占用的空间及其构成。只有准备好的音频可以在不丢失工作的情况下删除。',
+    storageRecordings: '录音',
+    storagePreparedAudio: '准备好的音频',
+    storageModels: '模型',
+    storageOther: '转写稿、纪要和应用程序数据',
+    storageFreePrepared: '释放空间',
+    storageFreeConfirm: (size: string) =>
+      `要从此设备删除 ${size} 的准备好的音频吗？所有录音、转写稿和纪要都会保持原样。下次转写时会重新准备音频。`,
+    storageFreeConfirmAction: '删除准备好的音频',
+    storageFreeing: '正在释放空间…',
+    storagePreparedLead:
+      'LocaLog 为转写准备的单声道音频会在需要时重新生成。删除它不会改变任何录音、转写稿或纪要；下次转写时会再次准备。',
+    storageFreed: (size: string, files: number) =>
+      `已从 ${files} 个文件中释放 ${size}。所有转写稿和纪要均未改变。`,
+    storageNothingToFree: '没有可删除的准备好的音频。',
     restoreLead: '把备份放回来。先完整核验一遍，现有内容会被移到一旁而不是删除。',
     chooseBackup: '选择备份…',
     chooseBackupTitle: '选择一个 LocaLog 备份',
@@ -456,6 +488,10 @@ export const zh: Strings = {
     deleteWarning: '删除会议会从本机移除它的录音、转写稿以及每一版纪要。此操作无法撤销。',
     eyebrow: '项目',
     archiveProject: '归档项目',
+    renameProject: '重命名项目',
+    projectNameLabel: '项目名称',
+    save: '保存',
+    cancel: '取消',
     newMeeting: '新建会议',
     meetings: '会议',
     newestFirst: '最新在前',
@@ -557,6 +593,11 @@ export const zh: Strings = {
       title: '未能准备录音',
       detail: '请检查是否安装了 FFmpeg，然后重试。已准备的副本可以重新生成，原件保持不变。',
     },
+    conversion_failed: {
+      title: '无法为存储准备录音',
+      detail:
+        'LocaLog 无法创建此录音的压缩副本。外部原始文件未被更改；请确认已安装 FFmpeg 后重试。',
+    },
     transcription_failed: {
       title: '本地转写未能完成',
       detail: 'whisper.cpp 运行环境在转写稿版本提交之前停止了。请检查其模型后重试。',
@@ -576,6 +617,11 @@ export const zh: Strings = {
     provider_runtime_changed: {
       title: '本地提供方发生了变化',
       detail: '此任务入队后，Ollama 运行环境的版本变了。请重试以采用当前的运行环境。',
+    },
+    provider_stalled: {
+      title: '会议纪要生成停止响应',
+      detail:
+        '本地模型未能及时响应。未保存未完成的草稿；转录文本和以前的草稿仍然可用。请重试；如果再次出现此问题，可尝试更小的模型。',
     },
     provider_unavailable: {
       title: '本地纪要生成未能连接',
@@ -751,6 +797,7 @@ export const zh: Strings = {
     starting: '正在启动…',
     backToMeeting: '返回会议',
     noRecorder: '此版本没有录音器。请改为导入文件。',
+    desktopAudioHint: '请在桌面声音设置中检查所选的输入和输出。只会录制可用的音源。',
     openTheSetting: '打开该设置',
     grantedInSettings: '在系统设置中授权后，您一回来这里就会生效。',
     callWouldNotRecordTitle: '通话不会被录下。',
@@ -761,7 +808,7 @@ export const zh: Strings = {
     recorderNotesTitle: '录音器未能完成所有被要求的事。',
     stoppedOnItsOwn: '录音器自行停止了。它在此之前录到的内容都已保留。',
     quietCall: (seconds: number) =>
-      `已有 ${seconds} 秒没有任何声音从通话传来。对于未获屏幕与系统音频录制权限的应用，macOS 给的是静音而不是错误，所以现在核对，好过会议之后再说。`,
+      `已有 ${seconds} 秒没有收到通话声音。请检查通话是否通过所选输出播放，以及是否允许录音。`,
     quietMicrophone: (seconds: number) =>
       `已有 ${seconds} 秒没有任何声音从麦克风传来。请检查是否选对了输入设备，以及是否有别的程序正占用它。`,
   },
@@ -863,6 +910,7 @@ export const zh: Strings = {
     meetingInformation: '会议信息',
     title: '标题',
     titlePlaceholder: '留空则取自文件名',
+    titlePlaceholderRecording: '为此会议命名',
     date: '日期',
     language: '会议语言',
     protocolStyle: '纪要样式',
@@ -943,6 +991,7 @@ export const zh: Strings = {
     nothingFlaggedNote:
       '没有任何内容被标为不清楚。在此功能出现之前做的转写稿在这里同样什么都不显示，所以旧的转写稿值得重读，而不是信任。',
     workingAudioLater: '工作音频会在这场会议转写之后可用。',
+    loadingAudio: '正在准备这场会议的音频以供播放…',
     recordingEndsNote: '如果会议在此之后还在继续，录音没有录到，纪要中也不会有。',
     heading: '校阅转写稿',
     exportTranscript: '导出转写稿…',
@@ -1104,6 +1153,13 @@ export const zh: Strings = {
       `适用于${project}中的所有纪要。它在打印页上重复出现，不属于您正在编辑的文档。`,
   },
 
+  window: {
+    minimize: '最小化窗口',
+    maximize: '最大化窗口',
+    restore: '还原窗口',
+    close: '关闭窗口',
+    actionFailed: '窗口操作失败，请重试。',
+  },
   shell: {
     breadcrumbMeeting: '会议',
     breadcrumbRecording: '录音',
@@ -1295,8 +1351,7 @@ export const zh: Strings = {
     exportWord: '导出 Word',
     exportMarkdown: '导出 Markdown',
     exportPlainText: '导出纯文本',
-    exportNote:
-      'PDF 就是把您正在读的这份文档，按这个项目排纪要的方式打印出来——请在打印对话框中选择“存储为 PDF”。',
+    exportNote: 'PDF 和 Word 使用此项目的文档样式。Markdown 和纯文本保留可编辑的文本。',
     source: '源文件',
     findSelectedPassage: '查找所选段落',
     lookingFor: '正在查找：',

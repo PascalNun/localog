@@ -11,8 +11,8 @@ set -euo pipefail
 #
 # This one records what the speakers are playing as a whole. On Windows that is
 # WASAPI loopback on a rendering device; on Linux it is the monitor source
-# PipeWire and PulseAudio publish beside each sink. One crate covers both, which
-# is why this is one sidecar rather than two.
+# PipeWire and PulseAudio publish beside each sink. The crate keeps WASAPI via
+# cpal on Windows and libpulse on Linux behind the same two-track contract.
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 crate_dir="$repo_root/sidecars/record-meeting"

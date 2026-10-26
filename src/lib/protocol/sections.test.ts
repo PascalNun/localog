@@ -50,6 +50,23 @@ describe('reading a protocol into sections', () => {
     );
     expect(readSections(withCode).map((s) => s.title)).toEqual(['Eins', 'Zwei']);
   });
+
+  it('strips inline Markdown from the heading text it reports', () => {
+    const styled = [
+      '## **Entscheidungen**',
+      '',
+      'etwas.',
+      '',
+      '## [Offene Fragen](https://example.invalid)',
+      '',
+      '## `Anhang` und _Nächste Schritte_',
+    ].join('\n');
+    expect(readSections(styled).map((s) => s.title)).toEqual([
+      'Entscheidungen',
+      'Offene Fragen',
+      'Anhang und Nächste Schritte',
+    ]);
+  });
 });
 
 describe('rearranging the sections', () => {

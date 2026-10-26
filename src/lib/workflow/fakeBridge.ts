@@ -191,6 +191,8 @@ function sampleTranscriptDocument(meetingId: string): TranscriptDocument {
     revisionId: `transcript-demo-${meetingId}`,
     language: 'English',
     speakerResolution: 'resolved',
+    separateSpeakers: true,
+    expectedSpeakers: 3,
     segments: structuredClone(sampleTranscript),
     baseRevisionId: `transcript-demo-${meetingId}`,
     isDirty: false,
@@ -385,18 +387,20 @@ export class FakeWorkflowBridge implements WorkflowBridge {
           furniture: EMPTY_FURNITURE,
         };
     this.snapshot.projects = [...this.snapshot.projects, project];
-    // The durable path stores these inside the same transaction that makes the
-    // project; here they are saved after it, which is the closest this can get and
-    // is what keeps the browser preview showing what the application would.
-    for (const named of input.names) {
-      await this.saveVocabularyEntry({
-        id: null,
-        term: named.term,
-        category: named.category,
-        scope: 'Project',
-        projectId: project.id,
-        enabled: true,
-      });
+    if (this.workspaceStore) {
+      // Native creation already commits the project and its names atomically.
+      if (input.names.length > 0) await this.loadDurableWorkspace(this.workspaceStore);
+    } else {
+      for (const named of input.names) {
+        await this.saveVocabularyEntry({
+          id: null,
+          term: named.term,
+          category: named.category,
+          scope: 'Project',
+          projectId: project.id,
+          enabled: true,
+        });
+      }
     }
     this.emit();
     return structuredClone(project);
@@ -501,6 +505,15 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     if (!nextTitle) return;
     if (this.workspaceStore) await this.workspaceStore.updateMeetingTitle(meetingId, nextTitle);
     meeting.title = nextTitle;
+    this.emit();
+  }
+
+  async updateProjectName(projectId: string, name: string): Promise<void> {
+    const nextName = name.trim();
+    if (!nextName) return;
+    if (await this.durable((store) => store.updateProjectName(projectId, nextName))) return;
+    const project = this.snapshot.projects.find((candidate) => candidate.id === projectId);
+    if (project) project.name = nextName;
     this.emit();
   }
 
@@ -649,13 +662,23 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async setProjectArchived(projectId: string, archived: boolean): Promise<void> {
-    if (this.workspaceStore) {
-      this.snapshot = {
-        ...this.snapshot,
-        ...(await this.workspaceStore.setProjectArchived(projectId, archived)),
-      };
-      this.emit();
-      return;
+    if (await this.durable((store) => store.setProjectArchived(projectId, archived))) return;
+    if (archived) {
+      if (!this.archivedProjectMeetings.has(projectId)) {
+        this.archivedProjectMeetings.set(
+          projectId,
+          this.snapshot.meetings.filter((meeting) => meeting.projectId === projectId),
+        );
+      }
+      this.snapshot.meetings = this.snapshot.meetings.filter(
+        (meeting) => meeting.projectId !== projectId,
+      );
+    } else {
+      this.snapshot.meetings = [
+        ...this.snapshot.meetings,
+        ...(this.archivedProjectMeetings.get(projectId) ?? []),
+      ];
+      this.archivedProjectMeetings.delete(projectId);
     }
     // The preview keeps its projects in memory, so archiving one hides it the
     // same way the database does: by taking it out of the list that is shown.
@@ -684,15 +707,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async setMeetingArchived(meetingId: string, archived: boolean): Promise<void> {
-    if (this.workspaceStore) {
-      this.snapshot = {
-        ...this.snapshot,
-        ...(await this.workspaceStore.setMeetingArchived(meetingId, archived)),
-      };
-      this.emit();
-      return;
-    }
-    // Taken out before either list is rebuilt, for the reason above.
+    if (await this.durable((store) => store.setMeetingArchived(meetingId, archived))) return;
     const [moving, staying] = archived
       ? [
           this.snapshot.meetings.filter((each) => each.id === meetingId),
@@ -711,6 +726,8 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     };
     this.emit();
   }
+
+  private archivedProjectMeetings = new Map<string, MeetingSummary[]>();
 
   private archived: import('./types').ArchivedWork = { projects: [], meetings: [] };
 
@@ -737,6 +754,24 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   async restoreBackup(folder: string): Promise<import('./types').RestoreOutcome> {
     if (this.workspaceStore) return this.workspaceStore.restoreBackup(folder);
     throw new Error('Restoring needs the desktop application.');
+  }
+
+  async workspaceUsage(): Promise<import('./types').WorkspaceUsage> {
+    if (this.workspaceStore) return this.workspaceStore.workspaceUsage();
+    // The browser preview has no workspace on disk. Zeroes are the honest answer,
+    // and the section says so rather than inventing a size.
+    return {
+      totalBytes: 0,
+      recordingsBytes: 0,
+      preparedAudioBytes: 0,
+      modelsBytes: 0,
+      otherBytes: 0,
+    };
+  }
+
+  async freePreparedAudio(): Promise<import('./types').PreparedAudioCleanup> {
+    if (this.workspaceStore) return this.workspaceStore.freePreparedAudio();
+    return { freedBytes: 0, removedFiles: 0, usage: await this.workspaceUsage() };
   }
 
   async recordingPermissions(): Promise<import('./types').RecordingPermissions> {
@@ -1092,15 +1127,7 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   }
 
   async downloadTranscriptionModel(modelId: string): Promise<void> {
-    if (this.workspaceStore) {
-      await this.workspaceStore.downloadTranscriptionModel(modelId);
-      return;
-    }
-    // The browser preview cannot fetch multi-gigabyte files, but completing the
-    // state transition keeps its model picker useful when reviewing the flow.
-    this.fakeTerms = this.fakeTerms.map((model) =>
-      model.modelId === modelId ? { ...model, installed: true } : model,
-    );
+    await this.workspaceStore?.downloadTranscriptionModel(modelId);
   }
 
   async cancelTranscriptionDownload(modelId: string): Promise<void> {
@@ -1324,6 +1351,11 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     return false;
   }
 
+  /** Direct PDF saving is available in the native Linux shell. */
+  async exportPdf(title: string, sideMarginMm: number): Promise<boolean> {
+    return this.workspaceStore?.exportPdf(title, sideMarginMm) ?? false;
+  }
+
   /** The platform's print panel, where there is one; the browser has its own. */
   nativePrint(): (() => Promise<void>) | undefined {
     const store = this.workspaceStore;
@@ -1339,23 +1371,47 @@ export class FakeWorkflowBridge implements WorkflowBridge {
   private fakeTerms: import('./types').ModelTerms[] = [
     {
       modelId: 'gemma4-12b',
+      minimumMemoryGb: 16,
       kind: 'generation',
       byteCount: 6_975_879_296,
-      licence: 'gemma',
-      licenceUrl: 'https://ai.google.dev/gemma/terms',
-      installed: false,
-      acceptanceRequired: true,
-      acceptedAtMs: null,
-    },
-    {
-      modelId: 'ministral-8b',
-      kind: 'generation',
-      byteCount: 5_198_911_904,
       licence: 'apache2',
       licenceUrl: 'https://www.apache.org/licenses/LICENSE-2.0',
       installed: false,
       acceptanceRequired: false,
       acceptedAtMs: null,
+    },
+    {
+      modelId: 'qwen3.5-4b',
+      kind: 'generation',
+      byteCount: 2740937888,
+      licence: 'apache2',
+      licenceUrl: 'https://www.apache.org/licenses/LICENSE-2.0',
+      installed: false,
+      acceptanceRequired: false,
+      acceptedAtMs: null,
+      minimumMemoryGb: 8,
+    },
+    {
+      modelId: 'ministral-3b',
+      kind: 'generation',
+      byteCount: 2146497824,
+      licence: 'apache2',
+      licenceUrl: 'https://www.apache.org/licenses/LICENSE-2.0',
+      installed: false,
+      acceptanceRequired: false,
+      acceptedAtMs: null,
+      minimumMemoryGb: 8,
+    },
+    {
+      modelId: 'qwen3.5-0.8b',
+      kind: 'generation',
+      byteCount: 833592096,
+      licence: 'apache2',
+      licenceUrl: 'https://www.apache.org/licenses/LICENSE-2.0',
+      installed: false,
+      acceptanceRequired: false,
+      acceptedAtMs: null,
+      minimumMemoryGb: 4,
     },
   ];
 
@@ -1374,17 +1430,10 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     };
   }
 
-  async selectGenerationModel(modelId: string): Promise<import('./types').ProtocolProviderStatus> {
-    if (this.workspaceStore) return this.workspaceStore.selectGenerationModel(modelId);
-    if (!this.fakeTerms.some((model) => model.modelId === modelId && model.installed)) {
-      throw new Error('generationModelNotDownloaded');
-    }
-    return {
-      ...(await this.getGenerationRuntimeStatus()),
-      selectedModel: modelId,
-      selectedModelReady: true,
-      message: 'generationRuntimeReady',
-    };
+  async configureGenerationModel(model: string): Promise<import('./types').ProtocolProviderStatus> {
+    if (this.workspaceStore) return this.workspaceStore.configureGenerationModel(model);
+    const status = await this.getGenerationRuntimeStatus();
+    return { ...status, selectedModel: model, active: true };
   }
 
   async getModelTerms(): Promise<import('./types').ModelTerms[]> {
@@ -1503,9 +1552,11 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     this.snapshot.projects = workspace.projects;
     this.snapshot.meetings = workspace.meetings;
     this.snapshot.jobs = workspace.jobs;
+    const visibleMeetingIds = new Set(workspace.meetings.map((meeting) => meeting.id));
+    const visibleJobs = workspace.jobs.filter((job) => visibleMeetingIds.has(job.meetingId));
     this.snapshot.activeJob =
-      workspace.jobs.find((job) => ['queued', 'running', 'cancelling'].includes(job.state)) ??
-      workspace.jobs[0] ??
+      visibleJobs.find((job) => ['queued', 'running', 'cancelling'].includes(job.state)) ??
+      visibleJobs[0] ??
       null;
     this.snapshot.transcripts = workspace.transcripts;
     this.snapshot.protocols = workspace.protocols;

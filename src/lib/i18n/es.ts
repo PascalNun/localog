@@ -26,10 +26,14 @@
 import type { Strings } from './en';
 
 const failures = {
+  generationModelNeedsMoreMemory:
+    'Este modelo necesita más memoria de la disponible. Elige uno más pequeño.',
   missingProject: 'El proyecto seleccionado ya no existe.',
   missingMeeting: 'La reunión seleccionada ya no existe.',
   missingJob: 'La tarea de importación ya no está disponible.',
   importBusy: 'Ya se está importando otra grabación. Termínela o cancélela primero.',
+  workspaceBusy:
+    'Termine o cancele primero el trabajo en curso y vuelva a intentar liberar espacio.',
   unsupportedSchema: (version: string) =>
     `Estos datos de LocaLog los creó una versión más reciente y no compatible (${version}).`,
   storageUnavailable: 'LocaLog no ha podido acceder a su espacio de trabajo local.',
@@ -111,7 +115,9 @@ const failures = {
   workspaceNotOpened: 'No se ha podido abrir la carpeta del espacio de trabajo.',
   settingsPaneUnknown: 'No existe ese panel de ajustes.',
   meetingBusy: 'Esta reunión aún se está procesando. Cancélelo primero.',
+  pdfExportFailed: 'No se pudo guardar el PDF. Elija una carpeta disponible y reinténtelo.',
   printDialogUnavailable: 'Esta ventana no ha podido abrir el diálogo de impresión.',
+  dialogUnavailable: 'No se pudo abrir el diálogo de archivos.',
 
   backupNameUnsafe: 'Ese nombre de copia no se puede usar como nombre de carpeta.',
   notABackup: 'Esa carpeta no es una copia de LocaLog: no tiene manifest.json.',
@@ -287,6 +293,9 @@ export const es: Strings = {
   },
 
   settings: {
+    windowControls: 'Controles de ventana',
+    windowControlsDetail:
+      'El modo automático oculta los botones en los escritorios en mosaico reconocidos. También puede mostrarlos u ocultarlos manualmente.',
     memoryReported: (gb: number) => `${gb} GB de memoria detectados`,
     themeAutomatic: 'Automático',
     themeLight: 'Claro',
@@ -346,6 +355,17 @@ export const es: Strings = {
     european: 'Europeo',
     checkInstalled: 'Comprobar los modelos instalados',
     curatedModels: 'Modelos de acta seleccionados',
+    downloadIntro:
+      'Elige un modelo para este ordenador. Las descargas permanecen aquí; no hace falta otro servicio de IA.',
+    memoryMinimum: (gb: number) => `Clase mínima de RAM: ${gb} GB`,
+    memoryTooSmall: (gb: number) =>
+      `Necesita una clase de RAM de al menos ${gb} GB. La descarga y selección no están disponibles en este ordenador.`,
+    memoryUnknown:
+      'No se pudo detectar la memoria. Comprueba los requisitos de RAM antes de descargar.',
+    memoryTight:
+      'Con 8 GB queda poco margen para reuniones largas. Cierra otras aplicaciones; generar con CPU puede ser lento. El tamaño de descarga no es el uso total de RAM.',
+    qualityCaution:
+      'La memoria suficiente no garantiza la calidad. Revisa los modelos pequeños con cuidado; las mediciones anteriores proceden de otro ordenador.',
     bundledRuntime: 'En este dispositivo',
     bundledAlternative: 'También disponible',
     wantsMemory: (gb: number) => `Necesita unos ${gb} GB`,
@@ -371,6 +391,8 @@ export const es: Strings = {
     downloadingPreset: (name: string) => `Descargando ${name}`,
     /** Véase la nota en en.ts. */
     modelDescription: {
+      'qwen3.5-0.8b':
+        'Modelo pequeño para desarrollo y pruebas. Calidad de actas no evaluada; no dependas de él para actas profesionales.',
       'gemma4-12b':
         'El más exacto y el más constante de los modelos medidos: en tres ejecuciones conservó de 27 a 31 de las 35 cifras de una reunión, donde el siguiente bajó hasta 6. Más lento: unos catorce minutos para una reunión de ochenta minutos.',
       'ministral-8b':
@@ -448,6 +470,23 @@ export const es: Strings = {
     backupContents:
       'Contiene todos los proyectos, reuniones, transcripciones y actas, y las grabaciones mismas. Dos cosas se dejan fuera a propósito, porque no son su trabajo y ambas se reconstruyen cuando hacen falta: los modelos descargados y la copia preparada de cada grabación. Medido en un espacio de trabajo real, ese audio preparado era por sí solo tres cuartas partes de la copia.',
     restore: 'Restaurar',
+    storageUsage: 'Espacio utilizado',
+    storageUsageLead:
+      'Lo que ocupa este espacio de trabajo en este dispositivo y de qué se compone. El audio preparado es la única parte que se puede eliminar sin perder trabajo.',
+    storageRecordings: 'Grabaciones',
+    storagePreparedAudio: 'Audio preparado',
+    storageModels: 'Modelos',
+    storageOther: 'Transcripciones, actas y datos de la aplicación',
+    storageFreePrepared: 'Liberar espacio',
+    storageFreeConfirm: (size: string) =>
+      `¿Eliminar ${size} de audio preparado de este dispositivo? Todas las grabaciones, transcripciones y actas permanecen exactamente igual. La próxima transcripción volverá a preparar el audio.`,
+    storageFreeConfirmAction: 'Eliminar el audio preparado',
+    storageFreeing: 'Liberando espacio…',
+    storagePreparedLead:
+      'El audio mono que LocaLog prepara para la transcripción se vuelve a crear cuando hace falta. Eliminarlo deja intactas todas las grabaciones, transcripciones y actas; la próxima transcripción lo prepara de nuevo.',
+    storageFreed: (size: string, files: number) =>
+      `${size} liberados en ${files} ${files === 1 ? 'archivo' : 'archivos'}. Todas las transcripciones y actas siguen igual.`,
+    storageNothingToFree: 'No hay audio preparado que eliminar.',
     restoreLead:
       'Vuelve a poner una copia de seguridad. Primero se comprueba entera, y lo que hay aquí se aparta en lugar de eliminarse.',
     chooseBackup: 'Elegir una copia…',
@@ -481,6 +520,10 @@ export const es: Strings = {
       'Eliminar una reunión borra de este dispositivo su grabación, su transcripción y todas las versiones de su acta. No se puede deshacer.',
     eyebrow: 'Proyecto',
     archiveProject: 'Archivar el proyecto',
+    renameProject: 'Cambiar el nombre del proyecto',
+    projectNameLabel: 'Nombre del proyecto',
+    save: 'Guardar',
+    cancel: 'Cancelar',
     newMeeting: 'Nueva reunión',
     meetings: 'Reuniones',
     newestFirst: 'Las más recientes primero',
@@ -596,6 +639,11 @@ export const es: Strings = {
       detail:
         'Compruebe que FFmpeg está instalado y vuelva a intentarlo. La copia preparada se puede regenerar y el original queda intacto.',
     },
+    conversion_failed: {
+      title: 'La grabación no se pudo preparar para el almacenamiento',
+      detail:
+        'LocaLog no pudo crear la copia compacta de esta grabación. El archivo original externo no se modificó; compruebe que FFmpeg esté instalado y vuelva a intentarlo.',
+    },
     transcription_failed: {
       title: 'La transcripción local no ha podido terminar',
       detail:
@@ -620,6 +668,11 @@ export const es: Strings = {
       title: 'El proveedor local ha cambiado',
       detail:
         'La versión del entorno de Ollama cambió después de encolar esta tarea. Reinténtelo para tomar el entorno actual.',
+    },
+    provider_stalled: {
+      title: 'La generación del acta dejó de responder',
+      detail:
+        'El modelo local no respondió a tiempo. No se guardó ningún borrador parcial; la transcripción y los borradores anteriores siguen disponibles. Reinténtelo o pruebe un modelo más pequeño si vuelve a ocurrir.',
     },
     provider_unavailable: {
       title: 'La generación local del acta no ha podido conectar',
@@ -804,6 +857,8 @@ export const es: Strings = {
     starting: 'Empezando…',
     backToMeeting: 'Volver a la reunión',
     noRecorder: 'Esta compilación no tiene grabador. Importe un archivo en su lugar.',
+    desktopAudioHint:
+      'Compruebe la entrada y la salida seleccionadas en los ajustes de sonido del escritorio. Solo se grabarán las fuentes disponibles.',
     openTheSetting: 'Abrir el ajuste',
     grantedInSettings: 'Concedido en los Ajustes del Sistema, y reconocido aquí en cuanto vuelva.',
     callWouldNotRecordTitle: 'La llamada no se grabaría.',
@@ -816,7 +871,7 @@ export const es: Strings = {
     stoppedOnItsOwn:
       'El grabador se ha detenido solo. Lo que hubiera captado hasta ese momento se ha conservado.',
     quietCall: (seconds: number) =>
-      `No llega nada de la llamada desde hace ${seconds} segundos. macOS le da silencio en vez de un error a una aplicación sin permiso de grabación de pantalla y audio del sistema, así que conviene comprobarlo ahora y no después de la reunión.`,
+      `No llega audio de la llamada desde hace ${seconds} segundos. Compruebe que se reproduce por la salida seleccionada y que se permite la grabación.`,
     quietMicrophone: (seconds: number) =>
       `No llega nada del micrófono desde hace ${seconds} segundos. Compruebe que está seleccionada la entrada correcta y que no la está ocupando otra cosa.`,
   },
@@ -931,6 +986,7 @@ export const es: Strings = {
     meetingInformation: 'Datos de la reunión',
     title: 'Título',
     titlePlaceholder: 'Se toma del archivo si se deja vacío',
+    titlePlaceholderRecording: 'Ponga nombre a esta reunión',
     date: 'Fecha',
     language: 'Idioma de la reunión',
     protocolStyle: 'Estilo del acta',
@@ -1021,6 +1077,7 @@ export const es: Strings = {
       'No se ha marcado nada como poco claro. Una transcripción hecha antes de que esto existiera tampoco muestra nada aquí, así que conviene releer una antigua en vez de fiarse de ella.',
     workingAudioLater:
       'El audio de trabajo estará disponible cuando se haya transcrito esta reunión.',
+    loadingAudio: 'Preparando el audio de esta reunión para la reproducción…',
     recordingEndsNote:
       'Si la reunión siguió más allá, la grabación no lo captó y el acta no lo contendrá.',
     heading: 'Revisión de la transcripción',
@@ -1190,6 +1247,13 @@ export const es: Strings = {
       `Se aplica a todas las actas de ${project}. Se repite en la página impresa y no forma parte del documento que está editando.`,
   },
 
+  window: {
+    minimize: 'Minimizar ventana',
+    maximize: 'Maximizar ventana',
+    restore: 'Restaurar ventana',
+    close: 'Cerrar ventana',
+    actionFailed: 'La acción de la ventana falló. Inténtalo de nuevo.',
+  },
   shell: {
     breadcrumbMeeting: 'Reunión',
     breadcrumbRecording: 'Grabación',
@@ -1394,7 +1458,7 @@ export const es: Strings = {
     exportMarkdown: 'Exportar a Markdown',
     exportPlainText: 'Exportar a texto sin formato',
     exportNote:
-      'El PDF se imprime desde el documento que está leyendo, compuesto como este proyecto compone sus actas: elija «Guardar como PDF» en el diálogo de impresión.',
+      'PDF y Word usan la apariencia del documento de este proyecto. Markdown y texto sin formato conservan el texto editable.',
     source: 'Origen',
     findSelectedPassage: 'Encontrar el pasaje seleccionado',
     lookingFor: 'Buscando:',

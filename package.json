@@ -2,7 +2,7 @@
   "name": "localog",
   "private": true,
   "version": "0.0.1",
-  "author": "Pascal Nünninghoff",
+  "author": "Pascal N\u00fcnninghoff",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "engines": {
@@ -22,7 +22,8 @@
     "tauri:build": "npm run build:sidecar && tauri build --config src-tauri/tauri.release.conf.json",
     "test:watch": "vitest",
     "tauri": "tauri",
-    "tauri:build:linux": "npm run build:sidecar && tauri build --config src-tauri/tauri.linux.conf.json"
+    "tauri:build:linux": "npm run build:sidecar && tauri build --config src-tauri/tauri.linux-bundle.conf.json",
+    "install:linux:test": "tauri build --debug --no-bundle --config src-tauri/tauri.linux-bundle.conf.json && python3 scripts/install-linux-test-build.py"
   },
   "dependencies": {
     "@fontsource-variable/noto-sans-jp": "^5.3.0",

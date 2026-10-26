@@ -18,16 +18,21 @@
 //! handed silence rather than an error, and a study spent 235 seconds recording
 //! nothing before anybody noticed.
 //!
-//! Neither of these platforms can be tested by the machine this was written on,
-//! which makes that failure the likely one. So this does not report success for a
+//! Linux now has a synthetic desktop integration check. Real-device capture still
+//! needs its own proof, so this does not report success for a
 //! track it never heard: a stream that delivers no samples, or nothing but
 //! zeroes, is said out loud in the level line and again when the recording ends.
 //! A silent file is a possible outcome — somebody may genuinely have muted their
 //! microphone — but a silent file nobody was told about is not.
 
+#[cfg(target_os = "linux")]
+mod linux;
 mod wav;
 
+#[cfg(not(target_os = "linux"))]
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+#[cfg(target_os = "linux")]
+use linux::{check, record};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -44,6 +49,7 @@ struct Track {
     heard_anything: AtomicBool,
     /// Whether any sample has been non-zero.
     heard_sound: AtomicBool,
+    write_failed: AtomicBool,
 }
 
 impl Track {
@@ -53,6 +59,7 @@ impl Track {
             peak: AtomicU64::new(0),
             heard_anything: AtomicBool::new(false),
             heard_sound: AtomicBool::new(false),
+            write_failed: AtomicBool::new(false),
         })
     }
 
@@ -78,8 +85,13 @@ impl Track {
         }
         let scaled = (loudest * 10_000.0) as u64;
         self.peak.fetch_max(scaled, Ordering::Relaxed);
-        if let Ok(mut file) = self.file.lock() {
-            let _ = file.write(&pcm);
+        match self.file.lock() {
+            Ok(mut file) => {
+                if file.write(&pcm).is_err() {
+                    self.write_failed.store(true, Ordering::Relaxed);
+                }
+            }
+            _ => self.write_failed.store(true, Ordering::Relaxed),
         }
     }
 }
@@ -115,6 +127,7 @@ fn value_after(arguments: &[String], flag: &str) -> Option<PathBuf> {
 /// in the words the application already reads, because inventing a third
 /// vocabulary for the same three states would mean teaching the interface a
 /// dialect per platform.
+#[cfg(not(target_os = "linux"))]
 fn check() {
     let host = cpal::default_host();
     let microphone = host.default_input_device().is_some();
@@ -136,11 +149,10 @@ fn check() {
 
 /// The device that hears what the speakers are playing.
 ///
-/// Two platforms, two arrangements, and the difference is real rather than
-/// cosmetic. WASAPI captures a rendering device in loopback mode, so the device
-/// to open is an *output* one. PipeWire and PulseAudio publish a separate monitor
-/// source per sink, which arrives as an ordinary input device with "monitor" in
-/// its name.
+/// WASAPI captures a rendering device in loopback mode, so the Windows device to
+/// open is an output one. Linux uses its own sound-server adapter instead of this
+/// device enumeration, which cannot see PipeWire's monitor sources.
+#[cfg(not(target_os = "linux"))]
 fn system_device(host: &cpal::Host) -> Option<cpal::Device> {
     if cfg!(target_os = "windows") {
         return host.default_output_device();
@@ -154,6 +166,7 @@ fn system_device(host: &cpal::Host) -> Option<cpal::Device> {
     })
 }
 
+#[cfg(not(target_os = "linux"))]
 fn record(system_path: PathBuf, microphone_path: PathBuf) -> Result<(), String> {
     let host = cpal::default_host();
     let running = Arc::new(AtomicBool::new(true));
@@ -239,6 +252,7 @@ fn report_silence(system: Option<&Arc<Track>>, microphone: Option<&Arc<Track>>) 
 /// A device that cannot be opened is not fatal: a machine with no microphone
 /// should still be able to record what is being said in a call, and one with no
 /// loopback should still record the room. The track is empty and says so.
+#[cfg(not(target_os = "linux"))]
 fn open(
     _host: &cpal::Host,
     device: Option<cpal::Device>,

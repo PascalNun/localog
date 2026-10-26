@@ -3,6 +3,8 @@
   import Icon from './Icon.svelte';
   import SidebarResizeHandle from './SidebarResizeHandle.svelte';
   import { clock } from '../time';
+  import { tick } from 'svelte';
+  import { errorMessage } from '../errors';
   import { formatBytes } from '../bytes';
   import { jobErrorTitle, stageText, t } from '../i18n';
 
@@ -25,6 +27,50 @@
   export let open = false;
   export let onNavigate: (route: AppRoute) => void;
   export let onClose: () => void;
+  export let onArchiveProject: (projectId: string) => Promise<void> = async () => undefined;
+  let projectMenu = '';
+  let archiveBusy = false;
+  let archiveError = '';
+  function floatingMenu(node: HTMLElement) {
+    // Keep the menu outside the scrolling/transformed sidebar on every webview.
+    document.body.appendChild(node);
+    return { destroy: () => node.remove() };
+  }
+  async function openProjectMenu(projectId: string, event?: MouseEvent) {
+    projectMenu = projectMenu === projectId ? '' : projectId;
+    archiveError = '';
+    await tick();
+    if (!projectMenu) return;
+    const menu = document.getElementById(`project-menu-${projectMenu}`);
+    const anchor = document
+      .getElementById(`project-actions-${projectMenu}`)
+      ?.getBoundingClientRect();
+    if (!menu || !anchor) return;
+    const bounds = menu.getBoundingClientRect();
+    const atPointer = event && (event.clientX !== 0 || event.clientY !== 0);
+    const left = atPointer ? event.clientX : anchor.right + 6;
+    const top = atPointer ? event.clientY : anchor.top;
+    menu.style.left = `${Math.max(8, Math.min(left, window.innerWidth - bounds.width - 8))}px`;
+    menu.style.top = `${Math.max(8, Math.min(top, window.innerHeight - bounds.height - 8))}px`;
+    document.getElementById(`archive-project-${projectMenu}`)?.focus();
+  }
+  async function archiveProject(projectId: string) {
+    archiveBusy = true;
+    archiveError = '';
+    try {
+      await onArchiveProject(projectId);
+      projectMenu = '';
+    } catch (cause) {
+      archiveError = errorMessage(cause);
+    } finally {
+      archiveBusy = false;
+    }
+  }
+  function closeProjectMenu() {
+    const previous = projectMenu;
+    projectMenu = '';
+    document.getElementById(`project-actions-${previous}`)?.focus();
+  }
   export let onToggleTheme: () => void;
   /// What was chosen, as against what is on screen. "Auto" looks like whichever the
   /// system is showing, so the control has to say which of the two it is.
@@ -76,7 +122,7 @@
 
   function jobDetail(job: ActiveJob) {
     if (jobNeedsAttention || job.state === 'queued')
-      return job.error ? jobErrorTitle(job.error.code) : stageText(job.stage);
+      return job.error ? jobErrorTitle(job.error.code, job.kind) : stageText(job.stage);
     // Without a meeting name above it, the stage would be the only line, so the
     // work is named here instead of being lost.
     if (!activeJobMeeting) return `${stageLabel(job)} · ${progressLabel(job)}`;
@@ -108,6 +154,20 @@
   <button class="sidebar-scrim" aria-label={$t.sidebar.closeNavigation} onclick={onClose}></button>
 {/if}
 
+<svelte:window
+  onresize={() => (projectMenu = '')}
+  onkeydown={(event) => {
+    if (event.key === 'Escape' && projectMenu) closeProjectMenu();
+  }}
+  onclick={(event) => {
+    if (
+      !(event.target instanceof Element) ||
+      (!event.target.closest('.sidebar-project-row') && !event.target.closest('.project-row-menu'))
+    )
+      projectMenu = '';
+  }}
+/>
+
 <aside class:open class="sidebar" aria-label={$t.sidebar.primaryNavigation}>
   <button class="wordmark" onclick={() => navigate({ name: 'start' })}>
     <!-- The application's own mark, the same seven bars as its icon and its start
@@ -135,13 +195,60 @@
       </div>
       <div class="project-links">
         {#each projects as project (project.id)}
-          <button
-            class:active={currentProjectId === project.id}
-            class="project-link"
-            onclick={() => navigate({ name: 'project', projectId: project.id })}
-          >
-            <span>{project.name}</span><span class="count">{project.meetingCount}</span>
-          </button>
+          <div class="sidebar-project-row" class:active={currentProjectId === project.id}>
+            <button
+              class:active={currentProjectId === project.id}
+              class="project-link"
+              oncontextmenu={(event) => {
+                event.preventDefault();
+                void openProjectMenu(project.id, event);
+              }}
+              onclick={() => {
+                projectMenu = '';
+                navigate({ name: 'project', projectId: project.id });
+              }}
+            >
+              <span>{project.name}</span><span class="count">{project.meetingCount}</span>
+            </button>
+            <button
+              id={`project-actions-${project.id}`}
+              class="icon-button compact project-actions"
+              aria-label={`${$t.project.archiveProject}: ${project.name}`}
+              title={$t.project.archiveProject}
+              aria-controls={projectMenu === project.id ? `project-menu-${project.id}` : undefined}
+              aria-haspopup="menu"
+              aria-expanded={projectMenu === project.id}
+              onclick={() => void openProjectMenu(project.id)}
+              ><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"
+                ><circle cx="3" cy="8" r="1" fill="currentColor" /><circle
+                  cx="8"
+                  cy="8"
+                  r="1"
+                  fill="currentColor"
+                /><circle cx="13" cy="8" r="1" fill="currentColor" /></svg
+              ></button
+            >
+            {#if projectMenu === project.id}
+              <div
+                id={`project-menu-${project.id}`}
+                use:floatingMenu
+                class="project-row-menu"
+                role="menu"
+                aria-label={project.name}
+              >
+                <button
+                  id={`archive-project-${project.id}`}
+                  role="menuitem"
+                  class="text-action"
+                  title={$t.settings.archivedLead}
+                  disabled={archiveBusy}
+                  onclick={() => void archiveProject(project.id)}
+                  >{$t.project.archiveProject}</button
+                >
+                {#if archiveError}<p class="setting-error" role="alert">{archiveError}</p>{/if}
+              </div>
+            {/if}
+          </div>
         {/each}
       </div>
       <button

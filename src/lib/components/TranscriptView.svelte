@@ -13,6 +13,7 @@
     Introduction,
     CorrectionMatch,
     AppliedCorrection,
+    SpeakerRequest,
   } from '../workflow/types';
   import { COMMON_MEETING_LANGUAGES } from '../workflow/languages';
   import Icon from './Icon.svelte';
@@ -32,7 +33,7 @@
   export let onGenerate: () => Promise<void>;
   export let onCancel: () => Promise<void>;
   export let onRetry: () => Promise<void>;
-  export let onRerunTranscription: () => Promise<void>;
+  export let onRerunTranscription: (speakers: SpeakerRequest) => Promise<void>;
   /// Take the transcript out of the application as a file.
   ///
   /// The protocol has left four ways since it existed and the transcript could
@@ -268,6 +269,7 @@
   let saveState: 'saved' | 'saving' | 'failed' = transcript?.saveState ?? 'saved';
   let audioElement: HTMLAudioElement | null = null;
   let audioSource: string | null = null;
+  let audioLoading = true;
   let audioDuration = 0;
   let followPlayback = true;
   let audioError: string | null = null;
@@ -281,20 +283,37 @@
 
   $: segments = transcript?.segments ?? [];
 
+  /// What the previous run asked for, so a rerun does not quietly turn speaker
+  /// separation off. A transcript labelled by the last run is a request the person
+  /// already made once.
+  $: previousSpeakers = transcript?.separateSpeakers
+    ? ((transcript.expectedSpeakers ?? 'estimate') as SpeakerRequest)
+    : ('together' as SpeakerRequest);
+
   // Working audio only exists once the source has been prepared for transcription.
   $: void loadAudio(meeting.id);
 
   async function loadAudio(meetingId: string) {
     // Snapshot events fire often; only reload when the meeting actually changes.
     if (loadedAudioFor === meetingId) return;
-    loadedAudioFor = meetingId;
-    const audio = await onLoadAudio(meetingId);
-    audioSource = audio?.source ?? null;
-    // A different source means the previous transport state no longer applies.
-    currentSeconds = 0;
-    isPlaying = false;
+    audioLoading = true;
     audioError = null;
-    audioDuration = audio?.durationMs ? audio.durationMs / 1000 : 0;
+    try {
+      const audio = await onLoadAudio(meetingId);
+      audioSource = audio?.source ?? null;
+      // A different source means the previous transport state no longer applies.
+      currentSeconds = 0;
+      isPlaying = false;
+      audioDuration = audio?.durationMs ? audio.durationMs / 1000 : 0;
+      // Mark the meeting only after it has answered, so a failed attempt is tried
+      // again rather than leaving the page saying the audio does not exist.
+      loadedAudioFor = meetingId;
+    } catch {
+      audioSource = null;
+      audioError = $t.transcript.audioCouldNotLoad;
+    } finally {
+      audioLoading = false;
+    }
   }
 
   // The segment under the playhead, used to highlight and to follow along.
@@ -432,7 +451,7 @@
     rerunning = true;
     rerunError = '';
     try {
-      await onRerunTranscription();
+      await onRerunTranscription(previousSpeakers);
     } catch (error) {
       rerunError = errorMessage(error);
     } finally {
@@ -553,13 +572,21 @@
             title={$t.transcript.followLabel}
             onclick={() => (followPlayback = !followPlayback)}>{$t.transcript.follow}</button
           >
+        {:else if audioLoading}
+          <p class="transport-empty">
+            {$t.transcript.loadingAudio}
+          </p>
+        {:else if audioError}
+          <p class="transport-empty">
+            {audioError}
+          </p>
         {:else}
           <p class="transport-empty">
             {$t.transcript.workingAudioLater}
           </p>
         {/if}
       </section>
-      {#if audioError}<p class="setting-error" role="alert">{audioError}</p>{/if}
+      {#if audioError && audioSource}<p class="setting-error" role="alert">{audioError}</p>{/if}
 
       <div class="transcript-toolbar">
         <label class="search-field"
@@ -659,7 +686,7 @@
         {#if speakerResolution !== 'resolved'}
           <p class="speaker-status" role="status">
             <Icon name="info" size={14} />
-            {speakerResolution === 'failed'
+            {speakerResolution === 'unavailable'
               ? $t.transcript.separationUnavailableHere
               : speakerResolution === 'unknown'
                 ? $t.transcript.rerunForSeparation

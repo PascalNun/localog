@@ -51,6 +51,15 @@ Status words:
 25. D-014’s original “discover installed models only” rule is superseded. Known transcription and diarisation models may be downloaded on demand with explicit user consent, HTTPS verification, checksums, atomic installation, and no silent acquisition. A model marketplace is not part of the product.
 26. Reproducibility means recording provenance and resolved inputs, not promising byte-identical model output.
 
+### Model setup guidance
+
+- A fresh installation offers a short list of pinned, checksum-verified managed models with visible size, memory requirements and quality limits. Hardware suitability and measured protocol quality are separate claims. Known oversized models are unavailable on that machine; unknown memory is stated explicitly. The 0.8B candidate is for development tests, not a professional-quality recommendation.
+- Settings persists the chosen runtime and model. An explicit Ollama choice wins over installed bundled files, and a missing explicit bundled choice is an error rather than a silent substitution. See [managed model details](MODEL_DOWNLOADS.md).
+
+### Desktop window chrome
+
+- macOS retains its native overlay controls. Linux uses an undecorated window with compact, translated app-owned window controls over the existing surfaces, plus native drag and resize operations. This avoids a separate title-bar band while remaining usable on floating desktops. Windows retains its native frame, and browser previews retain normal browser chrome.
+
 ### Scope and distribution
 
 27. App-managed working storage is approved for v0.1, with documented locations and explicit exports. Backup/restore remains part of v0.1 hardening and a portable project bundle remains a later possibility.
@@ -105,3 +114,21 @@ When a decision changes, update the accepted summary and the affected product or
 - The model evaluation showed that vocabulary helps proper nouns, long context is expensive, and protocol quality—not model size alone—is the critical question.
 
 The detailed measurements remain in the research and spike documents. They should be read as evidence for the decisions above, not as additional requirements.
+
+## 24 October 2026 — Trial Linux Flatpak packaging
+
+Add an opt-in binary-based Flatpak build from the same sidecar-bearing Debian
+artifact. Keep Debian/AppImage as the existing outputs; the Flatpak is experimental
+until portal import/export, model loading, playback, recording and updates pass
+on real desktops. No Flathub publication or automatic update channel is implied.
+The package uses a separate Flatpak workspace and explicit user backup/restore
+rather than silently migrating the development workspace. See packaging/flatpak.
+
+## 24 October 2026 — Direct PDF saving on Linux
+
+Keep the existing HTML print sheet and pagination as the PDF renderer. Use
+WebKitGTK’s print-to-file operation with explicit PDF settings, a private temporary
+file and the shared no-overwrite publication boundary. Linux Export PDF opens a
+save chooser, not a print panel. The macOS/Windows print path remains unchanged
+until a direct native implementation is validated. Errors must be visible; a
+screen-reader announcement alone is insufficient export feedback.

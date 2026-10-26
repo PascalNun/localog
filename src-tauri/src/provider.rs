@@ -70,6 +70,10 @@ impl ProviderError {
 /// catches is the case with no pauses at all — a model that has stopped answering
 /// and will never resume, which had no limit before this and would have been waited
 /// on until somebody gave up.
+///
+/// This measures only a completely silent stream. `llama-server` sends a
+/// keep-alive comment every thirty seconds while it is still working, and those
+/// reset the clock; a genuinely dead connection sends nothing at all.
 const SILENCE_BEFORE_GIVING_UP: Duration = Duration::from_secs(300);
 
 impl Display for ProviderError {
@@ -148,6 +152,7 @@ pub fn can_check_a_rewrite(descriptor: &ModelDescriptor) -> bool {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OllamaStatus {
+    pub active: bool,
     pub endpoint: String,
     pub server_reachable: bool,
     pub runtime_version: Option<String>,
@@ -545,7 +550,7 @@ struct ChatChoice {
 #[derive(Debug, Default, Deserialize)]
 struct ChatDelta {
     #[serde(default)]
-    content: String,
+    content: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -639,13 +644,23 @@ pub fn bundled_status(root: &std::path::Path, selected_model: Option<String>) ->
         })
         .collect();
 
-    let chosen = selected_model.or_else(|| models.first().map(|model| model.name.clone()));
-    let ready = chosen
+    let chosen = selected_model.or_else(|| {
+        crate::models::selected_generation_model(root, None, machine_memory_gb())
+            .map(|model| model.model_id)
+    });
+    let fits = chosen
         .as_deref()
-        .is_some_and(|wanted| models.iter().any(|model| model.name == wanted));
+        .is_none_or(|model| crate::models::generation_fits(model, machine_memory_gb()));
+    let ready = executable.is_some()
+        && fits
+        && chosen
+            .as_deref()
+            .is_some_and(|wanted| models.iter().any(|model| model.name == wanted));
 
     let message = if executable.is_none() {
         "generationRuntimeMissing"
+    } else if !fits {
+        "generationModelNeedsMoreMemory"
     } else if models.is_empty() {
         "generationModelNotDownloaded"
     } else if ready {
@@ -655,6 +670,7 @@ pub fn bundled_status(root: &std::path::Path, selected_model: Option<String>) ->
     };
 
     OllamaStatus {
+        active: true,
         endpoint: executable
             .as_ref()
             .map(|path| path.display().to_string())
@@ -664,7 +680,10 @@ pub fn bundled_status(root: &std::path::Path, selected_model: Option<String>) ->
         server_reachable: executable.is_some(),
         runtime_version: executable.as_ref().and_then(|path| runtime_version(path)),
         models,
-        selected_model_digest: None,
+        selected_model_digest: chosen
+            .as_deref()
+            .and_then(crate::models::generation_digest)
+            .map(str::to_string),
         selected_model_ready: ready,
         selected_model: chosen,
         message: message.to_string(),
@@ -764,6 +783,7 @@ impl OllamaProvider {
 
     pub fn status(&self, selected_model: Option<String>) -> OllamaStatus {
         let mut status = OllamaStatus {
+            active: true,
             endpoint: self.base_url.clone(),
             selected_model,
             machine_memory_gb: machine_memory_gb(),
@@ -870,6 +890,9 @@ impl OllamaProvider {
         cancelled: &AtomicBool,
         progress: &mut dyn FnMut(u64, &str) -> Result<()>,
     ) -> Result<String> {
+        // Ollama is a user-managed daemon whose model/runtime may change between
+        // queuing and execution. The bundled server was just started with the
+        // selected model; it does not implement Ollama's discovery endpoints.
         if self.backend == Backend::Ollama {
             let runtime_version = self.version()?;
             if runtime_version != request.runtime_version {
@@ -1918,7 +1941,7 @@ impl OllamaProvider {
         let mut generated = String::new();
         let mut done = false;
         let mut last_progress = Instant::now() - Duration::from_millis(100);
-        // When the last token arrived, so a model that has stopped answering can be
+        // When the last byte arrived, so a model that has stopped answering can be
         // told from one that is still working.
         //
         // There was no deadline here at all: the global timeout is off and the
@@ -1926,6 +1949,10 @@ impl OllamaProvider {
         // that follows. A model that stalled after its first token would have been
         // waited on indefinitely while the interface showed a fixed seventy per cent
         // — which is exactly the state somebody cannot distinguish from progress.
+        //
+        // Any line resets the clock, not only a parsed token: the bundled server
+        // sends an SSE keep-alive comment every thirty seconds during a long prompt
+        // prefill, and counting those as silence would call a working model stalled.
         let mut last_chunk = Instant::now();
         loop {
             if cancelled.load(Ordering::Acquire) {
@@ -1941,6 +1968,9 @@ impl OllamaProvider {
             if read == 0 {
                 break;
             }
+            // Keep-alive comments and blank separators count as the server being
+            // alive, even though they carry no token.
+            last_chunk = Instant::now();
             if line.len() > MAX_RESPONSE_BYTES {
                 return Err(ProviderError::ResponseTooLarge);
             }
@@ -1980,7 +2010,7 @@ impl OllamaProvider {
                         });
                         let finish = choice.finish_reason.unwrap_or_default();
                         StreamChunk {
-                            response: choice.delta.content,
+                            response: choice.delta.content.unwrap_or_default(),
                             thinking: String::new(),
                             done: !finish.is_empty(),
                             done_reason: finish,
@@ -1988,7 +2018,6 @@ impl OllamaProvider {
                     }
                 },
             };
-            last_chunk = Instant::now();
             generated.push_str(if chunk.response.is_empty() {
                 &chunk.thinking
             } else {
@@ -4840,10 +4869,61 @@ mod against_a_chat_completions_server {
     use std::net::TcpListener;
     use std::thread;
 
+    #[test]
+    fn bundled_generation_does_not_query_ollama_discovery_endpoints() {
+        let provider = OllamaProvider::llama_at("http://127.0.0.1:1".into());
+        let mut request = super::tests::synthetic_request(1, 100_000);
+        request.maximum_output_tokens = 1;
+        let result = provider.generate(&request, &AtomicBool::new(false), &mut |_, _| Ok(()));
+        assert!(
+            matches!(result, Err(ProviderError::BeyondOneAnswer { .. })),
+            "{result:?}"
+        );
+    }
+
+    #[test]
+    #[ignore = "requires a local GGUF model and bundled llama-server"]
+    fn generates_a_protocol_with_the_real_bundled_engine() {
+        let model = std::env::var_os("LOCALOG_SMOKE_GGUF").expect("set LOCALOG_SMOKE_GGUF");
+        let server = crate::llama::start(&crate::llama::ServerRequest {
+            model: model.into(),
+            context_tokens: 16384,
+            gpu_layers: Some(0),
+        })
+        .expect("the bundled server starts");
+        let provider = OllamaProvider::llama_at(server.base_url().to_string());
+        let mut request = super::tests::synthetic_request(1, 1);
+        request.meeting_language = "English".into();
+        request.transcript[0].text = "Anna and Ben reviewed the office renovation. They agreed to use warm white paint. Ben will request two supplier quotes by Friday. Anna will confirm the delivery date. The budget limit is 1200 euros. No decision was made about the flooring.".into();
+        request.context_tokens = 16384;
+        request.maximum_output_tokens = 1024;
+        let workspace = tempfile::tempdir().unwrap();
+        let repository = crate::storage::WorkspaceRepository::open(workspace.path()).unwrap();
+        let style = repository.protocol_inputs_style("style-formal");
+        request.style = GenerationStyle {
+            id: style.id,
+            revision: style.revision,
+            density: style.density,
+            instructions: style.instructions,
+            expectations: style.expectations,
+        };
+        let answer = provider
+            .generate(&request, &AtomicBool::new(false), &mut |_, stage| {
+                println!("{stage}");
+                Ok(())
+            })
+            .expect("a protocol is generated");
+        assert!(!answer.trim().is_empty());
+        assert!(answer.contains("Friday"), "the assigned deadline survives");
+        println!("Generated {} characters", answer.len());
+    }
+
     /// A stream that arrives the way `llama-server` actually sends one: a `data:`
     /// line per record, blank lines between them, and `[DONE]` at the end.
     fn sse_body() -> String {
         [
+            "data: {\"choices\":[{\"delta\":{\"role\":\"assistant\",\"content\":null}}]}",
+            "",
             "data: {\"choices\":[{\"delta\":{\"content\":\"## Protokoll\"}}]}",
             "",
             "data: {\"choices\":[{\"delta\":{\"content\":\"\\n\\nEs wurde \"}}]}",

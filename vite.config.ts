@@ -8,6 +8,11 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 1420,
     strictPort: true,
+    watch: {
+      // Tauri watches Rust itself. Its build outputs must not also occupy the
+      // frontend watcher or trigger browser reloads during native compilation.
+      ignored: ['**/src-tauri/**', '**/sidecars/**/target/**', '**/spikes/**/target/**'],
+    },
   },
   envPrefix: ['VITE_', 'TAURI_ENV_*'],
   build: {

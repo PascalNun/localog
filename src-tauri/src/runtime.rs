@@ -283,7 +283,7 @@ pub(crate) fn run_process_with_progress(
     mut command: Command,
     cancellation: &AtomicBool,
     limits: ProcessLimits,
-    parse_progress: fn(&str) -> Option<u8>,
+    parse_progress: impl Fn(&str) -> Option<u8> + Send + 'static,
     mut on_progress: impl FnMut(u8),
 ) -> Result<ProcessOutput, ProcessFailure> {
     #[cfg(unix)]
@@ -413,7 +413,7 @@ fn read_tail(mut reader: impl Read, max: usize) -> std::io::Result<TailOutput> {
 fn read_tail_with_progress(
     mut reader: impl Read,
     max: usize,
-    parse_progress: fn(&str) -> Option<u8>,
+    parse_progress: impl Fn(&str) -> Option<u8>,
     progress: std::sync::mpsc::Sender<u8>,
 ) -> std::io::Result<TailOutput> {
     let mut tail = VecDeque::with_capacity(max.min(8192));
@@ -596,11 +596,10 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn process_drains_large_output_without_failing() {
-        let mut command = Command::new("sh");
-        command.args([
-            "-c",
-            "i=0; while [ $i -lt 100000 ]; do printf x; i=$((i+1)); done",
-        ]);
+        // Exceed a pipe buffer in one bulk write. A hundred thousand shell
+        // builtins tested shell speed and timed out on a busy Linux desktop.
+        let mut command = Command::new("dd");
+        command.args(["if=/dev/zero", "bs=100000", "count=1"]);
         let output = run_process(
             command,
             &AtomicBool::new(false),

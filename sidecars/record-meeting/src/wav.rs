@@ -68,3 +68,45 @@ impl Wav {
         self.data_bytes
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_checkpoint_is_playable_and_later_samples_append_after_the_audio() {
+        let directory = std::env::temp_dir().join(format!(
+            "localog-wav-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir(&directory).unwrap();
+        let path = directory.join("synthetic.wav");
+        let mut wav = Wav::create(&path, 48_000, 2).unwrap();
+        wav.write(&[123, -123]).unwrap();
+        wav.flush().unwrap();
+        let checkpoint = std::fs::read(&path).unwrap();
+        assert_eq!(&checkpoint[..4], b"RIFF");
+        assert_eq!(&checkpoint[8..16], b"WAVEfmt ");
+        assert_eq!(u32::from_le_bytes(checkpoint[4..8].try_into().unwrap()), 40);
+        assert_eq!(
+            u32::from_le_bytes(checkpoint[40..44].try_into().unwrap()),
+            4
+        );
+        assert_eq!(checkpoint.len(), 48);
+
+        wav.write(&[456, -456]).unwrap();
+        wav.flush().unwrap();
+        let complete = std::fs::read(&path).unwrap();
+        assert_eq!(u32::from_le_bytes(complete[4..8].try_into().unwrap()), 44);
+        assert_eq!(u32::from_le_bytes(complete[40..44].try_into().unwrap()), 8);
+        assert_eq!(&complete[44..48], &checkpoint[44..48]);
+        assert_eq!(&complete[48..50], &456_i16.to_le_bytes());
+        assert_eq!(&complete[50..52], &(-456_i16).to_le_bytes());
+        drop(wav);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+}

@@ -14,6 +14,7 @@
   export let meetings: MeetingSummary[];
   export let onNavigate: (route: AppRoute) => void;
   export let onDeleteMeeting: (meetingId: string) => Promise<void> = async () => undefined;
+  export let onRenameProject: (name: string) => Promise<void> = async () => undefined;
   export let onArchiveProject: (projectId: string) => Promise<void> = async () => undefined;
   export let onArchiveMeeting: (meetingId: string) => Promise<void> = async () => undefined;
 
@@ -24,6 +25,9 @@
   /// small would be more ceremony than the rest of the interface uses.
   let confirming = '';
   let deleteError = '';
+  let editingName = false;
+  let nameDraft = project.name;
+  let nameError = '';
 
   async function remove(meeting: MeetingSummary) {
     deleteError = '';
@@ -33,6 +37,25 @@
       deleteError = errorMessage(cause);
     } finally {
       confirming = '';
+    }
+  }
+
+  async function archiveProject() {
+    deleteError = '';
+    try {
+      await onArchiveProject(project.id);
+    } catch (cause) {
+      deleteError = errorMessage(cause);
+    }
+  }
+
+  async function saveName() {
+    nameError = '';
+    try {
+      await onRenameProject(nameDraft);
+      editingName = false;
+    } catch (cause) {
+      nameError = errorMessage(cause);
     }
   }
 
@@ -75,14 +98,36 @@
   <header class="workspace-header project-header">
     <div>
       <p class="eyebrow">{$t.project.eyebrow}</p>
-      <h1 tabindex="-1">{project.name}</h1>
+      <div class="editable-title">
+        {#if editingName}<input
+            bind:value={nameDraft}
+            aria-label={$t.project.projectNameLabel}
+            onkeydown={(event) => {
+              if (event.key === 'Enter') void saveName();
+              if (event.key === 'Escape') editingName = false;
+            }}
+          />
+          <button class="text-action" onclick={() => void saveName()}>{$t.project.save}</button
+          ><button class="text-action" onclick={() => (editingName = false)}
+            >{$t.project.cancel}</button
+          >{:else}<h1 tabindex="-1">{project.name}</h1>
+          <button
+            class="icon-button compact"
+            aria-label={$t.project.renameProject}
+            onclick={() => {
+              nameDraft = project.name;
+              editingName = true;
+            }}>✎</button
+          >{/if}
+      </div>
       <p>{project.description}</p>
+      {#if nameError}<p class="form-error" role="alert">{nameError}</p>{/if}
     </div>
     <div class="project-header-actions">
       <!-- Archiving is not deleting: everything under the project stays, and it
            comes back from Settings whenever somebody wants it. So it is a quiet
            action beside the loud one rather than behind a confirmation. -->
-      <button class="quiet-action" onclick={() => void onArchiveProject(project.id)}>
+      <button class="quiet-action" onclick={() => void archiveProject()}>
         {$t.project.archiveProject}
       </button>
       <button
@@ -94,6 +139,8 @@
       </button>
     </div>
   </header>
+
+  {#if deleteError}<p class="setting-error" role="alert">{deleteError}</p>{/if}
 
   <section class="document-section" aria-labelledby="meetings-heading">
     <div class="section-heading-row">
@@ -166,7 +213,6 @@
             {$t.project.deleteWarning}
           </p>
         {/if}
-        {#if deleteError}<p class="setting-error" role="alert">{deleteError}</p>{/if}
       </div>
     {:else}
       <div class="empty-inline">

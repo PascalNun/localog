@@ -14,6 +14,7 @@ use std::time::Duration;
 
 /// One downloadable whisper.cpp ggml model. Checksums and sizes were verified
 /// locally against the published files before being recorded here.
+#[derive(Clone, Copy)]
 struct ModelSpec {
     id: &'static str,
     file_name: &'static str,
@@ -133,20 +134,51 @@ const MODELS: &[ModelSpec] = &[
     // the same weights squeezed afterwards — and holding up means keeping numbers,
     // which is the measure this model was chosen on.
     //
-    // The size and the checksum are what the repository reports, read from it
-    // rather than estimated. Gemma is offered under Google's own terms rather than
-    // Apache, whatever a repository tag says, so the licence named here is the one
-    // somebody would actually be agreeing to.
+    // Metadata checked against Google's model card and published LFS metadata.
+    // Gemma 4 is Apache 2.0; earlier Gemma licence assumptions do not apply.
     ModelSpec {
         id: "gemma4-12b",
         file_name: "gemma-4-12b-it-qat-q4_0.gguf",
-        url: "https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/resolve/main/gemma-4-12b-it-qat-q4_0.gguf",
+        url: "https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/resolve/29d097773436b69ff9feafd636ab4cf873786537/gemma-4-12b-it-qat-q4_0.gguf",
         sha256: "93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b",
         byte_count: 6_975_879_296,
         kind: ModelKind::Generation,
-        licence: "gemma",
-        licence_url: "https://ai.google.dev/gemma/terms",
-        acceptance_required: true,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "qwen3.5-4b",
+        file_name: "Qwen3.5-4B-Q4_K_M.gguf",
+        url: "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-Q4_K_M.gguf",
+        sha256: "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+        byte_count: 2740937888,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "ministral-3b",
+        file_name: "Ministral-3-3B-Instruct-2512-Q4_K_M.gguf",
+        url: "https://huggingface.co/unsloth/Ministral-3-3B-Instruct-2512-GGUF/resolve/7564922f37fa5bbb62b87f09a55c12f1f91d7a6a/Ministral-3-3B-Instruct-2512-Q4_K_M.gguf",
+        sha256: "fd46fc371ff0509bfa8657ac956b7de8534d7d9baaa4947975c0648c3aa397f4",
+        byte_count: 2146497824,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "qwen3.5-0.8b",
+        file_name: "Qwen3.5-0.8B-Q8_0.gguf",
+        url: "https://huggingface.co/ggml-org/Qwen3.5-0.8B-GGUF/resolve/807dfd9a6fadbf703207aac3bfb0b2b3040d077c/Qwen3.5-0.8B-Q8_0.gguf",
+        sha256: "37ae482d336108d23516fa35e8e0c4126688d81018b87178a18d752a1357814f",
+        byte_count: 833592096,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
     },
     // The European option, and the reason the choice exists at all. Somebody
     // running meetings through this may be doing it under a policy about whose
@@ -173,6 +205,7 @@ pub(crate) enum ModelError {
     /// The model's terms are an agreement and nobody has agreed to them.
     LicenceNotAccepted,
     UnknownModel,
+    NotEnoughMemory,
     Cancelled,
     NotEnoughSpace {
         needed: u64,
@@ -186,6 +219,7 @@ pub(crate) enum ModelError {
 impl Display for ModelError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::NotEnoughMemory => write!(formatter, "generationModelNeedsMoreMemory"),
             Self::UnknownModel => write!(formatter, "modelUnknown"),
             Self::LicenceNotAccepted => write!(formatter, "licenceNotAccepted"),
             Self::Cancelled => write!(formatter, "downloadCancelled"),
@@ -251,10 +285,7 @@ pub(crate) struct ModelTerms {
     pub licence_url: String,
     pub installed: bool,
     pub acceptance_required: bool,
-    /// Roughly the memory this wants, so the interface can say which of several
-    /// models a machine can actually run rather than listing three sizes and
-    /// leaving somebody to guess.
-
+    pub minimum_memory_gb: Option<u32>,
     /// When these terms were accepted, in milliseconds since the epoch, or
     /// nothing if they were not. Recorded so somebody can answer what is on their
     /// machine and what they agreed to — which, in a firm, is a question they may
@@ -327,11 +358,61 @@ pub(crate) fn terms(root: &Path, model_id: &str) -> Option<ModelTerms> {
         licence_url: model.licence_url.to_string(),
         installed: installed_model_path(root, model_id).is_some(),
         acceptance_required: model.acceptance_required,
+        minimum_memory_gb: generation_minimum_memory_gb(model_id),
         accepted_at_ms: accepted_licences(root)
             .into_iter()
             .find(|(id, _)| id == model_id)
             .map(|(_, when)| when),
     })
+}
+
+/// Conservative installed-RAM classes, not a promise about speed or current free RAM.
+pub(crate) fn generation_minimum_memory_gb(model_id: &str) -> Option<u32> {
+    match model_id {
+        "gemma4-12b"
+        | "gemma4:12b"
+        | "ministral-8b"
+        | "ministral-3:8b"
+        | "ministral-3:8b-instruct-2512-q4_K_M"
+        | "granite4.1:8b" => Some(16),
+        "qwen3.5-4b"
+        | "qwen3.5:4b"
+        | "ministral-3b"
+        | "ministral-3:3b"
+        | "ministral-3:3b-instruct-2512-q4_K_M" => Some(8),
+        "qwen3.5-0.8b" | "qwen3.5:0.8b" => Some(4),
+        _ => None,
+    }
+}
+
+pub(crate) fn generation_fits(model_id: &str, memory_gb: Option<u32>) -> bool {
+    match (generation_minimum_memory_gb(model_id), memory_gb) {
+        (Some(needed), Some(available)) => available >= needed,
+        _ => true,
+    }
+}
+
+/// Respect an explicit choice; never silently substitute another installed model.
+pub(crate) fn selected_generation_model(
+    root: &Path,
+    preferred: Option<&str>,
+    memory_gb: Option<u32>,
+) -> Option<ModelTerms> {
+    let models = generation_models(root);
+    if let Some(wanted) = preferred {
+        return models
+            .into_iter()
+            .find(|model| model.model_id == wanted && model.installed);
+    }
+    models
+        .into_iter()
+        .find(|model| model.installed && generation_fits(&model.model_id, memory_gb))
+}
+
+pub(crate) fn generation_digest(model_id: &str) -> Option<&'static str> {
+    spec(model_id)
+        .filter(|model| model.kind == ModelKind::Generation)
+        .map(|model| model.sha256)
 }
 
 /// The terms of everything catalogued, for the page that lists them.
@@ -362,8 +443,9 @@ pub(crate) fn generation_models(root: &Path) -> Vec<ModelTerms> {
 /// than a fault — the start screen says so before anybody reaches generation.
 pub(crate) fn generation_model_path(root: &Path, preferred: Option<&str>) -> Option<PathBuf> {
     if let Some(wanted) = preferred {
-        return installed_model_path(root, wanted)
-            .filter(|_| spec(wanted).is_some_and(|model| model.kind == ModelKind::Generation));
+        return spec(wanted)
+            .filter(|model| model.kind == ModelKind::Generation)
+            .and_then(|_| installed_model_path(root, wanted));
     }
     MODELS
         .iter()
@@ -377,7 +459,9 @@ pub(crate) fn generation_model_path(root: &Path, preferred: Option<&str>) -> Opt
 /// with the expected size. The caller verifies this digest through the durable
 /// provenance cache before a model can write a protocol.
 pub(crate) fn expected_model_digest(model_id: &str) -> Option<String> {
-    spec(model_id).map(|model| format!("sha256:{}", model.sha256))
+    spec(model_id)
+        .filter(|_| is_generation_model(model_id))
+        .map(|model| format!("sha256:{}", model.sha256))
 }
 
 /// Whether an identifier names a model that can write protocols.
@@ -426,6 +510,15 @@ pub(crate) fn diarisation_model_paths(root: &Path) -> Option<(PathBuf, PathBuf)>
     let segmentation = installed_model_path(root, "speaker-segmentation")?;
     let embedding = installed_model_path(root, "speaker-embedding")?;
     Some((segmentation, embedding))
+}
+
+/// The embedding model alone, for the embedding sidecar.
+///
+/// Unlike the sherpa diariser, that pass does not segment: it embeds transcript
+/// segments the transcription already placed, so it has no use for the
+/// segmentation model and should not be refused when that one file is absent.
+pub(crate) fn embedding_model_path(root: &Path) -> Option<PathBuf> {
+    installed_model_path(root, "speaker-embedding")
 }
 
 /// Total download size of whatever the diariser is still missing, so the user can
@@ -485,6 +578,13 @@ pub(crate) fn discard_staged_downloads(root: &Path) {
     }
 }
 
+fn require_licence_acceptance(root: &Path, model: &ModelSpec) -> Result<(), ModelError> {
+    if model.acceptance_required && !accepted_licences(root).iter().any(|(id, _)| id == model.id) {
+        return Err(ModelError::LicenceNotAccepted);
+    }
+    Ok(())
+}
+
 /// Download a model into app-managed storage: stream to a staged file, hash while
 /// writing, verify size + digest, then atomically install. Reports 0..=100 percent
 /// and observes cancellation between chunks. An interrupted download leaves no
@@ -501,8 +601,11 @@ pub(crate) fn download_model(
     // download, or that a second code path can miss, is decoration — so it lives
     // here, where every download passes, rather than in the screen that usually
     // starts one.
-    if model.acceptance_required && !accepted_licences(root).iter().any(|(id, _)| id == model_id) {
-        return Err(ModelError::LicenceNotAccepted);
+    require_licence_acceptance(root, model)?;
+    if model.kind == ModelKind::Generation
+        && !generation_fits(model_id, crate::machine::memory_gb())
+    {
+        return Err(ModelError::NotEnoughMemory);
     }
     let directory = models_dir(root);
     fs::create_dir_all(&directory)?;
@@ -631,7 +734,7 @@ fn human_bytes(bytes: u64) -> String {
 }
 
 #[cfg(unix)]
-fn available_bytes(path: &Path) -> Option<u64> {
+pub(crate) fn available_bytes(path: &Path) -> Option<u64> {
     use std::os::unix::ffi::OsStrExt;
     let c_path = std::ffi::CString::new(path.as_os_str().as_bytes()).ok()?;
     let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
@@ -655,7 +758,7 @@ fn available_bytes(path: &Path) -> Option<u64> {
 /// Asked about the drive the path is on, not the current one: a workspace on D:
 /// is not answered by how much room C: has.
 #[cfg(not(unix))]
-fn available_bytes(path: &Path) -> Option<u64> {
+pub(crate) fn available_bytes(path: &Path) -> Option<u64> {
     let drive = path.components().next().map(|component| {
         component
             .as_os_str()
@@ -710,6 +813,18 @@ mod tests {
         fs::File::create(&emb).unwrap().set_len(39_593_761).unwrap();
         assert_eq!(diarisation_model_paths(root), Some((seg, emb)));
         assert_eq!(diarisation_download_bytes(root), 0);
+    }
+
+    #[test]
+    fn the_embedding_pass_needs_only_its_own_model() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        fs::create_dir_all(models_dir(root)).unwrap();
+        // The segmentation model is not needed by the embedding sidecar.
+        assert!(embedding_model_path(root).is_none());
+        let emb = models_dir(root).join("speaker-embedding.onnx");
+        fs::File::create(&emb).unwrap().set_len(39_593_761).unwrap();
+        assert_eq!(embedding_model_path(root), Some(emb));
     }
 
     #[test]
@@ -943,6 +1058,49 @@ mod the_catalogue_terms {
         assert!(!is_generation_model("base"));
     }
 
+    fn install_stub(root: &Path, model_id: &str) {
+        let model = spec(model_id).unwrap();
+        fs::create_dir_all(models_dir(root)).unwrap();
+        File::create(models_dir(root).join(model.file_name))
+            .unwrap()
+            .set_len(model.byte_count)
+            .unwrap();
+    }
+
+    #[test]
+    fn selection_respects_memory_and_never_substitutes_a_missing_explicit_model() {
+        let root = std::env::temp_dir().join(format!("localog-selection-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        install_stub(&root, "gemma4-12b");
+        install_stub(&root, "qwen3.5-4b");
+        assert_eq!(
+            selected_generation_model(&root, None, Some(8))
+                .unwrap()
+                .model_id,
+            "qwen3.5-4b"
+        );
+        assert_eq!(
+            selected_generation_model(&root, None, Some(16))
+                .unwrap()
+                .model_id,
+            "gemma4-12b"
+        );
+        assert!(selected_generation_model(&root, Some("ministral-3b"), Some(16)).is_none());
+        assert!(generation_model_path(&root, Some("ministral-3b")).is_none());
+        assert!(generation_model_path(&root, Some("base")).is_none());
+        assert!(selected_generation_model(&root, None, Some(4)).is_none());
+        assert!(!generation_fits("gemma4-12b", Some(8)));
+        assert!(!generation_fits("ministral-8b", Some(8)));
+        assert!(generation_fits("ministral-8b", Some(16)));
+        assert!(generation_fits("gemma4-12b", Some(16)));
+        assert!(generation_fits("qwen3.5-0.8b", Some(4)));
+        assert_eq!(
+            generation_digest("qwen3.5-4b"),
+            Some(spec("qwen3.5-4b").unwrap().sha256)
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
     /// Nothing is installed on a fresh workspace, and asking must answer that
     /// rather than failing.
     #[test]
@@ -973,17 +1131,20 @@ mod the_catalogue_terms {
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(models_dir(&root)).unwrap();
 
-        for model_id in ["gemma4-12b", "ministral-8b"] {
+        for model_id in ["gemma4-12b", "ministral-3b"] {
             let model = spec(model_id).unwrap();
             let file = File::create(models_dir(&root).join(model.file_name)).unwrap();
             file.set_len(model.byte_count).unwrap();
         }
 
-        let chosen = generation_model_path(&root, Some("ministral-8b")).unwrap();
-        assert!(chosen.ends_with("Ministral-3-8B-Instruct-2512-Q4_K_M.gguf"));
+        let chosen = generation_model_path(&root, Some("ministral-3b")).unwrap();
+        assert_eq!(
+            chosen.file_name().unwrap(),
+            spec("ministral-3b").unwrap().file_name
+        );
 
         fs::remove_file(chosen).unwrap();
-        assert!(generation_model_path(&root, Some("ministral-8b")).is_none());
+        assert!(generation_model_path(&root, Some("ministral-3b")).is_none());
         assert!(generation_model_path(&root, None).is_some());
         let _ = fs::remove_dir_all(&root);
     }
@@ -1007,8 +1168,11 @@ mod accepting_terms {
     #[test]
     fn a_model_with_terms_is_not_downloaded_before_they_are_accepted() {
         let root = workspace("refused");
-        let cancelled = AtomicBool::new(false);
-        let outcome = download_model(&root, "gemma4-12b", &cancelled, |_| {});
+        let model = ModelSpec {
+            acceptance_required: true,
+            ..*spec("gemma4-12b").unwrap()
+        };
+        let outcome = require_licence_acceptance(&root, &model);
         assert_eq!(outcome, Err(ModelError::LicenceNotAccepted));
         assert_eq!(outcome.unwrap_err().to_string(), "licenceNotAccepted");
         let _ = fs::remove_dir_all(&root);
@@ -1017,11 +1181,14 @@ mod accepting_terms {
     /// MIT grants its permissions without anybody agreeing to anything, so a
     /// transcription model is never held up by a question nobody needs to answer.
     #[test]
-    fn a_model_under_mit_needs_no_agreement() {
+    fn permissive_models_need_no_agreement() {
         let root = workspace("mit");
         let terms = terms(&root, "base").expect("base is catalogued");
         assert!(!terms.acceptance_required);
         assert_eq!(terms.licence, "mit");
+        let gemma = super::terms(&root, "gemma4-12b").unwrap();
+        assert_eq!(gemma.licence, "apache2");
+        assert!(!gemma.acceptance_required);
         let _ = fs::remove_dir_all(&root);
     }
 

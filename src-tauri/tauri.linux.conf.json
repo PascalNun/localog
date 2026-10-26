@@ -1,16 +1,18 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "bundle": {
-    "targets": ["deb", "appimage"],
-    "externalBin": [
-      "binaries/localog-record-meeting",
-      "binaries/localog-whisper",
-      "binaries/localog-llama-server",
-      "binaries/localog-speaker-diarization",
-      "binaries/localog-speaker-embedding",
-      "binaries/localog-ffmpeg",
-      "binaries/localog-ffprobe"
-    ],
-    "resources": ["binaries/licences/*"]
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "LocaLog",
+        "width": 1440,
+        "height": 940,
+        "minWidth": 360,
+        "minHeight": 320,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": false
+      }
+    ]
   }
 }

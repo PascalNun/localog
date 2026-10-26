@@ -31,11 +31,14 @@
 
 /** Text that comes back from the Rust side as a code rather than a sentence. */
 const failures = {
+  generationModelNeedsMoreMemory:
+    'This model requires more memory than this computer has. Choose a smaller model.',
   // Storage: something referred to is not there any more.
   missingProject: 'The selected project no longer exists.',
   missingMeeting: 'The selected meeting no longer exists.',
   missingJob: 'The import job is no longer available.',
   importBusy: 'Another recording is already being imported. Finish or cancel it first.',
+  workspaceBusy: 'Finish or cancel the work in progress first, then try freeing up space again.',
   unsupportedSchema: (version: string) =>
     `This LocaLog data was created by a newer, unsupported version (${version}).`,
   storageUnavailable: 'LocaLog could not access its local workspace storage.',
@@ -128,7 +131,9 @@ const failures = {
   workspaceNotOpened: 'The workspace folder could not be opened.',
   settingsPaneUnknown: 'There is no such settings pane.',
   meetingBusy: 'This meeting is still being worked on. Cancel that first.',
+  pdfExportFailed: 'The PDF could not be saved. Choose an available folder and try again.',
   printDialogUnavailable: 'This window could not open the print dialog.',
+  dialogUnavailable: 'The file dialog could not be opened.',
 
   // Backing up and restoring.
   backupNameUnsafe: 'That backup name cannot be used as a folder name.',
@@ -329,6 +334,9 @@ export const en = {
   /** The screen somebody sees before there is anything to open. */
   /** The settings screen. */
   settings: {
+    windowControls: 'Window controls',
+    windowControlsDetail:
+      'Automatic hides the buttons in recognized tiling desktops. Show or hide them yourself when needed.',
     memoryReported: (gb: number) => `${gb} GB memory reported`,
     themeAutomatic: 'Automatic',
     themeLight: 'Light',
@@ -388,6 +396,17 @@ export const en = {
     european: 'European',
     checkInstalled: 'Check installed models',
     curatedModels: 'Curated protocol models',
+    downloadIntro:
+      'Choose a model for this computer. Downloads stay on this device; no separate AI service is needed.',
+    memoryMinimum: (gb: number) => `Minimum RAM class: ${gb} GB`,
+    memoryTooSmall: (gb: number) =>
+      `Needs a ${gb} GB RAM class or larger. Download and selection are unavailable on this computer.`,
+    memoryUnknown:
+      'Memory could not be detected. Check the model’s RAM requirement before downloading.',
+    memoryTight:
+      'An 8 GB computer has little room for long meetings. Close other applications; CPU generation may be slow. Download size is not total RAM use.',
+    qualityCaution:
+      'Memory suitability does not guarantee protocol quality. Smaller candidates need careful review; earlier measurements were made on a different computer.',
     bundledRuntime: 'On this device',
     bundledAlternative: 'Also available',
     wantsMemory: (gb: number) => `Wants about ${gb} GB`,
@@ -421,6 +440,8 @@ export const en = {
      * without a sentence here does not compile.
      */
     modelDescription: {
+      'qwen3.5-0.8b':
+        'A small development and smoke-test model. Protocol quality has not been evaluated; do not rely on it for a professional meeting record.',
       'gemma4-12b':
         'The most accurate and the steadiest of the measured models: it kept 27 to 31 of a meeting’s 35 figures across three runs, where the next best kept as few as 6. Slower — about fourteen minutes for an eighty-minute meeting.',
       'ministral-8b':
@@ -497,6 +518,23 @@ export const en = {
     working: 'Working…',
     backupContents:
       'Holds every project, meeting, transcript and protocol, and the recordings themselves. Two things are left out on purpose, because neither is your work and both are rebuilt when they are needed: downloaded models, and the prepared copy of each recording. Measured on a real workspace, that prepared audio alone was three quarters of the backup.',
+    storageUsage: 'Space used',
+    storageUsageLead:
+      'What this workspace takes on this device, and what it is made of. Prepared audio is the only part that can be removed without losing work.',
+    storageRecordings: 'Recordings',
+    storagePreparedAudio: 'Prepared audio',
+    storageModels: 'Models',
+    storageOther: 'Transcripts, protocols and app data',
+    storageFreePrepared: 'Free up space',
+    storageFreeConfirm: (size: string) =>
+      `Remove ${size} of prepared audio from this device? Every recording, transcript and protocol stays exactly as it is. The next transcription prepares the audio again.`,
+    storageFreeConfirmAction: 'Remove prepared audio',
+    storageFreeing: 'Freeing up space…',
+    storagePreparedLead:
+      'The mono audio LocaLog prepares for transcription is rebuilt whenever it is needed. Removing it leaves every recording, transcript and protocol exactly as it is; the next transcription prepares it again.',
+    storageFreed: (size: string, files: number) =>
+      `Freed ${size} across ${files} ${files === 1 ? 'file' : 'files'}. Every transcript and protocol is unchanged.`,
+    storageNothingToFree: 'There is no prepared audio to remove.',
     restore: 'Restore',
     restoreLead:
       'Puts a backup back. It is checked in full first, and what is here now is moved aside rather than deleted.',
@@ -531,6 +569,10 @@ export const en = {
       'Deleting a meeting removes its recording, its transcript and every protocol revision, from this device. It cannot be undone.',
     eyebrow: 'Project',
     archiveProject: 'Archive project',
+    renameProject: 'Rename project',
+    projectNameLabel: 'Project name',
+    save: 'Save',
+    cancel: 'Cancel',
     newMeeting: 'New meeting',
     meetings: 'Meetings',
     newestFirst: 'Newest first',
@@ -687,6 +729,11 @@ export const en = {
       detail:
         'Check that FFmpeg is installed and retry. The normalized cache can be regenerated and the original remains unchanged.',
     },
+    conversion_failed: {
+      title: 'The recording could not be prepared for storage',
+      detail:
+        'LocaLog could not make the compact copy it keeps for this recording. The external original was not changed; check that FFmpeg is installed and try again.',
+    },
     transcription_failed: {
       title: 'Local transcription could not finish',
       detail:
@@ -711,6 +758,11 @@ export const en = {
       title: 'The local provider changed',
       detail:
         'The Ollama runtime version changed after this job was queued. Retry to capture the current runtime.',
+    },
+    provider_stalled: {
+      title: 'Protocol generation stopped responding',
+      detail:
+        'The local model did not respond in time. No partial draft was saved; your transcript and previous drafts remain available. Retry, or try a smaller model if this happens again.',
     },
     provider_unavailable: {
       title: 'Local protocol generation could not connect',
@@ -914,6 +966,8 @@ export const en = {
     starting: 'Starting…',
     backToMeeting: 'Back to the meeting',
     noRecorder: 'This build has no recorder. Import a file instead.',
+    desktopAudioHint:
+      'Check the selected input and output in your desktop sound settings. Only available sources will be recorded.',
     openTheSetting: 'Open the setting',
     grantedInSettings: 'Granted in System Settings, and picked up here as soon as you come back.',
     callWouldNotRecordTitle: 'The call would not be recorded.',
@@ -926,7 +980,7 @@ export const en = {
     stoppedOnItsOwn:
       'The recorder stopped on its own. Whatever it captured up to that point has been kept.',
     quietCall: (seconds: number) =>
-      `Nothing has arrived from the call in ${seconds} seconds. macOS gives an application silence rather than an error when it has not been granted Screen & System Audio Recording, so this is worth checking now rather than after the meeting.`,
+      `No audio has arrived from the call in ${seconds} seconds. Check that the call is playing through the selected output and that recording access is allowed.`,
     quietMicrophone: (seconds: number) =>
       `Nothing has arrived from the microphone in ${seconds} seconds. Check that the right input is selected and that nothing else is holding it.`,
   },
@@ -1042,6 +1096,7 @@ export const en = {
     meetingInformation: 'Meeting information',
     title: 'Title',
     titlePlaceholder: 'Derived from the file if left empty',
+    titlePlaceholderRecording: 'Name this meeting',
     date: 'Date',
     language: 'Meeting language',
     protocolStyle: 'Protocol style',
@@ -1141,6 +1196,7 @@ export const en = {
     nothingFlaggedNote:
       'Nothing was flagged as unclear. A transcript made before this was recorded also shows nothing here, so an older one may be worth reading rather than trusting.',
     workingAudioLater: 'Working audio becomes available once this meeting has been transcribed.',
+    loadingAudio: 'Preparing this meeting’s audio for playback…',
     recordingEndsNote:
       'If the meeting carried on past this, the recording did not capture it and the protocol will not contain it.',
     heading: 'Transcript review',
@@ -1326,6 +1382,13 @@ export const en = {
       `Applies to every protocol in ${project}. It repeats on the printed page and is not part of the document you are editing.`,
   },
 
+  window: {
+    minimize: 'Minimize window',
+    maximize: 'Maximize window',
+    restore: 'Restore window',
+    close: 'Close window',
+    actionFailed: 'The window action failed. Try again.',
+  },
   shell: {
     breadcrumbMeeting: 'Meeting',
     breadcrumbRecording: 'Recording',
@@ -1545,7 +1608,7 @@ export const en = {
     exportMarkdown: 'Export Markdown',
     exportPlainText: 'Export plain text',
     exportNote:
-      'The PDF is printed from the document you are reading, set the way this project sets its protocols — choose “Save as PDF” in the print dialog.',
+      'PDF and Word use this project’s document appearance. Markdown and plain text keep the editable text.',
     source: 'Source',
     findSelectedPassage: 'Find the selected passage',
     lookingFor: 'Looking for:',

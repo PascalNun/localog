@@ -32,11 +32,15 @@
 import type { Strings } from './en';
 
 const failures = {
+  generationModelNeedsMoreMemory:
+    'Ce modèle nécessite plus de mémoire que cet ordinateur. Choisissez un modèle plus petit.',
   missingProject: 'Le projet sélectionné n’existe plus.',
   missingMeeting: 'La réunion sélectionnée n’existe plus.',
   missingJob: 'La tâche d’importation n’est plus disponible.',
   importBusy:
     'Un enregistrement est déjà en cours d’importation. Terminez-le ou annulez-le d’abord.',
+  workspaceBusy:
+    'Terminez ou annulez d’abord le travail en cours, puis réessayez de libérer de l’espace.',
   unsupportedSchema: (version: string) =>
     `Ces données LocaLog ont été créées par une version plus récente et non prise en charge (${version}).`,
   storageUnavailable: 'LocaLog n’a pas pu accéder à son espace de travail local.',
@@ -124,7 +128,10 @@ const failures = {
   workspaceNotOpened: 'Le dossier de l’espace de travail n’a pas pu être ouvert.',
   settingsPaneUnknown: 'Ce volet de réglages n’existe pas.',
   meetingBusy: 'Cette réunion est encore en cours de traitement. Annulez-le d’abord.',
+  pdfExportFailed:
+    'Le PDF n’a pas pu être enregistré. Choisissez un dossier disponible et réessayez.',
   printDialogUnavailable: 'Cette fenêtre n’a pas pu ouvrir la boîte de dialogue d’impression.',
+  dialogUnavailable: 'La boîte de dialogue de fichier n’a pas pu être ouverte.',
 
   backupNameUnsafe: 'Ce nom de sauvegarde ne peut pas servir de nom de dossier.',
   notABackup: 'Ce dossier n’est pas une sauvegarde LocaLog : il n’a pas de manifest.json.',
@@ -304,6 +311,9 @@ export const fr: Strings = {
   },
 
   settings: {
+    windowControls: 'Commandes de fenêtre',
+    windowControlsDetail:
+      'Le mode automatique masque les boutons sur les bureaux en mosaïque reconnus. Vous pouvez aussi les afficher ou les masquer.',
     memoryReported: (gb: number) => `${gb} Go de mémoire détectés`,
     themeAutomatic: 'Automatique',
     themeLight: 'Clair',
@@ -364,6 +374,16 @@ export const fr: Strings = {
     european: 'Européen',
     checkInstalled: 'Vérifier les modèles installés',
     curatedModels: 'Modèles de compte rendu retenus',
+    downloadIntro:
+      'Choisissez un modèle pour cet ordinateur. Les téléchargements restent sur cet appareil ; aucun service d’IA séparé n’est nécessaire.',
+    memoryMinimum: (gb: number) => `Classe de RAM minimale : ${gb} Go`,
+    memoryTooSmall: (gb: number) =>
+      `Nécessite une classe de RAM d’au moins ${gb} Go. Téléchargement et sélection indisponibles sur cet ordinateur.`,
+    memoryUnknown: 'Mémoire non détectée. Vérifiez les besoins en RAM avant de télécharger.',
+    memoryTight:
+      'Avec 8 Go, les longues réunions laissent peu de marge. Fermez les autres applications ; la génération sur CPU peut être lente. La taille du téléchargement n’est pas la RAM totale utilisée.',
+    qualityCaution:
+      'Une mémoire suffisante ne garantit pas la qualité. Vérifiez soigneusement les petits modèles ; les mesures précédentes proviennent d’un autre ordinateur.',
     bundledRuntime: 'Sur cet appareil',
     bundledAlternative: 'Également disponible',
     wantsMemory: (gb: number) => `Nécessite environ ${gb} Go`,
@@ -389,6 +409,8 @@ export const fr: Strings = {
     downloadingPreset: (name: string) => `Téléchargement de ${name}`,
     /** Voir la note dans en.ts. */
     modelDescription: {
+      'qwen3.5-0.8b':
+        'Petit modèle de développement et de test. Qualité des comptes rendus non évaluée ; ne vous y fiez pas pour un compte rendu professionnel.',
       'gemma4-12b':
         'Le plus exact et le plus régulier des modèles mesurés : sur trois exécutions, il a conservé 27 à 31 des 35 chiffres d’une réunion, là où le suivant est descendu à 6. Plus lent — environ quatorze minutes pour une réunion de quatre-vingts minutes.',
       'ministral-8b':
@@ -466,6 +488,23 @@ export const fr: Strings = {
     backupContents:
       'Contient chaque projet, réunion, transcription et compte rendu, ainsi que les enregistrements eux-mêmes. Deux choses sont volontairement laissées de côté, car ce n’est pas votre travail et l’une comme l’autre se reconstruisent : les modèles téléchargés, et la copie préparée de chaque enregistrement. Mesuré sur un espace de travail réel, cet audio préparé représentait à lui seul les trois quarts de la sauvegarde.',
     restore: 'Restaurer',
+    storageUsage: 'Espace utilisé',
+    storageUsageLead:
+      'Ce que cet espace de travail occupe sur cet appareil, et de quoi il se compose. L’audio préparé est la seule partie qui peut être supprimée sans perdre de travail.',
+    storageRecordings: 'Enregistrements',
+    storagePreparedAudio: 'Audio préparé',
+    storageModels: 'Modèles',
+    storageOther: 'Transcriptions, comptes rendus et données de l’application',
+    storageFreePrepared: 'Libérer de l’espace',
+    storageFreeConfirm: (size: string) =>
+      `${size} d’audio préparé à supprimer de cet appareil ? Chaque enregistrement, transcription et compte rendu reste exactement tel quel. La prochaine transcription préparera de nouveau l’audio.`,
+    storageFreeConfirmAction: 'Supprimer l’audio préparé',
+    storageFreeing: 'Libération de l’espace…',
+    storagePreparedLead:
+      'L’audio mono que LocaLog prépare pour la transcription est recréé chaque fois qu’il faut. Le supprimer laisse chaque enregistrement, transcription et compte rendu exactement tel quel ; la prochaine transcription le prépare de nouveau.',
+    storageFreed: (size: string, files: number) =>
+      `${size} libérés dans ${files} ${files === 1 ? 'fichier' : 'fichiers'}. Toutes les transcriptions et tous les comptes rendus sont inchangés.`,
+    storageNothingToFree: 'Il n’y a pas d’audio préparé à supprimer.',
     restoreLead:
       'Remet une sauvegarde en place. Elle est d’abord vérifiée en entier, et ce qui est ici est mis de côté plutôt que supprimé.',
     chooseBackup: 'Choisir une sauvegarde…',
@@ -499,6 +538,10 @@ export const fr: Strings = {
       'Supprimer une réunion retire de cet appareil son enregistrement, sa transcription et toutes les versions de son compte rendu. C’est irréversible.',
     eyebrow: 'Projet',
     archiveProject: 'Archiver le projet',
+    renameProject: 'Renommer le projet',
+    projectNameLabel: 'Nom du projet',
+    save: 'Enregistrer',
+    cancel: 'Annuler',
     newMeeting: 'Nouvelle réunion',
     meetings: 'Réunions',
     newestFirst: 'Les plus récentes d’abord',
@@ -613,6 +656,11 @@ export const fr: Strings = {
       detail:
         'Vérifiez que FFmpeg est installé, puis réessayez. La copie préparée peut être régénérée et l’original reste inchangé.',
     },
+    conversion_failed: {
+      title: 'L’enregistrement n’a pas pu être préparé pour le stockage',
+      detail:
+        'LocaLog n’a pas pu créer la copie compacte de cet enregistrement. Le fichier original externe n’a pas été modifié ; vérifiez que FFmpeg est installé et réessayez.',
+    },
     transcription_failed: {
       title: 'La transcription locale n’a pas pu aboutir',
       detail:
@@ -637,6 +685,11 @@ export const fr: Strings = {
       title: 'Le fournisseur local a changé',
       detail:
         'La version de l’environnement Ollama a changé après la mise en file de cette tâche. Réessayez pour prendre l’environnement actuel.',
+    },
+    provider_stalled: {
+      title: 'La génération du compte rendu ne répond plus',
+      detail:
+        'Le modèle local n’a pas répondu à temps. Aucun brouillon partiel n’a été enregistré ; la transcription et les brouillons précédents restent disponibles. Réessayez ou utilisez un modèle plus petit si cela se reproduit.',
     },
     provider_unavailable: {
       title: 'La génération locale du compte rendu n’a pas pu se connecter',
@@ -826,6 +879,8 @@ export const fr: Strings = {
     starting: 'Démarrage…',
     backToMeeting: 'Retour à la réunion',
     noRecorder: 'Cette version n’a pas d’enregistreur. Importez plutôt un fichier.',
+    desktopAudioHint:
+      'Vérifiez les entrées et sorties sélectionnées dans les réglages audio du bureau. Seules les sources disponibles seront enregistrées.',
     openTheSetting: 'Ouvrir le réglage',
     grantedInSettings: 'Accordé dans les Réglages Système, et pris en compte ici dès votre retour.',
     callWouldNotRecordTitle: 'L’appel ne serait pas enregistré.',
@@ -838,7 +893,7 @@ export const fr: Strings = {
     stoppedOnItsOwn:
       'L’enregistreur s’est arrêté de lui-même. Ce qu’il avait capté jusque-là a été conservé.',
     quietCall: (seconds: number) =>
-      `Rien n’est arrivé de l’appel depuis ${seconds} secondes. macOS donne du silence plutôt qu’une erreur à une application qui n’a pas l’autorisation d’enregistrer l’écran et l’audio système ; mieux vaut vérifier maintenant qu’après la réunion.`,
+      `Aucun son ne parvient de l’appel depuis ${seconds} secondes. Vérifiez que l’appel utilise la sortie sélectionnée et que l’enregistrement est autorisé.`,
     quietMicrophone: (seconds: number) =>
       `Rien n’est arrivé du microphone depuis ${seconds} secondes. Vérifiez que la bonne entrée est sélectionnée et que rien d’autre ne l’occupe.`,
   },
@@ -954,6 +1009,7 @@ export const fr: Strings = {
     meetingInformation: 'Informations sur la réunion',
     title: 'Titre',
     titlePlaceholder: 'Repris du fichier s’il est laissé vide',
+    titlePlaceholderRecording: 'Nommez cette réunion',
     date: 'Date',
     language: 'Langue de la réunion',
     protocolStyle: 'Style de compte rendu',
@@ -1046,6 +1102,7 @@ export const fr: Strings = {
     nothingFlaggedNote:
       'Rien n’a été signalé comme peu clair. Une transcription faite avant cette fonction n’affiche rien non plus ici : mieux vaut donc relire une ancienne transcription que lui faire confiance.',
     workingAudioLater: 'L’audio de travail devient disponible une fois cette réunion transcrite.',
+    loadingAudio: 'Préparation de l’audio de cette réunion pour la lecture…',
     recordingEndsNote:
       'Si la réunion s’est poursuivie au-delà, l’enregistrement ne l’a pas capté et le compte rendu ne le contiendra pas.',
     heading: 'Relecture de la transcription',
@@ -1217,6 +1274,13 @@ export const fr: Strings = {
       `S’applique à tous les comptes rendus de ${project}. Cela se répète sur la page imprimée et ne fait pas partie du document que vous modifiez.`,
   },
 
+  window: {
+    minimize: 'Réduire la fenêtre',
+    maximize: 'Agrandir la fenêtre',
+    restore: 'Restaurer la fenêtre',
+    close: 'Fermer la fenêtre',
+    actionFailed: 'L’action sur la fenêtre a échoué. Réessayez.',
+  },
   shell: {
     breadcrumbMeeting: 'Réunion',
     breadcrumbRecording: 'Enregistrement',
@@ -1422,7 +1486,7 @@ export const fr: Strings = {
     exportMarkdown: 'Exporter en Markdown',
     exportPlainText: 'Exporter en texte brut',
     exportNote:
-      'Le PDF est imprimé depuis le document que vous lisez, composé comme ce projet compose ses comptes rendus — choisissez « Enregistrer au format PDF » dans la boîte de dialogue d’impression.',
+      'PDF et Word utilisent la mise en page du projet. Markdown et le texte brut conservent le texte modifiable.',
     source: 'Source',
     findSelectedPassage: 'Retrouver le passage sélectionné',
     lookingFor: 'Recherche de :',

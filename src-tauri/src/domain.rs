@@ -319,6 +319,11 @@ pub struct TranscriptDocument {
     pub revision_id: String,
     pub language: String,
     pub speaker_resolution: SpeakerResolution,
+    /// What was asked of speaker separation when this transcript was produced.
+    /// Kept so re-running the transcript preserves the choice instead of silently
+    /// turning separation off.
+    pub separate_speakers: bool,
+    pub expected_speakers: Option<u32>,
     pub segments: Vec<TranscriptSegment>,
     pub base_revision_id: String,
     pub is_dirty: bool,

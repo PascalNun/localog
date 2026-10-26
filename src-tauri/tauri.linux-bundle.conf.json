@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "targets": ["deb", "appimage"],
+    "linux": {
+      "deb": {
+        "depends": ["libpulse0", "gstreamer1.0-plugins-base", "gstreamer1.0-plugins-good"]
+      }
+    },
+    "externalBin": [
+      "binaries/localog-record-meeting",
+      "binaries/localog-whisper",
+      "binaries/localog-llama-server",
+      "binaries/localog-speaker-diarization",
+      "binaries/localog-speaker-embedding",
+      "binaries/localog-ffmpeg",
+      "binaries/localog-ffprobe"
+    ],
+    "resources": ["binaries/licences/*"]
+  }
+}

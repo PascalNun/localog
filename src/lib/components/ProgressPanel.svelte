@@ -42,8 +42,8 @@
     <p class="eyebrow">
       {job.state === 'failed' ? $t.progress.needsAttention : $t.progress.backgroundWork}
     </p>
-    <h2>{job.error ? jobErrorTitle(job.error.code) : kindLabel}</h2>
-    <p>{job.error ? jobErrorDetail(job.error.code, job.error.detail) : stageLabel}</p>
+    <h2>{job.error ? jobErrorTitle(job.error.code, job.kind) : kindLabel}</h2>
+    <p>{job.error ? jobErrorDetail(job.error.code, job.error.detail, job.kind) : stageLabel}</p>
   </div>
   {#if job.requiresDuplicateConfirmation}
     <div class="progress-actions duplicate-actions">

@@ -14,6 +14,7 @@
   import Icon from './Icon.svelte';
   import { errorMessage } from '../errors';
   import { t } from '../i18n';
+  import { localDateInput } from '../time';
 
   export let projects: ProjectSummary[];
   export let initialProjectId: string | null;
@@ -35,7 +36,7 @@
 
   let projectId = initialProjectId ?? projects[0]?.id ?? '';
   let title = '';
-  let occurredAt = new Date().toISOString().slice(0, 10);
+  let occurredAt = localDateInput();
   let sourceName = '';
   let sourcePath: string | null = null;
   /**
@@ -210,7 +211,9 @@
           <label
             ><span>{$t.newMeeting.title}</span><input
               bind:value={title}
-              placeholder={$t.newMeeting.titlePlaceholder}
+              placeholder={forRecording
+                ? $t.newMeeting.titlePlaceholderRecording
+                : $t.newMeeting.titlePlaceholder}
             /></label
           >
           <label

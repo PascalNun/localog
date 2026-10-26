@@ -4,9 +4,79 @@ This is the short answer to “where is LocaLog now, and what should happen next
 
 The product and architecture documents describe the destination. The decision log records choices. This document describes what the code can honestly claim today.
 
-Last reviewed: 29 August 2026. The interface-language entry under "What is not yet
+Linux development was checked on 20–21 October 2026; see the section below. Earlier
+product entries were last reviewed on 29 August 2026. The interface-language entry under "What is not yet
 true" was checked against the code and rewritten; the rest was read rather than
 re-verified.
+
+Linux window chrome now extends the app surfaces to the top edge with compact
+minimize, maximize/restore and close controls, native dragging and eight resize
+edges. Browser previews and the macOS/Windows frame choices remain platform-specific.
+
+## Model setup — 21 October 2026
+
+The managed download screen now exposes four verified entries, with per-model RAM
+requirements, small-model quality cautions and native guards against oversized
+managed downloads/selections. Runtime/model choices are persisted and respected;
+Ollama no longer loses to the first installed managed file. Download completion
+refreshes installed state. See [managed model details](MODEL_DOWNLOADS.md) for
+pinned sources, scope and validation limits. The initial catalogue change downloaded no weights. A later Ministral 3B
+installation and short inference check on 22 October exposed a CPU-incompatible
+imported sidecar. A portable rebuild of the pinned engine fixed it; see
+[Linux development](LINUX_DEVELOPMENT.md#cpu-compatible-generation-engine).
+Professional quality and long-meeting speed remain unmeasured.
+
+## Linux development — 20–21 October 2026
+
+The Omarchy development checkout now works without requiring every AI sidecar
+before compiling. Linux's bundle configuration is passed explicitly for release
+builds, matching the existing Windows arrangement; the shared Rust toolchain no
+longer forces an Apple target onto other hosts.
+Vite now excludes the native source/build tree and sidecar/spike build outputs
+from its frontend watcher. A running-server check confirms frontend source stays
+watched while native artifacts are excluded.
+
+The first recorder check found a real platform fault: ALSA enumerated hardware and
+compatibility PCMs, but none of PipeWire's monitor sources. Linux now uses a small
+libpulse adapter, while Windows keeps cpal/WASAPI and macOS keeps its Swift recorder.
+The system track follows the default output's actual monitor, not the first monitor
+in a device list. A duplicate monitor is not also labelled as the microphone.
+
+The normal first native launch also exposed a storage race that isolated sequential
+opens missed: parallel startup requests read the same old schema, and seven of
+eight concurrent openers then tried to recreate tables after the first finished.
+A bounded OS file lock now covers schema detection, journal setup and migration.
+It coordinates threads and processes, releases on close/crash, and does not lock
+the workspace for the lifetime of a repository or change the backup format.
+The regression starts eight openers against the same fresh workspace.
+
+The synthetic integration check then caught an event-loop fault: dispatching only
+one event before sleeping let two streams fall behind the server. Draining bounded
+batches fixed the lost audio. The check feeds two distinct tones through temporary
+virtual outputs, verifies their energy and separation, WAV validity, live levels,
+track duration agreement and prompt SIGTERM shutdown. It also checks the duplicate
+monitor guard and the unavailable-server preflight. No physical microphone or
+desktop default is changed by that check.
+
+Validation: frontend type checks, lint, 207 frontend tests, six editor-spike tests,
+the production frontend build, 351 Rust tests (23 explicit runtime/evaluation tests
+ignored), the recorder WAV checkpoint test and repeated synthetic capture checks
+pass. The native development build and strict Clippy checks for both crates pass.
+The source-built native shell loads the frontend and creates its workspace; SQLite's
+integrity check passes in an isolated temporary app-data directory. A stress-test
+fixture now emits its large output in bulk, avoiding a shell-speed timeout on a
+busy machine. Unused generation-error payloads and two existing Clippy findings
+were also cleaned up without changing their interface error codes or backup rules.
+
+Recording recovery guidance now distinguishes macOS permissions from other desktop
+audio settings in all eight interface languages. Four Svelte-only `:global()`
+selectors were also corrected in the global stylesheet, where they were invalid.
+
+This is development validation, not a claim about real-meeting capture, Linux
+inference quality, printing, long recordings or a newly rebuilt release package.
+Development inference/media sidecars came from the checksum-verified official
+alpha release; no model weights were downloaded. A fresh Arch release build still
+needs a separately supplied static Opus archive. See [Linux development](LINUX_DEVELOPMENT.md).
 
 ## What 16 August established
 
@@ -1902,3 +1972,20 @@ Every milestone should end with:
 - a clear statement of whether code is production, provisional, experimental, or discarded.
 
 Green unit tests alone are not enough for a milestone involving real models, long files, user experience, or distribution.
+
+## Linux packaging hardening — 24 October 2026
+
+A per-user development launcher and compact settings dropdowns are available.
+Flatpak staging checks completeness of all seven sidecars; the Linux workflow has
+an opt-in experimental bundle step. The sandbox workflow and distribution matrix
+in `packaging/flatpak/README.md` remain unvalidated. A successful staging test is
+not a Flatpak release or evidence that it works on every Linux machine.
+
+Export hardening now includes visible results, saving pending editor text before
+export, non-overwriting file publication and direct Linux PDF saving. The explicit
+graphical PDF smoke check runs on the OS main thread as an example executable; a
+Rust test-worker attempt saved its PDF but aborted during WebKit process teardown
+and was replaced. A standalone per-user test build avoids Vite reloads during
+user testing. The originally reported file-chooser non-response still needs
+confirmation in that stable copy; do not infer its cause from successful writer
+or PDF-renderer checks.

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { open } from '@tauri-apps/plugin-dialog';
+  import { openDialog } from '../platform/fileDialog';
+  import type { WindowControlsChoice } from '../platform/windowChrome';
   import type {
     ArchivedWork,
     ExportFormat,
@@ -12,6 +13,8 @@
     TranscriptionPreset,
     TranscriptionRuntimeStatus,
     SpeakerSeparationStatus,
+    WorkspaceUsage,
+    PreparedAudioCleanup,
   } from '../workflow/types';
   import { SPEAKER_SEPARATION_UNREADY } from '../workflow/types';
   import { errorMessage } from '../errors';
@@ -24,14 +27,19 @@
   } from '../models/modelCatalog';
   import type { GenerationModelEntry } from '../models/modelCatalog';
   import { formatModelSize } from '../models/modelSize';
-  import { catalogueEntryFor, recommendGeneration } from '../models/generationChoice';
+  import { formatBytes } from '../bytes';
   import { INTERFACE_LANGUAGES, chooseLanguage, language, listOf, t } from '../i18n';
+  import type { LanguageId } from '../i18n';
   import { formatMeetingDate } from '../protocol/document';
   import { showInFileManagerKey } from '../platform/fileManager';
   import Icon from './Icon.svelte';
+  import ManagedModels from './ManagedModels.svelte';
   import type { IconName } from './Icon.svelte';
 
   export let theme: 'light' | 'dark';
+  export let windowControlsAvailable = false;
+  export let windowControlsChoice: WindowControlsChoice = 'auto';
+  export let onChooseWindowControls: (choice: WindowControlsChoice) => void = () => undefined;
   export let themeChoice: 'auto' | 'light' | 'dark' = 'auto';
   export let nextJobOutcome: FakeJobOutcome;
   export let onChooseTheme: (choice: 'auto' | 'light' | 'dark') => void;
@@ -50,8 +58,9 @@
   export let runtimeStatus: TranscriptionRuntimeStatus;
   export let runtimeError: string | null = null;
   export let providerStatus: ProtocolProviderStatus;
-  export let generationStatus: ProtocolProviderStatus;
   export let modelTerms: ModelTerms[] = [];
+  export let generationStatus: ProtocolProviderStatus;
+  export let onConfigureGeneration: (model: string) => Promise<void>;
   export let onAcceptLicence: (modelId: string) => Promise<void>;
   export let capability: TranscriptionCapability;
   export let downloading: Record<string, number> = {};
@@ -72,9 +81,26 @@
   export let onCreateBackup: (parent: string, folderName: string) => Promise<BackupManifest>;
   export let onInspectBackup: (folder: string) => Promise<BackupManifest>;
   export let onRestoreBackup: (folder: string) => Promise<RestoreOutcome>;
+  export let onWorkspaceUsage: () => Promise<WorkspaceUsage> = async () => ({
+    totalBytes: 0,
+    recordingsBytes: 0,
+    preparedAudioBytes: 0,
+    modelsBytes: 0,
+    otherBytes: 0,
+  });
+  export let onFreePreparedAudio: () => Promise<PreparedAudioCleanup> = async () => ({
+    freedBytes: 0,
+    removedFiles: 0,
+    usage: {
+      totalBytes: 0,
+      recordingsBytes: 0,
+      preparedAudioBytes: 0,
+      modelsBytes: 0,
+      otherBytes: 0,
+    },
+  });
   export let onRefreshProvider: () => Promise<void>;
   export let onConfigureProvider: (model: string | null) => Promise<void>;
-  export let onSelectGenerationModel: (modelId: string) => Promise<void>;
   export let providerError: string | null = null;
   export let speakerStatus: SpeakerSeparationStatus = SPEAKER_SEPARATION_UNREADY;
   export let speakerError: string | null = null;
@@ -162,23 +188,6 @@
   $: executablePath = runtimeStatus?.executablePath ?? executablePath;
   $: selectedProviderModel = providerStatus?.selectedModel ?? selectedProviderModel;
   $: modelRecommendation = recommendationFor(providerStatus?.models ?? [], memoryGb);
-  /// The measured descriptions, reachable by an identifier the backend supplies
-  /// rather than one this file already knows.
-  ///
-  /// Everything else a person reads about these models — the name, who made it,
-  /// the memory it wants, whether it is the baseline — comes from the same
-  /// catalogue, through `catalogueEntryFor`. The backend supplies the file and
-  /// nothing about how to describe it.
-  $: describedModels = $t.settings.modelDescription as Record<string, string | undefined>;
-
-  /// Every model this application can run itself, largest first.
-  $: generationModels = modelTerms
-    .filter((terms) => terms.kind === 'generation')
-    .sort((first, second) => second.byteCount - first.byteCount);
-  $: selectedGenerationModel = generationStatus?.selectedModel ?? null;
-
-  $: recommendedGeneration = recommendGeneration(modelTerms, memoryGb);
-
   $: recommendedInstalled = modelRecommendation.installed;
   $: uncataloguedModels = (providerStatus?.models ?? []).filter(
     (model) => !GENERATION_MODEL_CATALOG.some((entry) => entry.providerNames.includes(model.name)),
@@ -245,6 +254,57 @@
   let backupError = '';
   let pendingRestore: { folder: string; manifest: BackupManifest } | null = null;
 
+  /// How much room the workspace takes, and the one part of it that is a cache.
+  /// Measured when the Storage section is opened, not with every settings load.
+  let usage: WorkspaceUsage | null = null;
+  let usageLoading = false;
+  let usageError = '';
+  let freeBusy = false;
+  let freeNote = '';
+  let confirmingFree = false;
+
+  async function loadUsage() {
+    if (usageLoading) return;
+    usageLoading = true;
+    usageError = '';
+    try {
+      usage = await onWorkspaceUsage();
+    } catch (cause) {
+      usageError = errorMessage(cause);
+    } finally {
+      usageLoading = false;
+    }
+  }
+
+  async function freePrepared() {
+    freeBusy = true;
+    usageError = '';
+    freeNote = '';
+    try {
+      const result = await onFreePreparedAudio();
+      usage = result.usage;
+      confirmingFree = false;
+      freeNote =
+        result.removedFiles > 0
+          ? $t.settings.storageFreed(formatBytes(result.freedBytes), result.removedFiles)
+          : $t.settings.storageNothingToFree;
+    } catch (cause) {
+      usageError = errorMessage(cause);
+    } finally {
+      freeBusy = false;
+    }
+  }
+
+  $: if (section === 'Storage') void loadUsage();
+  $: usageParts = usage
+    ? [
+        { label: $t.settings.storageRecordings, bytes: usage.recordingsBytes },
+        { label: $t.settings.storagePreparedAudio, bytes: usage.preparedAudioBytes },
+        { label: $t.settings.storageModels, bytes: usage.modelsBytes },
+        { label: $t.settings.storageOther, bytes: usage.otherBytes },
+      ].filter((part) => part.bytes > 0)
+    : [];
+
   /// A name somebody can read in a file manager a year from now, and which sorts.
   function backupFolderName(): string {
     const now = new Date();
@@ -262,7 +322,7 @@
 
   async function backUpNow() {
     if (!('__TAURI_INTERNALS__' in window)) return;
-    const parent = await open({
+    const parent = await openDialog({
       directory: true,
       multiple: false,
       title: $t.settings.whereToKeepBackup,
@@ -287,7 +347,7 @@
 
   async function chooseBackupToRestore() {
     if (!('__TAURI_INTERNALS__' in window)) return;
-    const folder = await open({
+    const folder = await openDialog({
       directory: true,
       multiple: false,
       title: $t.settings.chooseBackupTitle,
@@ -326,7 +386,7 @@
 
   async function chooseExecutable() {
     if (!('__TAURI_INTERNALS__' in window)) return;
-    const selected = await open({
+    const selected = await openDialog({
       multiple: false,
       directory: false,
       title: $t.settings.chooseWhisper,
@@ -335,7 +395,7 @@
   }
 </script>
 
-<main class="workspace" id="main-content">
+<main class="workspace settings-workspace" id="main-content">
   <header class="workspace-header compact-header">
     <div>
       <p class="eyebrow">{$t.settings.application}</p>
@@ -367,33 +427,49 @@
             <h3>{$t.settings.interfaceLanguage}</h3>
             <p>{$t.settings.interfaceLanguageDetail}</p>
           </div>
-          <div class="choice-row" role="group" aria-label={$t.settings.interfaceLanguage}>
+          <select
+            aria-label={$t.settings.interfaceLanguage}
+            value={$language}
+            onchange={(event) => chooseLanguage(event.currentTarget.value as LanguageId)}
+          >
             {#each INTERFACE_LANGUAGES as option (option.id)}
-              <button
-                class="choice"
-                class:chosen={$language === option.id}
-                aria-pressed={$language === option.id}
-                onclick={() => chooseLanguage(option.id)}>{option.label}</button
-              >
+              <option value={option.id}>{option.label}</option>
             {/each}
-          </div>
+          </select>
         </div>
         <div class="setting-row">
           <div>
             <h3>{$t.settings.defaultExport}</h3>
             <p>{$t.settings.defaultExportDetail}</p>
           </div>
-          <div class="choice-row" role="group" aria-label={$t.settings.defaultExportLabel}>
+          <select
+            aria-label={$t.settings.defaultExportLabel}
+            value={defaultExport}
+            onchange={(event) => onChooseDefaultExport(event.currentTarget.value as ExportFormat)}
+          >
             {#each EXPORT_CHOICES as option (option.id)}
-              <button
-                class="choice"
-                class:chosen={defaultExport === option.id}
-                aria-pressed={defaultExport === option.id}
-                onclick={() => onChooseDefaultExport(option.id)}>{option.label}</button
-              >
+              <option value={option.id}>{option.label}</option>
             {/each}
-          </div>
+          </select>
         </div>
+        {#if windowControlsAvailable}
+          <div class="setting-row">
+            <div>
+              <h3>{$t.settings.windowControls}</h3>
+              <p>{$t.settings.windowControlsDetail}</p>
+            </div>
+            <select
+              aria-label={$t.settings.windowControls}
+              value={windowControlsChoice}
+              onchange={(event) =>
+                onChooseWindowControls(event.currentTarget.value as WindowControlsChoice)}
+            >
+              <option value="auto">{$t.settings.themeAutomatic}</option>
+              <option value="show">{$t.settings.show}</option>
+              <option value="hide">{$t.settings.hide}</option>
+            </select>
+          </div>
+        {/if}
       {:else if section === 'Models'}
         <div class="model-setting-intro">
           <p class="eyebrow">{$t.settings.defaultForProtocols}</p>
@@ -402,115 +478,19 @@
             {$t.settings.modelLead}
           </p>
         </div>
-        <!-- What LocaLog brings itself, before the section about a runtime somebody
-             else installed. First because it is the answer for almost everybody:
-             one download and nothing else to set up. -->
-        {#each generationModels as model (model.modelId)}
-          {@const entry = catalogueEntryFor(model.modelId)}
-          <article
-            class="model-recommendation bundled-runtime"
-            class:model-not-recommended={model.modelId !== recommendedGeneration}
-            class:active={model.installed && selectedGenerationModel === model.modelId}
-          >
-            <div>
-              <p class="model-kicker">
-                {model.modelId === recommendedGeneration
-                  ? $t.settings.bundledRuntime
-                  : $t.settings.bundledAlternative}
-              </p>
-              <div class="model-card-heading">
-                <h3>{entry?.name ?? model.modelId}</h3>
-                {#if entry?.status === 'baseline'}
-                  <span class="model-badge">{$t.settings.baseline}</span>
-                {/if}
-                {#if entry?.origin === 'european'}
-                  <span class="model-badge quiet">{$t.settings.european}</span>
-                {/if}
-              </div>
-              <!-- The words already written for this model, measured on real
-                   meetings, rather than a second description saying less. -->
-              {#if describedModels[model.modelId]}
-                <p>{describedModels[model.modelId]}</p>
-              {:else if model.modelId === recommendedGeneration}
-                <p>{$t.settings.bundledRuntimeLead}</p>
-              {/if}
-              <div class="model-meta">
-                <span>{formatModelSize(model.byteCount)}</span>
-                <span>{$t.settings.modelLicence[model.licence as 'gemma']}</span>
-                {#if entry}
-                  <span>{$t.settings.wantsMemory(entry.minimumMemoryGb)}</span>
-                {/if}
-              </div>
-              {#if model.installed}
-                <p class="model-evaluation">{$t.settings.generationModelInstalled}</p>
-              {:else if model.acceptanceRequired && model.acceptedAtMs === null}
-                <!-- The terms before the download, not beside it. Nothing is
-                     fetched until this is answered, and the backend refuses even
-                     if this screen is bypassed. -->
-                <div class="licence-gate">
-                  <p class="licence-heading">{$t.settings.licenceHeading}</p>
-                  <p>
-                    {$t.settings.licenceBody($t.settings.modelLicence[model.licence as 'gemma'])}
-                  </p>
-                  <a
-                    class="licence-link"
-                    href={model.licenceUrl}
-                    target="_blank"
-                    rel="noreferrer noopener">{$t.settings.licenceRead}</a
-                  >
-                  <button
-                    class="secondary-action"
-                    onclick={() => void onAcceptLicence(model.modelId)}
-                    >{$t.settings.licenceAccept}</button
-                  >
-                </div>
-              {:else if downloading[model.modelId] !== undefined}
-                <div class="start-setup-progress">
-                  <div class="start-setup-track">
-                    <div
-                      class="start-setup-fill"
-                      style={`width: ${downloading[model.modelId]}%`}
-                    ></div>
-                  </div>
-                  <span class="start-setup-percent">{downloading[model.modelId]}%</span>
-                  <button class="quiet-action" onclick={() => onCancelDownload(model.modelId)}
-                    >{$t.settings.cancel}</button
-                  >
-                </div>
-              {:else}
-                {#if model.acceptedAtMs !== null}
-                  <p class="model-evaluation">
-                    {$t.settings.licenceAccepted(
-                      formatMeetingDate(
-                        new Date(model.acceptedAtMs).toISOString().slice(0, 10),
-                        $t,
-                      ),
-                    )}
-                  </p>
-                {/if}
-                <button class="secondary-action" onclick={() => onDownloadModel(model.modelId)}
-                  >{$t.settings.downloadModel(formatModelSize(model.byteCount))}</button
-                >
-              {/if}
-              {#if downloadErrors[model.modelId]}
-                <p class="setting-error" role="alert">{downloadErrors[model.modelId]}</p>
-              {/if}
-            </div>
-            {#if model.installed}
-              <div class="model-recommendation-action">
-                <button
-                  class="secondary-action"
-                  onclick={() => onSelectGenerationModel(model.modelId)}
-                  disabled={selectedGenerationModel === model.modelId}
-                >
-                  {selectedGenerationModel === model.modelId
-                    ? $t.settings.modelSelected
-                    : $t.settings.useThisModel}
-                </button>
-              </div>
-            {/if}
-          </article>
-        {/each}
+        {#if modelError}<p class="setting-error" role="alert">{modelError}</p>{/if}
+        <ManagedModels
+          terms={modelTerms}
+          status={generationStatus}
+          {memoryGb}
+          {downloading}
+          {onAcceptLicence}
+          {onDownloadModel}
+          {onCancelDownload}
+          {downloadErrors}
+          onChoose={onConfigureGeneration}
+        />
+        {#if providerError}<p class="setting-error" role="alert">{providerError}</p>{/if}
 
         <!-- Everything about a runtime somebody else installed, behind a
              disclosure. It is a real choice and stays available — somebody may
@@ -520,39 +500,47 @@
              already answered. -->
         <details class="advanced-disclosure">
           <summary>{$t.settings.useOllamaInstead}</summary>
-          <article class="model-recommendation">
-            <div>
-              <p class="model-kicker">{$t.settings.recommendedForMachine}</p>
-              <h3>{modelRecommendation.entry.name}</h3>
-              <p>{$t.settings.modelDescription[modelRecommendation.entry.id]}</p>
-              <div class="model-meta">
-                <span>{$t.settings.modelOrigin[modelRecommendation.entry.origin]}</span>
-                <span>{$t.settings.modelLicence[modelRecommendation.entry.licence]}</span>
-                <span>{memoryLabel}</span>
+          {#if modelRecommendation.entry.id !== 'qwen3.5-0.8b' && (memoryGb === null || memoryGb >= modelRecommendation.entry.minimumMemoryGb)}
+            <article class="model-recommendation">
+              <div>
+                <p class="model-kicker">{$t.settings.recommendedForMachine}</p>
+                <h3>{modelRecommendation.entry.name}</h3>
+                <p>{$t.settings.modelDescription[modelRecommendation.entry.id]}</p>
+                <div class="model-meta">
+                  <span>{$t.settings.modelOrigin[modelRecommendation.entry.origin]}</span>
+                  <span>{$t.settings.modelLicence[modelRecommendation.entry.licence]}</span>
+                  <span>{memoryLabel}</span>
+                </div>
               </div>
-            </div>
-            <div class="model-recommendation-action">
-              {#if recommendedInstalled}
-                <button
-                  class="secondary-action"
-                  onclick={() => chooseProviderModel(recommendedInstalled.name)}
-                  disabled={!providerStatus.serverReachable ||
-                    selectedProviderModel === recommendedInstalled.name}
-                >
-                  {selectedProviderModel === recommendedInstalled.name
-                    ? $t.settings.modelSelected
-                    : $t.settings.useThisModel}
-                </button>
-              {:else}
-                <span class="model-status">{$t.settings.notInstalledYet}</span>
-              {/if}
-            </div>
-          </article>
+              <div class="model-recommendation-action">
+                {#if recommendedInstalled}
+                  <button
+                    class="secondary-action"
+                    onclick={() => chooseProviderModel(recommendedInstalled.name)}
+                    disabled={!providerStatus.serverReachable ||
+                      (providerStatus.active !== false &&
+                        selectedProviderModel === recommendedInstalled.name)}
+                  >
+                    {providerStatus.active !== false &&
+                    selectedProviderModel === recommendedInstalled.name
+                      ? $t.settings.modelSelected
+                      : $t.settings.useThisModel}
+                  </button>
+                {:else}
+                  <span class="model-status">{$t.settings.notInstalledYet}</span>
+                {/if}
+              </div>
+            </article>
+          {/if}
 
           <div class="model-catalog" aria-label={$t.settings.curatedModels}>
             {#each GENERATION_MODEL_CATALOG as entry (entry.id)}
               {@const installed = installedProviderModel(entry, providerStatus.models)}
-              {@const selected = installed !== null && selectedProviderModel === installed.name}
+              {@const fits = memoryGb === null || memoryGb >= entry.minimumMemoryGb}
+              {@const selected =
+                providerStatus.active !== false &&
+                installed !== null &&
+                selectedProviderModel === installed.name}
               <article class="model-card" class:active={selected}>
                 <div class="model-card-copy">
                   <div class="model-card-heading">
@@ -567,6 +555,7 @@
                   <p>{$t.settings.modelDescription[entry.id]}</p>
                   <div class="model-meta">
                     <span>{modelSize(entry)}</span>
+                    <span>{$t.settings.memoryMinimum(entry.minimumMemoryGb)}</span>
                     <span>{$t.settings.modelLicence[entry.licence]}</span>
                     <span
                       >{entry.languages
@@ -575,6 +564,9 @@
                         .join(' · ')}</span
                     >
                   </div>
+                  {#if !fits}<p class="setting-hint">
+                      {$t.settings.memoryTooSmall(entry.minimumMemoryGb)}
+                    </p>{/if}
                   <p class="model-evaluation">
                     {entry.testedLanguages.length
                       ? $t.settings.evaluatedIn(
@@ -593,7 +585,7 @@
                     <button
                       class="quiet-action"
                       onclick={() => chooseProviderModel(installed.name)}
-                      disabled={!providerStatus.serverReachable || selected}
+                      disabled={!providerStatus.serverReachable || selected || !fits}
                       >{selected ? $t.settings.modelSelected : $t.settings.useModel}</button
                     >
                   {/if}
@@ -696,11 +688,11 @@
                     >{$t.settings.downloadModel(formatModelSize(preset.byteCount))}</button
                   >
                 {/if}
-                {#if downloadErrors[preset.modelId]}
-                  <p class="setting-error" role="alert">{downloadErrors[preset.modelId]}</p>
-                {/if}
               </div>
             </div>
+            {#if downloadErrors[preset.modelId]}
+              <p class="setting-error" role="alert">{downloadErrors[preset.modelId]}</p>
+            {/if}
           {/each}
         </div>
         {#if modelError}<p class="setting-error" role="alert">{modelError}</p>{/if}
@@ -822,6 +814,58 @@
         <div class="notice-inline">
           {$t.settings.managedCopiesNote}
         </div>
+        <div class="setting-row">
+          <div>
+            <h3>{$t.settings.storageUsage}</h3>
+            <p>{$t.settings.storageUsageLead}</p>
+            {#if usage}
+              <p class="storage-total">{formatBytes(usage.totalBytes)}</p>
+              <ul class="storage-breakdown">
+                {#each usageParts as part (part.label)}
+                  <li><span>{part.label}</span><span>{formatBytes(part.bytes)}</span></li>
+                {/each}
+              </ul>
+            {:else if usageLoading}
+              <p class="setting-hint">{$t.settings.working}</p>
+            {/if}
+          </div>
+          <button
+            class="secondary-action"
+            onclick={() => {
+              freeNote = '';
+              usageError = '';
+              confirmingFree = true;
+            }}
+            disabled={freeBusy || confirmingFree || !usage || usage.preparedAudioBytes === 0}
+          >
+            {freeBusy ? $t.settings.storageFreeing : $t.settings.storageFreePrepared}
+          </button>
+        </div>
+        {#if confirmingFree && usage}
+          <!--
+            Two steps, like restoring a backup. The sentence names the amount, says
+            what stays, and says that the audio is rebuilt — so somebody is
+            deciding about a cache rather than about their meeting.
+          -->
+          <div class="restore-confirm">
+            <p>{$t.settings.storageFreeConfirm(formatBytes(usage.preparedAudioBytes))}</p>
+            <div class="restore-actions">
+              <button
+                class="secondary-action"
+                onclick={() => void freePrepared()}
+                disabled={freeBusy}
+              >
+                {freeBusy ? $t.settings.storageFreeing : $t.settings.storageFreeConfirmAction}
+              </button>
+              <button class="text-action" onclick={() => (confirmingFree = false)}
+                >{$t.settings.cancel}</button
+              >
+            </div>
+          </div>
+        {/if}
+        <p class="setting-hint">{$t.settings.storagePreparedLead}</p>
+        {#if freeNote}<p class="safe-note" role="status">{freeNote}</p>{/if}
+        {#if usageError}<p class="setting-error" role="alert">{usageError}</p>{/if}
         <div class="setting-row">
           <div>
             <h3>{$t.settings.backup}</h3>

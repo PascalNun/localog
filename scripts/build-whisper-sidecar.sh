@@ -57,8 +57,11 @@ if [[ "$target_triple" == *apple-darwin ]]; then
 fi
 
 build_dir="$source_dir/build-localog-$target_triple"
+# Keep release binaries compatible with the target CPU baseline, not the build host.
+# Host-native AVX-512 instructions caused SIGILL on the AVX2 Surface when loading a model.
 cmake -S "$source_dir" -B "$build_dir" \
   -DCMAKE_BUILD_TYPE=Release \
+  -DGGML_NATIVE=OFF \
   -DBUILD_SHARED_LIBS=OFF \
   -DWHISPER_BUILD_TESTS=OFF \
   -DWHISPER_BUILD_EXAMPLES=ON \

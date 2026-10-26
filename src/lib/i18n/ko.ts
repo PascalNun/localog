@@ -30,10 +30,13 @@
 import type { Strings } from './en';
 
 const failures = {
+  generationModelNeedsMoreMemory:
+    '이 모델은 이 컴퓨터보다 더 많은 메모리가 필요합니다. 더 작은 모델을 선택하세요.',
   missingProject: '선택한 프로젝트가 더 이상 존재하지 않습니다.',
   missingMeeting: '선택한 회의가 더 이상 존재하지 않습니다.',
   missingJob: '해당 가져오기 작업을 더 이상 사용할 수 없습니다.',
   importBusy: '다른 녹음을 이미 가져오는 중입니다. 먼저 완료하거나 취소하십시오.',
+  workspaceBusy: '먼저 진행 중인 작업을 끝내거나 취소한 뒤 다시 공간 확보를 시도하십시오.',
   unsupportedSchema: (version: string) =>
     `이 LocaLog 데이터는 더 새롭고 지원되지 않는 버전(${version})에서 만들어졌습니다.`,
   storageUnavailable: 'LocaLog가 로컬 작업 공간에 접근하지 못했습니다.',
@@ -114,7 +117,9 @@ const failures = {
   workspaceNotOpened: '작업 공간 폴더를 열지 못했습니다.',
   settingsPaneUnknown: '그런 설정 화면은 없습니다.',
   meetingBusy: '이 회의는 아직 처리 중입니다. 먼저 그 작업을 취소하십시오.',
+  pdfExportFailed: 'PDF를 저장하지 못했습니다. 사용 가능한 폴더를 선택하고 다시 시도하세요.',
   printDialogUnavailable: '이 창에서 인쇄 대화상자를 열지 못했습니다.',
+  dialogUnavailable: '파일 대화상자를 열 수 없습니다.',
 
   backupNameUnsafe: '해당 백업 이름은 폴더 이름으로 쓸 수 없습니다.',
   notABackup: '해당 폴더는 LocaLog 백업이 아닙니다. manifest.json이 없습니다.',
@@ -279,6 +284,9 @@ export const ko: Strings = {
   },
 
   settings: {
+    windowControls: '창 제어 버튼',
+    windowControlsDetail:
+      '자동 모드에서는 인식된 타일링 데스크톱에서 버튼을 숨깁니다. 필요에 따라 직접 표시하거나 숨길 수 있습니다.',
     memoryReported: (gb: number) => `메모리 ${gb}GB 확인됨`,
     themeAutomatic: '자동',
     themeLight: '밝게',
@@ -336,6 +344,16 @@ export const ko: Strings = {
     european: '유럽산',
     checkInstalled: '설치된 모델 확인',
     curatedModels: '선별된 회의록 모델',
+    downloadIntro:
+      '이 컴퓨터에 맞는 모델을 선택하세요. 다운로드는 기기에 저장되며 별도 AI 서비스가 필요하지 않습니다.',
+    memoryMinimum: (gb: number) => `최소 RAM 등급: ${gb} GB`,
+    memoryTooSmall: (gb: number) =>
+      `${gb} GB 이상의 RAM 등급이 필요합니다. 이 컴퓨터에서는 다운로드하거나 선택할 수 없습니다.`,
+    memoryUnknown: '메모리를 감지하지 못했습니다. 다운로드 전에 RAM 요구 사항을 확인하세요.',
+    memoryTight:
+      '8 GB에서는 긴 회의를 처리할 여유가 적습니다. 다른 앱을 닫으세요. CPU 생성은 느릴 수 있습니다. 다운로드 크기는 전체 RAM 사용량이 아닙니다.',
+    qualityCaution:
+      '메모리가 충분해도 회의록 품질은 보장되지 않습니다. 작은 모델의 결과를 신중히 검토하세요. 이전 측정은 다른 컴퓨터에서 수행되었습니다.',
     bundledRuntime: '이 기기에서',
     bundledAlternative: '다른 선택지',
     wantsMemory: (gb: number) => `약 ${gb} GB 필요`,
@@ -361,6 +379,8 @@ export const ko: Strings = {
     downloadingPreset: (name: string) => `${name} 내려받는 중`,
     /** en.ts의 설명을 참고하십시오. */
     modelDescription: {
+      'qwen3.5-0.8b':
+        '개발 및 동작 확인용 소형 모델입니다. 회의록 품질은 평가되지 않았으며 전문 회의록 작성에 의존하지 마세요.',
       'gemma4-12b':
         '측정한 모델 가운데 가장 정확하고 가장 안정적입니다. 세 차례 실행에서 회의에 나온 수치 35개 가운데 27~31개를 지켰고, 그다음 모델은 6개까지 떨어졌습니다. 다만 느립니다. 80분짜리 회의에 약 14분이 걸립니다.',
       'ministral-8b':
@@ -436,6 +456,23 @@ export const ko: Strings = {
     backupContents:
       '모든 프로젝트, 회의, 전사본, 회의록과 녹음 자체가 들어갑니다. 두 가지는 일부러 뺐습니다. 사용자의 작업이 아니고 필요할 때 다시 만들 수 있기 때문입니다. 내려받은 모델과 각 녹음의 준비된 사본입니다. 실제 작업 공간에서 재어 보니 그 준비된 오디오만으로 백업의 4분의 3이었습니다.',
     restore: '복원',
+    storageUsage: '사용 공간',
+    storageUsageLead:
+      '이 작업 공간이 기기에서 차지하는 공간과 그 구성입니다. 작업을 잃지 않고 삭제할 수 있는 부분은 준비된 오디오뿐입니다.',
+    storageRecordings: '녹음',
+    storagePreparedAudio: '준비된 오디오',
+    storageModels: '모델',
+    storageOther: '전사본, 회의록 및 앱 데이터',
+    storageFreePrepared: '공간 확보',
+    storageFreeConfirm: (size: string) =>
+      `이 기기에서 준비된 오디오 ${size}을(를) 삭제할까요? 모든 녹음, 전사본, 회의록은 그대로 남습니다. 다음 전사 때 오디오가 다시 준비됩니다.`,
+    storageFreeConfirmAction: '준비된 오디오 삭제',
+    storageFreeing: '공간 확보 중…',
+    storagePreparedLead:
+      'LocaLog가 전사용으로 준비하는 모노 오디오는 필요할 때 다시 만들어집니다. 삭제해도 모든 녹음, 전사본, 회의록은 그대로이며, 다음 전사 때 다시 준비됩니다.',
+    storageFreed: (size: string, files: number) =>
+      `${files}개 파일에서 ${size}을(를) 확보했습니다. 모든 전사본과 회의록은 그대로입니다.`,
+    storageNothingToFree: '삭제할 준비된 오디오가 없습니다.',
     restoreLead:
       '백업을 되돌립니다. 먼저 전체를 검증하며, 지금 있는 것은 삭제하지 않고 옆으로 옮깁니다.',
     chooseBackup: '백업 선택…',
@@ -468,6 +505,10 @@ export const ko: Strings = {
       '회의를 삭제하면 그 녹음과 전사본, 모든 회의록 판이 이 기기에서 사라집니다. 되돌릴 수 없습니다.',
     eyebrow: '프로젝트',
     archiveProject: '프로젝트 보관',
+    renameProject: '프로젝트 이름 변경',
+    projectNameLabel: '프로젝트 이름',
+    save: '저장',
+    cancel: '취소',
     newMeeting: '새 회의',
     meetings: '회의',
     newestFirst: '최신순',
@@ -581,6 +622,11 @@ export const ko: Strings = {
       detail:
         'FFmpeg가 설치되어 있는지 확인하고 다시 시도하십시오. 준비된 사본은 다시 만들 수 있고 원본은 그대로입니다.',
     },
+    conversion_failed: {
+      title: '녹음을 저장용으로 준비하지 못했습니다',
+      detail:
+        '이 녹음의 압축 사본을 만들지 못했습니다. 외부 원본 파일은 변경되지 않았습니다. FFmpeg가 설치되어 있는지 확인한 뒤 다시 시도하십시오.',
+    },
     transcription_failed: {
       title: '로컬 전사를 끝내지 못했습니다',
       detail:
@@ -605,6 +651,11 @@ export const ko: Strings = {
       title: '로컬 공급자가 바뀌었습니다',
       detail:
         '이 작업을 대기열에 넣은 뒤 Ollama 런타임의 버전이 바뀌었습니다. 다시 시도해 현재 런타임을 반영하십시오.',
+    },
+    provider_stalled: {
+      title: '회의록 생성이 응답하지 않습니다',
+      detail:
+        '로컬 모델이 제시간에 응답하지 않았습니다. 미완성 초안은 저장되지 않았으며, 전사문과 이전 초안은 그대로 남아 있습니다. 다시 시도하거나 문제가 반복되면 더 작은 모델을 사용해 보세요.',
     },
     provider_unavailable: {
       title: '로컬 회의록 생성이 연결하지 못했습니다',
@@ -789,6 +840,8 @@ export const ko: Strings = {
     starting: '시작하는 중…',
     backToMeeting: '회의로 돌아가기',
     noRecorder: '이 빌드에는 녹음기가 없습니다. 대신 파일을 가져오십시오.',
+    desktopAudioHint:
+      '데스크톱 소리 설정에서 선택한 입력과 출력을 확인하세요. 사용할 수 있는 소스만 녹음됩니다.',
     openTheSetting: '설정 열기',
     grantedInSettings: '시스템 설정에서 허용하시면 돌아오시는 즉시 여기에 반영됩니다.',
     callWouldNotRecordTitle: '통화는 녹음되지 않습니다.',
@@ -800,7 +853,7 @@ export const ko: Strings = {
     recorderNotesTitle: '녹음기가 요청받은 모든 것을 하지는 못했습니다.',
     stoppedOnItsOwn: '녹음기가 스스로 멈췄습니다. 그때까지 담은 것은 보관되었습니다.',
     quietCall: (seconds: number) =>
-      `통화에서 ${seconds}초 동안 아무것도 들어오지 않았습니다. macOS는 화면 및 시스템 오디오 녹음 권한이 없는 응용 프로그램에 오류가 아니라 무음을 줍니다. 회의가 끝난 뒤보다 지금 확인해 두시는 편이 낫습니다.`,
+      `${seconds}초 동안 통화 소리가 들어오지 않았습니다. 선택한 출력으로 통화가 재생되고 녹음이 허용되는지 확인하세요.`,
     quietMicrophone: (seconds: number) =>
       `마이크에서 ${seconds}초 동안 아무것도 들어오지 않았습니다. 올바른 입력이 선택되었는지, 다른 프로그램이 쓰고 있지는 않은지 확인하십시오.`,
   },
@@ -909,6 +962,7 @@ export const ko: Strings = {
     meetingInformation: '회의 정보',
     title: '제목',
     titlePlaceholder: '비워 두시면 파일 이름에서 가져옵니다',
+    titlePlaceholderRecording: '이 회의에 이름을 붙이십시오',
     date: '날짜',
     language: '회의 언어',
     protocolStyle: '회의록 스타일',
@@ -994,6 +1048,7 @@ export const ko: Strings = {
     nothingFlaggedNote:
       '불명확하다고 표시된 것이 없습니다. 이 기능이 생기기 전에 만든 전사본도 여기에 아무것도 보이지 않으므로, 오래된 전사본은 믿기보다 다시 읽어 보시는 편이 낫습니다.',
     workingAudioLater: '작업용 오디오는 이 회의를 전사한 뒤에 쓸 수 있게 됩니다.',
+    loadingAudio: '이 회의의 오디오를 재생할 수 있도록 준비하는 중…',
     recordingEndsNote:
       '회의가 이 뒤로도 이어졌다면 녹음이 그것을 담지 못했고, 회의록에도 들어가지 않습니다.',
     heading: '전사본 검토',
@@ -1158,6 +1213,13 @@ export const ko: Strings = {
       `${project}의 모든 회의록에 적용됩니다. 인쇄된 페이지마다 되풀이되며, 지금 편집하고 계신 문서의 일부가 아닙니다.`,
   },
 
+  window: {
+    minimize: '창 최소화',
+    maximize: '창 최대화',
+    restore: '창 복원',
+    close: '창 닫기',
+    actionFailed: '창 작업에 실패했습니다. 다시 시도하세요.',
+  },
   shell: {
     breadcrumbMeeting: '회의',
     breadcrumbRecording: '녹음',
@@ -1355,7 +1417,7 @@ export const ko: Strings = {
     exportMarkdown: 'Markdown으로 내보내기',
     exportPlainText: '일반 텍스트로 내보내기',
     exportNote:
-      'PDF는 지금 읽고 계신 문서를, 이 프로젝트가 회의록을 짜는 대로 인쇄한 것입니다. 인쇄 대화상자에서 「PDF로 저장」을 고르십시오.',
+      'PDF와 Word는 이 프로젝트의 문서 모양을 사용합니다. Markdown과 일반 텍스트는 편집 가능한 텍스트를 유지합니다.',
     source: '원본',
     findSelectedPassage: '선택한 대목 찾기',
     lookingFor: '찾는 것:',

@@ -8,7 +8,9 @@ application.
 The expected file names are:
 
 ```text
+localog-record-meeting-<rust-target-triple>
 localog-whisper-<rust-target-triple>
+localog-llama-server-<rust-target-triple>
 localog-speaker-diarization-<rust-target-triple>
 localog-speaker-embedding-<rust-target-triple>
 localog-ffmpeg-<rust-target-triple>
@@ -46,3 +48,10 @@ with whisper.cpp already installed does not have to build a sidecar first. A rel
 before `npm run tauri:build`; the release-only Tauri config adds the sidecar to
 the bundle while keeping ordinary development and Rust test builds usable
 without a native artifact in the checkout.
+
+Linux packaging uses `npm run tauri:build:linux`, which passes
+`tauri.linux-bundle.conf.json` explicitly. Linux recording links to the desktop's
+libpulse client library, including when the server is PipeWire-Pulse. ALSA's
+device enumeration does not provide those monitor sources. See
+[Linux development](../../docs/LINUX_DEVELOPMENT.md) for prerequisites and the
+explicit synthetic recording check.

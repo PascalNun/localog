@@ -159,6 +159,28 @@ export interface RestoreOutcome {
 }
 
 /**
+ * What the workspace occupies, split by what somebody can do about it.
+ *
+ * The total alone is not actionable. Recordings are the work; the prepared audio
+ * is a cache; models are downloaded once. Seeing which is which is what makes
+ * the number mean something.
+ */
+export interface WorkspaceUsage {
+  totalBytes: number;
+  recordingsBytes: number;
+  preparedAudioBytes: number;
+  modelsBytes: number;
+  otherBytes: number;
+}
+
+/** What freeing the prepared audio actually freed. */
+export interface PreparedAudioCleanup {
+  freedBytes: number;
+  removedFiles: number;
+  usage: WorkspaceUsage;
+}
+
+/**
  * What this machine will let the recorder capture, asked before a meeting.
  *
  * The values are the recorder's own words rather than a union defined here. Two
@@ -236,6 +258,9 @@ export interface TranscriptDocument {
   revisionId: string;
   language: string;
   speakerResolution: 'unknown' | 'unavailable' | 'failed' | 'resolved';
+  /** What was asked of separation when this transcript was produced. */
+  separateSpeakers: boolean;
+  expectedSpeakers: number | null;
   segments: TranscriptSegment[];
   baseRevisionId: string;
   isDirty: boolean;
@@ -683,12 +708,13 @@ export interface ModelTerms {
   licenceUrl: string;
   installed: boolean;
   acceptanceRequired: boolean;
-  /// Roughly the memory this model wants, where the question arises.
+  minimumMemoryGb?: number | null;
   /** When these terms were accepted, or null. */
   acceptedAtMs: number | null;
 }
 
 export interface ProtocolProviderStatus {
+  active?: boolean;
   endpoint: string;
   serverReachable: boolean;
   runtimeVersion: string | null;
@@ -721,6 +747,7 @@ export interface WorkflowBridge {
   confirmDuplicateImport(meetingId: string): Promise<void>;
   reselectImportSource(meetingId: string): Promise<void>;
   updateMeetingTitle(meetingId: string, title: string): Promise<void>;
+  updateProjectName(projectId: string, name: string): Promise<void>;
   updateMeetingLanguage(meetingId: string, language: string): Promise<void>;
   updateTranscriptSegment(meetingId: string, segmentId: string, text: string): Promise<void>;
   deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<void>;
@@ -778,6 +805,10 @@ export interface WorkflowBridge {
   inspectBackup(folder: string): Promise<BackupManifest>;
   /** Put a verified backup back, keeping what it replaced. */
   restoreBackup(folder: string): Promise<RestoreOutcome>;
+  /** What the workspace occupies, measured when Settings asks. */
+  workspaceUsage(): Promise<WorkspaceUsage>;
+  /** Delete prepared audio that can be rebuilt from the recording. */
+  freePreparedAudio(): Promise<PreparedAudioCleanup>;
   /** What the machine will allow, asked when the record screen opens. */
   recordingPermissions(): Promise<RecordingPermissions>;
   /** Open the System Settings pane where a recording permission is granted. */
@@ -839,6 +870,8 @@ export interface WorkflowBridge {
   exportProtocol(meetingId: string, format: 'markdown' | 'text', title: string): Promise<boolean>;
   /** The platform's own print panel, where the webview's does nothing. */
   nativePrint(): (() => Promise<void>) | undefined;
+  /** Save rendered PDF pages directly on Linux, with the project's side margin. */
+  exportPdf(title: string, sideMarginMm: number): Promise<boolean>;
   /** Save a document the interface built — a Word file, for now. */
   exportProtocolBytes(
     contents: Uint8Array,
@@ -849,8 +882,7 @@ export interface WorkflowBridge {
   getProtocolProviderStatus(): Promise<ProtocolProviderStatus>;
   /** What the bundled runtime and its models add up to, without starting anything. */
   getGenerationRuntimeStatus(): Promise<ProtocolProviderStatus>;
-  /** Choose an installed bundled model for future protocol jobs. */
-  selectGenerationModel(modelId: string): Promise<ProtocolProviderStatus>;
+  configureGenerationModel(model: string): Promise<ProtocolProviderStatus>;
   /** Every catalogued model, its terms, and whether they were accepted. */
   getModelTerms(): Promise<ModelTerms[]>;
   acceptModelLicence(modelId: string): Promise<ModelTerms[]>;

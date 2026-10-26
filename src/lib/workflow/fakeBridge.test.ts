@@ -196,6 +196,51 @@ describe('FakeWorkflowBridge', () => {
     expect((await bridge.getSnapshot()).projects).toEqual([persistedProject, createdProject]);
   });
 
+  it('does not save project names twice after the native transaction', async () => {
+    const project: ProjectSummary = {
+      id: 'project-with-names',
+      name: 'Synthetic project',
+      description: '',
+      meetingCount: 0,
+      defaultLanguage: '',
+      defaultStyleId: 'style-formal',
+      appearance: DEFAULT_APPEARANCE,
+      furniture: EMPTY_FURNITURE,
+    };
+    const vocabulary = [
+      {
+        id: 'native-name',
+        term: 'Anna',
+        category: 'Person',
+        scope: 'Project' as const,
+        projectId: project.id,
+        enabled: true,
+      },
+    ];
+    const store = mockStore({
+      loadWorkspace: vi
+        .fn<WorkspaceStore['loadWorkspace']>()
+        .mockResolvedValueOnce(emptyWorkspace)
+        .mockResolvedValue({ ...emptyWorkspace, projects: [project], vocabulary }),
+      createProject: vi.fn<WorkspaceStore['createProject']>().mockResolvedValue(project),
+      saveVocabularyEntry: vi
+        .fn<WorkspaceStore['saveVocabularyEntry']>()
+        .mockRejectedValue('duplicateTerm'),
+    });
+    const bridge = new FakeWorkflowBridge({ workspaceStore: store });
+    await expect(
+      bridge.createProject({
+        name: project.name,
+        description: '',
+        defaultLanguage: '',
+        names: [{ term: 'Anna', category: 'Person' }],
+      }),
+    ).resolves.toEqual(project);
+    expect(store.createProject).toHaveBeenCalledOnce();
+    expect(store.saveVocabularyEntry).not.toHaveBeenCalled();
+    expect((await bridge.getSnapshot()).vocabulary).toEqual(vocabulary);
+  });
+
   it('reports a bounded native-workspace startup failure', async () => {
     const store = mockStore({
       loadWorkspace: vi
@@ -306,6 +351,7 @@ describe('FakeWorkflowBridge', () => {
       const hidden = await bridge.getSnapshot();
       expect(hidden.projects.some((each) => each.id === project!.id)).toBe(false);
       expect(hidden.projects.length).toBe(before.projects.length - 1);
+      expect(hidden.meetings.some((meeting) => meeting.projectId === project!.id)).toBe(false);
 
       const away = await bridge.archivedWork();
       expect(away.projects.map((each) => each.id)).toEqual([project!.id]);
@@ -314,6 +360,9 @@ describe('FakeWorkflowBridge', () => {
       const back = await bridge.getSnapshot();
       expect(back.projects.some((each) => each.id === project!.id)).toBe(true);
       expect(back.projects.length).toBe(before.projects.length);
+      expect(back.meetings.filter((meeting) => meeting.projectId === project!.id)).toEqual(
+        before.meetings.filter((meeting) => meeting.projectId === project!.id),
+      );
       expect((await bridge.archivedWork()).projects).toHaveLength(0);
     });
 

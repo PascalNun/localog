@@ -3,9 +3,17 @@ mod e2e_harness;
 #[cfg(test)]
 mod eval_harness;
 
+#[cfg(target_os = "linux")]
+mod audio_stream;
+#[cfg(target_os = "linux")]
+mod pdf_export;
+#[cfg(target_os = "linux")]
+mod pdf_print;
+
 mod backup;
 mod clustering;
 mod corrections;
+mod desktop;
 mod diarisation;
 mod domain;
 mod edits;
@@ -13,8 +21,10 @@ mod facts;
 mod imports;
 mod llama;
 mod machine;
+mod maintenance;
 mod media;
 mod models;
+mod native_dialog;
 mod process;
 mod processing;
 mod provider;
@@ -32,6 +42,7 @@ mod storage;
 /// and the shipped library carries nothing it does not call.
 #[cfg(test)]
 mod topics;
+mod workspace_recovery;
 
 use domain::{MeetingSummary, NewMeetingInput, NewProjectInput, ProjectSummary, WorkspaceSnapshot};
 use rusqlite::OptionalExtension;
@@ -57,6 +68,11 @@ fn app_identity() -> AppIdentity {
         version: env!("CARGO_PKG_VERSION"),
         local_only: true,
     }
+}
+
+#[tauri::command]
+fn window_environment() -> bool {
+    desktop::current_session_is_tiled()
 }
 
 /// The recording in progress, if there is one.
@@ -386,6 +402,7 @@ async fn cancel_transcription_download(
 #[serde(rename_all = "camelCase")]
 struct MeetingAudio {
     path: String,
+    source: Option<String>,
     duration_ms: Option<i64>,
 }
 
@@ -394,6 +411,7 @@ struct MeetingAudio {
 /// Returns null until working audio exists.
 #[tauri::command]
 async fn meeting_audio(
+    app: AppHandle,
     storage: State<'_, StorageState>,
     meeting_id: String,
 ) -> Result<Option<MeetingAudio>, String> {
@@ -417,7 +435,20 @@ async fn meeting_audio(
         if !absolute.is_file() {
             return Ok(None);
         }
+        #[cfg(target_os = "linux")]
+        let source = {
+            if !app.asset_protocol_scope().is_allowed(&absolute) {
+                return Err(storage::StorageError::InvalidData("meetingInvalid"));
+            }
+            Some(app.state::<audio_stream::AudioStream>().register(&absolute))
+        };
+        #[cfg(not(target_os = "linux"))]
+        let source = {
+            let _ = &app;
+            None
+        };
         Ok(Some(MeetingAudio {
+            source,
             path: absolute.to_string_lossy().into_owned(),
             duration_ms,
         }))
@@ -523,19 +554,31 @@ async fn speaker_separation_status(
 }
 
 fn speaker_status(repository: &WorkspaceRepository) -> SpeakerSeparationStatus {
-    let runtime_path = repository
+    let configured = repository
         .read_setting("diarisation.executable")
         .ok()
         .flatten()
         .map(PathBuf::from)
-        .filter(|path| path.is_file())
-        .or_else(|| runtime::discover_executable(runtime::DIARISER_NAMES));
-    let runtime_healthy = runtime_path
-        .as_deref()
-        .is_some_and(runtime::executable_health);
-    let runtime_version = runtime_path
-        .as_deref()
-        .and_then(runtime::executable_version);
+        .filter(|path| path.is_file());
+    // The embedding sidecar is what the app runs first; the sherpa diariser is a
+    // fallback for machines without it. Report whichever will actually be used, so
+    // the settings page does not claim a runtime is missing when the shipped one is
+    // present, or name the fallback while the embedding pass runs.
+    let embedding = runtime::discover_executable(runtime::EMBEDDING_NAMES);
+    let diariser = configured.or_else(|| runtime::discover_executable(runtime::DIARISER_NAMES));
+    let (runtime_path, runtime_healthy, runtime_version) = if let Some(path) = embedding {
+        // The shipped sidecar has no --version; presence beside the application is
+        // the health signal, since it is built and reviewed with the release.
+        (Some(path), true, None)
+    } else if let Some(path) = diariser {
+        (
+            Some(path.clone()),
+            runtime::executable_health(&path),
+            runtime::executable_version(&path),
+        )
+    } else {
+        (None, false, None)
+    };
     SpeakerSeparationStatus {
         models_installed: models::diarisation_model_paths(&repository.root).is_some(),
         runtime_configured: runtime_path.is_some(),
@@ -651,32 +694,39 @@ async fn generation_runtime_status(
         let selected = repository
             .read_setting("generation.model")?
             .filter(|value| !value.is_empty());
-        Ok(provider::bundled_status(&root, selected))
+        let mut status = provider::bundled_status(&root, selected.clone());
+        status.active = match repository.read_setting("generation.backend")?.as_deref() {
+            Some("ollama") => false,
+            Some("bundled") => true,
+            _ => selected.is_some() || status.selected_model_ready,
+        };
+        Ok(status)
     })
     .await
 }
 
-/// Choose which downloaded LocaLog model writes future protocols.
-///
-/// Selection is deliberately separate from download. A second model may be
-/// installed for another language or a more capable machine; downloading it must
-/// not silently change the model a person already chose.
 #[tauri::command]
-async fn select_generation_model(
+async fn configure_generation_model(
     storage: State<'_, StorageState>,
-    model_id: String,
+    model: String,
 ) -> Result<provider::OllamaStatus, String> {
     let root = storage.root.clone();
     with_repository(storage.root.clone(), move |repository| {
-        if !models::is_generation_model(&model_id)
-            || models::generation_model_path(&root, Some(&model_id)).is_none()
+        if !models::generation_fits(&model, crate::machine::memory_gb()) {
+            return Err(storage::StorageError::InvalidData(
+                "generationModelNeedsMoreMemory",
+            ));
+        }
+        if models::selected_generation_model(&root, Some(&model), crate::machine::memory_gb())
+            .is_none()
         {
             return Err(storage::StorageError::InvalidData(
                 "generationModelNotDownloaded",
             ));
         }
-        repository.write_setting("generation.model", &model_id)?;
-        Ok(provider::bundled_status(&root, Some(model_id)))
+        repository.write_setting("generation.model", &model)?;
+        repository.write_setting("generation.backend", "bundled")?;
+        Ok(provider::bundled_status(&root, Some(model)))
     })
     .await
 }
@@ -715,9 +765,19 @@ async fn accept_model_licence(
 async fn protocol_provider_status(
     storage: State<'_, StorageState>,
 ) -> Result<provider::OllamaStatus, String> {
+    let root = storage.root.clone();
     with_repository(storage.root.clone(), move |repository| {
-        let selected_model = repository.read_setting("generation.ollamaModel")?;
-        Ok(provider::OllamaProvider::loopback().status(selected_model))
+        let selected_model = repository
+            .read_setting("generation.ollamaModel")?
+            .filter(|value| !value.is_empty());
+        let mut status = provider::OllamaProvider::loopback().status(selected_model);
+        let backend = repository.read_setting("generation.backend")?;
+        status.active = backend.as_deref() == Some("ollama")
+            || (backend.is_none()
+                && (models::selected_generation_model(&root, None, crate::machine::memory_gb())
+                    .is_none()
+                    || crate::llama::server_path().is_none()));
+        Ok(status)
     })
     .await
 }
@@ -732,6 +792,12 @@ async fn configure_protocol_provider(
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty());
         if let Some(model_name) = model.as_deref() {
+            if !models::generation_fits(model_name, crate::machine::memory_gb()) {
+                return Err(storage::StorageError::InvalidData(
+                    "generationModelNeedsMoreMemory",
+                ));
+            }
+
             let status = provider::OllamaProvider::loopback().status(None);
             if !status.server_reachable {
                 return Err(storage::StorageError::InvalidData("providerNeededForModel"));
@@ -749,6 +815,7 @@ async fn configure_protocol_provider(
         } else {
             repository.write_setting("generation.ollamaModel", "")?;
         }
+        repository.write_setting("generation.backend", "ollama")?;
         let selected_model = repository
             .read_setting("generation.ollamaModel")?
             .filter(|value| !value.is_empty());
@@ -758,16 +825,15 @@ async fn configure_protocol_provider(
 }
 
 #[tauri::command]
-async fn load_workspace(state: State<'_, StorageState>) -> Result<WorkspaceSnapshot, String> {
+async fn load_workspace(
+    state: State<'_, StorageState>,
+    recovery: State<'_, workspace_recovery::WorkspaceRecovery>,
+) -> Result<WorkspaceSnapshot, String> {
     let root = state.root.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        models::discard_staged_downloads(&root);
-        imports::reconcile_imports(&root)?;
-        processing::reconcile(&root)
-    })
-    .await
-    .map_err(|_| "taskStopped".to_string())?
-    .map_err(|error| error.code())
+    let recovery = recovery.inner().clone();
+    off_thread(move || recovery.load(&root))
+        .await?
+        .map_err(|error| error.code())
 }
 
 #[tauri::command]
@@ -1596,10 +1662,27 @@ async fn refine_passage(
 #[tauri::command]
 async fn set_project_archived(
     state: State<'_, StorageState>,
+    recording: State<'_, RecordingState>,
     project_id: String,
     archived: bool,
 ) -> Result<WorkspaceSnapshot, String> {
+    let recording_meeting = recording
+        .running
+        .lock()
+        .map_err(|_| "meetingBusy".to_string())?
+        .as_ref()
+        .map(|(_, meeting_id, _)| meeting_id.clone());
     with_repository(state.root.clone(), move |repository| {
+        if archived && let Some(meeting_id) = recording_meeting {
+            let belongs: bool = repository.connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM meetings WHERE id = ?1 AND project_id = ?2)",
+                rusqlite::params![meeting_id, project_id],
+                |row| row.get(0),
+            )?;
+            if belongs {
+                return Err(storage::StorageError::InvalidData("meetingBusy"));
+            }
+        }
         repository.set_project_archived(&project_id, archived)?;
         repository.workspace_snapshot()
     })
@@ -1629,6 +1712,26 @@ async fn archived_work(state: State<'_, StorageState>) -> Result<storage::Archiv
     .await
 }
 
+/// What the workspace occupies, split into the parts somebody can act on.
+///
+/// Measured when Settings asks rather than on every launch: walking a workspace
+/// full of recordings is cheap next to importing one, but not next to opening a
+/// window.
+#[tauri::command]
+async fn workspace_usage(
+    state: State<'_, StorageState>,
+) -> Result<maintenance::WorkspaceUsage, String> {
+    with_repository_root(state.root.clone(), maintenance::workspace_usage).await
+}
+
+/// Delete the mono audio prepared for transcription. It is rebuilt on demand.
+#[tauri::command]
+async fn free_prepared_audio(
+    state: State<'_, StorageState>,
+) -> Result<maintenance::PreparedAudioCleanup, String> {
+    with_repository_root(state.root.clone(), maintenance::remove_prepared_audio).await
+}
+
 /// Set what repeats at the top and bottom of a project's printed pages.
 #[tauri::command]
 async fn set_project_furniture(
@@ -1654,6 +1757,22 @@ async fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
     window
         .print()
         .map_err(|_| "printDialogUnavailable".to_string())
+}
+
+/// Save the prepared print sheet as PDF without opening a print panel.
+#[tauri::command]
+async fn export_pdf(
+    window: tauri::WebviewWindow,
+    destination: String,
+    side_margin_mm: f64,
+) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    return pdf_export::save(window, destination, side_margin_mm).await;
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (window, destination, side_margin_mm);
+        Err("pdfExportFailed".into())
+    }
 }
 
 /// Write a document the interface built, such as a Word file.
@@ -1848,6 +1967,20 @@ async fn update_meeting_title(
     .await
 }
 
+/// Rename a project. Its meetings, names and protocols are untouched.
+#[tauri::command]
+async fn rename_project(
+    state: State<'_, StorageState>,
+    project_id: String,
+    name: String,
+) -> Result<WorkspaceSnapshot, String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.update_project_name(&project_id, &name)?;
+        repository.workspace_snapshot()
+    })
+    .await
+}
+
 #[tauri::command]
 async fn update_meeting_language(
     state: State<'_, StorageState>,
@@ -1913,10 +2046,16 @@ pub fn run() {
             app.manage(StorageState { root });
             app.manage(JobCoordinatorState::default());
             app.manage(RecordingState::default());
+            app.manage(workspace_recovery::WorkspaceRecovery::default());
+            #[cfg(target_os = "linux")]
+            app.manage(audio_stream::AudioStream::start()?);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             app_identity,
+            window_environment,
+            native_dialog::native_open_path,
+            native_dialog::native_save_path,
             transcription_runtime_status,
             configure_transcription_runtime,
             transcription_capability,
@@ -1932,7 +2071,7 @@ pub fn run() {
             set_recording_edits,
             protocol_provider_status,
             generation_runtime_status,
-            select_generation_model,
+            configure_generation_model,
             model_terms,
             accept_model_licence,
             configure_protocol_provider,
@@ -1944,6 +2083,7 @@ pub fn run() {
             retry_import,
             replace_import_source,
             update_meeting_title,
+            rename_project,
             update_meeting_language,
             start_transcription,
             start_generation,
@@ -1957,6 +2097,8 @@ pub fn run() {
             set_project_archived,
             set_meeting_archived,
             archived_work,
+            workspace_usage,
+            free_prepared_audio,
             workspace_location,
             reveal_workspace,
             create_backup,
@@ -1983,6 +2125,7 @@ pub fn run() {
             restore_protocol_revision,
             export_protocol,
             export_protocol_bytes,
+            export_pdf,
             print_window,
             refine_passage,
             protocol_set_aside,

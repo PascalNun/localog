@@ -32,10 +32,13 @@
 import type { Strings } from './en';
 
 const failures = {
+  generationModelNeedsMoreMemory:
+    'このモデルには、このコンピューターより多くのメモリが必要です。小さいモデルを選択してください。',
   missingProject: '選択されたプロジェクトはもう存在しません。',
   missingMeeting: '選択された会議はもう存在しません。',
   missingJob: 'その取り込み処理はもう利用できません。',
   importBusy: '別の録音を取り込み中です。先に完了するか中止してください。',
+  workspaceBusy: '進行中の作業を先に完了するか中止してから、もう一度容量の解放をお試しください。',
   unsupportedSchema: (version: string) =>
     `このLocaLogのデータは、より新しい未対応のバージョン（${version}）で作成されています。`,
   storageUnavailable: 'LocaLogはローカルの作業領域にアクセスできませんでした。',
@@ -118,7 +121,9 @@ const failures = {
   workspaceNotOpened: '作業領域のフォルダを開けませんでした。',
   settingsPaneUnknown: 'そのような設定画面はありません。',
   meetingBusy: 'この会議はまだ処理中です。先にそちらを中止してください。',
+  pdfExportFailed: 'PDFを保存できませんでした。利用可能なフォルダーを選択して再試行してください。',
   printDialogUnavailable: 'このウインドウでは印刷ダイアログを開けませんでした。',
+  dialogUnavailable: 'ファイルダイアログを開けませんでした。',
 
   backupNameUnsafe: 'そのバックアップ名はフォルダ名として使えません。',
   notABackup: 'そのフォルダはLocaLogのバックアップではありません。manifest.jsonがありません。',
@@ -287,6 +292,9 @@ export const ja: Strings = {
   },
 
   settings: {
+    windowControls: 'ウィンドウ操作ボタン',
+    windowControlsDetail:
+      '自動では、対応するタイル型デスクトップでボタンを非表示にします。必要に応じて表示・非表示を選べます。',
     memoryReported: (gb: number) => `メモリ${gb}GBを検出`,
     themeAutomatic: '自動',
     themeLight: 'ライト',
@@ -344,6 +352,16 @@ export const ja: Strings = {
     european: '欧州製',
     checkInstalled: 'インストール済みのモデルを確認',
     curatedModels: '選定済みの議事録モデル',
+    downloadIntro:
+      'このコンピューターに合うモデルを選択してください。ダウンロードは端末内に保存され、別のAIサービスは不要です。',
+    memoryMinimum: (gb: number) => `最小RAMクラス：${gb} GB`,
+    memoryTooSmall: (gb: number) =>
+      `${gb} GB以上のRAMクラスが必要です。このコンピューターではダウンロード・選択できません。`,
+    memoryUnknown: 'メモリを検出できませんでした。ダウンロード前に必要なRAMを確認してください。',
+    memoryTight:
+      '8 GBでは長い会議を処理する余裕が少なくなります。他のアプリを閉じてください。CPUでの生成は遅くなる場合があります。ダウンロード容量とRAM使用量は異なります。',
+    qualityCaution:
+      'メモリが足りても議事録の品質は保証されません。小型モデルの結果は慎重に確認してください。以前の測定は別のコンピューターで行われました。',
     bundledRuntime: 'この端末で',
     bundledAlternative: 'こちらも利用できます',
     wantsMemory: (gb: number) => `約${gb} GB が必要です`,
@@ -369,6 +387,8 @@ export const ja: Strings = {
     downloadingPreset: (name: string) => `${name} をダウンロード中`,
     /** en.ts の注記を参照。 */
     modelDescription: {
+      'qwen3.5-0.8b':
+        '開発・動作確認用の小型モデルです。議事録品質は未評価のため、業務用議事録には依存しないでください。',
       'gemma4-12b':
         '測定したモデルのなかで最も正確で、最も安定しています。3 回の実行で、会議に出てきた 35 個の数値のうち 27 〜 31 を残しました。次点は 6 まで落ちています。速度は遅く、80 分の会議でおよそ 14 分かかります。',
       'ministral-8b':
@@ -446,6 +466,23 @@ export const ja: Strings = {
     backupContents:
       'すべてのプロジェクト、会議、文字起こし、議事録、そして録音そのものが含まれます。2つだけ意図して除いてあります。どちらもあなたの作業ではなく、必要になれば作り直せるものだからです。ダウンロードしたモデルと、各録音の準備済みの複製です。実際の作業領域で測ったところ、その準備済み音声だけでバックアップの4分の3を占めていました。',
     restore: '復元',
+    storageUsage: '使用容量',
+    storageUsageLead:
+      'このワークスペースがこの端末で占める容量とその内訳です。作業を失わずに削除できるのは、準備済み音声だけです。',
+    storageRecordings: '録音',
+    storagePreparedAudio: '準備済み音声',
+    storageModels: 'モデル',
+    storageOther: '文字起こし、議事録、アプリデータ',
+    storageFreePrepared: '容量を解放',
+    storageFreeConfirm: (size: string) =>
+      `${size} の準備済み音声をこの端末から削除しますか？録音、文字起こし、議事録はすべてそのまま残ります。次回の文字起こし時に音声が再び準備されます。`,
+    storageFreeConfirmAction: '準備済み音声を削除',
+    storageFreeing: '容量を解放中…',
+    storagePreparedLead:
+      'LocaLog が文字起こしのために準備するモノラル音声は、必要になれば再作成されます。削除しても録音、文字起こし、議事録はそのまま残り、次回の文字起こし時に再び準備されます。',
+    storageFreed: (size: string, files: number) =>
+      `${files} 件のファイルから ${size} を解放しました。文字起こしと議事録は変更されていません。`,
+    storageNothingToFree: '削除できる準備済み音声はありません。',
     restoreLead: 'バックアップを戻します。先に全体を検証し、今あるものは削除せず脇へ移します。',
     chooseBackup: 'バックアップを選ぶ…',
     chooseBackupTitle: 'LocaLogのバックアップを選ぶ',
@@ -477,6 +514,10 @@ export const ja: Strings = {
       '会議を削除すると、その録音、文字起こし、すべての議事録の版がこの端末から消えます。元に戻せません。',
     eyebrow: 'プロジェクト',
     archiveProject: 'プロジェクトをアーカイブ',
+    renameProject: 'プロジェクト名を変更',
+    projectNameLabel: 'プロジェクト名',
+    save: '保存',
+    cancel: 'キャンセル',
     newMeeting: '新しい会議',
     meetings: '会議',
     newestFirst: '新しい順',
@@ -590,6 +631,11 @@ export const ja: Strings = {
       detail:
         'FFmpegがインストールされているか確認してやり直してください。準備済みの複製は作り直せますし、原本はそのままです。',
     },
+    conversion_failed: {
+      title: '録音を保存用に準備できませんでした',
+      detail:
+        'この録音のコンパクトなコピーを作成できませんでした。外部の元ファイルは変更されていません。FFmpeg がインストールされているか確認して、もう一度お試しください。',
+    },
     transcription_failed: {
       title: 'ローカルの文字起こしを完了できませんでした',
       detail:
@@ -614,6 +660,11 @@ export const ja: Strings = {
       title: 'ローカルのプロバイダーが変わりました',
       detail:
         'この処理を待ち行列に入れたあとで、Ollamaランタイムのバージョンが変わりました。やり直して現在のランタイムを取り込んでください。',
+    },
+    provider_stalled: {
+      title: '議事録の生成が応答しなくなりました',
+      detail:
+        'ローカルモデルが時間内に応答しませんでした。未完成の下書きは保存されていません。文字起こしと以前の下書きは引き続き利用できます。再試行するか、繰り返す場合は小さいモデルをお試しください。',
     },
     provider_unavailable: {
       title: 'ローカルの議事録生成が接続できませんでした',
@@ -797,6 +848,8 @@ export const ja: Strings = {
     starting: '開始しています…',
     backToMeeting: '会議に戻る',
     noRecorder: 'このビルドには録音機能がありません。代わりにファイルを取り込んでください。',
+    desktopAudioHint:
+      'デスクトップのサウンド設定で、選択した入力と出力を確認してください。利用可能な音源のみ収録されます。',
     openTheSetting: '設定を開く',
     grantedInSettings: 'システム設定で許可すると、戻った時点でここに反映されます。',
     callWouldNotRecordTitle: '通話は録音されません。',
@@ -808,7 +861,7 @@ export const ja: Strings = {
     recorderNotesTitle: '録音機能は求められたことすべてを行えませんでした。',
     stoppedOnItsOwn: '録音機能が自ら停止しました。そこまでに収めたものは保存されています。',
     quietCall: (seconds: number) =>
-      `通話から${seconds}秒間なにも届いていません。macOSは、画面とシステム音声の収録を許可されていないアプリケーションにエラーではなく無音を渡します。会議のあとで気づくより、今確認しておくほうが確実です。`,
+      `通話から${seconds}秒間音声が届いていません。選択した出力で通話が再生され、収録が許可されているか確認してください。`,
     quietMicrophone: (seconds: number) =>
       `マイクから${seconds}秒間なにも届いていません。正しい入力が選ばれているか、ほかのアプリが占有していないかを確認してください。`,
   },
@@ -920,6 +973,7 @@ export const ja: Strings = {
     meetingInformation: '会議の情報',
     title: '題名',
     titlePlaceholder: '空欄ならファイル名から取ります',
+    titlePlaceholderRecording: 'この会議に名前を付けてください',
     date: '日付',
     language: '会議の言語',
     protocolStyle: '議事録スタイル',
@@ -1005,6 +1059,7 @@ export const ja: Strings = {
     nothingFlaggedNote:
       '不明瞭として記録されたものはありません。この機能ができる前に作られた文字起こしでもここには何も出ませんので、古い文字起こしは信用せず読み直すほうが確実です。',
     workingAudioLater: '作業用音声は、この会議の文字起こしが済むと使えるようになります。',
+    loadingAudio: 'この会議の音声を再生できるよう準備しています…',
     recordingEndsNote:
       '会議がこの先も続いていた場合、録音はそれを捉えておらず、議事録にも入りません。',
     heading: '文字起こしの確認',
@@ -1171,6 +1226,13 @@ export const ja: Strings = {
       `${project}のすべての議事録に適用されます。印刷されたページで繰り返され、いま編集している文書の一部ではありません。`,
   },
 
+  window: {
+    minimize: 'ウィンドウを最小化',
+    maximize: 'ウィンドウを最大化',
+    restore: 'ウィンドウを元に戻す',
+    close: 'ウィンドウを閉じる',
+    actionFailed: 'ウィンドウの操作に失敗しました。もう一度お試しください。',
+  },
   shell: {
     breadcrumbMeeting: '会議',
     breadcrumbRecording: '録音',
@@ -1368,7 +1430,7 @@ export const ja: Strings = {
     exportMarkdown: 'Markdownで書き出す',
     exportPlainText: 'テキストで書き出す',
     exportNote:
-      'PDFは、いま読んでいる文書を、このプロジェクトが議事録を組むとおりに印刷したものです。印刷ダイアログで「PDFとして保存」を選んでください。',
+      'PDFとWordはこのプロジェクトの文書の外観を使用します。Markdownとプレーンテキストには編集可能なテキストが保持されます。',
     source: '元ファイル',
     findSelectedPassage: '選択した箇所を探す',
     lookingFor: '探しているもの：',

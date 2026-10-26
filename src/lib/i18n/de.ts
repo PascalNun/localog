@@ -29,11 +29,15 @@
 import type { Strings } from './en';
 
 const failures = {
+  generationModelNeedsMoreMemory:
+    'Dieses Modell benötigt mehr Arbeitsspeicher als dieser Computer hat. Wählen Sie ein kleineres Modell.',
   missingProject: 'Das gewählte Projekt existiert nicht mehr.',
   missingMeeting: 'Die gewählte Besprechung existiert nicht mehr.',
   missingJob: 'Der Importvorgang ist nicht mehr verfügbar.',
   importBusy:
     'Es wird bereits eine Aufnahme importiert. Schließen Sie diesen Vorgang ab oder brechen Sie ihn ab.',
+  workspaceBusy:
+    'Schließen Sie zuerst die laufende Arbeit ab oder brechen Sie sie ab, dann können Sie Speicher freigeben.',
   unsupportedSchema: (version: string) =>
     `Diese LocaLog-Daten stammen aus einer neueren, nicht unterstützten Version (${version}).`,
   storageUnavailable: 'LocaLog konnte nicht auf seinen lokalen Arbeitsbereich zugreifen.',
@@ -126,7 +130,10 @@ const failures = {
   workspaceNotOpened: 'Der Ordner konnte nicht geöffnet werden.',
   settingsPaneUnknown: 'Diesen Einstellungsbereich gibt es nicht.',
   meetingBusy: 'An dieser Besprechung wird noch gearbeitet. Brechen Sie das zuerst ab.',
+  pdfExportFailed:
+    'Die PDF konnte nicht gespeichert werden. Wählen Sie einen verfügbaren Ordner und versuchen Sie es erneut.',
   printDialogUnavailable: 'Dieses Fenster konnte den Druckdialog nicht öffnen.',
+  dialogUnavailable: 'Der Dateidialog konnte nicht geöffnet werden.',
 
   // Sichern und Zurückspielen.
   backupNameUnsafe: 'Dieser Name kann nicht als Ordnername verwendet werden.',
@@ -313,6 +320,9 @@ export const de: Strings = {
   },
 
   settings: {
+    windowControls: 'Fenstersteuerung',
+    windowControlsDetail:
+      'Automatisch blendet die Knöpfe in erkannten Kachel-Desktops aus. Bei Bedarf können Sie sie selbst ein- oder ausblenden.',
     memoryReported: (gb: number) => `${gb} GB Arbeitsspeicher erkannt`,
     themeAutomatic: 'Automatisch',
     themeLight: 'Hell',
@@ -372,6 +382,17 @@ export const de: Strings = {
     european: 'Europäisch',
     checkInstalled: 'Installierte Modelle prüfen',
     curatedModels: 'Ausgewählte Protokollmodelle',
+    downloadIntro:
+      'Wählen Sie ein Modell für diesen Computer. Downloads bleiben auf diesem Gerät; ein zusätzlicher KI-Dienst ist nicht nötig.',
+    memoryMinimum: (gb: number) => `RAM-Mindestklasse: ${gb} GB`,
+    memoryTooSmall: (gb: number) =>
+      `Benötigt eine RAM-Klasse ab ${gb} GB. Download und Auswahl sind auf diesem Computer nicht verfügbar.`,
+    memoryUnknown:
+      'Der Arbeitsspeicher konnte nicht ermittelt werden. Prüfen Sie vor dem Download den RAM-Bedarf.',
+    memoryTight:
+      'Bei 8 GB bleibt wenig Platz für lange Besprechungen. Schließen Sie andere Anwendungen; die CPU-Erstellung kann langsam sein. Die Downloadgröße ist nicht der gesamte RAM-Bedarf.',
+    qualityCaution:
+      'Passender Arbeitsspeicher garantiert keine Protokollqualität. Kleinere Kandidaten erfordern sorgfältige Prüfung; frühere Messungen stammen von einem anderen Computer.',
     bundledRuntime: 'Auf diesem Gerät',
     bundledAlternative: 'Ebenfalls verfügbar',
     wantsMemory: (gb: number) => `Benötigt etwa ${gb} GB`,
@@ -397,6 +418,8 @@ export const de: Strings = {
     downloadingPreset: (name: string) => `${name} wird geladen`,
     /** Siehe die Anmerkung in en.ts. */
     modelDescription: {
+      'qwen3.5-0.8b':
+        'Ein kleines Modell für Entwicklung und Funktionstests. Die Protokollqualität wurde nicht geprüft; verlassen Sie sich für professionelle Besprechungsprotokolle nicht darauf.',
       'gemma4-12b':
         'Das genaueste und beständigste der gemessenen Modelle: Über drei Läufe hat es 27 bis 31 der 35 Zahlen einer Besprechung erhalten, wo das nächstbeste auf nur 6 kam. Langsamer — etwa vierzehn Minuten für eine achtzigminütige Besprechung.',
       'ministral-8b':
@@ -475,6 +498,23 @@ export const de: Strings = {
     backupContents:
       'Enthält jedes Projekt, jede Besprechung, jedes Transkript und Protokoll sowie die Aufnahmen selbst. Zwei Dinge fehlen mit Absicht, weil beide nicht Ihre Arbeit sind und bei Bedarf neu entstehen: geladene Modelle und die aufbereitete Kopie jeder Aufnahme. An einem echten Arbeitsbereich gemessen war allein dieses aufbereitete Audio drei Viertel der Sicherung.',
     restore: 'Zurückspielen',
+    storageUsage: 'Belegter Speicher',
+    storageUsageLead:
+      'Was dieser Arbeitsbereich auf diesem Gerät belegt und woraus er besteht. Vorbereitetes Audio ist der einzige Teil, der ohne Arbeitsverlust entfernt werden kann.',
+    storageRecordings: 'Aufnahmen',
+    storagePreparedAudio: 'Vorbereitetes Audio',
+    storageModels: 'Modelle',
+    storageOther: 'Transkripte, Protokolle und App-Daten',
+    storageFreePrepared: 'Speicher freigeben',
+    storageFreeConfirm: (size: string) =>
+      `${size} vorbereitetes Audio von diesem Gerät entfernen? Jede Aufnahme, jedes Transkript und jedes Protokoll bleibt unverändert. Die nächste Transkription bereitet das Audio erneut vor.`,
+    storageFreeConfirmAction: 'Vorbereitetes Audio entfernen',
+    storageFreeing: 'Gebe Speicher frei…',
+    storagePreparedLead:
+      'Das Mono-Audio, das LocaLog für die Transkription vorbereitet, wird bei Bedarf neu erzeugt. Es zu entfernen lässt jede Aufnahme, jedes Transkript und jedes Protokoll unverändert; die nächste Transkription bereitet es erneut vor.',
+    storageFreed: (size: string, files: number) =>
+      `${size} in ${files} ${files === 1 ? 'Datei' : 'Dateien'} freigegeben. Alle Transkripte und Protokolle sind unverändert.`,
+    storageNothingToFree: 'Es gibt kein vorbereitetes Audio zu entfernen.',
     restoreLead:
       'Spielt eine Sicherung zurück. Sie wird zuerst vollständig geprüft, und was jetzt hier liegt, wird beiseitegelegt statt gelöscht.',
     chooseBackup: 'Sicherung wählen …',
@@ -508,6 +548,10 @@ export const de: Strings = {
       'Eine Besprechung zu löschen entfernt ihre Aufnahme, ihr Transkript und jede Protokollfassung von diesem Gerät. Das lässt sich nicht rückgängig machen.',
     eyebrow: 'Projekt',
     archiveProject: 'Projekt archivieren',
+    renameProject: 'Projekt umbenennen',
+    projectNameLabel: 'Projektname',
+    save: 'Speichern',
+    cancel: 'Abbrechen',
     newMeeting: 'Neue Besprechung',
     meetings: 'Besprechungen',
     newestFirst: 'Neueste zuerst',
@@ -623,6 +667,11 @@ export const de: Strings = {
       detail:
         'Prüfen Sie, ob FFmpeg installiert ist, und versuchen Sie es erneut. Die aufbereitete Fassung lässt sich neu erzeugen, das Original bleibt unverändert.',
     },
+    conversion_failed: {
+      title: 'Die Aufnahme konnte nicht für die Ablage vorbereitet werden',
+      detail:
+        'LocaLog konnte die kompakte Kopie dieser Aufnahme nicht erstellen. Die externe Originaldatei wurde nicht verändert; prüfen Sie, ob FFmpeg installiert ist, und versuchen Sie es erneut.',
+    },
     transcription_failed: {
       title: 'Die lokale Transkription konnte nicht abschließen',
       detail:
@@ -647,6 +696,11 @@ export const de: Strings = {
       title: 'Der lokale Anbieter hat sich geändert',
       detail:
         'Die Version der Ollama-Laufzeit hat sich geändert, nachdem dieser Vorgang eingereiht wurde. Versuchen Sie es erneut, um die aktuelle Laufzeit zu übernehmen.',
+    },
+    provider_stalled: {
+      title: 'Die Protokollerzeugung antwortet nicht mehr',
+      detail:
+        'Das lokale Modell hat nicht rechtzeitig geantwortet. Es wurde kein unvollständiger Entwurf gespeichert; Ihr Transkript und frühere Entwürfe bleiben verfügbar. Versuchen Sie es erneut oder verwenden Sie ein kleineres Modell, wenn dies wieder passiert.',
     },
     provider_unavailable: {
       title: 'Die lokale Protokollerzeugung konnte keine Verbindung herstellen',
@@ -841,6 +895,8 @@ export const de: Strings = {
     backToMeeting: 'Zurück zur Besprechung',
     noRecorder:
       'Dieser Build hat keine Aufnahmekomponente. Importieren Sie stattdessen eine Datei.',
+    desktopAudioHint:
+      'Prüfen Sie den gewählten Eingang und Ausgang in den Audioeinstellungen Ihres Desktops. Nur verfügbare Quellen werden aufgenommen.',
     openTheSetting: 'Einstellung öffnen',
     grantedInSettings:
       'Wird in den Systemeinstellungen erteilt und hier übernommen, sobald Sie zurückkommen.',
@@ -854,7 +910,7 @@ export const de: Strings = {
     stoppedOnItsOwn:
       'Die Aufnahme hat von selbst gestoppt. Was bis dahin aufgenommen wurde, ist erhalten.',
     quietCall: (seconds: number) =>
-      `Seit ${seconds} Sekunden kommt nichts von der Konferenz an. macOS gibt einer Anwendung ohne die Berechtigung zur Bildschirm- und Systemtonaufnahme Stille statt eines Fehlers — das prüft man besser jetzt als nach der Besprechung.`,
+      `Seit ${seconds} Sekunden kommt kein Ton von der Konferenz an. Prüfen Sie, ob die Konferenz über den gewählten Ausgang läuft und die Aufnahme erlaubt ist.`,
     quietMicrophone: (seconds: number) =>
       `Seit ${seconds} Sekunden kommt nichts vom Mikrofon an. Prüfen Sie, ob der richtige Eingang gewählt ist und ob eine andere Anwendung ihn belegt.`,
   },
@@ -970,6 +1026,7 @@ export const de: Strings = {
     meetingInformation: 'Angaben zur Besprechung',
     title: 'Titel',
     titlePlaceholder: 'Wird aus der Datei abgeleitet, wenn leer',
+    titlePlaceholderRecording: 'Benennen Sie diese Besprechung',
     date: 'Datum',
     language: 'Sprache der Besprechung',
     protocolStyle: 'Protokollstil',
@@ -1062,6 +1119,7 @@ export const de: Strings = {
       'Nichts wurde als unklar markiert. Ein Transkript, das vor dieser Aufzeichnung entstand, zeigt hier ebenfalls nichts — ein älteres liest man daher besser, als dass man ihm vertraut.',
     workingAudioLater:
       'Die Arbeitsdatei steht zur Verfügung, sobald diese Besprechung transkribiert wurde.',
+    loadingAudio: 'Die Audiodatei dieser Besprechung wird für die Wiedergabe vorbereitet …',
     recordingEndsNote:
       'Wenn die Besprechung darüber hinaus weiterging, hat die Aufnahme das nicht erfasst — und das Protokoll enthält es nicht.',
     heading: 'Transkript prüfen',
@@ -1231,6 +1289,13 @@ export const de: Strings = {
       `Gilt für jedes Protokoll in ${project}. Sie wiederholt sich auf der gedruckten Seite und gehört nicht zu dem Dokument, das Sie bearbeiten.`,
   },
 
+  window: {
+    minimize: 'Fenster minimieren',
+    maximize: 'Fenster maximieren',
+    restore: 'Fenster wiederherstellen',
+    close: 'Fenster schließen',
+    actionFailed: 'Die Fensteraktion ist fehlgeschlagen. Versuchen Sie es erneut.',
+  },
   shell: {
     breadcrumbMeeting: 'Besprechung',
     breadcrumbRecording: 'Aufnahme',
@@ -1438,7 +1503,7 @@ export const de: Strings = {
     exportMarkdown: 'Als Markdown exportieren',
     exportPlainText: 'Als reinen Text exportieren',
     exportNote:
-      'Das PDF wird aus dem Dokument gedruckt, das Sie lesen, gesetzt wie dieses Projekt seine Protokolle setzt — wählen Sie im Druckdialog „Als PDF sichern“.',
+      'PDF und Word verwenden die Dokumentgestaltung dieses Projekts. Markdown und Klartext behalten den bearbeitbaren Text.',
     source: 'Quelle',
     findSelectedPassage: 'Die markierte Passage suchen',
     lookingFor: 'Gesucht wird:',

@@ -44,8 +44,10 @@ const ROOT_ID = 'protocol-print-root';
  */
 export async function printProtocol(
   protocol: ProtocolDocument,
-  /** How to reach the platform's own print panel, where there is one. */
-  nativePrint?: () => Promise<void>,
+  /** How to reach the platform's own print panel, where there is one, or save
+      directly. It is told the computed side margin so Linux can set the same
+      margins on the page that this sheet is laid out with. */
+  nativePrint?: (sideMarginMm: number) => Promise<void>,
   /**
    * Which rendered block begins each page after the first, as the editor measured
    * it. Empty means nobody measured, and the whole document goes on one page box —
@@ -79,7 +81,7 @@ export async function printProtocol(
   // costs nothing to leave: the sheet is hidden on screen, and the next export
   // replaces it.
   if (nativePrint) {
-    await nativePrint();
+    await nativePrint(side);
     return;
   }
 

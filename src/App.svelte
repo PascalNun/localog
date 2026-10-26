@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { invoke } from '@tauri-apps/api/core';
   import LibraryView from './lib/components/LibraryView.svelte';
   import MeetingView from './lib/components/MeetingView.svelte';
   import NewMeetingView from './lib/components/NewMeetingView.svelte';
@@ -13,6 +14,7 @@
   import RecordingView from './lib/components/RecordingView.svelte';
   import TranscriptView from './lib/components/TranscriptView.svelte';
   import Icon from './lib/components/Icon.svelte';
+  import WindowControls from './lib/components/WindowControls.svelte';
   import {
     DEFAULT_APPEARANCE,
     EMPTY_FURNITURE,
@@ -29,7 +31,12 @@
     clampSidebarWidth,
     parseStoredSidebarWidth,
   } from './lib/layout/sidebarSizing';
-  import { resolveWindowChrome } from './lib/platform/windowChrome';
+  import {
+    resolveWindowChrome,
+    parseWindowControlsChoice,
+    WINDOW_CONTROLS_KEY,
+    type WindowControlsChoice,
+  } from './lib/platform/windowChrome';
   import { FakeWorkflowBridge } from './lib/workflow/fakeBridge';
   import { createNativeWorkspaceStore } from './lib/workflow/workspaceStore';
   import { errorMessage } from './lib/errors';
@@ -55,6 +62,24 @@
     TranscriptionRuntimeStatus,
     AppliedCorrection,
   } from './lib/workflow/types';
+
+  let windowChrome: ReturnType<typeof resolveWindowChrome> = 'standard';
+  let windowControlsChoice: WindowControlsChoice = 'auto';
+  let tilingSession = false;
+  function updateWindowChrome() {
+    windowChrome = resolveWindowChrome(
+      navigator.userAgent,
+      isDesktop,
+      windowControlsChoice,
+      tilingSession,
+    );
+    document.documentElement.dataset.windowChrome = windowChrome;
+  }
+  function chooseWindowControls(choice: WindowControlsChoice) {
+    windowControlsChoice = choice;
+    localStorage.setItem(WINDOW_CONTROLS_KEY, choice);
+    updateWindowChrome();
+  }
 
   /// Whether this is the desktop shell rather than a browser preview. A browser can
   /// fall back to a download; the desktop shell blocks it, so a failure there has to
@@ -183,6 +208,10 @@
   let sidebarWidth = DEFAULT_SIDEBAR_WIDTH;
   let lastHandledJobId: string | null = null;
   let announcement = '';
+  let exportNotice = '';
+  let exportBusy = false;
+  let exportHasError = false;
+  let exportMeetingId: string | null = null;
   let startupError = '';
   let locationRestored = false;
   let runtimeStatus: TranscriptionRuntimeStatus = {
@@ -201,11 +230,7 @@
   // modelId → percent, present only while a download is in flight.
   let downloading: Record<string, number> = {};
   let modelError: string | null = null;
-  /// A download's failure, kept against the model it belongs to.
-  ///
-  /// Keyed rather than shared, because these cards are far apart on the page:
-  /// one string meant a failed generation download printed its message under the
-  /// transcription list, which is a different section about different files.
+  // Keep a download failure beside the model that failed.
   let downloadErrors: Record<string, string> = {};
   let providerError: string | null = null;
 
@@ -268,20 +293,33 @@
     message: 'ollamaUnchecked',
     machineMemoryGb: null,
   };
-  // The bundled path and an optional Ollama installation answer different
-  // questions. Keeping their statuses separate prevents the normal setup from
-  // looking unavailable just because Ollama is not running.
+
   let generationStatus: ProtocolProviderStatus = {
+    ...providerStatus,
     endpoint: '',
-    serverReachable: false,
-    runtimeVersion: null,
-    models: [],
-    selectedModel: null,
-    selectedModelDigest: null,
-    selectedModelReady: false,
     message: 'generationModelNotDownloaded',
-    machineMemoryGb: null,
+    active: true,
   };
+
+  async function refreshGenerationModels() {
+    try {
+      const [terms, status, external] = await Promise.all([
+        bridge.getModelTerms(),
+        bridge.getGenerationRuntimeStatus(),
+        bridge.getProtocolProviderStatus(),
+      ]);
+      modelTerms = terms;
+      generationStatus = status;
+      providerStatus = external;
+      downloading = Object.fromEntries(
+        Object.entries(downloading).filter(
+          ([id]) => !terms.some((model) => model.modelId === id && model.installed),
+        ),
+      );
+    } catch (error) {
+      modelError = errorMessage(error);
+    }
+  }
 
   // Route-derived context keeps project and meeting selection in one predictable place.
   $: meetingId = 'meetingId' in route ? route.meetingId : null;
@@ -334,11 +372,18 @@
   });
 
   onMount(() => {
-    // Native overlay spacing belongs only to Tauri on macOS, never to browser previews or other OSes.
-    document.documentElement.dataset.windowChrome = resolveWindowChrome(
-      navigator.userAgent,
-      '__TAURI_INTERNALS__' in window,
-    );
+    windowControlsChoice = parseWindowControlsChoice(localStorage.getItem(WINDOW_CONTROLS_KEY));
+    updateWindowChrome();
+    if (windowChrome === 'linux-integrated' || windowChrome === 'linux-borderless') {
+      void invoke<boolean>('window_environment')
+        .then((tiled) => {
+          tilingSession = tiled;
+          updateWindowChrome();
+        })
+        .catch(() => {
+          /* Unknown hosts retain controls unless explicitly hidden. */
+        });
+    }
 
     sidebarWidth = parseStoredSidebarWidth(localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
 
@@ -370,9 +415,7 @@
     followSystem = settle;
     bridge.getTranscriptionRuntimeStatus().then((status) => (runtimeStatus = status));
     bridge.getSpeakerSeparationStatus().then((status) => (speakerStatus = status));
-    bridge.getProtocolProviderStatus().then((status) => (providerStatus = status));
-    bridge.getGenerationRuntimeStatus().then((status) => (generationStatus = status));
-    bridge.getModelTerms().then((terms) => (modelTerms = terms));
+    void refreshGenerationModels();
     bridge
       .getTranscriptionCapability()
       .then((next) => (capability = next))
@@ -384,20 +427,15 @@
       },
       onChanged: (next) => {
         capability = next;
-        // Only clear rows that are now installed; another download may still be running.
-        downloading = Object.fromEntries(
-          Object.entries(downloading).filter(
-            ([id]) => !next.presets.some((preset) => preset.modelId === id && preset.installed),
-          ),
-        );
+        // The backend permits one heavy download at a time. Completion also covers cancellation.
+        downloading = {};
+        void refreshGenerationModels();
         // A newly installed model can make transcription possible.
         bridge.getTranscriptionRuntimeStatus().then((status) => (runtimeStatus = status));
-        bridge.getModelTerms().then((terms) => (modelTerms = terms));
-        bridge.getGenerationRuntimeStatus().then((status) => (generationStatus = status));
       },
       onError: ({ modelId, message }) => {
         downloading = withoutModel(downloading, modelId);
-        downloadErrors = { ...downloadErrors, [modelId]: message };
+        downloadErrors = { ...downloadErrors, [modelId]: errorMessage(message) };
       },
     });
     const stopSpeakerEvents = bridge.subscribeSpeakerEvents((status) => {
@@ -602,10 +640,54 @@
     navigate(projectId ? { name: 'project', projectId } : { name: 'start' });
   }
 
-  async function exportProtocol(format: ExportFormat, pageStarts: number[] = []) {
-    if (!meeting || !snapshot) return;
-    const protocol = snapshot.protocols[meeting.id];
-    if (!protocol) return;
+  async function exportProtocol(
+    format: ExportFormat,
+    pageStarts: number[] = [],
+    currentMarkdown?: string,
+  ) {
+    if (exportBusy || !meeting) return;
+    const meetingId = meeting.id;
+    exportBusy = true;
+    exportNotice = '';
+    exportHasError = false;
+    exportMeetingId = meetingId;
+    try {
+      // Export what is on screen even when the 420ms autosave is still pending.
+      if (currentMarkdown !== undefined) await bridge.autosaveProtocol(meetingId, currentMarkdown);
+      await performProtocolExport(format, pageStarts, meetingId);
+    } catch (cause) {
+      reportExport(
+        $t.shell.exportFailed(
+          format === 'pdf'
+            ? 'PDF'
+            : format === 'docx'
+              ? $t.shell.formatWordDocument
+              : format === 'markdown'
+                ? 'Markdown'
+                : $t.shell.formatPlainText,
+          errorMessage(cause),
+        ),
+        true,
+      );
+    } finally {
+      exportBusy = false;
+    }
+  }
+
+  function reportExport(message: string, failed = false) {
+    exportNotice = message;
+    exportHasError = failed;
+    announcement = message;
+  }
+
+  async function performProtocolExport(
+    format: ExportFormat,
+    pageStarts: number[],
+    meetingId: string,
+  ) {
+    const meeting = snapshot?.meetings.find((item) => item.id === meetingId);
+    const protocol = snapshot?.protocols[meetingId];
+    if (!meeting || !snapshot || !protocol) throw new Error('protocolNeededBeforeExport');
 
     // One document, handed to whichever exporter was asked for. print.ts and
     // docx.ts already take the same type for the same reason: a field added for
@@ -622,14 +704,31 @@
       facts: documentFacts(project, meeting, protocol, $t),
     };
 
-    // The PDF is the document printed, not a second rendering of it, so it needs
-    // no file dialog of its own: the print dialog is where a page size and a
-    // destination are chosen, and on macOS that includes saving as PDF.
+    // Linux can save the rendered pages straight to PDF. Other platforms keep
+    // their existing native print route until direct saving is implemented there.
     if (format === 'pdf') {
       try {
-        await printProtocol(exported, bridge.nativePrint(), pageStarts);
+        if (isDesktop && windowChrome.startsWith('linux')) {
+          let saved = false;
+          await printProtocol(
+            exported,
+            async (sideMarginMm) => {
+              saved = await bridge.exportPdf(exported.title, sideMarginMm);
+            },
+            pageStarts,
+          );
+          if (saved) reportExport($t.shell.exportSaved('PDF'));
+        } else {
+          await printProtocol(
+            exported,
+            async () => {
+              await bridge.nativePrint()?.();
+            },
+            pageStarts,
+          );
+        }
       } catch (cause) {
-        announcement = `PDF export failed: ${errorMessage(cause)}`;
+        reportExport($t.shell.exportFailed('PDF', errorMessage(cause)), true);
       }
       return;
     }
@@ -643,11 +742,10 @@
           'docx',
           $t.shell.formatWordDocument,
         );
-        if (saved) announcement = $t.shell.exportSaved($t.shell.formatWordDocument);
-        else if (!isDesktop)
-          announcement = $t.shell.exportNeedsDesktop($t.shell.formatWordDocument);
+        if (saved) reportExport($t.shell.exportSaved($t.shell.formatWordDocument));
+        else if (!isDesktop) reportExport($t.shell.exportNeedsDesktop($t.shell.formatWordDocument));
       } catch (cause) {
-        announcement = $t.shell.exportFailed($t.shell.formatWordDocument, errorMessage(cause));
+        reportExport($t.shell.exportFailed($t.shell.formatWordDocument, errorMessage(cause)), true);
       }
       return;
     }
@@ -660,13 +758,13 @@
     try {
       const nativeExported = await bridge.exportProtocol(meeting.id, format, meeting.title);
       if (nativeExported) {
-        announcement = $t.shell.exportSaved(name);
+        reportExport($t.shell.exportSaved(name));
         return;
       }
       // A cancelled dialog is a choice, not a failure, and says nothing.
       if (isDesktop) return;
     } catch (cause) {
-      announcement = $t.shell.exportFailed(name, errorMessage(cause));
+      reportExport($t.shell.exportFailed(name, errorMessage(cause)), true);
       return;
     }
     const content =
@@ -681,8 +779,8 @@
     anchor.download = `${meeting.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.${format === 'markdown' ? 'md' : 'txt'}`;
     anchor.click();
     URL.revokeObjectURL(href);
-    announcement = $t.shell.exportPrepared(
-      format === 'markdown' ? 'Markdown' : $t.shell.formatPlainText,
+    reportExport(
+      $t.shell.exportPrepared(format === 'markdown' ? 'Markdown' : $t.shell.formatPlainText),
     );
   }
 </script>
@@ -693,6 +791,7 @@
 
 <a class="skip-link" href="#main-content">{$t.shell.skipToWorkspace}</a>
 <div class="app-shell" style={`--sidebar-width: ${sidebarWidth}px`}>
+  {#if windowChrome === 'linux-integrated'}<WindowControls />{/if}
   <div class="window-drag-region" data-tauri-drag-region aria-hidden="true"></div>
   {#if snapshot}
     <Sidebar
@@ -708,6 +807,12 @@
       {themeChoice}
       onNavigate={navigate}
       onClose={() => (sidebarOpen = false)}
+      onArchiveProject={async (projectId: string) => {
+        const wasCurrent = currentProjectId === projectId;
+        await bridge.setProjectArchived(projectId, true);
+        if (wasCurrent) navigate({ name: 'start' });
+        announcement = $t.shell.projectArchived;
+      }}
       onToggleTheme={toggleTheme}
       onResize={resizeSidebar}
       onResizeEnd={finishSidebarResize}
@@ -745,7 +850,7 @@
           class="global-job-strip"
           onclick={() => navigate({ name: 'meeting', meetingId: snapshot!.activeJob!.meetingId })}
           ><span class="processing-dot"></span><span
-            ><strong>{snapshot.activeJob.stage}</strong><small
+            ><strong>{stageText(snapshot.activeJob.stage)}</strong><small
               >{compactJobStatus(snapshot.activeJob)}</small
             ></span
           ><Icon name="arrow" /></button
@@ -758,8 +863,8 @@
           {capability}
           {downloading}
           {modelError}
+          providerStatus={generationStatus.active === true ? generationStatus : providerStatus}
           {downloadErrors}
-          providerStatus={generationStatus}
           onDownloadModel={downloadModel}
           onCancelDownload={cancelModelDownload}
         />
@@ -793,6 +898,7 @@
             .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))}
           onNavigate={navigate}
           onDeleteMeeting={(meetingId: string) => bridge.deleteMeeting(meetingId)}
+          onRenameProject={(name) => bridge.updateProjectName(project.id, name)}
           onArchiveMeeting={async (meetingId: string) => {
             await bridge.setMeetingArchived(meetingId, true);
             announcement = $t.shell.meetingArchived;
@@ -909,7 +1015,7 @@
           onGenerate={() => bridge.startGeneration(meeting.id)}
           onCancel={() => bridge.cancelActiveJob(meeting.id)}
           onRetry={() => bridge.retryActiveJob(meeting.id)}
-          onRerunTranscription={() => bridge.startTranscription(meeting.id)}
+          onRerunTranscription={(speakers) => bridge.startTranscription(meeting.id, speakers)}
           onUpdateLanguage={(language) => bridge.updateMeetingLanguage(meeting.id, language)}
           onDeleteSegment={(segmentId) => bridge.deleteTranscriptSegment(meeting.id, segmentId)}
           onUpdateSegment={(segmentId, text) =>
@@ -929,6 +1035,9 @@
           onMarkReviewed={() => bridge.markProtocolReviewed(meeting.id)}
           onRestoreRevision={(revisionId) => bridge.restoreProtocolRevision(meeting.id, revisionId)}
           onExport={exportProtocol}
+          exportNotice={exportMeetingId === meeting.id ? exportNotice : ''}
+          {exportBusy}
+          {exportHasError}
           onSetAppearance={(appearance) => bridge.setProjectAppearance(project.id, appearance)}
           onSetFurniture={(furniture) => bridge.setProjectFurniture(project.id, furniture)}
           transcript={snapshot.transcripts[meeting.id] ?? null}
@@ -973,6 +1082,10 @@
         />
       {:else if route.name === 'settings'}
         <SettingsView
+          {windowControlsChoice}
+          windowControlsAvailable={windowChrome === 'linux-integrated' ||
+            windowChrome === 'linux-borderless'}
+          onChooseWindowControls={chooseWindowControls}
           {theme}
           {themeChoice}
           {runtimeStatus}
@@ -980,14 +1093,23 @@
           {speakerStatus}
           {speakerError}
           {providerStatus}
-          {generationStatus}
           {modelTerms}
+          {generationStatus}
+          onConfigureGeneration={async (model) => {
+            try {
+              generationStatus = await bridge.configureGenerationModel(model);
+              providerStatus = await bridge.getProtocolProviderStatus();
+              providerError = null;
+            } catch (error) {
+              providerError = errorMessage(error);
+            }
+          }}
           onAcceptLicence={acceptLicence}
           {capability}
           {downloading}
           {modelError}
-          {downloadErrors}
           {providerError}
+          {downloadErrors}
           nextJobOutcome={snapshot.nextJobOutcome}
           onChooseTheme={chooseTheme}
           onSetNextJobOutcome={(outcome: FakeJobOutcome) => bridge.setNextJobOutcome(outcome)}
@@ -1024,6 +1146,8 @@
           onCreateBackup={(parent, folderName) => bridge.createBackup(parent, folderName)}
           onInspectBackup={(folder) => bridge.inspectBackup(folder)}
           onRestoreBackup={(folder) => bridge.restoreBackup(folder)}
+          onWorkspaceUsage={() => bridge.workspaceUsage()}
+          onFreePreparedAudio={() => bridge.freePreparedAudio()}
           onConfigureRuntime={async (executablePath) => {
             try {
               runtimeStatus = await bridge.configureTranscriptionRuntime(executablePath);
@@ -1074,14 +1198,7 @@
           onConfigureProvider={async (model) => {
             try {
               providerStatus = await bridge.configureProtocolProvider(model);
-              providerError = null;
-            } catch (error) {
-              providerError = errorMessage(error);
-            }
-          }}
-          onSelectGenerationModel={async (model) => {
-            try {
-              generationStatus = await bridge.selectGenerationModel(model);
+              generationStatus = await bridge.getGenerationRuntimeStatus();
               providerError = null;
             } catch (error) {
               providerError = errorMessage(error);
@@ -1094,8 +1211,8 @@
           {capability}
           {downloading}
           {modelError}
+          providerStatus={generationStatus.active === true ? generationStatus : providerStatus}
           {downloadErrors}
-          providerStatus={generationStatus}
           onDownloadModel={downloadModel}
           onCancelDownload={cancelModelDownload}
         />

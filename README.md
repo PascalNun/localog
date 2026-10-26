@@ -32,7 +32,7 @@ Meeting recordings can contain personal information, internal decisions, client 
 - projects and meetings provide context for every recording and document;
 - the interface is designed as a writing and review tool, not a chatbot or model dashboard.
 
-The project is open source under [GPL-3.0-or-later](LICENSE). It builds and packages on macOS, Windows and Linux. macOS is the platform the work is validated on: the other two compile and bundle in CI, and nobody has run them yet. Operating-system-specific work stays at the edges of the application.
+The project is open source under [GPL-3.0-or-later](LICENSE). It builds and packages on macOS, Windows and Linux. macOS remains the main validation platform. Linux development and synthetic desktop-audio capture have also been checked on Omarchy; see [Developing on Linux](docs/LINUX_DEVELOPMENT.md) for the setup and remaining limits. Operating-system-specific work stays at the edges of the application.
 
 ## The workflow
 
@@ -40,7 +40,7 @@ The project is open source under [GPL-3.0-or-later](LICENSE). It builds and pack
 Project → Meeting → Import → Transcribe → Review → Generate → Edit → Export
 ```
 
-Importing a recording is the path that works. Recording a meeting inside the application is built on all three systems now, through AVAudioEngine on macOS, WASAPI loopback on Windows and an ALSA monitor source on Linux. Only the macOS backend has ever captured audio, and that was in the spike it came from rather than from inside the application.
+Importing a recording is the path that works. Recording a meeting inside the application uses AVAudioEngine on macOS, WASAPI loopback on Windows and the desktop sound server's monitor source on Linux (PulseAudio or PipeWire-Pulse). The Linux recorder has been checked with separate synthetic virtual sources, including track separation, retained audio, levels and stopping. Physical-device capture and a real meeting still need validation on Linux.
 
 ## Current state
 
@@ -107,6 +107,9 @@ npm run tauri:build
 Expect this to take a while the first time; FFmpeg and llama.cpp are built from source. Model files are never bundled. They download when the feature that needs them is first used, with the size shown and, where a licence requires it, the terms shown before anything is fetched.
 
 The complete checks are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+For Linux prerequisites, development without AI models, and packaging requirements,
+see [Developing on Linux](docs/LINUX_DEVELOPMENT.md).
 
 ## Contributing
 
