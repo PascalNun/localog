@@ -21,6 +21,7 @@ mod facts;
 mod imports;
 mod llama;
 mod machine;
+mod maintenance;
 mod media;
 mod models;
 mod native_dialog;
@@ -1711,6 +1712,26 @@ async fn archived_work(state: State<'_, StorageState>) -> Result<storage::Archiv
     .await
 }
 
+/// What the workspace occupies, split into the parts somebody can act on.
+///
+/// Measured when Settings asks rather than on every launch: walking a workspace
+/// full of recordings is cheap next to importing one, but not next to opening a
+/// window.
+#[tauri::command]
+async fn workspace_usage(
+    state: State<'_, StorageState>,
+) -> Result<maintenance::WorkspaceUsage, String> {
+    with_repository_root(state.root.clone(), maintenance::workspace_usage).await
+}
+
+/// Delete the mono audio prepared for transcription. It is rebuilt on demand.
+#[tauri::command]
+async fn free_prepared_audio(
+    state: State<'_, StorageState>,
+) -> Result<maintenance::PreparedAudioCleanup, String> {
+    with_repository_root(state.root.clone(), maintenance::remove_prepared_audio).await
+}
+
 /// Set what repeats at the top and bottom of a project's printed pages.
 #[tauri::command]
 async fn set_project_furniture(
@@ -2076,6 +2097,8 @@ pub fn run() {
             set_project_archived,
             set_meeting_archived,
             archived_work,
+            workspace_usage,
+            free_prepared_audio,
             workspace_location,
             reveal_workspace,
             create_backup,

@@ -38,6 +38,7 @@ const failures = {
   missingMeeting: '選択された会議はもう存在しません。',
   missingJob: 'その取り込み処理はもう利用できません。',
   importBusy: '別の録音を取り込み中です。先に完了するか中止してください。',
+  workspaceBusy: '進行中の作業を先に完了するか中止してから、もう一度容量の解放をお試しください。',
   unsupportedSchema: (version: string) =>
     `このLocaLogのデータは、より新しい未対応のバージョン（${version}）で作成されています。`,
   storageUnavailable: 'LocaLogはローカルの作業領域にアクセスできませんでした。',
@@ -461,6 +462,20 @@ export const ja: Strings = {
     backupContents:
       'すべてのプロジェクト、会議、文字起こし、議事録、そして録音そのものが含まれます。2つだけ意図して除いてあります。どちらもあなたの作業ではなく、必要になれば作り直せるものだからです。ダウンロードしたモデルと、各録音の準備済みの複製です。実際の作業領域で測ったところ、その準備済み音声だけでバックアップの4分の3を占めていました。',
     restore: '復元',
+    storageUsage: '使用容量',
+    storageUsageLead:
+      'このワークスペースがこの端末で占める容量とその内訳です。作業を失わずに削除できるのは、準備済み音声だけです。',
+    storageRecordings: '録音',
+    storagePreparedAudio: '準備済み音声',
+    storageModels: 'モデル',
+    storageOther: '文字起こし、議事録、アプリデータ',
+    storageFreePrepared: '容量を解放',
+    storageFreeing: '容量を解放中…',
+    storagePreparedLead:
+      'LocaLog が文字起こしのために準備するモノラル音声は、必要になれば再作成されます。削除しても録音、文字起こし、議事録はそのまま残り、次回の文字起こし時に再び準備されます。',
+    storageFreed: (size: string, files: number) =>
+      `${files} 件のファイルから ${size} を解放しました。文字起こしと議事録は変更されていません。`,
+    storageNothingToFree: '削除できる準備済み音声はありません。',
     restoreLead: 'バックアップを戻します。先に全体を検証し、今あるものは削除せず脇へ移します。',
     chooseBackup: 'バックアップを選ぶ…',
     chooseBackupTitle: 'LocaLogのバックアップを選ぶ',
@@ -608,6 +623,11 @@ export const ja: Strings = {
       title: '録音を準備できませんでした',
       detail:
         'FFmpegがインストールされているか確認してやり直してください。準備済みの複製は作り直せますし、原本はそのままです。',
+    },
+    conversion_failed: {
+      title: '録音を保存用に準備できませんでした',
+      detail:
+        'この録音のコンパクトなコピーを作成できませんでした。外部の元ファイルは変更されていません。FFmpeg がインストールされているか確認して、もう一度お試しください。',
     },
     transcription_failed: {
       title: 'ローカルの文字起こしを完了できませんでした',

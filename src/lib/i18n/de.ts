@@ -36,6 +36,8 @@ const failures = {
   missingJob: 'Der Importvorgang ist nicht mehr verfügbar.',
   importBusy:
     'Es wird bereits eine Aufnahme importiert. Schließen Sie diesen Vorgang ab oder brechen Sie ihn ab.',
+  workspaceBusy:
+    'Schließen Sie zuerst die laufende Arbeit ab oder brechen Sie sie ab, dann können Sie Speicher freigeben.',
   unsupportedSchema: (version: string) =>
     `Diese LocaLog-Daten stammen aus einer neueren, nicht unterstützten Version (${version}).`,
   storageUnavailable: 'LocaLog konnte nicht auf seinen lokalen Arbeitsbereich zugreifen.',
@@ -492,6 +494,20 @@ export const de: Strings = {
     backupContents:
       'Enthält jedes Projekt, jede Besprechung, jedes Transkript und Protokoll sowie die Aufnahmen selbst. Zwei Dinge fehlen mit Absicht, weil beide nicht Ihre Arbeit sind und bei Bedarf neu entstehen: geladene Modelle und die aufbereitete Kopie jeder Aufnahme. An einem echten Arbeitsbereich gemessen war allein dieses aufbereitete Audio drei Viertel der Sicherung.',
     restore: 'Zurückspielen',
+    storageUsage: 'Belegter Speicher',
+    storageUsageLead:
+      'Was dieser Arbeitsbereich auf diesem Gerät belegt und woraus er besteht. Vorbereitetes Audio ist der einzige Teil, der ohne Arbeitsverlust entfernt werden kann.',
+    storageRecordings: 'Aufnahmen',
+    storagePreparedAudio: 'Vorbereitetes Audio',
+    storageModels: 'Modelle',
+    storageOther: 'Transkripte, Protokolle und App-Daten',
+    storageFreePrepared: 'Speicher freigeben',
+    storageFreeing: 'Gebe Speicher frei…',
+    storagePreparedLead:
+      'Das Mono-Audio, das LocaLog für die Transkription vorbereitet, wird bei Bedarf neu erzeugt. Es zu entfernen lässt jede Aufnahme, jedes Transkript und jedes Protokoll unverändert; die nächste Transkription bereitet es erneut vor.',
+    storageFreed: (size: string, files: number) =>
+      `${size} in ${files} ${files === 1 ? 'Datei' : 'Dateien'} freigegeben. Alle Transkripte und Protokolle sind unverändert.`,
+    storageNothingToFree: 'Es gibt kein vorbereitetes Audio zu entfernen.',
     restoreLead:
       'Spielt eine Sicherung zurück. Sie wird zuerst vollständig geprüft, und was jetzt hier liegt, wird beiseitegelegt statt gelöscht.',
     chooseBackup: 'Sicherung wählen …',
@@ -643,6 +659,11 @@ export const de: Strings = {
       title: 'Die Aufnahme konnte nicht vorbereitet werden',
       detail:
         'Prüfen Sie, ob FFmpeg installiert ist, und versuchen Sie es erneut. Die aufbereitete Fassung lässt sich neu erzeugen, das Original bleibt unverändert.',
+    },
+    conversion_failed: {
+      title: 'Die Aufnahme konnte nicht für die Ablage vorbereitet werden',
+      detail:
+        'LocaLog konnte die kompakte Kopie dieser Aufnahme nicht erstellen. Die externe Originaldatei wurde nicht verändert; prüfen Sie, ob FFmpeg installiert ist, und versuchen Sie es erneut.',
     },
     transcription_failed: {
       title: 'Die lokale Transkription konnte nicht abschließen',

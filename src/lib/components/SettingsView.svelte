@@ -13,6 +13,8 @@
     TranscriptionPreset,
     TranscriptionRuntimeStatus,
     SpeakerSeparationStatus,
+    WorkspaceUsage,
+    PreparedAudioCleanup,
   } from '../workflow/types';
   import { SPEAKER_SEPARATION_UNREADY } from '../workflow/types';
   import { errorMessage } from '../errors';
@@ -25,6 +27,7 @@
   } from '../models/modelCatalog';
   import type { GenerationModelEntry } from '../models/modelCatalog';
   import { formatModelSize } from '../models/modelSize';
+  import { formatBytes } from '../bytes';
   import { INTERFACE_LANGUAGES, chooseLanguage, language, listOf, t } from '../i18n';
   import type { LanguageId } from '../i18n';
   import { formatMeetingDate } from '../protocol/document';
@@ -77,6 +80,24 @@
   export let onCreateBackup: (parent: string, folderName: string) => Promise<BackupManifest>;
   export let onInspectBackup: (folder: string) => Promise<BackupManifest>;
   export let onRestoreBackup: (folder: string) => Promise<RestoreOutcome>;
+  export let onWorkspaceUsage: () => Promise<WorkspaceUsage> = async () => ({
+    totalBytes: 0,
+    recordingsBytes: 0,
+    preparedAudioBytes: 0,
+    modelsBytes: 0,
+    otherBytes: 0,
+  });
+  export let onFreePreparedAudio: () => Promise<PreparedAudioCleanup> = async () => ({
+    freedBytes: 0,
+    removedFiles: 0,
+    usage: {
+      totalBytes: 0,
+      recordingsBytes: 0,
+      preparedAudioBytes: 0,
+      modelsBytes: 0,
+      otherBytes: 0,
+    },
+  });
   export let onRefreshProvider: () => Promise<void>;
   export let onConfigureProvider: (model: string | null) => Promise<void>;
   export let providerError: string | null = null;
@@ -231,6 +252,55 @@
   let backupNote = '';
   let backupError = '';
   let pendingRestore: { folder: string; manifest: BackupManifest } | null = null;
+
+  /// How much room the workspace takes, and the one part of it that is a cache.
+  /// Measured when the Storage section is opened, not with every settings load.
+  let usage: WorkspaceUsage | null = null;
+  let usageLoading = false;
+  let usageError = '';
+  let freeBusy = false;
+  let freeNote = '';
+
+  async function loadUsage() {
+    if (usageLoading) return;
+    usageLoading = true;
+    usageError = '';
+    try {
+      usage = await onWorkspaceUsage();
+    } catch (cause) {
+      usageError = errorMessage(cause);
+    } finally {
+      usageLoading = false;
+    }
+  }
+
+  async function freePrepared() {
+    freeBusy = true;
+    usageError = '';
+    freeNote = '';
+    try {
+      const result = await onFreePreparedAudio();
+      usage = result.usage;
+      freeNote =
+        result.removedFiles > 0
+          ? $t.settings.storageFreed(formatBytes(result.freedBytes), result.removedFiles)
+          : $t.settings.storageNothingToFree;
+    } catch (cause) {
+      usageError = errorMessage(cause);
+    } finally {
+      freeBusy = false;
+    }
+  }
+
+  $: if (section === 'Storage') void loadUsage();
+  $: usageParts = usage
+    ? [
+        { label: $t.settings.storageRecordings, bytes: usage.recordingsBytes },
+        { label: $t.settings.storagePreparedAudio, bytes: usage.preparedAudioBytes },
+        { label: $t.settings.storageModels, bytes: usage.modelsBytes },
+        { label: $t.settings.storageOther, bytes: usage.otherBytes },
+      ].filter((part) => part.bytes > 0)
+    : [];
 
   /// A name somebody can read in a file manager a year from now, and which sorts.
   function backupFolderName(): string {
@@ -737,6 +807,32 @@
         <div class="notice-inline">
           {$t.settings.managedCopiesNote}
         </div>
+        <div class="setting-row">
+          <div>
+            <h3>{$t.settings.storageUsage}</h3>
+            <p>{$t.settings.storageUsageLead}</p>
+            {#if usage}
+              <p class="storage-total">{formatBytes(usage.totalBytes)}</p>
+              <ul class="storage-breakdown">
+                {#each usageParts as part (part.label)}
+                  <li><span>{part.label}</span><span>{formatBytes(part.bytes)}</span></li>
+                {/each}
+              </ul>
+            {:else if usageLoading}
+              <p class="setting-hint">{$t.settings.working}</p>
+            {/if}
+          </div>
+          <button
+            class="secondary-action"
+            onclick={() => void freePrepared()}
+            disabled={freeBusy || !usage || usage.preparedAudioBytes === 0}
+          >
+            {freeBusy ? $t.settings.storageFreeing : $t.settings.storageFreePrepared}
+          </button>
+        </div>
+        <p class="setting-hint">{$t.settings.storagePreparedLead}</p>
+        {#if freeNote}<p class="safe-note" role="status">{freeNote}</p>{/if}
+        {#if usageError}<p class="setting-error" role="alert">{usageError}</p>{/if}
         <div class="setting-row">
           <div>
             <h3>{$t.settings.backup}</h3>

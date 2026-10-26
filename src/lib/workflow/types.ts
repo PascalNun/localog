@@ -159,6 +159,28 @@ export interface RestoreOutcome {
 }
 
 /**
+ * What the workspace occupies, split by what somebody can do about it.
+ *
+ * The total alone is not actionable. Recordings are the work; the prepared audio
+ * is a cache; models are downloaded once. Seeing which is which is what makes
+ * the number mean something.
+ */
+export interface WorkspaceUsage {
+  totalBytes: number;
+  recordingsBytes: number;
+  preparedAudioBytes: number;
+  modelsBytes: number;
+  otherBytes: number;
+}
+
+/** What freeing the prepared audio actually freed. */
+export interface PreparedAudioCleanup {
+  freedBytes: number;
+  removedFiles: number;
+  usage: WorkspaceUsage;
+}
+
+/**
  * What this machine will let the recorder capture, asked before a meeting.
  *
  * The values are the recorder's own words rather than a union defined here. Two
@@ -780,6 +802,10 @@ export interface WorkflowBridge {
   inspectBackup(folder: string): Promise<BackupManifest>;
   /** Put a verified backup back, keeping what it replaced. */
   restoreBackup(folder: string): Promise<RestoreOutcome>;
+  /** What the workspace occupies, measured when Settings asks. */
+  workspaceUsage(): Promise<WorkspaceUsage>;
+  /** Delete prepared audio that can be rebuilt from the recording. */
+  freePreparedAudio(): Promise<PreparedAudioCleanup>;
   /** What the machine will allow, asked when the record screen opens. */
   recordingPermissions(): Promise<RecordingPermissions>;
   /** Open the System Settings pane where a recording permission is granted. */

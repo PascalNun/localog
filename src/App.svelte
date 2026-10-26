@@ -1141,6 +1141,8 @@
           onCreateBackup={(parent, folderName) => bridge.createBackup(parent, folderName)}
           onInspectBackup={(folder) => bridge.inspectBackup(folder)}
           onRestoreBackup={(folder) => bridge.restoreBackup(folder)}
+          onWorkspaceUsage={() => bridge.workspaceUsage()}
+          onFreePreparedAudio={() => bridge.freePreparedAudio()}
           onConfigureRuntime={async (executablePath) => {
             try {
               runtimeStatus = await bridge.configureTranscriptionRuntime(executablePath);

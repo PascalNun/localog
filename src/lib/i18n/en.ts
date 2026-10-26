@@ -38,6 +38,7 @@ const failures = {
   missingMeeting: 'The selected meeting no longer exists.',
   missingJob: 'The import job is no longer available.',
   importBusy: 'Another recording is already being imported. Finish or cancel it first.',
+  workspaceBusy: 'Finish or cancel the work in progress first, then try freeing up space again.',
   unsupportedSchema: (version: string) =>
     `This LocaLog data was created by a newer, unsupported version (${version}).`,
   storageUnavailable: 'LocaLog could not access its local workspace storage.',
@@ -513,6 +514,20 @@ export const en = {
     working: 'Working…',
     backupContents:
       'Holds every project, meeting, transcript and protocol, and the recordings themselves. Two things are left out on purpose, because neither is your work and both are rebuilt when they are needed: downloaded models, and the prepared copy of each recording. Measured on a real workspace, that prepared audio alone was three quarters of the backup.',
+    storageUsage: 'Space used',
+    storageUsageLead:
+      'What this workspace takes on this device, and what it is made of. Prepared audio is the only part that can be removed without losing work.',
+    storageRecordings: 'Recordings',
+    storagePreparedAudio: 'Prepared audio',
+    storageModels: 'Models',
+    storageOther: 'Transcripts, protocols and app data',
+    storageFreePrepared: 'Free up space',
+    storageFreeing: 'Freeing up space…',
+    storagePreparedLead:
+      'The mono audio LocaLog prepares for transcription is rebuilt whenever it is needed. Removing it leaves every recording, transcript and protocol exactly as it is; the next transcription prepares it again.',
+    storageFreed: (size: string, files: number) =>
+      `Freed ${size} across ${files} ${files === 1 ? 'file' : 'files'}. Every transcript and protocol is unchanged.`,
+    storageNothingToFree: 'There is no prepared audio to remove.',
     restore: 'Restore',
     restoreLead:
       'Puts a backup back. It is checked in full first, and what is here now is moved aside rather than deleted.',
@@ -706,6 +721,11 @@ export const en = {
       title: 'The recording could not be prepared',
       detail:
         'Check that FFmpeg is installed and retry. The normalized cache can be regenerated and the original remains unchanged.',
+    },
+    conversion_failed: {
+      title: 'The recording could not be prepared for storage',
+      detail:
+        'LocaLog could not make the compact copy it keeps for this recording. The external original was not changed; check that FFmpeg is installed and try again.',
     },
     transcription_failed: {
       title: 'Local transcription could not finish',

@@ -39,6 +39,8 @@ const failures = {
   missingJob: 'La tâche d’importation n’est plus disponible.',
   importBusy:
     'Un enregistrement est déjà en cours d’importation. Terminez-le ou annulez-le d’abord.',
+  workspaceBusy:
+    'Terminez ou annulez d’abord le travail en cours, puis réessayez de libérer de l’espace.',
   unsupportedSchema: (version: string) =>
     `Ces données LocaLog ont été créées par une version plus récente et non prise en charge (${version}).`,
   storageUnavailable: 'LocaLog n’a pas pu accéder à son espace de travail local.',
@@ -482,6 +484,20 @@ export const fr: Strings = {
     backupContents:
       'Contient chaque projet, réunion, transcription et compte rendu, ainsi que les enregistrements eux-mêmes. Deux choses sont volontairement laissées de côté, car ce n’est pas votre travail et l’une comme l’autre se reconstruisent : les modèles téléchargés, et la copie préparée de chaque enregistrement. Mesuré sur un espace de travail réel, cet audio préparé représentait à lui seul les trois quarts de la sauvegarde.',
     restore: 'Restaurer',
+    storageUsage: 'Espace utilisé',
+    storageUsageLead:
+      'Ce que cet espace de travail occupe sur cet appareil, et de quoi il se compose. L’audio préparé est la seule partie qui peut être supprimée sans perdre de travail.',
+    storageRecordings: 'Enregistrements',
+    storagePreparedAudio: 'Audio préparé',
+    storageModels: 'Modèles',
+    storageOther: 'Transcriptions, comptes rendus et données de l’application',
+    storageFreePrepared: 'Libérer de l’espace',
+    storageFreeing: 'Libération de l’espace…',
+    storagePreparedLead:
+      'L’audio mono que LocaLog prépare pour la transcription est recréé chaque fois qu’il faut. Le supprimer laisse chaque enregistrement, transcription et compte rendu exactement tel quel ; la prochaine transcription le prépare de nouveau.',
+    storageFreed: (size: string, files: number) =>
+      `${size} libérés dans ${files} ${files === 1 ? 'fichier' : 'fichiers'}. Toutes les transcriptions et tous les comptes rendus sont inchangés.`,
+    storageNothingToFree: 'Il n’y a pas d’audio préparé à supprimer.',
     restoreLead:
       'Remet une sauvegarde en place. Elle est d’abord vérifiée en entier, et ce qui est ici est mis de côté plutôt que supprimé.',
     chooseBackup: 'Choisir une sauvegarde…',
@@ -632,6 +648,11 @@ export const fr: Strings = {
       title: 'L’enregistrement n’a pas pu être préparé',
       detail:
         'Vérifiez que FFmpeg est installé, puis réessayez. La copie préparée peut être régénérée et l’original reste inchangé.',
+    },
+    conversion_failed: {
+      title: 'L’enregistrement n’a pas pu être préparé pour le stockage',
+      detail:
+        'LocaLog n’a pas pu créer la copie compacte de cet enregistrement. Le fichier original externe n’a pas été modifié ; vérifiez que FFmpeg est installé et réessayez.',
     },
     transcription_failed: {
       title: 'La transcription locale n’a pas pu aboutir',

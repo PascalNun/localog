@@ -36,6 +36,7 @@ const failures = {
   missingMeeting: '선택한 회의가 더 이상 존재하지 않습니다.',
   missingJob: '해당 가져오기 작업을 더 이상 사용할 수 없습니다.',
   importBusy: '다른 녹음을 이미 가져오는 중입니다. 먼저 완료하거나 취소하십시오.',
+  workspaceBusy: '먼저 진행 중인 작업을 끝내거나 취소한 뒤 다시 공간 확보를 시도하십시오.',
   unsupportedSchema: (version: string) =>
     `이 LocaLog 데이터는 더 새롭고 지원되지 않는 버전(${version})에서 만들어졌습니다.`,
   storageUnavailable: 'LocaLog가 로컬 작업 공간에 접근하지 못했습니다.',
@@ -451,6 +452,20 @@ export const ko: Strings = {
     backupContents:
       '모든 프로젝트, 회의, 전사본, 회의록과 녹음 자체가 들어갑니다. 두 가지는 일부러 뺐습니다. 사용자의 작업이 아니고 필요할 때 다시 만들 수 있기 때문입니다. 내려받은 모델과 각 녹음의 준비된 사본입니다. 실제 작업 공간에서 재어 보니 그 준비된 오디오만으로 백업의 4분의 3이었습니다.',
     restore: '복원',
+    storageUsage: '사용 공간',
+    storageUsageLead:
+      '이 작업 공간이 기기에서 차지하는 공간과 그 구성입니다. 작업을 잃지 않고 삭제할 수 있는 부분은 준비된 오디오뿐입니다.',
+    storageRecordings: '녹음',
+    storagePreparedAudio: '준비된 오디오',
+    storageModels: '모델',
+    storageOther: '전사본, 회의록 및 앱 데이터',
+    storageFreePrepared: '공간 확보',
+    storageFreeing: '공간 확보 중…',
+    storagePreparedLead:
+      'LocaLog가 전사용으로 준비하는 모노 오디오는 필요할 때 다시 만들어집니다. 삭제해도 모든 녹음, 전사본, 회의록은 그대로이며, 다음 전사 때 다시 준비됩니다.',
+    storageFreed: (size: string, files: number) =>
+      `${files}개 파일에서 ${size}을(를) 확보했습니다. 모든 전사본과 회의록은 그대로입니다.`,
+    storageNothingToFree: '삭제할 준비된 오디오가 없습니다.',
     restoreLead:
       '백업을 되돌립니다. 먼저 전체를 검증하며, 지금 있는 것은 삭제하지 않고 옆으로 옮깁니다.',
     chooseBackup: '백업 선택…',
@@ -599,6 +614,11 @@ export const ko: Strings = {
       title: '녹음을 준비하지 못했습니다',
       detail:
         'FFmpeg가 설치되어 있는지 확인하고 다시 시도하십시오. 준비된 사본은 다시 만들 수 있고 원본은 그대로입니다.',
+    },
+    conversion_failed: {
+      title: '녹음을 저장용으로 준비하지 못했습니다',
+      detail:
+        '이 녹음의 압축 사본을 만들지 못했습니다. 외부 원본 파일은 변경되지 않았습니다. FFmpeg가 설치되어 있는지 확인한 뒤 다시 시도하십시오.',
     },
     transcription_failed: {
       title: '로컬 전사를 끝내지 못했습니다',

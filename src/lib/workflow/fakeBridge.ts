@@ -754,6 +754,24 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     throw new Error('Restoring needs the desktop application.');
   }
 
+  async workspaceUsage(): Promise<import('./types').WorkspaceUsage> {
+    if (this.workspaceStore) return this.workspaceStore.workspaceUsage();
+    // The browser preview has no workspace on disk. Zeroes are the honest answer,
+    // and the section says so rather than inventing a size.
+    return {
+      totalBytes: 0,
+      recordingsBytes: 0,
+      preparedAudioBytes: 0,
+      modelsBytes: 0,
+      otherBytes: 0,
+    };
+  }
+
+  async freePreparedAudio(): Promise<import('./types').PreparedAudioCleanup> {
+    if (this.workspaceStore) return this.workspaceStore.freePreparedAudio();
+    return { freedBytes: 0, removedFiles: 0, usage: await this.workspaceUsage() };
+  }
+
   async recordingPermissions(): Promise<import('./types').RecordingPermissions> {
     if (this.workspaceStore) return this.workspaceStore.recordingPermissions();
     // The browser preview has no recorder to ask, and no permission to report.

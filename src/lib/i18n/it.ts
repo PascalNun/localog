@@ -32,6 +32,8 @@ const failures = {
   missingMeeting: 'La riunione selezionata non esiste più.',
   missingJob: 'L’operazione di importazione non è più disponibile.',
   importBusy: 'È già in corso l’importazione di un’altra registrazione. La concluda o la annulli.',
+  workspaceBusy:
+    'Concluda o annulli prima il lavoro in corso, poi provi di nuovo a liberare spazio.',
   unsupportedSchema: (version: string) =>
     `Questi dati di LocaLog sono stati creati da una versione più recente e non supportata (${version}).`,
   storageUnavailable: 'LocaLog non è riuscito ad accedere al proprio spazio di lavoro locale.',
@@ -472,6 +474,20 @@ export const it: Strings = {
     backupContents:
       'Contiene ogni progetto, riunione, trascrizione e verbale, e le registrazioni stesse. Due cose sono escluse di proposito, perché non sono il suo lavoro ed entrambe si ricostruiscono all’occorrenza: i modelli scaricati e la copia preparata di ogni registrazione. Misurato su uno spazio di lavoro reale, quell’audio preparato era da solo tre quarti della copia.',
     restore: 'Ripristina',
+    storageUsage: 'Spazio utilizzato',
+    storageUsageLead:
+      'Quanto occupa questo spazio di lavoro su questo dispositivo e da cosa è composto. L’audio preparato è l’unica parte che può essere eliminata senza perdere lavoro.',
+    storageRecordings: 'Registrazioni',
+    storagePreparedAudio: 'Audio preparato',
+    storageModels: 'Modelli',
+    storageOther: 'Trascrizioni, verbali e dati dell’app',
+    storageFreePrepared: 'Libera spazio',
+    storageFreeing: 'Libero spazio…',
+    storagePreparedLead:
+      'L’audio mono che LocaLog prepara per la trascrizione viene ricreato quando serve. Rimuoverlo lascia invariate ogni registrazione, trascrizione e verbale; la prossima trascrizione lo prepara di nuovo.',
+    storageFreed: (size: string, files: number) =>
+      `${size} liberati in ${files} ${files === 1 ? 'file' : 'file'}. Tutte le trascrizioni e i verbali sono invariati.`,
+    storageNothingToFree: 'Non c’è audio preparato da rimuovere.',
     restoreLead:
       'Rimette a posto una copia di sicurezza. Prima viene verificata per intero, e ciò che c’è ora viene spostato di lato anziché eliminato.',
     chooseBackup: 'Scegli una copia…',
@@ -622,6 +638,11 @@ export const it: Strings = {
       title: 'Non è stato possibile preparare la registrazione',
       detail:
         'Verifichi che FFmpeg sia installato e riprovi. La copia preparata si può rigenerare e l’originale resta invariato.',
+    },
+    conversion_failed: {
+      title: 'Non è stato possibile preparare la registrazione per l’archiviazione',
+      detail:
+        'LocaLog non è riuscito a creare la copia compatta di questa registrazione. Il file originale esterno non è stato modificato; verifichi che FFmpeg sia installato e riprovi.',
     },
     transcription_failed: {
       title: 'La trascrizione locale non è andata a buon fine',

@@ -38,6 +38,7 @@ const failures = {
   missingMeeting: '所选会议已不存在。',
   missingJob: '该导入任务已不可用。',
   importBusy: '已有另一段录音正在导入。请先完成或取消。',
+  workspaceBusy: '请先完成或取消正在进行的工作，然后再尝试释放空间。',
   unsupportedSchema: (version: string) =>
     `这些 LocaLog 数据由更新且不受支持的版本（${version}）创建。`,
   storageUnavailable: 'LocaLog 无法访问本地工作区。',
@@ -437,6 +438,20 @@ export const zh: Strings = {
     backupContents:
       '其中含有每个项目、会议、转写稿和纪要，以及录音本身。有两样是有意不放进去的，因为它们都不是您的工作，且需要时都能重新生成：已下载的模型，以及每段录音的已准备副本。在真实工作区中量过，仅那份已准备音频就占了备份的四分之三。',
     restore: '还原',
+    storageUsage: '已用空间',
+    storageUsageLead:
+      '此工作区在此设备上占用的空间及其构成。只有准备好的音频可以在不丢失工作的情况下删除。',
+    storageRecordings: '录音',
+    storagePreparedAudio: '准备好的音频',
+    storageModels: '模型',
+    storageOther: '转写稿、纪要和应用程序数据',
+    storageFreePrepared: '释放空间',
+    storageFreeing: '正在释放空间…',
+    storagePreparedLead:
+      'LocaLog 为转写准备的单声道音频会在需要时重新生成。删除它不会改变任何录音、转写稿或纪要；下次转写时会再次准备。',
+    storageFreed: (size: string, files: number) =>
+      `已从 ${files} 个文件中释放 ${size}。所有转写稿和纪要均未改变。`,
+    storageNothingToFree: '没有可删除的准备好的音频。',
     restoreLead: '把备份放回来。先完整核验一遍，现有内容会被移到一旁而不是删除。',
     chooseBackup: '选择备份…',
     chooseBackupTitle: '选择一个 LocaLog 备份',
@@ -571,6 +586,11 @@ export const zh: Strings = {
     normalization_failed: {
       title: '未能准备录音',
       detail: '请检查是否安装了 FFmpeg，然后重试。已准备的副本可以重新生成，原件保持不变。',
+    },
+    conversion_failed: {
+      title: '无法为存储准备录音',
+      detail:
+        'LocaLog 无法创建此录音的压缩副本。外部原始文件未被更改；请确认已安装 FFmpeg 后重试。',
     },
     transcription_failed: {
       title: '本地转写未能完成',

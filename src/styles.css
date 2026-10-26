@@ -2366,6 +2366,32 @@ button.review-summary[aria-pressed='true'] {
   color: var(--danger);
   font-size: 0.82rem;
 }
+.storage-total {
+  margin-top: 10px;
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.storage-breakdown {
+  display: grid;
+  gap: 3px;
+  max-width: 360px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.storage-breakdown li {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.storage-breakdown li span:last-child {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
 .meeting-language-line {
   display: flex;
   align-items: center;
