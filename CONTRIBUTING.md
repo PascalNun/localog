@@ -93,6 +93,15 @@ system refuses to load after stripping, sometimes reported as a missing
 avoid [the compiler issue](https://github.com/rust-lang/rust/issues/157750).
 This setting affects build tools, not the application's runtime behaviour.
 
+After building the sidecars, create a locally signed Mac test package with:
+
+```sh
+npm run tauri -- build --config src-tauri/tauri.release.conf.json --config '{"bundle":{"macOS":{"signingIdentity":"-"}}}' --bundles app,dmg
+```
+
+The `-` identity signs the app and its bundled tools for local testing. Public
+distribution still needs the chosen signing identity and notarisation setup.
+
 ## Licence
 
 LocaLog is licensed under `GPL-3.0-or-later`. Contributions are accepted under the same terms unless a separate written agreement exists. Third-party code, assets, models, and runtimes retain their own licences; see [LICENSE-NOTES.md](LICENSE-NOTES.md).
