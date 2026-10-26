@@ -513,6 +513,12 @@
         class="secondary-action inspector-toggle"
         onclick={() => (inspectorOpen = !inspectorOpen)}>{$t.transcript.reviewDetails}</button
       >
+      <!-- The same action as the bar below the transcript, where the reading ends.
+           A long transcript should not have to be scrolled to its foot to find the
+           next step, and the stage rail above already says where the work is. -->
+      <button class="primary-action" onclick={onGenerate} disabled={generationUnavailable}
+        >{$t.transcript.generateProtocol} <Icon name="arrow" /></button
+      >
     </div>
   </header>
   {#if exportError}<p class="setting-error" role="alert">{exportError}</p>{/if}
