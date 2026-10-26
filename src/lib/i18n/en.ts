@@ -522,6 +522,9 @@ export const en = {
     storageModels: 'Models',
     storageOther: 'Transcripts, protocols and app data',
     storageFreePrepared: 'Free up space',
+    storageFreeConfirm: (size: string) =>
+      `Remove ${size} of prepared audio from this device? Every recording, transcript and protocol stays exactly as it is. The next transcription prepares the audio again.`,
+    storageFreeConfirmAction: 'Remove prepared audio',
     storageFreeing: 'Freeing up space…',
     storagePreparedLead:
       'The mono audio LocaLog prepares for transcription is rebuilt whenever it is needed. Removing it leaves every recording, transcript and protocol exactly as it is; the next transcription prepares it again.',

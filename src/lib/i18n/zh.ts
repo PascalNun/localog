@@ -446,6 +446,9 @@ export const zh: Strings = {
     storageModels: '模型',
     storageOther: '转写稿、纪要和应用程序数据',
     storageFreePrepared: '释放空间',
+    storageFreeConfirm: (size: string) =>
+      `要从此设备删除 ${size} 的准备好的音频吗？所有录音、转写稿和纪要都会保持原样。下次转写时会重新准备音频。`,
+    storageFreeConfirmAction: '删除准备好的音频',
     storageFreeing: '正在释放空间…',
     storagePreparedLead:
       'LocaLog 为转写准备的单声道音频会在需要时重新生成。删除它不会改变任何录音、转写稿或纪要；下次转写时会再次准备。',

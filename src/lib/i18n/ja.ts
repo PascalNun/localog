@@ -470,6 +470,9 @@ export const ja: Strings = {
     storageModels: 'モデル',
     storageOther: '文字起こし、議事録、アプリデータ',
     storageFreePrepared: '容量を解放',
+    storageFreeConfirm: (size: string) =>
+      `${size} の準備済み音声をこの端末から削除しますか？録音、文字起こし、議事録はすべてそのまま残ります。次回の文字起こし時に音声が再び準備されます。`,
+    storageFreeConfirmAction: '準備済み音声を削除',
     storageFreeing: '容量を解放中…',
     storagePreparedLead:
       'LocaLog が文字起こしのために準備するモノラル音声は、必要になれば再作成されます。削除しても録音、文字起こし、議事録はそのまま残り、次回の文字起こし時に再び準備されます。',

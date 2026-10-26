@@ -482,6 +482,9 @@ export const it: Strings = {
     storageModels: 'Modelli',
     storageOther: 'Trascrizioni, verbali e dati dell’app',
     storageFreePrepared: 'Libera spazio',
+    storageFreeConfirm: (size: string) =>
+      `Rimuovere ${size} di audio preparato da questo dispositivo? Ogni registrazione, trascrizione e verbale resta esattamente com’è. La prossima trascrizione preparerà di nuovo l’audio.`,
+    storageFreeConfirmAction: 'Rimuovi l’audio preparato',
     storageFreeing: 'Libero spazio…',
     storagePreparedLead:
       'L’audio mono che LocaLog prepara per la trascrizione viene ricreato quando serve. Rimuoverlo lascia invariate ogni registrazione, trascrizione e verbale; la prossima trascrizione lo prepara di nuovo.',

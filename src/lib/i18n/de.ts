@@ -502,6 +502,9 @@ export const de: Strings = {
     storageModels: 'Modelle',
     storageOther: 'Transkripte, Protokolle und App-Daten',
     storageFreePrepared: 'Speicher freigeben',
+    storageFreeConfirm: (size: string) =>
+      `${size} vorbereitetes Audio von diesem Gerät entfernen? Jede Aufnahme, jedes Transkript und jedes Protokoll bleibt unverändert. Die nächste Transkription bereitet das Audio erneut vor.`,
+    storageFreeConfirmAction: 'Vorbereitetes Audio entfernen',
     storageFreeing: 'Gebe Speicher frei…',
     storagePreparedLead:
       'Das Mono-Audio, das LocaLog für die Transkription vorbereitet, wird bei Bedarf neu erzeugt. Es zu entfernen lässt jede Aufnahme, jedes Transkript und jedes Protokoll unverändert; die nächste Transkription bereitet es erneut vor.',

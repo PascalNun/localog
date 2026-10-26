@@ -260,6 +260,7 @@
   let usageError = '';
   let freeBusy = false;
   let freeNote = '';
+  let confirmingFree = false;
 
   async function loadUsage() {
     if (usageLoading) return;
@@ -281,6 +282,7 @@
     try {
       const result = await onFreePreparedAudio();
       usage = result.usage;
+      confirmingFree = false;
       freeNote =
         result.removedFiles > 0
           ? $t.settings.storageFreed(formatBytes(result.freedBytes), result.removedFiles)
@@ -824,12 +826,38 @@
           </div>
           <button
             class="secondary-action"
-            onclick={() => void freePrepared()}
-            disabled={freeBusy || !usage || usage.preparedAudioBytes === 0}
+            onclick={() => {
+              freeNote = '';
+              usageError = '';
+              confirmingFree = true;
+            }}
+            disabled={freeBusy || confirmingFree || !usage || usage.preparedAudioBytes === 0}
           >
             {freeBusy ? $t.settings.storageFreeing : $t.settings.storageFreePrepared}
           </button>
         </div>
+        {#if confirmingFree && usage}
+          <!--
+            Two steps, like restoring a backup. The sentence names the amount, says
+            what stays, and says that the audio is rebuilt — so somebody is
+            deciding about a cache rather than about their meeting.
+          -->
+          <div class="restore-confirm">
+            <p>{$t.settings.storageFreeConfirm(formatBytes(usage.preparedAudioBytes))}</p>
+            <div class="restore-actions">
+              <button
+                class="secondary-action"
+                onclick={() => void freePrepared()}
+                disabled={freeBusy}
+              >
+                {freeBusy ? $t.settings.storageFreeing : $t.settings.storageFreeConfirmAction}
+              </button>
+              <button class="text-action" onclick={() => (confirmingFree = false)}
+                >{$t.settings.cancel}</button
+              >
+            </div>
+          </div>
+        {/if}
         <p class="setting-hint">{$t.settings.storagePreparedLead}</p>
         {#if freeNote}<p class="safe-note" role="status">{freeNote}</p>{/if}
         {#if usageError}<p class="setting-error" role="alert">{usageError}</p>{/if}

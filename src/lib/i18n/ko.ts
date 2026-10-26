@@ -460,6 +460,9 @@ export const ko: Strings = {
     storageModels: '모델',
     storageOther: '전사본, 회의록 및 앱 데이터',
     storageFreePrepared: '공간 확보',
+    storageFreeConfirm: (size: string) =>
+      `이 기기에서 준비된 오디오 ${size}을(를) 삭제할까요? 모든 녹음, 전사본, 회의록은 그대로 남습니다. 다음 전사 때 오디오가 다시 준비됩니다.`,
+    storageFreeConfirmAction: '준비된 오디오 삭제',
     storageFreeing: '공간 확보 중…',
     storagePreparedLead:
       'LocaLog가 전사용으로 준비하는 모노 오디오는 필요할 때 다시 만들어집니다. 삭제해도 모든 녹음, 전사본, 회의록은 그대로이며, 다음 전사 때 다시 준비됩니다.',
