@@ -536,6 +536,21 @@ export const fr: Strings = {
     archiveProject: 'Archiver le projet',
     renameProject: 'Renommer le projet',
     projectNameLabel: 'Nom du projet',
+    saving: 'Enregistrement…',
+    actions: 'Actions du projet',
+    editProject: 'Modifier le projet',
+    openProject: 'Ouvrir',
+    editDetails: 'Modifier les détails du projet…',
+    rename: 'Renommer…',
+    detailsHeading: 'Détails du projet',
+    detailsLead:
+      'Le nom et la description affichés ici, et ce avec quoi une nouvelle réunion de ce projet commence. Les noms et termes, l’apparence du document et l’archivage ont leurs propres espaces.',
+    descriptionLabel: 'Description',
+    descriptionOptional: 'facultatif',
+    defaultLanguageLabel: 'Langue par défaut des réunions',
+    languageHint: 'Laissez vide pour détecter la langue de chaque enregistrement.',
+    defaultStyleLabel: 'Style de compte rendu par défaut',
+    defaultStyleHint: 'Le style avec lequel une nouvelle réunion de ce projet commence.',
     save: 'Enregistrer',
     cancel: 'Annuler',
     newMeeting: 'Nouvelle réunion',
@@ -551,6 +566,25 @@ export const fr: Strings = {
     noMeetings: 'Aucune réunion pour l’instant',
     noMeetingsDetail: 'Importez le premier enregistrement pour commencer le suivi de ce projet.',
     importRecording: 'Importer un enregistrement',
+  },
+
+  projects: {
+    eyebrow: 'Projets',
+    title: 'Tous les projets',
+    lead: 'Chaque projet de cet appareil, avec ce avec quoi une nouvelle réunion y commence. Ouvrez-en un pour voir ses réunions, ou modifiez-le ici.',
+    columnProject: 'Projet',
+    columnDescription: 'Description',
+    columnMeetings: 'Réunions',
+    columnLastMeeting: 'Dernière réunion',
+    columnDefaults: 'Par défaut',
+    edit: 'Modifier',
+    noMeetings: 'Aucune réunion',
+    noProjects: 'Aucun projet pour l’instant',
+    noProjectsDetail:
+      'Un projet rassemble réunions, noms et comptes rendus. Créez-en un pour commencer.',
+    showArchived: 'Afficher les archivés',
+    hideArchived: 'Masquer les archivés',
+    archivedLead: 'Projets mis de côté. Ramenez-en un pour continuer à travailler dessus.',
   },
 
   lifecycle: {
@@ -1495,6 +1529,7 @@ export const fr: Strings = {
 
   sidebar: {
     projects: 'Projets',
+    allProjects: 'Tous les projets',
     newProject: 'Nouveau projet',
     createProject: 'Créer le projet',
     library: 'Bibliothèque',

@@ -3,20 +3,27 @@
     AppRoute,
     MeetingLifecycle,
     MeetingSummary,
+    ProjectDetailsInput,
     ProjectSummary,
+    ProtocolStyle,
   } from '../workflow/types';
   import Icon from './Icon.svelte';
+  import ProjectDetailsEditor from './ProjectDetailsEditor.svelte';
   import { errorMessage } from '../errors';
   import { t } from '../i18n';
   import { formatMeetingDate } from '../protocol/document';
 
   export let project: ProjectSummary;
   export let meetings: MeetingSummary[];
+  export let styles: ProtocolStyle[] = [];
   export let onNavigate: (route: AppRoute) => void;
   export let onDeleteMeeting: (meetingId: string) => Promise<void> = async () => undefined;
   export let onRenameProject: (name: string) => Promise<void> = async () => undefined;
+  export let onUpdateProject: (input: ProjectDetailsInput) => Promise<void> = async () => undefined;
   export let onArchiveProject: (projectId: string) => Promise<void> = async () => undefined;
   export let onArchiveMeeting: (meetingId: string) => Promise<void> = async () => undefined;
+  /// Set when the sidebar asks for the details editor to be open on arrival.
+  export let startEditingDetails = false;
 
   /// Deleting is asked twice, in the row itself.
   ///
@@ -28,6 +35,26 @@
   let editingName = false;
   let nameDraft = project.name;
   let nameError = '';
+  let editingDetails = startEditingDetails;
+  let lastStartEditing = startEditingDetails;
+
+  /// Follow the route's request when it changes, without reopening the editor
+  /// immediately after somebody closes it themselves.
+  $: if (startEditingDetails !== lastStartEditing) {
+    lastStartEditing = startEditingDetails;
+    if (lastStartEditing) editingDetails = true;
+  }
+
+  function closeDetails() {
+    editingDetails = false;
+    // Clear the flag in the route so the menu item can request it again later.
+    if (startEditingDetails) onNavigate({ name: 'project', projectId: project.id });
+  }
+
+  async function saveDetails(input: ProjectDetailsInput) {
+    await onUpdateProject(input);
+    closeDetails();
+  }
 
   async function remove(meeting: MeetingSummary) {
     deleteError = '';
@@ -127,6 +154,9 @@
       <!-- Archiving is not deleting: everything under the project stays, and it
            comes back from Settings whenever somebody wants it. So it is a quiet
            action beside the loud one rather than behind a confirmation. -->
+      <button class="quiet-action" onclick={() => (editingDetails = true)}>
+        {$t.project.editProject}
+      </button>
       <button class="quiet-action" onclick={() => void archiveProject()}>
         {$t.project.archiveProject}
       </button>
@@ -141,6 +171,10 @@
   </header>
 
   {#if deleteError}<p class="setting-error" role="alert">{deleteError}</p>{/if}
+
+  {#if editingDetails}
+    <ProjectDetailsEditor {project} {styles} onSave={saveDetails} onCancel={closeDetails} />
+  {/if}
 
   <section class="document-section" aria-labelledby="meetings-heading">
     <div class="section-heading-row">

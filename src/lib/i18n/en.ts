@@ -569,6 +569,21 @@ export const en = {
     projectNameLabel: 'Project name',
     save: 'Save',
     cancel: 'Cancel',
+    saving: 'Saving…',
+    actions: 'Project actions',
+    editProject: 'Edit project',
+    openProject: 'Open',
+    editDetails: 'Edit project details…',
+    rename: 'Rename…',
+    detailsHeading: 'Project details',
+    detailsLead:
+      'The name and description shown here, and what a new meeting in this project starts with. Names and terms, document appearance and archiving have their own places.',
+    descriptionLabel: 'Description',
+    descriptionOptional: 'optional',
+    defaultLanguageLabel: 'Default meeting language',
+    languageHint: 'Leave empty to detect the language from each recording.',
+    defaultStyleLabel: 'Default protocol style',
+    defaultStyleHint: 'The style a new meeting in this project starts with.',
     newMeeting: 'New meeting',
     meetings: 'Meetings',
     newestFirst: 'Newest first',
@@ -582,6 +597,26 @@ export const en = {
     noMeetings: 'No meetings yet',
     noMeetingsDetail: 'Import the first recording to begin this project’s meeting record.',
     importRecording: 'Import recording',
+  },
+
+  /** The list the Projects heading opens: scanning and managing, not navigating. */
+  projects: {
+    eyebrow: 'Projects',
+    title: 'All projects',
+    lead: 'Every project on this device, with what a new meeting in it starts with. Open one to see its meetings, or edit it here.',
+    columnProject: 'Project',
+    columnDescription: 'Description',
+    columnMeetings: 'Meetings',
+    columnLastMeeting: 'Last meeting',
+    columnDefaults: 'Defaults',
+    edit: 'Edit',
+    noMeetings: 'No meetings',
+    noProjects: 'No projects yet',
+    noProjectsDetail:
+      'A project keeps meetings, names and protocols together. Create one to begin.',
+    showArchived: 'Show archived',
+    hideArchived: 'Hide archived',
+    archivedLead: 'Projects put out of the way. Bring one back to work on it again.',
   },
 
   lifecycle: {
@@ -1617,6 +1652,7 @@ export const en = {
 
   sidebar: {
     projects: 'Projects',
+    allProjects: 'All projects',
     newProject: 'New project',
     createProject: 'Create project',
     library: 'Library',

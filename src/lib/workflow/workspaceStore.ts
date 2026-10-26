@@ -8,6 +8,7 @@ import type {
   MeetingSummary,
   NewMeetingInput,
   NewProjectInput,
+  ProjectDetailsInput,
   ProjectSummary,
   ProtocolDraft,
   ProtocolProviderStatus,
@@ -72,6 +73,7 @@ export interface WorkspaceStore {
   createMeeting(input: NewMeetingInput): Promise<MeetingSummary>;
   updateMeetingTitle(meetingId: string, title: string): Promise<void>;
   updateProjectName(projectId: string, name: string): Promise<WorkspaceData>;
+  updateProjectDetails(projectId: string, input: ProjectDetailsInput): Promise<WorkspaceData>;
   updateMeetingLanguage: (meetingId: string, language: string) => Promise<void>;
   selectMediaSource(): Promise<SourceSelection | null>;
   startImport(meetingId: string): Promise<void>;
@@ -232,6 +234,10 @@ class TauriWorkspaceStore implements WorkspaceStore {
 
   updateProjectName(projectId: string, name: string): Promise<WorkspaceData> {
     return invoke('rename_project', { projectId, name });
+  }
+
+  updateProjectDetails(projectId: string, input: ProjectDetailsInput): Promise<WorkspaceData> {
+    return invoke('update_project_details', { projectId, input });
   }
 
   updateMeetingLanguage(meetingId: string, language: string): Promise<void> {

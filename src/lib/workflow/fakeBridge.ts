@@ -15,6 +15,7 @@ import type {
   MeetingSummary,
   NewMeetingInput,
   NewProjectInput,
+  ProjectDetailsInput,
   ProjectSummary,
   ProtocolDraft,
   TranscriptDocument,
@@ -514,6 +515,19 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     if (await this.durable((store) => store.updateProjectName(projectId, nextName))) return;
     const project = this.snapshot.projects.find((candidate) => candidate.id === projectId);
     if (project) project.name = nextName;
+    this.emit();
+  }
+
+  async updateProjectDetails(projectId: string, input: ProjectDetailsInput): Promise<void> {
+    const next: ProjectDetailsInput = {
+      ...input,
+      name: input.name.trim(),
+      description: input.description.trim(),
+    };
+    if (!next.name) return;
+    if (await this.durable((store) => store.updateProjectDetails(projectId, next))) return;
+    const project = this.snapshot.projects.find((candidate) => candidate.id === projectId);
+    if (project) Object.assign(project, next);
     this.emit();
   }
 

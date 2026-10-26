@@ -526,6 +526,21 @@ export const it: Strings = {
     archiveProject: 'Archivia il progetto',
     renameProject: 'Rinomina il progetto',
     projectNameLabel: 'Nome del progetto',
+    saving: 'Salvataggio…',
+    actions: 'Azioni del progetto',
+    editProject: 'Modifica progetto',
+    openProject: 'Apri',
+    editDetails: 'Modifica i dettagli del progetto…',
+    rename: 'Rinomina…',
+    detailsHeading: 'Dettagli del progetto',
+    detailsLead:
+      'Il nome e la descrizione mostrati qui, e ciò con cui inizia una nuova riunione in questo progetto. Nomi e termini, aspetto del documento e archiviazione hanno i propri spazi.',
+    descriptionLabel: 'Descrizione',
+    descriptionOptional: 'facoltativa',
+    defaultLanguageLabel: 'Lingua predefinita delle riunioni',
+    languageHint: 'Lasciare vuoto per rilevare la lingua da ogni registrazione.',
+    defaultStyleLabel: 'Stile del verbale predefinito',
+    defaultStyleHint: 'Lo stile con cui inizia una nuova riunione in questo progetto.',
     save: 'Salva',
     cancel: 'Annulla',
     newMeeting: 'Nuova riunione',
@@ -542,6 +557,25 @@ export const it: Strings = {
     noMeetingsDetail:
       'Importi la prima registrazione per cominciare il registro delle riunioni di questo progetto.',
     importRecording: 'Importa una registrazione',
+  },
+
+  projects: {
+    eyebrow: 'Progetti',
+    title: 'Tutti i progetti',
+    lead: 'Ogni progetto su questo dispositivo, con ciò con cui inizia una nuova riunione. Aprine uno per vedere le sue riunioni o modificalo qui.',
+    columnProject: 'Progetto',
+    columnDescription: 'Descrizione',
+    columnMeetings: 'Riunioni',
+    columnLastMeeting: 'Ultima riunione',
+    columnDefaults: 'Predefiniti',
+    edit: 'Modifica',
+    noMeetings: 'Nessuna riunione',
+    noProjects: 'Nessun progetto per ora',
+    noProjectsDetail:
+      'Un progetto tiene insieme riunioni, nomi e verbali. Creane uno per iniziare.',
+    showArchived: 'Mostra archiviati',
+    hideArchived: 'Nascondi archiviati',
+    archivedLead: 'Progetti messi da parte. Riportane uno indietro per continuare a lavorarci.',
   },
 
   lifecycle: {
@@ -1486,6 +1520,7 @@ export const it: Strings = {
 
   sidebar: {
     projects: 'Progetti',
+    allProjects: 'Tutti i progetti',
     newProject: 'Nuovo progetto',
     createProject: 'Crea il progetto',
     library: 'Libreria',

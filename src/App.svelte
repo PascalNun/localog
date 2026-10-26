@@ -6,6 +6,7 @@
   import NewMeetingView from './lib/components/NewMeetingView.svelte';
   import NewProjectView from './lib/components/NewProjectView.svelte';
   import ProjectView from './lib/components/ProjectView.svelte';
+  import ProjectsView from './lib/components/ProjectsView.svelte';
   import ProtocolView from './lib/components/ProtocolView.svelte';
   import SettingsView from './lib/components/SettingsView.svelte';
   import Sidebar from './lib/components/Sidebar.svelte';
@@ -810,6 +811,8 @@
         if (wasCurrent) navigate({ name: 'start' });
         announcement = $t.shell.projectArchived;
       }}
+      onRenameProject={(projectId: string, name: string) =>
+        bridge.updateProjectName(projectId, name)}
       onToggleTheme={toggleTheme}
       onResize={resizeSidebar}
       onResizeEnd={finishSidebarResize}
@@ -886,15 +889,28 @@
           {droppedRecording}
           {droppedRefusal}
         />
+      {:else if route.name === 'projects'}
+        <ProjectsView
+          projects={snapshot.projects}
+          meetings={snapshot.meetings}
+          styles={snapshot.styles}
+          onNavigate={navigate}
+          onUpdateProject={(projectId, input) => bridge.updateProjectDetails(projectId, input)}
+          onArchivedWork={() => bridge.archivedWork()}
+          onUnarchiveProject={(projectId) => bridge.setProjectArchived(projectId, false)}
+        />
       {:else if route.name === 'project' && project}
         <ProjectView
           {project}
+          styles={snapshot.styles}
           meetings={snapshot.meetings
             .filter((candidate) => candidate.projectId === project.id)
             .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))}
+          startEditingDetails={route.edit === true}
           onNavigate={navigate}
           onDeleteMeeting={(meetingId: string) => bridge.deleteMeeting(meetingId)}
           onRenameProject={(name) => bridge.updateProjectName(project.id, name)}
+          onUpdateProject={(input) => bridge.updateProjectDetails(project.id, input)}
           onArchiveMeeting={async (meetingId: string) => {
             await bridge.setMeetingArchived(meetingId, true);
             announcement = $t.shell.meetingArchived;

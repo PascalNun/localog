@@ -546,6 +546,21 @@ export const de: Strings = {
     archiveProject: 'Projekt archivieren',
     renameProject: 'Projekt umbenennen',
     projectNameLabel: 'Projektname',
+    saving: 'Wird gespeichert…',
+    actions: 'Projektaktionen',
+    editProject: 'Projekt bearbeiten',
+    openProject: 'Öffnen',
+    editDetails: 'Projektdetails bearbeiten…',
+    rename: 'Umbenennen…',
+    detailsHeading: 'Projektdetails',
+    detailsLead:
+      'Name und Beschreibung, die hier erscheinen, und womit eine neue Besprechung in diesem Projekt beginnt. Namen und Begriffe, Dokumentdarstellung und Archivierung haben ihre eigenen Orte.',
+    descriptionLabel: 'Beschreibung',
+    descriptionOptional: 'optional',
+    defaultLanguageLabel: 'Standardsprache für Besprechungen',
+    languageHint: 'Leer lassen, um die Sprache aus jeder Aufnahme zu erkennen.',
+    defaultStyleLabel: 'Standard-Protokollstil',
+    defaultStyleHint: 'Der Stil, mit dem eine neue Besprechung in diesem Projekt beginnt.',
     save: 'Speichern',
     cancel: 'Abbrechen',
     newMeeting: 'Neue Besprechung',
@@ -562,6 +577,26 @@ export const de: Strings = {
     noMeetingsDetail:
       'Importieren Sie die erste Aufnahme, um mit dem Besprechungsverlauf dieses Projekts zu beginnen.',
     importRecording: 'Aufnahme importieren',
+  },
+
+  projects: {
+    eyebrow: 'Projekte',
+    title: 'Alle Projekte',
+    lead: 'Jedes Projekt auf diesem Gerät, damit, womit eine neue Besprechung darin beginnt. Öffnen Sie eines, um seine Besprechungen zu sehen, oder bearbeiten Sie es hier.',
+    columnProject: 'Projekt',
+    columnDescription: 'Beschreibung',
+    columnMeetings: 'Besprechungen',
+    columnLastMeeting: 'Letzte Besprechung',
+    columnDefaults: 'Voreinstellungen',
+    edit: 'Bearbeiten',
+    noMeetings: 'Keine Besprechungen',
+    noProjects: 'Noch keine Projekte',
+    noProjectsDetail:
+      'Ein Projekt hält Besprechungen, Namen und Protokolle zusammen. Legen Sie eines an, um zu beginnen.',
+    showArchived: 'Archivierte anzeigen',
+    hideArchived: 'Archivierte ausblenden',
+    archivedLead:
+      'Projekte, die beiseitegelegt wurden. Holen Sie eines zurück, um weiterzuarbeiten.',
   },
 
   lifecycle: {
@@ -1512,6 +1547,7 @@ export const de: Strings = {
 
   sidebar: {
     projects: 'Projekte',
+    allProjects: 'Alle Projekte',
     newProject: 'Neues Projekt',
     createProject: 'Projekt anlegen',
     library: 'Bibliothek',

@@ -11,7 +11,8 @@ export type FakeJobOutcome = 'success' | 'failure';
 
 export type AppRoute =
   | { name: 'start' }
-  | { name: 'project'; projectId: string }
+  | { name: 'projects' }
+  | { name: 'project'; projectId: string; edit?: boolean }
   | { name: 'new-project'; returnToImport: boolean }
   | { name: 'new-meeting'; projectId: string | null; forRecording?: boolean }
   | { name: 'meeting'; meetingId: string }
@@ -593,6 +594,14 @@ export interface NewProjectInput {
   names: TypedName[];
 }
 
+/** What can be changed about a project after it exists. */
+export interface ProjectDetailsInput {
+  name: string;
+  description: string;
+  defaultLanguage: string;
+  defaultStyleId: string;
+}
+
 export interface NewMeetingInput {
   projectId: string;
   title: string;
@@ -748,6 +757,7 @@ export interface WorkflowBridge {
   reselectImportSource(meetingId: string): Promise<void>;
   updateMeetingTitle(meetingId: string, title: string): Promise<void>;
   updateProjectName(projectId: string, name: string): Promise<void>;
+  updateProjectDetails(projectId: string, input: ProjectDetailsInput): Promise<void>;
   updateMeetingLanguage(meetingId: string, language: string): Promise<void>;
   updateTranscriptSegment(meetingId: string, segmentId: string, text: string): Promise<void>;
   deleteTranscriptSegment(meetingId: string, segmentId: string): Promise<void>;

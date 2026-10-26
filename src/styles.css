@@ -1196,6 +1196,134 @@ body.sidebar-resizing * {
   margin: 0;
 }
 
+/* The Projects overview uses the same two-track row as the meeting index: the
+   opening button carries the five data columns and the row holds the edit action
+   beside it, so the header above can name them without a second grid. */
+.project-index-header,
+.project-index-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.project-index-columns {
+  display: grid;
+  grid-template-columns:
+    minmax(150px, 1.1fr) minmax(190px, 1.6fr) 76px 116px
+    minmax(140px, 1fr);
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+}
+.project-index-open {
+  display: grid;
+  grid-template-columns:
+    minmax(150px, 1.1fr) minmax(190px, 1.6fr) 76px 116px
+    minmax(140px, 1fr);
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+}
+.project-index-open > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-index-header {
+  min-height: 42px;
+  padding: 0 10px;
+  color: var(--faint);
+  border-bottom: 1px solid var(--line);
+  font-size: 0.67rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.project-index-row {
+  width: 100%;
+  min-height: 64px;
+  padding: 10px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+.project-index-row:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--subtle) 50%, transparent);
+}
+.project-index-name {
+  color: var(--ink);
+  font-weight: 500;
+}
+.project-index-edit {
+  color: var(--muted);
+}
+.project-index-editor {
+  padding: 18px 10px 24px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--subtle) 60%, transparent);
+}
+.project-index-editor .project-details {
+  margin: 0;
+}
+.workspace > .project-details {
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+.project-index-editor .project-details .section-heading-row {
+  padding-top: 0;
+}
+.archived-project-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.archived-project-row small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+}
+
+@media (max-width: 900px) {
+  .project-index-header {
+    display: none;
+  }
+  .project-index-open {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 2px 12px;
+    align-items: start;
+  }
+  .project-index-open > span:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .project-index-open > span:nth-child(2) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .project-index-open > span:nth-child(3) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .project-index-open > span:nth-child(4) {
+    grid-column: 2;
+    grid-row: 2;
+    text-align: right;
+  }
+  .project-index-open > span:nth-child(5) {
+    display: none;
+  }
+}
+
 .empty-inline {
   padding: 64px 0;
   border-bottom: 1px solid var(--line);
@@ -5117,6 +5245,38 @@ button.review-summary[aria-pressed='true'] {
   grid-template-columns: minmax(0, 1fr) 30px;
   align-items: center;
   border-radius: 5px;
+}
+.nav-section-link {
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  text-transform: inherit;
+}
+.nav-section-link:hover,
+.nav-section-link.active {
+  color: var(--ink);
+}
+.project-rename {
+  min-width: 0;
+}
+.project-rename input {
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--raised);
+  font-size: 0.85rem;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.sidebar-error {
+  margin: 2px 0 4px;
+  color: var(--danger);
+  font-size: 0.74rem;
 }
 .sidebar-project-row.active {
   background: var(--subtle);

@@ -913,6 +913,50 @@ impl WorkspaceRepository {
         Ok(())
     }
 
+    /// Change what a project is called and what a new meeting in it starts with.
+    ///
+    /// The same validation `create_project` uses, so a value that could not have
+    /// been entered when the project was made cannot be set now either. The style
+    /// is checked against the styles that exist, because a deleted or disabled
+    /// style would leave new meetings pointing at nothing.
+    pub fn update_project_details(
+        &self,
+        project_id: &str,
+        input: &crate::domain::ProjectDetailsInput,
+    ) -> Result<()> {
+        let project_id = required_text(project_id, 128, "projectInvalid")?;
+        let name = required_text(&input.name, 200, "projectNameRequired")?;
+        let description = optional_text(&input.description, 2_000, "descriptionTooLong")?;
+        let language = optional_text(&input.default_language, 64, "meetingLanguageInvalid")?;
+        let style_id = required_text(&input.default_style_id, 128, "styleInvalid")?;
+        let style_available: bool = self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM protocol_styles WHERE id = ?1 AND enabled = 1)",
+            [&style_id],
+            |row| row.get(0),
+        )?;
+        if !style_available {
+            return Err(StorageError::InvalidData("styleUnavailable"));
+        }
+        let updated = self.connection.execute(
+            "UPDATE projects
+             SET name = ?1, description = ?2, default_language = ?3,
+                 default_style_id = ?4, updated_at_ms = ?5
+             WHERE id = ?6",
+            params![
+                name,
+                description,
+                language,
+                style_id,
+                unix_time_millis(),
+                project_id
+            ],
+        )?;
+        if updated == 0 {
+            return Err(StorageError::MissingProject);
+        }
+        Ok(())
+    }
+
     pub(crate) fn import_job_for_meeting(&self, meeting_id: &str) -> Result<ImportJobRecord> {
         self.connection
             .query_row(
@@ -4382,6 +4426,102 @@ mod tests {
         );
         let snapshot = repository.workspace_snapshot().unwrap();
         assert_eq!(snapshot.projects[0].name, original);
+    }
+
+    #[test]
+    fn project_details_change_what_the_project_is_and_what_a_meeting_starts_with() {
+        let temporary = tempdir().unwrap();
+        let source = synthetic_source(temporary.path());
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let project = repository.create_project(project_input()).unwrap();
+        let meeting = repository
+            .create_meeting(meeting_input(&project.id, &source))
+            .unwrap();
+
+        repository
+            .update_project_details(
+                &project.id,
+                &crate::domain::ProjectDetailsInput {
+                    name: "  Halde Nord  ".into(),
+                    description: "  Zwei Hallen und ein Hof  ".into(),
+                    default_language: "German".into(),
+                    default_style_id: "style-working-note".into(),
+                },
+            )
+            .unwrap();
+
+        let snapshot = repository.workspace_snapshot().unwrap();
+        let updated = &snapshot.projects[0];
+        assert_eq!(updated.name, "Halde Nord");
+        assert_eq!(updated.description, "Zwei Hallen und ein Hof");
+        assert_eq!(updated.default_language, "German");
+        assert_eq!(updated.default_style_id, "style-working-note");
+        // The meetings under the project do not move or change.
+        assert_eq!(snapshot.meetings[0].id, meeting.id);
+        assert_eq!(snapshot.meetings[0].project_id, project.id);
+        assert_eq!(snapshot.meetings[0].language, meeting.language);
+    }
+
+    #[test]
+    fn project_details_refuse_what_could_not_have_been_created() {
+        let temporary = tempdir().unwrap();
+        let mut repository = WorkspaceRepository::open(temporary.path()).unwrap();
+        let project = repository.create_project(project_input()).unwrap();
+        let unchanged = project.clone();
+        let input = |patch: fn(&mut crate::domain::ProjectDetailsInput)| {
+            let mut input = crate::domain::ProjectDetailsInput {
+                name: "Halde Nord".into(),
+                description: String::new(),
+                default_language: "German".into(),
+                default_style_id: DEFAULT_STYLE_ID.into(),
+            };
+            patch(&mut input);
+            input
+        };
+
+        assert!(
+            repository
+                .update_project_details(&project.id, &input(|input| input.name = "  ".into()))
+                .is_err()
+        );
+        assert!(
+            repository
+                .update_project_details(
+                    &project.id,
+                    &input(|input| input.description = "x".repeat(2_001))
+                )
+                .is_err()
+        );
+        assert!(
+            repository
+                .update_project_details(
+                    &project.id,
+                    &input(|input| input.default_style_id = "style-nobody".into())
+                )
+                .is_err()
+        );
+        assert!(
+            repository
+                .update_project_details(&project.id, &input(|input| input.name = String::new()))
+                .is_err()
+        );
+        assert!(
+            repository
+                .update_project_details("project-nobody", &input(|_| {}),)
+                .is_err()
+        );
+
+        let snapshot = repository.workspace_snapshot().unwrap();
+        assert_eq!(snapshot.projects[0].name, unchanged.name);
+        assert_eq!(snapshot.projects[0].description, unchanged.description);
+        assert_eq!(
+            snapshot.projects[0].default_language,
+            unchanged.default_language
+        );
+        assert_eq!(
+            snapshot.projects[0].default_style_id,
+            unchanged.default_style_id
+        );
     }
 
     #[test]

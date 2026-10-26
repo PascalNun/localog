@@ -28,9 +28,15 @@
   export let onNavigate: (route: AppRoute) => void;
   export let onClose: () => void;
   export let onArchiveProject: (projectId: string) => Promise<void> = async () => undefined;
+  export let onRenameProject: (projectId: string, name: string) => Promise<void> = async () =>
+    undefined;
   let projectMenu = '';
   let archiveBusy = false;
   let archiveError = '';
+  let renamingProject = '';
+  let nameDraft = '';
+  let renameError = '';
+  let renameInput: HTMLInputElement | null = null;
   function floatingMenu(node: HTMLElement) {
     // Keep the menu outside the scrolling/transformed sidebar on every webview.
     document.body.appendChild(node);
@@ -52,7 +58,40 @@
     const top = atPointer ? event.clientY : anchor.top;
     menu.style.left = `${Math.max(8, Math.min(left, window.innerWidth - bounds.width - 8))}px`;
     menu.style.top = `${Math.max(8, Math.min(top, window.innerHeight - bounds.height - 8))}px`;
-    document.getElementById(`archive-project-${projectMenu}`)?.focus();
+    document.getElementById(`open-project-${projectMenu}`)?.focus();
+  }
+
+  /// Renaming happens in the row it belongs to, because a menu that opens a
+  /// dialog for one word is more ceremony than the sidebar uses anywhere else.
+  async function beginRename(project: ProjectSummary) {
+    projectMenu = '';
+    archiveError = '';
+    renameError = '';
+    renamingProject = project.id;
+    nameDraft = project.name;
+    await tick();
+    renameInput?.focus();
+    renameInput?.select();
+  }
+
+  async function saveRename(projectId: string) {
+    const next = nameDraft.trim();
+    if (!next) {
+      renamingProject = '';
+      return;
+    }
+    renameError = '';
+    try {
+      await onRenameProject(projectId, next);
+      renamingProject = '';
+    } catch (cause) {
+      renameError = errorMessage(cause);
+    }
+  }
+
+  function cancelRename() {
+    renamingProject = '';
+    renameError = '';
   }
   async function archiveProject(projectId: string) {
     archiveBusy = true;
@@ -185,7 +224,13 @@
   <nav class="sidebar-nav">
     <section aria-labelledby="projects-label">
       <div class="nav-section-heading">
-        <span id="projects-label">{$t.sidebar.projects}</span>
+        <button
+          id="projects-label"
+          class="nav-section-link"
+          class:active={route.name === 'projects'}
+          title={$t.sidebar.allProjects}
+          onclick={() => navigate({ name: 'projects' })}>{$t.sidebar.projects}</button
+        >
         <button
           class="icon-button compact"
           aria-label={$t.sidebar.createProject}
@@ -196,25 +241,45 @@
       <div class="project-links">
         {#each projects as project (project.id)}
           <div class="sidebar-project-row" class:active={currentProjectId === project.id}>
-            <button
-              class:active={currentProjectId === project.id}
-              class="project-link"
-              oncontextmenu={(event) => {
-                event.preventDefault();
-                void openProjectMenu(project.id, event);
-              }}
-              onclick={() => {
-                projectMenu = '';
-                navigate({ name: 'project', projectId: project.id });
-              }}
-            >
-              <span>{project.name}</span><span class="count">{project.meetingCount}</span>
-            </button>
+            {#if renamingProject === project.id}
+              <form
+                class="project-rename"
+                onsubmit={(event) => {
+                  event.preventDefault();
+                  void saveRename(project.id);
+                }}
+              >
+                <input
+                  bind:this={renameInput}
+                  bind:value={nameDraft}
+                  aria-label={$t.project.renameProject}
+                  onkeydown={(event) => {
+                    if (event.key === 'Escape') cancelRename();
+                  }}
+                />
+              </form>
+            {:else}
+              <button
+                class:active={currentProjectId === project.id}
+                class="project-link"
+                oncontextmenu={(event) => {
+                  event.preventDefault();
+                  void openProjectMenu(project.id, event);
+                }}
+                onclick={() => {
+                  projectMenu = '';
+                  renamingProject = '';
+                  navigate({ name: 'project', projectId: project.id });
+                }}
+              >
+                <span>{project.name}</span><span class="count">{project.meetingCount}</span>
+              </button>
+            {/if}
             <button
               id={`project-actions-${project.id}`}
               class="icon-button compact project-actions"
-              aria-label={`${$t.project.archiveProject}: ${project.name}`}
-              title={$t.project.archiveProject}
+              aria-label={`${$t.project.actions}: ${project.name}`}
+              title={$t.project.actions}
               aria-controls={projectMenu === project.id ? `project-menu-${project.id}` : undefined}
               aria-haspopup="menu"
               aria-expanded={projectMenu === project.id}
@@ -237,6 +302,30 @@
                 aria-label={project.name}
               >
                 <button
+                  id={`open-project-${project.id}`}
+                  role="menuitem"
+                  class="text-action"
+                  onclick={() => {
+                    projectMenu = '';
+                    navigate({ name: 'project', projectId: project.id });
+                  }}>{$t.project.openProject}</button
+                >
+                <button
+                  id={`rename-project-${project.id}`}
+                  role="menuitem"
+                  class="text-action"
+                  onclick={() => void beginRename(project)}>{$t.project.rename}</button
+                >
+                <button
+                  id={`edit-project-${project.id}`}
+                  role="menuitem"
+                  class="text-action"
+                  onclick={() => {
+                    projectMenu = '';
+                    navigate({ name: 'project', projectId: project.id, edit: true });
+                  }}>{$t.project.editDetails}</button
+                >
+                <button
                   id={`archive-project-${project.id}`}
                   role="menuitem"
                   class="text-action"
@@ -249,6 +338,9 @@
               </div>
             {/if}
           </div>
+          {#if renameError && renamingProject === project.id}
+            <p class="sidebar-error" role="alert">{renameError}</p>
+          {/if}
         {/each}
       </div>
       <button

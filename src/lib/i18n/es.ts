@@ -518,6 +518,21 @@ export const es: Strings = {
     archiveProject: 'Archivar el proyecto',
     renameProject: 'Cambiar el nombre del proyecto',
     projectNameLabel: 'Nombre del proyecto',
+    saving: 'Guardando…',
+    actions: 'Acciones del proyecto',
+    editProject: 'Editar proyecto',
+    openProject: 'Abrir',
+    editDetails: 'Editar los detalles del proyecto…',
+    rename: 'Cambiar nombre…',
+    detailsHeading: 'Detalles del proyecto',
+    detailsLead:
+      'El nombre y la descripción que se muestran aquí, y con qué empieza una nueva reunión en este proyecto. Los nombres y términos, la apariencia del documento y el archivado tienen sus propios lugares.',
+    descriptionLabel: 'Descripción',
+    descriptionOptional: 'opcional',
+    defaultLanguageLabel: 'Idioma predeterminado de las reuniones',
+    languageHint: 'Déjelo vacío para detectar el idioma de cada grabación.',
+    defaultStyleLabel: 'Estilo de acta predeterminado',
+    defaultStyleHint: 'El estilo con el que empieza una nueva reunión en este proyecto.',
     save: 'Guardar',
     cancel: 'Cancelar',
     newMeeting: 'Nueva reunión',
@@ -534,6 +549,24 @@ export const es: Strings = {
     noMeetingsDetail:
       'Importe la primera grabación para empezar el registro de reuniones de este proyecto.',
     importRecording: 'Importar una grabación',
+  },
+
+  projects: {
+    eyebrow: 'Proyectos',
+    title: 'Todos los proyectos',
+    lead: 'Todos los proyectos de este dispositivo, con lo que una nueva reunión empieza en cada uno. Abra uno para ver sus reuniones o edítelo aquí.',
+    columnProject: 'Proyecto',
+    columnDescription: 'Descripción',
+    columnMeetings: 'Reuniones',
+    columnLastMeeting: 'Última reunión',
+    columnDefaults: 'Valores predeterminados',
+    edit: 'Editar',
+    noMeetings: 'Sin reuniones',
+    noProjects: 'Aún no hay proyectos',
+    noProjectsDetail: 'Un proyecto reúne reuniones, nombres y actas. Cree uno para empezar.',
+    showArchived: 'Mostrar archivados',
+    hideArchived: 'Ocultar archivados',
+    archivedLead: 'Proyectos apartados. Recupere uno para seguir trabajando en él.',
   },
 
   lifecycle: {
@@ -1467,6 +1500,7 @@ export const es: Strings = {
 
   sidebar: {
     projects: 'Proyectos',
+    allProjects: 'Todos los proyectos',
     newProject: 'Nuevo proyecto',
     createProject: 'Crear el proyecto',
     library: 'Biblioteca',

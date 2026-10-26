@@ -186,6 +186,20 @@ pub struct ProjectSummary {
     pub furniture: PageFurniture,
 }
 
+/// What can be changed about a project after it exists.
+///
+/// The name and description are what the project looks like; the two defaults are
+/// what a new meeting in it starts with. Names and terms, document appearance and
+/// archiving each already have a home of their own.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectDetailsInput {
+    pub name: String,
+    pub description: String,
+    pub default_language: String,
+    pub default_style_id: String,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MeetingLifecycle {

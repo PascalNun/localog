@@ -1981,6 +1981,20 @@ async fn rename_project(
     .await
 }
 
+/// Change a project's name, description and the defaults a new meeting starts with.
+#[tauri::command]
+async fn update_project_details(
+    state: State<'_, StorageState>,
+    project_id: String,
+    input: domain::ProjectDetailsInput,
+) -> Result<WorkspaceSnapshot, String> {
+    with_repository(state.root.clone(), move |repository| {
+        repository.update_project_details(&project_id, &input)?;
+        repository.workspace_snapshot()
+    })
+    .await
+}
+
 #[tauri::command]
 async fn update_meeting_language(
     state: State<'_, StorageState>,
@@ -2084,6 +2098,7 @@ pub fn run() {
             replace_import_source,
             update_meeting_title,
             rename_project,
+            update_project_details,
             update_meeting_language,
             start_transcription,
             start_generation,
