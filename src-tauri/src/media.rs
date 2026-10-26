@@ -1,6 +1,6 @@
 //! Media facts and the regenerable mono/16 kHz PCM cache.
 
-use crate::runtime::{ProcessLimits, RuntimeConfig, run_process};
+use crate::runtime::{ProcessLimits, RuntimeConfig, run_process, run_process_with_progress};
 use serde::Deserialize;
 use std::fs;
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -71,6 +71,28 @@ fn run_media_tool(
     temporary: &Path,
 ) -> Result<(), String> {
     run_process(command, cancellation, media_limits()).map_err(|error| {
+        let _ = fs::remove_file(temporary);
+        error.to_string()
+    })?;
+    Ok(())
+}
+
+/// The same clean-up, for a tool whose progress is worth reporting.
+fn run_media_tool_reporting(
+    command: Command,
+    cancellation: &AtomicBool,
+    temporary: &Path,
+    parse_progress: impl Fn(&str) -> Option<u8> + Send + 'static,
+    on_progress: impl FnMut(u8),
+) -> Result<(), String> {
+    run_process_with_progress(
+        command,
+        cancellation,
+        media_limits(),
+        parse_progress,
+        on_progress,
+    )
+    .map_err(|error| {
         let _ = fs::remove_file(temporary);
         error.to_string()
     })?;
@@ -353,6 +375,14 @@ pub(crate) fn condense_for_diarisation(
     write_pcm16_mono_16k(destination, &condensed)
 }
 
+/// Bitrate for a stored Opus recording, in kilobits a second.
+///
+/// 32 kbps mono is transparent for speech and is the project's recorded figure: it
+/// turns the uncompressed mix — about 345 MB an hour at 48 kHz mono — into roughly
+/// 14 MB an hour. Recorded and imported audio share the number so that the same
+/// meeting costs the same whichever way it arrived.
+pub(crate) const OPUS_KBPS: u32 = 32;
+
 /// Store a recording as Opus.
 ///
 /// A recorder writes plain PCM, because a format that survives being killed is
@@ -368,13 +398,39 @@ pub(crate) fn condense_for_diarisation(
 /// This lives here rather than in the recorder so that every platform's recorder
 /// can stay as small as possible. Writing a WAV is something a few dozen lines of
 /// any language can do; encoding is not, and doing it once here means the Linux
-/// and Windows recorders inherit it.
+/// and Windows recorders inherit it, and imports get it too.
 pub(crate) fn encode_to_opus(
     ffmpeg: &Path,
     source: &Path,
     destination: &Path,
     kilobits: u32,
     cancellation: &AtomicBool,
+) -> Result<(), String> {
+    encode_to_opus_reporting(
+        ffmpeg,
+        source,
+        destination,
+        kilobits,
+        None,
+        cancellation,
+        |_| {},
+    )
+}
+
+/// The same encoder, saying how far through it is.
+///
+/// `duration_ms` is what ffmpeg's `time=` reading is measured against; without it
+/// the encode still runs and simply reports nothing. The caller already knows the
+/// length for a WAV, and an import can probe it once rather than ask the encoder
+/// to guess.
+pub(crate) fn encode_to_opus_reporting(
+    ffmpeg: &Path,
+    source: &Path,
+    destination: &Path,
+    kilobits: u32,
+    duration_ms: Option<u64>,
+    cancellation: &AtomicBool,
+    mut on_progress: impl FnMut(u8),
 ) -> Result<(), String> {
     let temporary = destination.with_extension("opus.part");
     let _ = fs::remove_file(&temporary);
@@ -388,7 +444,18 @@ pub(crate) fn encode_to_opus(
         // the file to say the same thing twice.
         .args(["-ac", "1", "-f", "opus"])
         .arg(&temporary);
-    run_media_tool(command, cancellation, &temporary)?;
+    let progress_duration = duration_ms;
+    run_media_tool_reporting(
+        command,
+        cancellation,
+        &temporary,
+        move |line| {
+            let total = progress_duration?;
+            let at = parse_ffmpeg_time_ms(line)?;
+            Some((at.saturating_mul(100) / total.max(1)).min(100) as u8)
+        },
+        &mut on_progress,
+    )?;
 
     // Check what was written against what was read. An encode that stops early
     // loses the end of a meeting and reports success, which is the failure nobody
@@ -403,7 +470,7 @@ pub(crate) fn encode_to_opus(
         let _ = fs::remove_file(&temporary);
         return Err("recordingEmpty".into());
     }
-    if let Some(milliseconds) = wav_duration_ms(source) {
+    if let Some(milliseconds) = duration_ms.or_else(|| wav_duration_ms(source)) {
         // Roughly what this many seconds should cost at this rate, allowing that
         // a variable bitrate spends less on quiet passages than on speech.
         let seconds = milliseconds as f64 / 1000.0;
@@ -419,6 +486,27 @@ pub(crate) fn encode_to_opus(
         let _ = fs::remove_file(&temporary);
         format!("recordingNotStored:{error}")
     })
+}
+
+/// Read the `time=` field ffmpeg prints as it works.
+///
+/// The real line is `size=     157KiB time=00:00:46.68 bitrate=  27.5kbits/s`.
+/// A percentage needs the recording's length as well, which is why this returns
+/// the position rather than a fraction; the caller has the length.
+pub(crate) fn parse_ffmpeg_time_ms(line: &str) -> Option<u64> {
+    let start = line.find("time=")? + "time=".len();
+    let rest = line[start..].trim_start();
+    if rest.starts_with('-') {
+        return None;
+    }
+    let mut parts = rest.splitn(3, ':');
+    let hours: u64 = parts.next()?.trim().parse().ok()?;
+    let minutes: u64 = parts.next()?.trim().parse().ok()?;
+    let seconds: f64 = parts.next()?.split_whitespace().next()?.parse().ok()?;
+    if minutes >= 60 || !(0.0..60.0).contains(&seconds) {
+        return None;
+    }
+    Some(hours * 3_600_000 + minutes * 60_000 + (seconds * 1000.0) as u64)
 }
 
 /// The shape of a recording, as peaks, for drawing.
@@ -588,7 +676,7 @@ fn pcm16_mono_16k_data(path: &Path) -> Result<(u64, u64), String> {
 /// only a duration, and the recording it reads may be whatever rate and channel
 /// count the recorder captured, so this accepts any PCM and answers nothing rather
 /// than guessing at a file it cannot read.
-fn wav_duration_ms(path: &Path) -> Option<u64> {
+pub(crate) fn wav_duration_ms(path: &Path) -> Option<u64> {
     let mut file = fs::File::open(path).ok()?;
     let mut header = [0u8; 12];
     file.read_exact(&mut header).ok()?;
@@ -1355,6 +1443,23 @@ mod tests {
         assert!(args.iter().any(|a| a == "--prompt"));
         assert!(args.iter().any(|a| a == "--carry-initial-prompt"));
         assert!(args.iter().any(|a| a == "NORVEK, Mustermann"));
+    }
+
+    /// ffmpeg's progress line, which is the only thing it says about position.
+    /// Real output from the shipped build, including the padding.
+    #[test]
+    fn reads_ffmpeg_progress_position() {
+        assert_eq!(
+            parse_ffmpeg_time_ms("size=     157KiB time=00:00:46.68 bitrate=  27.5kbits/s"),
+            Some(46_680)
+        );
+        assert_eq!(
+            parse_ffmpeg_time_ms("frame=1 time=01:02:03.50 bitrate=32.0kbits/s"),
+            Some(3_723_500)
+        );
+        assert_eq!(parse_ffmpeg_time_ms("time=-00:00:00.01"), None);
+        assert_eq!(parse_ffmpeg_time_ms("time=N/A"), None);
+        assert_eq!(parse_ffmpeg_time_ms("size=10KiB"), None);
     }
 
     #[test]

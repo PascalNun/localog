@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const CURRENT_SCHEMA_VERSION: i64 = 24;
+const CURRENT_SCHEMA_VERSION: i64 = 25;
 const DEFAULT_STYLE_ID: &str = "style-formal";
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -34,6 +34,10 @@ pub(crate) struct ImportJobRecord {
     pub byte_count: Option<u64>,
     pub media_type: Option<String>,
     pub final_relative_path: Option<PathBuf>,
+    /// The checksum of the file somebody chose, before any conversion. It is what
+    /// duplicate detection compares, because a WAV converted to Opus does not
+    /// contain the bytes that were imported.
+    pub original_checksum: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -999,12 +1003,13 @@ impl WorkspaceRepository {
         byte_count: u64,
         media_type: &str,
         final_relative_path: &Path,
+        original_checksum: &str,
     ) -> Result<()> {
         self.connection.execute(
             "UPDATE jobs
              SET stage = 'temporary_complete', progress_bytes = ?1, total_bytes = ?1,
                  result_checksum = ?2, result_byte_count = ?1, result_media_type = ?3,
-                 final_relative_path = ?4, updated_at_ms = ?5
+                 final_relative_path = ?4, original_checksum = ?7, updated_at_ms = ?5
              WHERE id = ?6 AND state = 'running'",
             params![
                 byte_count as i64,
@@ -1012,24 +1017,33 @@ impl WorkspaceRepository {
                 media_type,
                 relative_path_text(final_relative_path)?,
                 unix_time_millis(),
-                job_id
+                job_id,
+                original_checksum
             ],
         )?;
         Ok(())
     }
 
+    /// Whether this recording's original file is already in the workspace.
+    ///
+    /// Compares the checksum of what was chosen rather than of what is stored: a
+    /// WAV stored as Opus has different bytes, and Ogg gives every encode a fresh
+    /// serial number, so two imports of the same file would never have matched.
+    /// Rows written before the original checksum was recorded fall back to the
+    /// stored checksum, which is exactly right for the copies they are.
     pub(crate) fn probable_duplicate_exists(
         &self,
         recording_id: &str,
-        checksum: &str,
+        original_checksum: &str,
     ) -> Result<bool> {
         Ok(self
             .connection
             .query_row(
                 "SELECT 1 FROM recordings
-                 WHERE id != ?1 AND state = 'committed' AND checksum = ?2
+                 WHERE id != ?1 AND state = 'committed'
+                   AND COALESCE(original_checksum, checksum) = ?2
                  LIMIT 1",
-                params![recording_id, checksum],
+                params![recording_id, original_checksum],
                 |_| Ok(()),
             )
             .optional()?
@@ -1065,7 +1079,7 @@ impl WorkspaceRepository {
         transaction.execute(
             "UPDATE recordings
              SET state = 'committed', managed_path = ?1, checksum = ?2,
-                 byte_count = ?3, media_type = ?4
+                 byte_count = ?3, media_type = ?4, original_checksum = COALESCE(?7, original_checksum)
              WHERE id = ?5 AND meeting_id = ?6",
             params![
                 relative_path_text(&source.final_relative_path)?,
@@ -1073,7 +1087,8 @@ impl WorkspaceRepository {
                 source.byte_count as i64,
                 source.media_type,
                 job.recording_id,
-                job.meeting_id
+                job.meeting_id,
+                job.original_checksum
             ],
         )?;
         transaction.execute(
@@ -2682,6 +2697,24 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             connection.execute("ALTER TABLE recordings ADD COLUMN microphone_path TEXT", [])?;
         }
         connection.pragma_update(None, "user_version", 24)?;
+        version = 24;
+    }
+    if version == 24 {
+        // Imports no longer keep an uncompressed WAV verbatim: it is converted to
+        // Opus, which has different bytes. Duplicate detection still has to answer
+        // "was this same file brought in before?", so the checksum of the file
+        // somebody chose is recorded beside the checksum of what is stored. Null on
+        // every earlier row, where the two were the same.
+        if !has_column(connection, "recordings", "original_checksum")? {
+            connection.execute(
+                "ALTER TABLE recordings ADD COLUMN original_checksum TEXT",
+                [],
+            )?;
+        }
+        if !has_column(connection, "jobs", "original_checksum")? {
+            connection.execute("ALTER TABLE jobs ADD COLUMN original_checksum TEXT", [])?;
+        }
+        connection.pragma_update(None, "user_version", 25)?;
     }
     Ok(())
 }
@@ -2989,7 +3022,7 @@ const IMPORT_JOB_SELECT: &str = "SELECT
         j.id, j.meeting_id, m.project_id, j.recording_id, r.original_name,
         j.state, j.stage, j.source_path, j.duplicate_allowed,
         j.result_checksum, j.result_byte_count, j.result_media_type,
-        j.final_relative_path
+        j.final_relative_path, j.original_checksum
      FROM jobs j
      JOIN meetings m ON m.id = j.meeting_id
      JOIN recordings r ON r.id = j.recording_id";
@@ -3011,6 +3044,7 @@ fn import_job_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ImportJobRec
         byte_count: row.get::<_, Option<i64>>(10)?.map(|value| value as u64),
         media_type: row.get(11)?,
         final_relative_path: final_relative_path.map(PathBuf::from),
+        original_checksum: row.get(13)?,
     })
 }
 

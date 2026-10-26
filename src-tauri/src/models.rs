@@ -696,7 +696,7 @@ fn human_bytes(bytes: u64) -> String {
 }
 
 #[cfg(unix)]
-fn available_bytes(path: &Path) -> Option<u64> {
+pub(crate) fn available_bytes(path: &Path) -> Option<u64> {
     use std::os::unix::ffi::OsStrExt;
     let c_path = std::ffi::CString::new(path.as_os_str().as_bytes()).ok()?;
     let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
@@ -720,7 +720,7 @@ fn available_bytes(path: &Path) -> Option<u64> {
 /// Asked about the drive the path is on, not the current one: a workspace on D:
 /// is not answered by how much room C: has.
 #[cfg(not(unix))]
-fn available_bytes(path: &Path) -> Option<u64> {
+pub(crate) fn available_bytes(path: &Path) -> Option<u64> {
     let drive = path.components().next().map(|component| {
         component
             .as_os_str()

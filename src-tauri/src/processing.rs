@@ -2923,13 +2923,6 @@ pub(crate) fn begin_recording(
     Ok((recording, recording_id))
 }
 
-/// Bitrate for a stored Opus recording, in kilobits a second.
-///
-/// 32 kbps mono is transparent for speech and is the project's recorded figure: it
-/// turns the uncompressed mix — about 345 MB an hour at 48 kHz mono — into roughly
-/// 14 MB an hour. The `encode_to_opus` length check and its test share the number.
-const OPUS_KBPS: u32 = 32;
-
 /// Finish a recording: mix its two tracks into a stored Opus original, check the
 /// result, and hand the meeting to the rest of the pipeline.
 ///
@@ -2972,7 +2965,13 @@ pub(crate) fn finish_recording(
     let system_opus = system_path.with_extension("opus");
     let microphone_opus = microphone_path.with_extension("opus");
     let encode = |source: &Path, destination: &Path| {
-        crate::media::encode_to_opus(&ffmpeg, source, destination, OPUS_KBPS, &cancellation)
+        crate::media::encode_to_opus(
+            &ffmpeg,
+            source,
+            destination,
+            crate::media::OPUS_KBPS,
+            &cancellation,
+        )
     };
     if encode(&combined, &stored)
         .and_then(|_| encode(system_path, &system_opus))
@@ -3528,7 +3527,7 @@ mod tests {
         fn source_ready() -> Self {
             let temporary = tempdir().unwrap();
             let root = temporary.path().join("managed");
-            let source = temporary.path().join("synthetic-workflow.wav");
+            let source = temporary.path().join("synthetic-workflow.mp3");
             fs::write(&source, b"synthetic audio boundary".repeat(40_000)).unwrap();
             let mut repository = WorkspaceRepository::open(&root).unwrap();
             let project = repository
@@ -3545,7 +3544,7 @@ mod tests {
                     title: "Synthetic design review".to_string(),
                     occurred_at: "2026-08-02".to_string(),
                     language: "English".to_string(),
-                    source_name: "synthetic-workflow.wav".to_string(),
+                    source_name: "synthetic-workflow.mp3".to_string(),
                     source_path: Some(source.to_string_lossy().into_owned()),
                     style_id: "style-formal".to_string(),
                 })

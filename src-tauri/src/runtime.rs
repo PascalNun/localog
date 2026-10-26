@@ -283,7 +283,7 @@ pub(crate) fn run_process_with_progress(
     mut command: Command,
     cancellation: &AtomicBool,
     limits: ProcessLimits,
-    parse_progress: fn(&str) -> Option<u8>,
+    parse_progress: impl Fn(&str) -> Option<u8> + Send + 'static,
     mut on_progress: impl FnMut(u8),
 ) -> Result<ProcessOutput, ProcessFailure> {
     #[cfg(unix)]
@@ -413,7 +413,7 @@ fn read_tail(mut reader: impl Read, max: usize) -> std::io::Result<TailOutput> {
 fn read_tail_with_progress(
     mut reader: impl Read,
     max: usize,
-    parse_progress: fn(&str) -> Option<u8>,
+    parse_progress: impl Fn(&str) -> Option<u8>,
     progress: std::sync::mpsc::Sender<u8>,
 ) -> std::io::Result<TailOutput> {
     let mut tail = VecDeque::with_capacity(max.min(8192));
