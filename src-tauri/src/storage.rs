@@ -1805,10 +1805,29 @@ impl WorkspaceRepository {
         Ok(())
     }
 
+    /// What the run that made this transcript asked about speakers.
+    ///
+    /// Re-running a transcript has to carry this forward: the rerun used to pass no
+    /// request at all, which quietly meant "leave the speakers together" and turned a
+    /// separation the person had already chosen into a single neutral label.
+    fn speaker_request(settings_json: &str) -> (bool, Option<u32>) {
+        let settings: serde_json::Value =
+            serde_json::from_str(settings_json).unwrap_or(serde_json::Value::Null);
+        let expected = settings
+            .get("expectedSpeakers")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|count| u32::try_from(count).ok());
+        let separate = settings
+            .get("separateSpeakers")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(expected.is_some());
+        (separate, expected)
+    }
+
     fn load_transcript_documents(&self) -> Result<HashMap<String, TranscriptDocument>> {
         let mut statement = self.connection.prepare(
             "SELECT w.meeting_id, w.base_revision_id, w.artifact_path, w.checksum,
-                    w.updated_at_ms, r.checksum
+                    w.updated_at_ms, r.checksum, r.settings_json
              FROM transcript_working w
              JOIN transcript_revisions r ON r.id = w.base_revision_id",
         )?;
@@ -1820,16 +1839,25 @@ impl WorkspaceRepository {
                 row.get::<_, String>(3)?,
                 row.get::<_, i64>(4)?,
                 row.get::<_, String>(5)?,
+                row.get::<_, String>(6)?,
             ))
         })?;
         let mut documents = HashMap::new();
         for row in rows {
-            let (meeting_id, base_revision_id, path, working_checksum, saved_at_ms, base_checksum) =
-                row?;
+            let (
+                meeting_id,
+                base_revision_id,
+                path,
+                working_checksum,
+                saved_at_ms,
+                base_checksum,
+                settings_json,
+            ) = row?;
             let bytes = read_verified_artifact(&self.root, &path, &working_checksum)?;
             let artifact: TranscriptArtifact = serde_json::from_slice(&bytes)
                 .map_err(|_| StorageError::InvalidData("transcriptInvalid"))?;
             validate_transcript_artifact(&artifact, &meeting_id)?;
+            let (separate_speakers, expected_speakers) = Self::speaker_request(&settings_json);
             documents.insert(
                 meeting_id,
                 TranscriptDocument {
@@ -1838,6 +1866,8 @@ impl WorkspaceRepository {
                     revision_id: artifact.revision_id,
                     language: artifact.language,
                     speaker_resolution: artifact.speaker_resolution,
+                    separate_speakers,
+                    expected_speakers,
                     segments: artifact.segments,
                     base_revision_id,
                     is_dirty: working_checksum != base_checksum,
@@ -3852,6 +3882,35 @@ mod tests {
             .record_transcription_vocabulary(&job_id, None)
             .unwrap();
         assert_eq!(recorded(&repository).as_deref(), Some("none"));
+    }
+
+    #[test]
+    fn a_transcript_remembers_what_was_asked_about_speakers() {
+        assert_eq!(
+            WorkspaceRepository::speaker_request(
+                r#"{"separateSpeakers":true,"expectedSpeakers":3}"#
+            ),
+            (true, Some(3))
+        );
+        assert_eq!(
+            WorkspaceRepository::speaker_request(
+                r#"{"separateSpeakers":true,"expectedSpeakers":null}"#
+            ),
+            (true, None)
+        );
+        // An older run wrote only the count; already an answer meaning separate.
+        assert_eq!(
+            WorkspaceRepository::speaker_request(r#"{"expectedSpeakers":4}"#),
+            (true, Some(4))
+        );
+        assert_eq!(
+            WorkspaceRepository::speaker_request(r#"{"separateSpeakers":false}"#),
+            (false, None)
+        );
+        assert_eq!(
+            WorkspaceRepository::speaker_request("not json"),
+            (false, None)
+        );
     }
 
     /// Density is what a style asks for, so the styles that ship must actually

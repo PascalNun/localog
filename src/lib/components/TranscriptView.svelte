@@ -13,6 +13,7 @@
     Introduction,
     CorrectionMatch,
     AppliedCorrection,
+    SpeakerRequest,
   } from '../workflow/types';
   import { COMMON_MEETING_LANGUAGES } from '../workflow/languages';
   import Icon from './Icon.svelte';
@@ -32,7 +33,7 @@
   export let onGenerate: () => Promise<void>;
   export let onCancel: () => Promise<void>;
   export let onRetry: () => Promise<void>;
-  export let onRerunTranscription: () => Promise<void>;
+  export let onRerunTranscription: (speakers: SpeakerRequest) => Promise<void>;
   /// Take the transcript out of the application as a file.
   ///
   /// The protocol has left four ways since it existed and the transcript could
@@ -282,6 +283,13 @@
 
   $: segments = transcript?.segments ?? [];
 
+  /// What the previous run asked for, so a rerun does not quietly turn speaker
+  /// separation off. A transcript labelled by the last run is a request the person
+  /// already made once.
+  $: previousSpeakers = transcript?.separateSpeakers
+    ? ((transcript.expectedSpeakers ?? 'estimate') as SpeakerRequest)
+    : ('together' as SpeakerRequest);
+
   // Working audio only exists once the source has been prepared for transcription.
   $: void loadAudio(meeting.id);
 
@@ -443,7 +451,7 @@
     rerunning = true;
     rerunError = '';
     try {
-      await onRerunTranscription();
+      await onRerunTranscription(previousSpeakers);
     } catch (error) {
       rerunError = errorMessage(error);
     } finally {

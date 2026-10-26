@@ -191,6 +191,8 @@ function sampleTranscriptDocument(meetingId: string): TranscriptDocument {
     revisionId: `transcript-demo-${meetingId}`,
     language: 'English',
     speakerResolution: 'resolved',
+    separateSpeakers: true,
+    expectedSpeakers: 3,
     segments: structuredClone(sampleTranscript),
     baseRevisionId: `transcript-demo-${meetingId}`,
     isDirty: false,

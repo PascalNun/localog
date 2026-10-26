@@ -1011,7 +1011,7 @@
           onGenerate={() => bridge.startGeneration(meeting.id)}
           onCancel={() => bridge.cancelActiveJob(meeting.id)}
           onRetry={() => bridge.retryActiveJob(meeting.id)}
-          onRerunTranscription={() => bridge.startTranscription(meeting.id)}
+          onRerunTranscription={(speakers) => bridge.startTranscription(meeting.id, speakers)}
           onUpdateLanguage={(language) => bridge.updateMeetingLanguage(meeting.id, language)}
           onDeleteSegment={(segmentId) => bridge.deleteTranscriptSegment(meeting.id, segmentId)}
           onUpdateSegment={(segmentId, text) =>

@@ -258,6 +258,9 @@ export interface TranscriptDocument {
   revisionId: string;
   language: string;
   speakerResolution: 'unknown' | 'unavailable' | 'failed' | 'resolved';
+  /** What was asked of separation when this transcript was produced. */
+  separateSpeakers: boolean;
+  expectedSpeakers: number | null;
   segments: TranscriptSegment[];
   baseRevisionId: string;
   isDirty: boolean;

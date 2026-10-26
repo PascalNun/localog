@@ -21,6 +21,8 @@ function transcript(segments: TranscriptSegment[]): TranscriptDocument {
     revisionId: 'revision-1',
     language: 'German',
     speakerResolution: 'resolved',
+    separateSpeakers: false,
+    expectedSpeakers: null,
     segments,
     baseRevisionId: 'revision-1',
     isDirty: false,
