@@ -150,7 +150,7 @@ const failures = {
   recordingNotRead: (what: string) => `녹음을 읽지 못했습니다: ${what}`,
   modelNotDownloaded: (what: string) => `모델을 내려받지 못했습니다: ${what}`,
   modelNotSaved: (what: string) => `모델을 저장하지 못했습니다: ${what}`,
-  ollamaRequestFailed: (what: string) => `Ollama가 로컬 요청을 끝내지 못했습니다: ${what}`,
+  ollamaRequestFailed: (what: string) => `로컬 모델이 요청을 완료하지 못했습니다: ${what}`,
   recorderStartFailed: (what: string) => `녹음기를 시작하지 못했습니다: ${what}`,
 
   embeddingsUnrecognisable: '화자 처리가 알아볼 수 있는 음성 특징을 만들지 못했습니다.',
@@ -687,9 +687,9 @@ export const ko: Strings = {
         '로컬 모델이 제시간에 응답하지 않았습니다. 미완성 초안은 저장되지 않았으며, 전사문과 이전 초안은 그대로 남아 있습니다. 다시 시도하거나 문제가 반복되면 더 작은 모델을 사용해 보세요.',
     },
     provider_unavailable: {
-      title: '로컬 회의록 생성이 연결하지 못했습니다',
+      title: '로컬 회의록 생성이 완료되지 않았습니다',
       detail:
-        '사용 중인 Ollama를 실행하고 다시 시도하십시오. LocaLog는 런타임을 시작하거나 내려받지 않습니다.',
+        '로컬 모델이 요청을 완료하지 못했습니다. 불완전한 초안은 저장되지 않았으며 전사본과 이전 판은 그대로 남아 있습니다. 다시 시도하거나 더 작은 모델을 선택하십시오.',
     },
     provider_invalid_output: {
       title: '로컬 모델의 출력을 검증하지 못했습니다',

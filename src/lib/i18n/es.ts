@@ -151,7 +151,7 @@ const failures = {
   modelNotDownloaded: (what: string) => `No se ha podido descargar el modelo: ${what}`,
   modelNotSaved: (what: string) => `No se ha podido guardar el modelo: ${what}`,
   ollamaRequestFailed: (what: string) =>
-    `Ollama no ha podido completar la solicitud local: ${what}`,
+    `El modelo local no ha podido completar la solicitud: ${what}`,
   recorderStartFailed: (what: string) => `No se ha podido iniciar el grabador: ${what}`,
 
   embeddingsUnrecognisable:
@@ -704,9 +704,9 @@ export const es: Strings = {
         'El modelo local no respondió a tiempo. No se guardó ningún borrador parcial; la transcripción y los borradores anteriores siguen disponibles. Reinténtelo o pruebe un modelo más pequeño si vuelve a ocurrir.',
     },
     provider_unavailable: {
-      title: 'La generación local del acta no ha podido conectar',
+      title: 'La generación local del acta no ha terminado',
       detail:
-        'Inicie su instalación de Ollama y vuelva a intentarlo. LocaLog no inicia ni descarga entornos.',
+        'El modelo local no ha podido completar la solicitud. No se ha guardado ningún borrador incompleto; la transcripción y las versiones anteriores siguen disponibles. Vuelva a intentarlo o elija un modelo más pequeño.',
     },
     provider_invalid_output: {
       title: 'No se ha podido validar la salida del modelo local',

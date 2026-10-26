@@ -152,7 +152,7 @@ const failures = {
   recordingNotRead: (what: string) => `录音未能读取：${what}`,
   modelNotDownloaded: (what: string) => `模型未能下载：${what}`,
   modelNotSaved: (what: string) => `模型未能保存：${what}`,
-  ollamaRequestFailed: (what: string) => `Ollama 未能完成本地请求：${what}`,
+  ollamaRequestFailed: (what: string) => `本地模型未能完成请求：${what}`,
   recorderStartFailed: (what: string) => `录音器未能启动：${what}`,
 
   embeddingsUnrecognisable: '说话人处理未生成可识别的声纹特征。',
@@ -654,8 +654,9 @@ export const zh: Strings = {
         '本地模型未能及时响应。未保存未完成的草稿；转录文本和以前的草稿仍然可用。请重试；如果再次出现此问题，可尝试更小的模型。',
     },
     provider_unavailable: {
-      title: '本地纪要生成未能连接',
-      detail: '请启动您已安装的 Ollama 后重试。LocaLog 既不启动也不下载运行环境。',
+      title: '本地纪要生成未能完成',
+      detail:
+        '本地模型未能完成请求。未保存任何不完整的草稿；转写稿和之前的版仍然保留。请重试，或选择更小的模型。',
     },
     provider_invalid_output: {
       title: '本地模型的输出未能通过核验',

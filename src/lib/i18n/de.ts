@@ -170,7 +170,7 @@ const failures = {
   modelNotDownloaded: (what: string) => `Das Modell konnte nicht geladen werden: ${what}`,
   modelNotSaved: (what: string) => `Das Modell konnte nicht gespeichert werden: ${what}`,
   ollamaRequestFailed: (what: string) =>
-    `Ollama konnte die lokale Anfrage nicht abschließen: ${what}`,
+    `Das lokale Modell konnte die Anfrage nicht abschließen: ${what}`,
   recorderStartFailed: (what: string) => `Die Aufnahme konnte nicht gestartet werden: ${what}`,
 
   // Die Verarbeitung: Audio, Modelle, lokales Modell, Aufnahme.
@@ -734,9 +734,9 @@ export const de: Strings = {
         'Das lokale Modell hat nicht rechtzeitig geantwortet. Es wurde kein unvollständiger Entwurf gespeichert; Ihr Transkript und frühere Entwürfe bleiben verfügbar. Versuchen Sie es erneut oder verwenden Sie ein kleineres Modell, wenn dies wieder passiert.',
     },
     provider_unavailable: {
-      title: 'Die lokale Protokollerzeugung konnte keine Verbindung herstellen',
+      title: 'Die lokale Protokollerzeugung wurde nicht abgeschlossen',
       detail:
-        'Starten Sie Ihre vorhandene Ollama-Installation und versuchen Sie es erneut. LocaLog startet und lädt keine Laufzeiten.',
+        'Die lokale Modelllaufzeit konnte die Anfrage nicht abschließen. Es wurde kein unvollständiger Entwurf gespeichert; Transkript und frühere Fassungen bleiben erhalten. Versuchen Sie es erneut oder wählen Sie ein kleineres Modell.',
     },
     provider_invalid_output: {
       title: 'Die Ausgabe des lokalen Modells konnte nicht geprüft werden',

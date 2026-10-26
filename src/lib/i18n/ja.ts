@@ -154,7 +154,7 @@ const failures = {
   recordingNotRead: (what: string) => `録音を読み取れませんでした：${what}`,
   modelNotDownloaded: (what: string) => `モデルをダウンロードできませんでした：${what}`,
   modelNotSaved: (what: string) => `モデルを保存できませんでした：${what}`,
-  ollamaRequestFailed: (what: string) => `Ollamaがローカルの要求を完了できませんでした：${what}`,
+  ollamaRequestFailed: (what: string) => `ローカルモデルが要求を完了できませんでした：${what}`,
   recorderStartFailed: (what: string) => `録音機能を開始できませんでした：${what}`,
 
   embeddingsUnrecognisable: '話者処理は認識できる声の特徴量を生成しませんでした。',
@@ -696,9 +696,9 @@ export const ja: Strings = {
         'ローカルモデルが時間内に応答しませんでした。未完成の下書きは保存されていません。文字起こしと以前の下書きは引き続き利用できます。再試行するか、繰り返す場合は小さいモデルをお試しください。',
     },
     provider_unavailable: {
-      title: 'ローカルの議事録生成が接続できませんでした',
+      title: 'ローカルの議事録生成が完了しませんでした',
       detail:
-        'お使いのOllamaを起動してやり直してください。LocaLogはランタイムの起動もダウンロードも行いません。',
+        'ローカルモデルが要求を完了できませんでした。不完全な下書きは保存されておらず、文字起こしと以前の版は残っています。やり直すか、より小さいモデルをお試しください。',
     },
     provider_invalid_output: {
       title: 'ローカルモデルの出力を検証できませんでした',

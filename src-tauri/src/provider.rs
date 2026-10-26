@@ -751,9 +751,16 @@ impl OllamaProvider {
         let generation_config = ureq::Agent::config_builder()
             .timeout_global(None)
             .timeout_connect(Some(Duration::from_secs(10)))
-            // Processing a large prompt can take minutes before the first byte arrives.
-            // A dead server is caught by the connect deadline, not by this one.
-            .timeout_recv_response(Some(Duration::from_secs(1800)))
+            // A single answer, not only its first byte. ureq checks the
+            // receive-response deadline while it reads the stream as well as while
+            // it waits for headers, so this is the ceiling for the whole generation.
+            //
+            // It was thirty minutes, and a measured run hit it: Ministral 3B on a
+            // four-core machine generated at 2.4 tokens/s, so a 6,144-token protocol
+            // needs about forty-three minutes before the prompt is counted. The
+            // running stream still has its own silence deadline below, which is what
+            // catches a model that has actually stopped.
+            .timeout_recv_response(Some(Duration::from_secs(90 * 60)))
             .max_redirects(0)
             .build();
         Self {

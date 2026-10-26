@@ -86,12 +86,10 @@ describe('rendering a stage', () => {
 describe('a job that failed', () => {
   it('names the failure and says what is safe, in the reader’s language', () => {
     chooseLanguage('en');
-    expect(jobErrorTitle('provider_unavailable')).toBe(
-      'Local protocol generation could not connect',
-    );
+    expect(jobErrorTitle('provider_unavailable')).toBe('Local protocol generation did not finish');
     chooseLanguage('de');
     expect(jobErrorTitle('provider_unavailable')).toBe(
-      'Die lokale Protokollerzeugung konnte keine Verbindung herstellen',
+      'Die lokale Protokollerzeugung wurde nicht abgeschlossen',
     );
     chooseLanguage('en');
   });

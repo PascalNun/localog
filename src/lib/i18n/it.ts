@@ -160,7 +160,7 @@ const failures = {
   modelNotDownloaded: (what: string) => `Non è stato possibile scaricare il modello: ${what}`,
   modelNotSaved: (what: string) => `Non è stato possibile salvare il modello: ${what}`,
   ollamaRequestFailed: (what: string) =>
-    `Ollama non è riuscito a completare la richiesta locale: ${what}`,
+    `Il modello locale non è riuscito a completare la richiesta: ${what}`,
   recorderStartFailed: (what: string) => `Non è stato possibile avviare il registratore: ${what}`,
 
   embeddingsUnrecognisable:
@@ -712,9 +712,9 @@ export const it: Strings = {
         'Il modello locale non ha risposto in tempo. Nessuna bozza parziale è stata salvata; la trascrizione e le bozze precedenti restano disponibili. Riprovi oppure usi un modello più piccolo se il problema si ripete.',
     },
     provider_unavailable: {
-      title: 'La generazione locale del verbale non è riuscita a connettersi',
+      title: 'La generazione locale del verbale non è terminata',
       detail:
-        'Avvii la sua installazione di Ollama e riprovi. LocaLog non avvia né scarica ambienti.',
+        'Il modello locale non è riuscito a completare la richiesta. Nessuna bozza incompleta è stata salvata; la trascrizione e le versioni precedenti restano disponibili. Riprovi o scelga un modello più piccolo.',
     },
     provider_invalid_output: {
       title: 'Non è stato possibile validare l’esito del modello locale',

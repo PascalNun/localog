@@ -165,7 +165,7 @@ const failures = {
   recordingNotRead: (what: string) => `L’enregistrement n’a pas pu être lu : ${what}`,
   modelNotDownloaded: (what: string) => `Le modèle n’a pas pu être téléchargé : ${what}`,
   modelNotSaved: (what: string) => `Le modèle n’a pas pu être enregistré : ${what}`,
-  ollamaRequestFailed: (what: string) => `Ollama n’a pas pu traiter la requête locale : ${what}`,
+  ollamaRequestFailed: (what: string) => `Le modèle local n’a pas pu traiter la requête : ${what}`,
   recorderStartFailed: (what: string) => `L’enregistreur n’a pas pu démarrer : ${what}`,
 
   embeddingsUnrecognisable:
@@ -722,9 +722,9 @@ export const fr: Strings = {
         'Le modèle local n’a pas répondu à temps. Aucun brouillon partiel n’a été enregistré ; la transcription et les brouillons précédents restent disponibles. Réessayez ou utilisez un modèle plus petit si cela se reproduit.',
     },
     provider_unavailable: {
-      title: 'La génération locale du compte rendu n’a pas pu se connecter',
+      title: 'La génération locale du compte rendu ne s’est pas terminée',
       detail:
-        'Démarrez votre installation Ollama, puis réessayez. LocaLog ne démarre ni ne télécharge d’environnements.',
+        'Le modèle local n’a pas pu terminer la requête. Aucun brouillon incomplet n’a été enregistré ; la transcription et les versions précédentes restent disponibles. Réessayez ou choisissez un modèle plus petit.',
     },
     provider_invalid_output: {
       title: 'La sortie du modèle local n’a pas pu être validée',

@@ -167,7 +167,7 @@ const failures = {
   recordingNotRead: (what: string) => `The recording could not be read: ${what}`,
   modelNotDownloaded: (what: string) => `The model could not be downloaded: ${what}`,
   modelNotSaved: (what: string) => `The model could not be saved: ${what}`,
-  ollamaRequestFailed: (what: string) => `Ollama could not complete the local request: ${what}`,
+  ollamaRequestFailed: (what: string) => `The local model could not complete the request: ${what}`,
   recorderStartFailed: (what: string) => `The recorder could not be started: ${what}`,
 
   // The pipeline: audio, models, the local provider, the recorder.
@@ -796,9 +796,9 @@ export const en = {
         'The local model did not respond in time. No partial draft was saved; your transcript and previous drafts remain available. Retry, or try a smaller model if this happens again.',
     },
     provider_unavailable: {
-      title: 'Local protocol generation could not connect',
+      title: 'Local protocol generation did not finish',
       detail:
-        'Start your existing Ollama installation and retry. LocaLog does not start or download runtimes.',
+        'The local model runtime could not complete the request. No partial draft was saved; your transcript and previous drafts remain available. Retry, or try a smaller model if this happens again.',
     },
     provider_invalid_output: {
       title: 'The local model output could not be validated',
