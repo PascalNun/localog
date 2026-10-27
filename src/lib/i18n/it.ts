@@ -711,6 +711,11 @@ export const it: Strings = {
       detail:
         'Il modello locale non ha risposto in tempo. Nessuna bozza parziale è stata salvata; la trascrizione e le bozze precedenti restano disponibili. Riprovi oppure usi un modello più piccolo se il problema si ripete.',
     },
+    provider_timeout: {
+      title: 'Il modello locale ha impiegato troppo tempo',
+      detail:
+        'Una risposta di verbale è limitata a novanta minuti, e questa esecuzione non li ha completati. Nessuna bozza parziale è stata salvata; la trascrizione e le bozze precedenti restano disponibili. Usi un modello più piccolo o una riunione con una trascrizione più breve.',
+    },
     provider_unavailable: {
       title: 'La generazione locale del verbale non è terminata',
       detail:

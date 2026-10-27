@@ -721,6 +721,11 @@ export const fr: Strings = {
       detail:
         'Le modèle local n’a pas répondu à temps. Aucun brouillon partiel n’a été enregistré ; la transcription et les brouillons précédents restent disponibles. Réessayez ou utilisez un modèle plus petit si cela se reproduit.',
     },
+    provider_timeout: {
+      title: 'Le modèle local a mis trop de temps',
+      detail:
+        'Une réponse de compte rendu est limitée à quatre-vingt-dix minutes, et cette exécution ne les a pas terminées. Aucun brouillon partiel n’a été enregistré ; la transcription et les brouillons précédents restent disponibles. Utilisez un modèle plus petit ou une réunion dont la transcription est plus courte.',
+    },
     provider_unavailable: {
       title: 'La génération locale du compte rendu ne s’est pas terminée',
       detail:

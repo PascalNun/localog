@@ -420,6 +420,13 @@ fn provider_processing_error(error: provider::ProviderError) -> ProcessingError 
             code: "provider_unavailable",
             message: format!("ollamaRequestFailed:{message}"),
         },
+        // The deadline is a property of this machine and this model, and the words
+        // for it say so. The stored detail is deliberately empty so the class's own
+        // sentence is used rather than ureq's timeout name.
+        provider::ProviderError::TimedOut => ProcessingError::Runtime {
+            code: "provider_timeout",
+            message: String::new(),
+        },
         // The sentence is deliberately dropped rather than passed on. Every other arm
         // here carries a key the interface renders; this one carried whatever prose
         // raised it, and most of that prose is correction text addressed to the model

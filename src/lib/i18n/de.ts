@@ -733,6 +733,11 @@ export const de: Strings = {
       detail:
         'Das lokale Modell hat nicht rechtzeitig geantwortet. Es wurde kein unvollständiger Entwurf gespeichert; Ihr Transkript und frühere Entwürfe bleiben verfügbar. Versuchen Sie es erneut oder verwenden Sie ein kleineres Modell, wenn dies wieder passiert.',
     },
+    provider_timeout: {
+      title: 'Das lokale Modell hat zu lange gebraucht',
+      detail:
+        'Eine Protokollantwort ist auf neunzig Minuten begrenzt, und dieser Lauf hat diese Zeit nicht geschafft. Es wurde kein unvollständiger Entwurf gespeichert; Ihr Transkript und frühere Entwürfe bleiben verfügbar. Verwenden Sie ein kleineres Modell oder eine Besprechung mit kürzerem Transkript.',
+    },
     provider_unavailable: {
       title: 'Die lokale Protokollerzeugung wurde nicht abgeschlossen',
       detail:

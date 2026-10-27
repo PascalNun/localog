@@ -703,6 +703,11 @@ export const es: Strings = {
       detail:
         'El modelo local no respondió a tiempo. No se guardó ningún borrador parcial; la transcripción y los borradores anteriores siguen disponibles. Reinténtelo o pruebe un modelo más pequeño si vuelve a ocurrir.',
     },
+    provider_timeout: {
+      title: 'El modelo local ha tardado demasiado',
+      detail:
+        'Una respuesta de acta está limitada a noventa minutos, y esta ejecución no terminó en ese tiempo. No se guardó ningún borrador parcial; la transcripción y los borradores anteriores siguen disponibles. Use un modelo más pequeño o una reunión con una transcripción más corta.',
+    },
     provider_unavailable: {
       title: 'La generación local del acta no ha terminado',
       detail:

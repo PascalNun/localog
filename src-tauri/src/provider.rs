@@ -31,6 +31,13 @@ pub enum ProviderError {
     IncompleteResponse,
     /// The model accepted the work and then stopped sending anything.
     Stalled,
+    /// The answer did not arrive inside the one-answer deadline.
+    ///
+    /// Distinct from `Stalled`: the stream was still alive, it was simply slower
+    /// than the machine has time for. The deadline is generous, so this is a
+    /// statement about the model and the machine rather than about a dropped
+    /// connection.
+    TimedOut,
     /// A protocol of this meeting cannot fit in one answer.
     ///
     /// Known before the first model call, so nothing has failed and nothing was
@@ -89,6 +96,10 @@ impl Display for ProviderError {
             Self::Stalled => write!(
                 formatter,
                 "the local model stopped responding partway through"
+            ),
+            Self::TimedOut => write!(
+                formatter,
+                "the local model did not finish inside the answer deadline"
             ),
             Self::IncompleteResponse => {
                 write!(formatter, "the local model response was incomplete")
@@ -1913,7 +1924,7 @@ impl OllamaProvider {
                 .generation_agent
                 .post(format!("{}/api/generate", self.base_url))
                 .send_json(&body)
-                .map_err(http_error)?,
+                .map_err(generation_http_error)?,
             Backend::Llama => {
                 let chat = ChatRequest {
                     messages: vec![
@@ -1938,7 +1949,7 @@ impl OllamaProvider {
                 self.generation_agent
                     .post(format!("{}/v1/chat/completions", self.base_url))
                     .send_json(&chat)
-                    .map_err(http_error)?
+                    .map_err(generation_http_error)?
             }
         };
         let reader = response.into_parts().1.into_reader();
@@ -1969,7 +1980,12 @@ impl OllamaProvider {
             }
             line.clear();
             let read = reader.read_line(&mut line).map_err(|error| {
-                ProviderError::Unavailable(truncate(&error.to_string(), MESSAGE_LIMIT))
+                let message = error.to_string();
+                if is_timeout(&message) {
+                    ProviderError::TimedOut
+                } else {
+                    ProviderError::Unavailable(truncate(&message, MESSAGE_LIMIT))
+                }
             })?;
             if read == 0 {
                 break;
@@ -3619,6 +3635,28 @@ fn http_error(error: ureq::Error) -> ProviderError {
     ProviderError::Unavailable(truncate(&error.to_string(), MESSAGE_LIMIT))
 }
 
+/// The same for a request whose deadline is the answer deadline rather than thirty
+/// seconds, where a timeout says something different.
+fn generation_http_error(error: ureq::Error) -> ProviderError {
+    let message = error.to_string();
+    if is_timeout(&message) {
+        ProviderError::TimedOut
+    } else {
+        ProviderError::Unavailable(truncate(&message, MESSAGE_LIMIT))
+    }
+}
+
+/// Whether a transport failure is the answer deadline rather than a broken connection.
+///
+/// ureq names the timeout that fired ("timeout: receive response"), which is not a
+/// sentence somebody waiting for a protocol can act on — and, because the same
+/// deadline is inherited by the stream, it is usually the whole answer running out
+/// of time rather than a connection problem.
+fn is_timeout(message: &str) -> bool {
+    let lower = message.to_ascii_lowercase();
+    lower.contains("timeout") || lower.contains("timed out")
+}
+
 /// How much of a failure's own words to keep.
 ///
 /// Long enough for a sentence from ureq or serde to say what went wrong, short
@@ -3632,6 +3670,13 @@ fn truncate(value: &str, max_chars: usize) -> String {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_timeout_is_not_reported_as_a_broken_connection() {
+        assert!(is_timeout("timeout: receive response"));
+        assert!(is_timeout("Connection timed out"));
+        assert!(!is_timeout("connection reset by peer"));
+    }
 
     /// Why the escaped-newline repair is prose-only.
     ///

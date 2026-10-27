@@ -795,6 +795,11 @@ export const en = {
       detail:
         'The local model did not respond in time. No partial draft was saved; your transcript and previous drafts remain available. Retry, or try a smaller model if this happens again.',
     },
+    provider_timeout: {
+      title: 'The local model took too long',
+      detail:
+        'One protocol answer is limited to ninety minutes, and this run did not finish in that time. No partial draft was saved; your transcript and previous drafts remain available. Try a smaller model, or a meeting with a shorter transcript.',
+    },
     provider_unavailable: {
       title: 'Local protocol generation did not finish',
       detail:
