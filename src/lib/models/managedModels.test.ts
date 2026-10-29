@@ -26,14 +26,22 @@ describe('managed model guidance', () => {
     expect(options.find(({ model }) => model.modelId === 'gemma4-12b')?.fits).toBe(false);
     expect(options.find(({ model }) => model.modelId === 'qwen3.5-0.8b')?.recommended).toBe(false);
   });
-  it('prefers a suitable installed model over another download', () => {
+  it('recommends the measured model even when another one is installed', () => {
     const installed = terms.map((model) => ({
       ...model,
       installed: model.modelId === 'ministral-3b',
     }));
     const options = managedModelOptions(installed, 8);
-    expect(options[0]?.model.modelId).toBe('ministral-3b');
+    // The 4B was measured; the 3B is an unevaluated candidate.
+    expect(options[0]?.model.modelId).toBe('qwen3.5-4b');
     expect(options[0]?.recommended).toBe(true);
+    expect(options.find(({ model }) => model.modelId === 'ministral-3b')?.recommended).toBe(false);
+  });
+
+  it('does not recommend the smoke-test 0.8B even when it is the only fit', () => {
+    const options = managedModelOptions(terms, 4);
+    expect(options.find(({ model }) => model.modelId === 'qwen3.5-0.8b')?.fits).toBe(true);
+    expect(options.every((option) => !option.recommended)).toBe(true);
   });
   it('does not invent hardware recommendations when memory is unknown', () => {
     expect(managedModelOptions(terms, null).every((model) => !model.recommended)).toBe(true);
