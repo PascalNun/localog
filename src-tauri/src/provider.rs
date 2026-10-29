@@ -1254,8 +1254,7 @@ impl OllamaProvider {
                         )
                     },
                 )?;
-                let structured: StructuredProtocol = parse_structured(&generated)?;
-                Ok(tidy_protocol(&structured.protocol_markdown))
+                Ok(protocol_from_answer(generated))
             },
             |markdown: &String| {
                 validate_protocol(markdown, spoken_characters(request), &request.style)
@@ -1578,8 +1577,7 @@ impl OllamaProvider {
                         cancelled,
                         &mut |_| progress(start, "condensing_transcript"),
                     )?;
-                    let structured: StructuredNotes = parse_structured(&generated)?;
-                    Ok(strip_code_fence(&structured.notes_markdown).to_string())
+                    Ok(notes_from_answer(generated))
                 },
                 |notes: &String| {
                     let spoken: usize = request.transcript[range.clone()]
@@ -1688,8 +1686,7 @@ impl OllamaProvider {
                         progress(arrived(70, 76, written, num_predict), "generating_protocol")
                     },
                 )?;
-                let structured: StructuredProtocol = parse_structured(&generated)?;
-                Ok(tidy_protocol(&structured.protocol_markdown))
+                Ok(protocol_from_answer(generated))
             },
             |markdown: &String| {
                 validate_protocol(markdown, spoken_characters(request), &request.style)
@@ -1760,8 +1757,7 @@ impl OllamaProvider {
                     cancelled,
                     &mut |_| progress(60, "condensing_transcript"),
                 )?;
-                let structured: StructuredNotes = parse_structured(&generated)?;
-                Ok(strip_code_fence(&structured.notes_markdown).to_string())
+                Ok(notes_from_answer(generated))
             },
             |merged: &String| validate_markdown(merged, held),
         )
@@ -2119,6 +2115,29 @@ fn parse_structured<T: serde::de::DeserializeOwned>(generated: &str) -> Result<T
             ))
         }),
     }
+}
+
+/// The protocol text out of an answer, whether or not it arrived in the envelope.
+///
+/// A small model asked for a JSON object sometimes answers in plain markdown
+/// instead. The content is what the protocol is; the envelope is packaging, and
+/// refusing the answer because the packaging is missing loses a meeting's work.
+/// Validation still runs on the result, so a JSON dump or a stub is still refused.
+fn protocol_from_answer(generated: String) -> String {
+    let markdown = match parse_structured::<StructuredProtocol>(&generated) {
+        Ok(structured) => structured.protocol_markdown,
+        Err(_) => generated,
+    };
+    tidy_protocol(&markdown)
+}
+
+/// The same for a section's notes, which are validated like any other markdown.
+fn notes_from_answer(generated: String) -> String {
+    let notes = match parse_structured::<StructuredNotes>(&generated) {
+        Ok(structured) => structured.notes_markdown,
+        Err(_) => generated,
+    };
+    strip_code_fence(&notes).to_string()
 }
 
 /// Move a progress figure as an answer arrives, so a person can tell a model that
@@ -3927,6 +3946,17 @@ mod tests {
             serde_json::from_str(&escape_raw_controls(fine)).expect("still valid");
         assert_eq!(value["response"], "ok");
         assert_eq!(value["done"], true);
+    }
+
+    /// A small model that ignores the JSON envelope still wrote the content.
+    #[test]
+    fn an_answer_without_the_envelope_is_still_the_content() {
+        let plain = "## Beschluss\n\nDie Fassade bleibt.";
+        assert_eq!(protocol_from_answer(plain.to_string()), plain);
+        let wrapped = "{\"protocol_markdown\":\"## Beschluss\"}";
+        assert_eq!(protocol_from_answer(wrapped.to_string()), "## Beschluss");
+        let notes = "Die Fassade bleibt.";
+        assert_eq!(notes_from_answer(notes.to_string()), notes);
     }
 
     /// An escaped quote does not end the string it sits in, so what follows is

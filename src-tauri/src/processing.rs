@@ -401,6 +401,49 @@ impl From<rusqlite::Error> for ProcessingError {
     }
 }
 
+/// Say why generation failed, when the job row can only keep the class of failure.
+///
+/// The interface turns `provider_invalid_output` into a useful sentence, but that
+/// sentence says nothing about whether the model returned JSON, a stub, or nothing
+/// at all. The provider's own reason is the diagnosis. Only the reason is written —
+/// never the model's answer, the transcript, or any part of the meeting — and a
+/// failure to write the log must never change the outcome of the job.
+fn record_generation_failure(
+    root: &Path,
+    job: &ProcessingJobRecord,
+    error: &provider::ProviderError,
+) {
+    let model = job
+        .runtime_config_json
+        .as_deref()
+        .and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok())
+        .and_then(|value| {
+            value
+                .get("model")
+                .and_then(|model| model.as_str())
+                .map(str::to_owned)
+        })
+        .or_else(|| job.model_digest.clone())
+        .unwrap_or_else(|| "unknown".to_string());
+    let line = format!(
+        "{} job={} stage={} model={model} error={error}\n",
+        unix_time_millis(),
+        job.id,
+        job.state
+    );
+    let directory = root.join("logs");
+    if fs::create_dir_all(&directory).is_err() {
+        return;
+    }
+    if let Ok(mut file) = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(directory.join("generation.log"))
+    {
+        let _ = file.write_all(line.as_bytes());
+    }
+}
+
 fn provider_processing_error(error: provider::ProviderError) -> ProcessingError {
     match error {
         provider::ProviderError::Cancelled => ProcessingError::Cancelled,
@@ -1238,7 +1281,10 @@ fn execute_generation(
         match config.runtime {
             GenerationRuntime::Ollama => provider::OllamaProvider::loopback()
                 .generate(&request, cancellation, &mut provider_progress)
-                .map_err(provider_processing_error)?,
+                .map_err(|error| {
+                    record_generation_failure(root, job, &error);
+                    provider_processing_error(error)
+                })?,
             GenerationRuntime::Bundled => {
                 let model = models::generation_model_path(root, Some(&request.model)).ok_or(
                     ProcessingError::Runtime {
@@ -1266,7 +1312,10 @@ fn execute_generation(
                 })?;
                 provider::OllamaProvider::llama_at(server.base_url().to_string())
                     .generate(&request, cancellation, &mut provider_progress)
-                    .map_err(provider_processing_error)?
+                    .map_err(|error| {
+                        record_generation_failure(root, job, &error);
+                        provider_processing_error(error)
+                    })?
             }
         }
     };
