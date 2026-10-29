@@ -2661,11 +2661,7 @@ fn migrate(connection: &Connection, version: i64) -> Result<()> {
             };
             let kept: Vec<String> = instructions
                 .into_iter()
-                .filter(|instruction| {
-                    !crate::provider::FIDELITY_RULES
-                        .iter()
-                        .any(|rule| rule == instruction)
-                })
+                .filter(|instruction| !crate::provider::is_a_fidelity_rule(instruction))
                 .collect();
             let rewritten = serde_json::to_string(&kept)
                 .map_err(|_| StorageError::InvalidData("styleNotMigrated"))?;
