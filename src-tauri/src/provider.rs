@@ -963,7 +963,24 @@ impl OllamaProvider {
 
         let sections = plan_sections(request);
         if sections.len() <= 1 {
-            return self.generate_in_one_pass(request, cancelled, progress);
+            match self.generate_in_one_pass(request, cancelled, progress) {
+                Ok(protocol) => return Ok(protocol),
+                // A short meeting still has to survive a model that cannot write
+                // prose. Measured on the 0.8B: a forty-seven-second meeting failed
+                // the one-pass path on every attempt with placeholders, and there
+                // were no section notes to fall back to. Reading it as one section
+                // gives the same meeting a notes draft instead of a failed job.
+                Err(error) if error.is_a_bad_draw() => {
+                    let all = 0..request.transcript.len();
+                    return self.generate_from_sections(
+                        request,
+                        std::slice::from_ref(&all),
+                        cancelled,
+                        progress,
+                    );
+                }
+                Err(error) => return Err(error),
+            }
         }
         self.generate_from_sections(request, &sections, cancelled, progress)
     }
