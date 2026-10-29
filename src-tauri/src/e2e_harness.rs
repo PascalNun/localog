@@ -584,3 +584,77 @@ fn corrects_a_transcript_through_the_real_commands() {
     );
     println!("\nthe path holds: read, preview, apply, and read again");
 }
+
+/// Generate one protocol in an existing workspace, using the configured local model.
+///
+/// ```text
+/// LOCALOG_REAL_RUNTIMES=1 LOCALOG_PROTOCOL_ROOT=/path/to/workspace \
+///   cargo test --lib -- --ignored --nocapture generates_a_protocol_in_an_existing_workspace
+/// ```
+#[test]
+#[ignore = "runs one real local generation against an existing workspace"]
+fn generates_a_protocol_in_an_existing_workspace() {
+    let root = required("LOCALOG_PROTOCOL_ROOT");
+    let title = std::env::var("LOCALOG_PROTOCOL_MEETING")
+        .unwrap_or_else(|_| "Synthetic meeting long".into());
+    let repository = WorkspaceRepository::open(&root).unwrap();
+    let snapshot = repository.workspace_snapshot().unwrap();
+    let meeting = snapshot
+        .meetings
+        .iter()
+        .find(|meeting| meeting.title == title)
+        .unwrap_or_else(|| panic!("no meeting titled {title}"));
+    drop(repository);
+
+    let (job, _) = processing::queue_generation(
+        &root,
+        &meeting.id,
+        false,
+        &crate::provider::DocumentNotes::english_for_harnesses(),
+    )
+    .unwrap();
+    println!("queued {}", job.id);
+
+    let started = Instant::now();
+    let job_id = job.id.clone();
+    let outcome = processing::run_job(
+        &root,
+        &job_id,
+        Arc::new(AtomicBool::new(false)),
+        |snapshot| {
+            if let Some(job) = snapshot.jobs.iter().find(|job| job.id == job_id) {
+                println!(
+                    "{:>7.1}s {:24} {:>3}%",
+                    started.elapsed().as_secs_f64(),
+                    job.stage,
+                    job.progress
+                );
+            }
+        },
+    )
+    .unwrap();
+    println!(
+        "outcome: {outcome:?} in {:.1}s",
+        started.elapsed().as_secs_f64()
+    );
+
+    let repository = WorkspaceRepository::open(&root).unwrap();
+    let snapshot = repository.workspace_snapshot().unwrap();
+    let finished = snapshot
+        .jobs
+        .iter()
+        .find(|candidate| candidate.id == job_id)
+        .unwrap();
+    println!("state={:?} error={:?}", finished.state, finished.error);
+    if let Some(protocol) = snapshot.protocols.get(&meeting.id) {
+        println!("protocol: {} characters", protocol.markdown.len());
+    }
+    let log = root.join("logs/generation.log");
+    if let Ok(text) = std::fs::read_to_string(log) {
+        println!("log:\n{text}");
+    }
+    assert!(
+        matches!(outcome, ProcessingOutcome::Completed),
+        "generation did not complete"
+    );
+}
