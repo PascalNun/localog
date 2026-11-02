@@ -345,6 +345,7 @@ export const ko: Strings = {
     downloadIntro:
       '이 컴퓨터에 맞는 모델을 선택하세요. 다운로드는 기기에 저장되며 별도 AI 서비스가 필요하지 않습니다.',
     memoryMinimum: (gb: number) => `최소 RAM 등급: ${gb} GB`,
+    modelClass: (gb: number) => `${gb} GB 등급`,
     memoryTooSmall: (gb: number) =>
       `${gb} GB 이상의 RAM 등급이 필요합니다. 이 컴퓨터에서는 다운로드하거나 선택할 수 없습니다.`,
     memoryUnknown: '메모리를 감지하지 못했습니다. 다운로드 전에 RAM 요구 사항을 확인하세요.',
@@ -353,6 +354,7 @@ export const ko: Strings = {
     qualityCaution:
       '메모리가 충분해도 회의록 품질은 보장되지 않습니다. 작은 모델의 결과를 신중히 검토하세요. 이전 측정은 다른 컴퓨터에서 수행되었습니다.',
     bundledRuntime: '이 기기에서',
+    viaOllama: 'Ollama 경유',
     bundledRuntimeLead:
       'LocaLog에는 회의록을 쓰는 엔진이 들어 있습니다. 필요한 것은 모델 하나뿐이며, 한 번 내려받으면 이 기기에 남습니다.',
     licenceHeading: '내려받기 전에',

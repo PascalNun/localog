@@ -2628,6 +2628,20 @@ button.review-summary[aria-pressed='true'] {
   font-size: 0.72rem;
   white-space: nowrap;
 }
+.model-class {
+  margin-top: 22px;
+}
+.model-class:first-of-type {
+  margin-top: 8px;
+}
+.model-class > h3 {
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 .model-catalog {
   display: grid;
   gap: 0;

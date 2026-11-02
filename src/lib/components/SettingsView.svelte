@@ -18,17 +18,10 @@
   } from '../workflow/types';
   import { SPEAKER_SEPARATION_UNREADY } from '../workflow/types';
   import { errorMessage } from '../errors';
-  import {
-    GENERATION_MODEL_CATALOG,
-    browserMemoryGb,
-    installedProviderModel,
-    modelStatus,
-    recommendationFor,
-  } from '../models/modelCatalog';
-  import type { GenerationModelEntry } from '../models/modelCatalog';
+  import { GENERATION_MODEL_CATALOG, browserMemoryGb } from '../models/modelCatalog';
   import { formatModelSize } from '../models/modelSize';
   import { formatBytes } from '../bytes';
-  import { INTERFACE_LANGUAGES, chooseLanguage, language, listOf, t } from '../i18n';
+  import { INTERFACE_LANGUAGES, chooseLanguage, language, t } from '../i18n';
   import type { LanguageId } from '../i18n';
   import { formatMeetingDate } from '../protocol/document';
   import { showInFileManagerKey } from '../platform/fileManager';
@@ -158,19 +151,6 @@
   $: memoryGb =
     generationStatus?.machineMemoryGb ?? providerStatus?.machineMemoryGb ?? browserMemoryGb();
 
-  /**
-   * What a model occupies, said in words the catalogue does not hold.
-   *
-   * A measured size where there is one, and the class of model where there is
-   * not — which is honest about the difference between 3.4 GB and "a larger local
-   * model", and was previously a sentence stored beside the facts.
-   */
-  function modelSize(entry: GenerationModelEntry): string {
-    if (entry.installedGb !== null) {
-      return $t.settings.modelSizeInstalled(entry.installedGb.toLocaleString($t.locale));
-    }
-    return entry.tier === 'baseline' ? $t.settings.modelSizeSmall : $t.settings.modelSizeLarger;
-  }
   /// Reactive, and it was a `const` reading a `$:` value — which is assigned after
   /// the initialisers run, so this captured `undefined` and the line always claimed
   /// the conservative baseline even on a machine that had reported its memory.
@@ -178,16 +158,10 @@
     typeof navigator === 'undefined' ? '' : navigator.userAgent,
   );
 
-  $: memoryLabel = memoryGb
-    ? $t.settings.memoryReported(memoryGb)
-    : $t.settings.conservativeBaseline;
-
   // Product language first: the user picks an outcome, not a model.
 
   $: executablePath = runtimeStatus?.executablePath ?? executablePath;
   $: selectedProviderModel = providerStatus?.selectedModel ?? selectedProviderModel;
-  $: modelRecommendation = recommendationFor(providerStatus?.models ?? [], memoryGb);
-  $: recommendedInstalled = modelRecommendation.installed;
   $: uncataloguedModels = (providerStatus?.models ?? []).filter(
     (model) => !GENERATION_MODEL_CATALOG.some((entry) => entry.providerNames.includes(model.name)),
   );
@@ -481,116 +455,24 @@
         <ManagedModels
           terms={modelTerms}
           status={generationStatus}
+          {providerStatus}
           {memoryGb}
           {downloading}
           {onAcceptLicence}
           {onDownloadModel}
           {onCancelDownload}
           onChoose={onConfigureGeneration}
+          onChooseProvider={chooseProviderModel}
         />
         {#if providerError}<p class="setting-error" role="alert">{providerError}</p>{/if}
 
         <!-- Everything about a runtime somebody else installed, behind a
              disclosure. It is a real choice and stays available — somebody may
-             already run Ollama, or want a model LocaLog does not ship — but it
-             is not the answer for most people, and offering two recommendations
-             for the same job side by side made the screen ask a question it had
-             already answered. -->
+             already run Ollama, or want a model LocaLog does not catalogue — but
+             it is not the answer for most people. The curated ladder above is the
+             one place a model is recommended. -->
         <details class="advanced-disclosure">
           <summary>{$t.settings.useOllamaInstead}</summary>
-          {#if modelRecommendation.entry.id !== 'qwen3.5-0.8b' && (memoryGb === null || memoryGb >= modelRecommendation.entry.minimumMemoryGb)}
-            <article class="model-recommendation">
-              <div>
-                <p class="model-kicker">{$t.settings.recommendedForMachine}</p>
-                <h3>{modelRecommendation.entry.name}</h3>
-                <p>{$t.settings.modelDescription[modelRecommendation.entry.id]}</p>
-                <div class="model-meta">
-                  <span>{$t.settings.modelOrigin[modelRecommendation.entry.origin]}</span>
-                  <span>{$t.settings.modelLicence[modelRecommendation.entry.licence]}</span>
-                  <span>{memoryLabel}</span>
-                </div>
-              </div>
-              <div class="model-recommendation-action">
-                {#if recommendedInstalled}
-                  <button
-                    class="secondary-action"
-                    onclick={() => chooseProviderModel(recommendedInstalled.name)}
-                    disabled={!providerStatus.serverReachable ||
-                      (providerStatus.active !== false &&
-                        selectedProviderModel === recommendedInstalled.name)}
-                  >
-                    {providerStatus.active !== false &&
-                    selectedProviderModel === recommendedInstalled.name
-                      ? $t.settings.modelSelected
-                      : $t.settings.useThisModel}
-                  </button>
-                {:else}
-                  <span class="model-status">{$t.settings.notInstalledYet}</span>
-                {/if}
-              </div>
-            </article>
-          {/if}
-
-          <div class="model-catalog" aria-label={$t.settings.curatedModels}>
-            {#each GENERATION_MODEL_CATALOG as entry (entry.id)}
-              {@const installed = installedProviderModel(entry, providerStatus.models)}
-              {@const fits = memoryGb === null || memoryGb >= entry.minimumMemoryGb}
-              {@const selected =
-                providerStatus.active !== false &&
-                installed !== null &&
-                selectedProviderModel === installed.name}
-              <article class="model-card" class:active={selected}>
-                <div class="model-card-copy">
-                  <div class="model-card-heading">
-                    <h3>{entry.name}</h3>
-                    {#if entry.status === 'baseline'}<span class="model-badge"
-                        >{$t.settings.baseline}</span
-                      >{/if}
-                    {#if entry.origin === 'european'}<span class="model-badge quiet"
-                        >{$t.settings.european}</span
-                      >{/if}
-                  </div>
-                  <p>{$t.settings.modelDescription[entry.id]}</p>
-                  <div class="model-meta">
-                    <span>{modelSize(entry)}</span>
-                    <span>{$t.settings.memoryMinimum(entry.minimumMemoryGb)}</span>
-                    <span>{$t.settings.modelLicence[entry.licence]}</span>
-                    <span
-                      >{entry.languages
-                        .slice(0, 3)
-                        .map((code) => $t.settings.modelLanguage[code])
-                        .join(' · ')}</span
-                    >
-                  </div>
-                  {#if !fits}<p class="setting-hint">
-                      {$t.settings.memoryTooSmall(entry.minimumMemoryGb)}
-                    </p>{/if}
-                  <p class="model-evaluation">
-                    {entry.testedLanguages.length
-                      ? $t.settings.evaluatedIn(
-                          listOf(
-                            entry.testedLanguages.map((code) => $t.settings.modelLanguage[code]),
-                          ),
-                        )
-                      : $t.settings.evaluationPending}
-                  </p>
-                </div>
-                <div class="model-card-action">
-                  <span class="model-status"
-                    >{$t.settings.modelStatus[modelStatus(entry, installed)]}</span
-                  >
-                  {#if installed}
-                    <button
-                      class="quiet-action"
-                      onclick={() => chooseProviderModel(installed.name)}
-                      disabled={!providerStatus.serverReachable || selected || !fits}
-                      >{selected ? $t.settings.modelSelected : $t.settings.useModel}</button
-                    >
-                  {/if}
-                </div>
-              </article>
-            {/each}
-          </div>
           {#if providerError}<p class="setting-error" role="alert">{providerError}</p>{/if}
           <!-- Through the funnel, like every other sentence the backend used to write
                for itself. As of 30 August this row is codes all the way down: five of

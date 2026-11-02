@@ -375,6 +375,7 @@ export const fr: Strings = {
     downloadIntro:
       'Choisissez un modèle pour cet ordinateur. Les téléchargements restent sur cet appareil ; aucun service d’IA séparé n’est nécessaire.',
     memoryMinimum: (gb: number) => `Classe de RAM minimale : ${gb} Go`,
+    modelClass: (gb: number) => `Classe ${gb} Go`,
     memoryTooSmall: (gb: number) =>
       `Nécessite une classe de RAM d’au moins ${gb} Go. Téléchargement et sélection indisponibles sur cet ordinateur.`,
     memoryUnknown: 'Mémoire non détectée. Vérifiez les besoins en RAM avant de télécharger.',
@@ -383,6 +384,7 @@ export const fr: Strings = {
     qualityCaution:
       'Une mémoire suffisante ne garantit pas la qualité. Vérifiez soigneusement les petits modèles ; les mesures précédentes proviennent d’un autre ordinateur.',
     bundledRuntime: 'Sur cet appareil',
+    viaOllama: 'Via Ollama',
     bundledRuntimeLead:
       'LocaLog apporte son propre moteur de rédaction. Il lui faut un modèle, téléchargé une fois et conservé ici.',
     licenceHeading: 'Avant le téléchargement',

@@ -353,6 +353,7 @@ export const ja: Strings = {
     downloadIntro:
       'このコンピューターに合うモデルを選択してください。ダウンロードは端末内に保存され、別のAIサービスは不要です。',
     memoryMinimum: (gb: number) => `最小RAMクラス：${gb} GB`,
+    modelClass: (gb: number) => `${gb} GBクラス`,
     memoryTooSmall: (gb: number) =>
       `${gb} GB以上のRAMクラスが必要です。このコンピューターではダウンロード・選択できません。`,
     memoryUnknown: 'メモリを検出できませんでした。ダウンロード前に必要なRAMを確認してください。',
@@ -361,6 +362,7 @@ export const ja: Strings = {
     qualityCaution:
       'メモリが足りても議事録の品質は保証されません。小型モデルの結果は慎重に確認してください。以前の測定は別のコンピューターで行われました。',
     bundledRuntime: 'この端末で',
+    viaOllama: 'Ollama経由',
     bundledRuntimeLead:
       'LocaLog は議事録を書くためのエンジンを内蔵しています。必要なのはモデルひとつだけで、一度ダウンロードすればこの端末に残ります。',
     licenceHeading: 'ダウンロードの前に',

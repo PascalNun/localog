@@ -383,6 +383,7 @@ export const de: Strings = {
     downloadIntro:
       'Wählen Sie ein Modell für diesen Computer. Downloads bleiben auf diesem Gerät; ein zusätzlicher KI-Dienst ist nicht nötig.',
     memoryMinimum: (gb: number) => `RAM-Mindestklasse: ${gb} GB`,
+    modelClass: (gb: number) => `${gb}-GB-Klasse`,
     memoryTooSmall: (gb: number) =>
       `Benötigt eine RAM-Klasse ab ${gb} GB. Download und Auswahl sind auf diesem Computer nicht verfügbar.`,
     memoryUnknown:
@@ -392,6 +393,7 @@ export const de: Strings = {
     qualityCaution:
       'Passender Arbeitsspeicher garantiert keine Protokollqualität. Kleinere Kandidaten erfordern sorgfältige Prüfung; frühere Messungen stammen von einem anderen Computer.',
     bundledRuntime: 'Auf diesem Gerät',
+    viaOllama: 'Über Ollama',
     bundledRuntimeLead:
       'LocaLog bringt eine eigene Maschine zum Schreiben von Protokollen mit. Sie braucht ein Modell, einmal geladen und hier behalten.',
     licenceHeading: 'Vor dem Laden',

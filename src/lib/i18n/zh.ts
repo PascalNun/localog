@@ -335,12 +335,14 @@ export const zh: Strings = {
     curatedModels: '甄选的纪要模型',
     downloadIntro: '请选择适合此电脑的模型。下载保存在本机，无需单独的 AI 服务。',
     memoryMinimum: (gb: number) => `最低内存档位：${gb} GB`,
+    modelClass: (gb: number) => `${gb} GB 级别`,
     memoryTooSmall: (gb: number) => `需要至少 ${gb} GB 的内存档位。此电脑无法下载或选择此模型。`,
     memoryUnknown: '无法检测内存。下载前请检查模型的内存需求。',
     memoryTight:
       '8 GB 电脑处理长会议的余量很小。请关闭其他应用；CPU 生成可能较慢。下载大小不等于总内存用量。',
     qualityCaution: '内存适合并不保证会议纪要质量。小模型需要仔细审核；之前的测量来自另一台电脑。',
     bundledRuntime: '在本机上',
+    viaOllama: '通过 Ollama',
     bundledRuntimeLead: 'LocaLog 自带撰写会议纪要的引擎。只需一个模型，下载一次即保存在本机。',
     licenceHeading: '下载之前',
     licenceBody: (licence: string) =>

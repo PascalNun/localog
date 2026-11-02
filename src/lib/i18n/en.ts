@@ -397,6 +397,7 @@ export const en = {
     downloadIntro:
       'Choose a model for this computer. Downloads stay on this device; no separate AI service is needed.',
     memoryMinimum: (gb: number) => `Minimum RAM class: ${gb} GB`,
+    modelClass: (gb: number) => `${gb} GB class`,
     memoryTooSmall: (gb: number) =>
       `Needs a ${gb} GB RAM class or larger. Download and selection are unavailable on this computer.`,
     memoryUnknown:
@@ -406,6 +407,7 @@ export const en = {
     qualityCaution:
       'Memory suitability does not guarantee protocol quality. Smaller candidates need careful review; earlier measurements were made on a different computer.',
     bundledRuntime: 'On this device',
+    viaOllama: 'Via Ollama',
     bundledRuntimeLead:
       'LocaLog brings its own engine for writing protocols. It needs one model, downloaded once and kept here.',
     licenceHeading: 'Before downloading',

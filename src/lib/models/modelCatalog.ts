@@ -1,5 +1,3 @@
-import type { ProtocolProviderModel } from '../workflow/types';
-
 /**
  * A deliberately small catalogue for the normal model picker.
  *
@@ -49,9 +47,6 @@ export type ModelOrigin = 'international' | 'european';
 
 /** Which licence a model is offered under. */
 export type ModelLicence = 'apache2' | 'gemma' | 'modelSpecific';
-
-/** What the picker can say about a model right now. */
-export type ModelStatus = 'installed' | 'notInstalled' | 'plannedCandidate';
 
 export interface GenerationModelEntry {
   id: GenerationModelId;
@@ -198,52 +193,4 @@ export function browserMemoryGb(): number | null {
   if (typeof navigator === 'undefined') return null;
   const value = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
-}
-
-export function installedProviderModel(
-  entry: GenerationModelEntry,
-  models: ProtocolProviderModel[],
-): ProtocolProviderModel | null {
-  return models.find((model) => entry.providerNames.includes(model.name)) ?? null;
-}
-
-export function recommendationFor(
-  models: ProtocolProviderModel[],
-  memoryGb: number | null,
-): { entry: GenerationModelEntry; installed: ProtocolProviderModel | null } {
-  const allowed = GENERATION_MODEL_CATALOG.filter(
-    (entry) => entry.minimumMemoryGb <= (memoryGb ?? 8),
-  );
-
-  // Prefer a verified installed model. The catalogue order is what was measured on
-  // a German meeting at three settings each, best first:
-  //
-  //   Gemma 4 12B   27-31 of 35 figures, a protocol at every setting
-  //   Ministral 8B  28 of 35 at its best, a protocol at one setting of three
-  //   Qwen 4B       20-24 of 35, and never the table of next steps the style asks
-  //   Granite 8B    22, 19 and 6 on identical input — not recommended
-  //
-  // Qwen still comes before the untested 3B, so an eight-gigabyte machine — where
-  // neither Gemma nor Ministral 8B fits — is offered the one that has been run.
-  const installed = allowed
-    .map((entry) => ({ entry, installed: installedProviderModel(entry, models) }))
-    .find(({ installed }) => installed !== null);
-  if (installed) return installed;
-
-  const fallback =
-    allowed[0] ??
-    GENERATION_MODEL_CATALOG.reduce((smallest, entry) =>
-      entry.minimumMemoryGb < smallest.minimumMemoryGb ? entry : smallest,
-    );
-  return { entry: fallback, installed: installedProviderModel(fallback, models) };
-}
-
-/** Which of the three things the picker can say about this model is true. */
-export function modelStatus(
-  entry: GenerationModelEntry,
-  installed: ProtocolProviderModel | null,
-): ModelStatus {
-  if (installed) return 'installed';
-  if (entry.status === 'planned') return 'plannedCandidate';
-  return 'notInstalled';
 }
