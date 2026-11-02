@@ -343,6 +343,8 @@ export const ko: Strings = {
     checkInstalled: '설치된 모델 확인',
     curatedModels: '선별된 회의록 모델',
     largerModels: '더 큰 모델',
+    testOnlyHint:
+      '테스트 전용입니다. 개발 컴퓨터에서 파이프라인을 실행하기 위한 모델이며, 그 출력은 보관할 기록이 아닙니다.',
     downloadIntro:
       '이 컴퓨터에 맞는 모델을 선택하세요. 다운로드는 기기에 저장되며 별도 AI 서비스가 필요하지 않습니다.',
     memoryMinimum: (gb: number) => `최소 RAM 등급: ${gb} GB`,
@@ -378,6 +380,12 @@ export const ko: Strings = {
     downloadingPreset: (name: string) => `${name} 내려받는 중`,
     /** en.ts의 설명을 참고하십시오. */
     modelDescription: {
+      'qwen3.5-2b':
+        '스모크 테스트 모델 대신 선택할 만한 가장 작은 Qwen 3.5입니다. 메모리가 적은 컴퓨터에서는 4B보다 빠르며, 아직 여기에서 측정되지 않았습니다.',
+      'qwen3.5-35b-a3b':
+        '전문가 혼합 모델입니다. 3B 모델 정도의 속도에 35B 모델 수준의 메모리가 필요합니다. 32GB 컴퓨터용이며 아직 여기에서 측정되지 않았습니다.',
+      'ministral-3-14b':
+        '더 큰 유럽산 Ministral입니다. 16GB 컴퓨터용이며 아직 여기에서 측정되지 않았습니다.',
       'gemma4-e4b':
         'Gemma 4의 소형 모델입니다. 16GB용 선택지이며, 프로토콜 품질은 아직 여기에서 측정되지 않았습니다.',
       'gemma4-26b':

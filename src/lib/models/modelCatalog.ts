@@ -32,13 +32,16 @@
  */
 export type GenerationModelId =
   | 'qwen3.5-0.8b'
+  | 'qwen3.5-2b'
   | 'qwen3.5-4b'
   | 'qwen3.5-9b'
   | 'qwen3.5-27b'
+  | 'qwen3.5-35b-a3b'
   | 'gemma4-e4b'
   | 'gemma4-12b'
   | 'gemma4-26b'
   | 'gemma4-31b'
+  | 'ministral-3-14b'
   | 'ministral-8b'
   | 'ministral-3b'
   | 'granite4.1-8b'
@@ -73,6 +76,11 @@ export interface GenerationModelEntry {
   origin: ModelOrigin;
   licence: ModelLicence;
   status: 'baseline' | 'candidate' | 'planned';
+  /**
+   * Kept for development and smoke tests. It is downloadable, but it must never
+   * be presented as a model somebody could trust with a meeting record.
+   */
+  testOnly?: boolean;
 }
 
 export type HardwareTier = 'baseline' | 'standard' | 'larger';
@@ -127,6 +135,20 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     status: 'candidate',
   },
   {
+    id: 'qwen3.5-35b-a3b',
+    name: 'Qwen3.5 35B A3B',
+    family: 'Qwen3.5',
+    providerNames: ['qwen3.5:35b-a3b'],
+    tier: 'larger',
+    minimumMemoryGb: 32,
+    installedGb: null,
+    languages: ['de', 'en', 'more'],
+    testedLanguages: [],
+    origin: 'international',
+    licence: 'apache2',
+    status: 'candidate',
+  },
+  {
     id: 'qwen3.5-27b',
     name: 'Qwen3.5 27B',
     family: 'Qwen3.5',
@@ -169,6 +191,20 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     status: 'candidate',
   },
   {
+    id: 'ministral-3-14b',
+    name: 'Ministral 3 14B',
+    family: 'Ministral 3',
+    providerNames: ['ministral-3:14b', 'ministral-3:14b-instruct-2512-q4_K_M'],
+    tier: 'standard',
+    minimumMemoryGb: 16,
+    installedGb: null,
+    languages: ['de', 'en', 'ja', 'more'],
+    testedLanguages: [],
+    origin: 'european',
+    licence: 'apache2',
+    status: 'candidate',
+  },
+  {
     id: 'ministral-8b',
     name: 'Ministral 3 8B',
     family: 'Ministral 3',
@@ -192,6 +228,20 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     installedGb: 3.4,
     languages: ['de', 'en', 'more'],
     testedLanguages: ['de'],
+    origin: 'international',
+    licence: 'apache2',
+    status: 'candidate',
+  },
+  {
+    id: 'qwen3.5-2b',
+    name: 'Qwen3.5 2B',
+    family: 'Qwen3.5',
+    providerNames: ['qwen3.5:2b'],
+    tier: 'baseline',
+    minimumMemoryGb: 8,
+    installedGb: null,
+    languages: ['de', 'en', 'more'],
+    testedLanguages: [],
     origin: 'international',
     licence: 'apache2',
     status: 'candidate',
@@ -251,6 +301,7 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     origin: 'international',
     licence: 'apache2',
     status: 'candidate',
+    testOnly: true,
   },
 ];
 

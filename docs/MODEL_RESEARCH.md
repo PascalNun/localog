@@ -36,3 +36,32 @@ The final public generation runtime remains open. Ollama is useful for developme
 The first user-facing model choice is a global Settings preference. It is intentionally separate from the per-job provenance record and from any future language-specific model profiles.
 
 No model should become a product requirement merely because it performed well in one isolated run.
+
+## The families available on 2 November 2026
+
+Checked against the publishers' Hugging Face listings and Ollama tags. Sizes are
+the Q4 files, not parameter counts, because the file is what has to fit.
+
+| Family          | Sizes published                                      | Offered in the ladder          | Left out, and why                                                                                                                                                        |
+| --------------- | ---------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Qwen 3.5        | 0.8B, 2B, 4B, 9B, 27B, 35B A3B, 122B A10B, 397B A17B | 0.8B, 2B, 4B, 9B, 27B, 35B A3B | 122B and 397B need 81 GB and more; outside every machine this app targets                                                                                                |
+| Qwen 3.6        | 27B, 35B A3B                                         | none yet                       | Only the two large sizes exist. Mixing 3.6 into a ladder whose lower rungs are 3.5 would make the family look incoherent; evaluate it as a replacement, not an extra row |
+| Gemma 4         | E2B, E4B, 12B, 26B A4B, 31B                          | E4B, 12B, 26B A4B, 31B         | E2B is 3.3 GB but sits below the measured 4B without evidence it is better                                                                                               |
+| Ministral 3     | 3B, 8B, 14B                                          | 3B, 8B, 14B                    | —                                                                                                                                                                        |
+| Mistral Small 4 | 119B                                                 | none                           | A Q4 file is roughly 65–70 GB; a future 64 GB-plus class, not a 32 GB one                                                                                                |
+
+Two consequences for the catalogue:
+
+- The 24 GB class is thin. Gemma 4 26B A4B is the only entry that belongs there;
+  Qwen3.5 35B A3B is a 22 GB file and was classed at 32 GB rather than pretending
+  the context and the operating system are free.
+- The European option now reaches 16 GB (Ministral 3 14B) and no further. There is
+  no European file in the 22–32 GB range that is both current and Apache 2.0, so
+  the largest classes are international-only. That is a fact about the market, not
+  a preference.
+
+A model enters the catalogue only with a pinned revision, a published SHA-256 and
+an exact size. A model carries a recommendation only after it has been run on the
+reference meeting in German and English. The two rules are separate on purpose:
+the first lets a 32 GB owner see what exists, the second stops the picker claiming
+quality nobody measured.

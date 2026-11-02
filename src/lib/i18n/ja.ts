@@ -351,6 +351,8 @@ export const ja: Strings = {
     checkInstalled: 'インストール済みのモデルを確認',
     curatedModels: '選定済みの議事録モデル',
     largerModels: 'より大きなモデル',
+    testOnlyHint:
+      'テスト専用です。開発マシンでパイプラインを動かすためのモデルであり、その出力は保存すべき記録ではありません。',
     downloadIntro:
       'このコンピューターに合うモデルを選択してください。ダウンロードは端末内に保存され、別のAIサービスは不要です。',
     memoryMinimum: (gb: number) => `最小RAMクラス：${gb} GB`,
@@ -386,6 +388,12 @@ export const ja: Strings = {
     downloadingPreset: (name: string) => `${name} をダウンロード中`,
     /** en.ts の注記を参照。 */
     modelDescription: {
+      'qwen3.5-2b':
+        'スモークテスト用モデルより選ぶ価値のある最小の Qwen 3.5。メモリの少ないマシンでは 4B より高速です。ここではまだ測定していません。',
+      'qwen3.5-35b-a3b':
+        'Mixture-of-Experts モデル。3B モデル程度の速度で、35B モデル相当のメモリが必要です。32 GB マシン向けで、ここではまだ測定していません。',
+      'ministral-3-14b':
+        'より大きな欧州製 Ministral。16 GB マシン向けで、ここではまだ測定していません。',
       'gemma4-e4b':
         'Gemma 4 の小型モデル。16 GB 向けの選択肢です。プロトコル品質はここではまだ測定していません。',
       'gemma4-26b':

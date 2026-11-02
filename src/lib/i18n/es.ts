@@ -354,6 +354,8 @@ export const es: Strings = {
     checkInstalled: 'Comprobar los modelos instalados',
     curatedModels: 'Modelos de acta seleccionados',
     largerModels: 'Modelos más grandes',
+    testOnlyHint:
+      'Solo para pruebas. Este modelo existe para que un equipo de desarrollo pueda ejecutar el proceso; su salida no es un documento que debas conservar.',
     downloadIntro:
       'Elige un modelo para este ordenador. Las descargas permanecen aquí; no hace falta otro servicio de IA.',
     memoryMinimum: (gb: number) => `Clase mínima de RAM: ${gb} GB`,
@@ -390,6 +392,12 @@ export const es: Strings = {
     downloadingPreset: (name: string) => `Descargando ${name}`,
     /** Véase la nota en en.ts. */
     modelDescription: {
+      'qwen3.5-2b':
+        'El Qwen 3.5 más pequeño que merece elegirse en lugar del modelo de prueba. Más rápido que el 4B en un equipo con poca memoria; aún no medido aquí.',
+      'qwen3.5-35b-a3b':
+        'Una mezcla de expertos: la velocidad de un modelo 3B con la memoria de un 35B. Para equipos de 32 GB; aún no medido aquí.',
+      'ministral-3-14b':
+        'El Ministral europeo más grande. Para equipos de 16 GB; aún no medido aquí.',
       'gemma4-e4b':
         'El modelo pequeño de Gemma 4. Una opción para 16 GB; su calidad de acta aún no se ha medido aquí.',
       'gemma4-26b':

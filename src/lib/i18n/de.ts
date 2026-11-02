@@ -381,6 +381,8 @@ export const de: Strings = {
     checkInstalled: 'Installierte Modelle prüfen',
     curatedModels: 'Ausgewählte Protokollmodelle',
     largerModels: 'Größere Modelle',
+    testOnlyHint:
+      'Nur zum Testen. Dieses Modell gibt es, damit ein Entwicklungsrechner die Pipeline ausführen kann; seine Ausgabe ist keine Aufzeichnung, die Sie behalten sollten.',
     downloadIntro:
       'Wählen Sie ein Modell für diesen Computer. Downloads bleiben auf diesem Gerät; ein zusätzlicher KI-Dienst ist nicht nötig.',
     memoryMinimum: (gb: number) => `RAM-Mindestklasse: ${gb} GB`,
@@ -417,6 +419,12 @@ export const de: Strings = {
     downloadingPreset: (name: string) => `${name} wird geladen`,
     /** Siehe die Anmerkung in en.ts. */
     modelDescription: {
+      'qwen3.5-2b':
+        'Das kleinste Qwen 3.5, das gegenüber dem Testmodell eine echte Wahl ist. Auf Rechnern mit wenig Speicher schneller als das 4B-Modell; hier noch nicht gemessen.',
+      'qwen3.5-35b-a3b':
+        'Ein Mixture-of-Experts-Modell: etwa die Geschwindigkeit eines 3B-Modells bei den Speicheranforderungen eines 35B-Modells. Für 32-GB-Rechner; hier noch nicht gemessen.',
+      'ministral-3-14b':
+        'Das größere europäische Ministral. Für 16-GB-Rechner; hier noch nicht gemessen.',
       'gemma4-e4b':
         'Das kleine Gemma-4-Modell. Eine Option für 16 GB; die Protokollqualität wurde hier noch nicht gemessen.',
       'gemma4-26b':

@@ -334,6 +334,7 @@ export const zh: Strings = {
     checkInstalled: '检查已安装的模型',
     curatedModels: '甄选的纪要模型',
     largerModels: '更大的模型',
+    testOnlyHint: '仅供测试。此模型用于让开发设备运行处理流程；其输出不是应保存的记录。',
     downloadIntro: '请选择适合此电脑的模型。下载保存在本机，无需单独的 AI 服务。',
     memoryMinimum: (gb: number) => `最低内存档位：${gb} GB`,
     modelClass: (gb: number) => `${gb} GB 级别`,
@@ -365,6 +366,11 @@ export const zh: Strings = {
     downloadingPreset: (name: string) => `正在下载${name}`,
     /** 参见 en.ts 中的说明。 */
     modelDescription: {
+      'qwen3.5-2b':
+        '值得替代冒烟测试模型的最小 Qwen 3.5。在内存较少的设备上比 4B 更快；此处尚未测量。',
+      'qwen3.5-35b-a3b':
+        '专家混合模型：速度接近 3B 模型，但需要 35B 模型的内存。适合 32GB 设备；此处尚未测量。',
+      'ministral-3-14b': '更大的欧洲 Ministral。适合 16GB 设备；此处尚未测量。',
       'gemma4-e4b': 'Gemma 4 的小型模型。适合 16GB 设备；此处的协议质量尚未测量。',
       'gemma4-26b':
         'Gemma 4 的专家混合模型。速度接近 4B 模型，但需要 26B 模型的内存；此处尚未测量。',

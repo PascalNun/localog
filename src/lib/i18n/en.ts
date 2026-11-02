@@ -395,6 +395,8 @@ export const en = {
     checkInstalled: 'Check installed models',
     curatedModels: 'Curated protocol models',
     largerModels: 'Larger models',
+    testOnlyHint:
+      'Testing only. This model exists so a development machine can run the pipeline; its output is not a record you should keep.',
     downloadIntro:
       'Choose a model for this computer. Downloads stay on this device; no separate AI service is needed.',
     memoryMinimum: (gb: number) => `Minimum RAM class: ${gb} GB`,
@@ -439,6 +441,12 @@ export const en = {
      * without a sentence here does not compile.
      */
     modelDescription: {
+      'qwen3.5-2b':
+        'The smallest Qwen 3.5 that is worth choosing over the smoke-test model. Faster than the 4B on a machine with little memory; not yet measured here.',
+      'qwen3.5-35b-a3b':
+        'A mixture of experts: about the speed of a 3B model with the memory of a 35B one. For 32 GB machines; not yet measured here.',
+      'ministral-3-14b':
+        'The larger European Ministral. For 16 GB machines; not yet measured here.',
       'gemma4-e4b':
         'The small Gemma 4 model. A 16 GB option; its protocol quality has not been measured here yet.',
       'gemma4-26b':

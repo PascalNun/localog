@@ -363,6 +363,8 @@ export const it: Strings = {
     checkInstalled: 'Verifica i modelli installati',
     curatedModels: 'Modelli per i verbali selezionati',
     largerModels: 'Modelli più grandi',
+    testOnlyHint:
+      'Solo per le prove. Questo modello esiste perché una macchina di sviluppo possa eseguire la pipeline; il suo risultato non è un documento da conservare.',
     downloadIntro:
       'Scegli un modello per questo computer. I download restano qui; non serve un servizio IA separato.',
     memoryMinimum: (gb: number) => `Classe RAM minima: ${gb} GB`,
@@ -398,6 +400,12 @@ export const it: Strings = {
     downloadingPreset: (name: string) => `Scaricamento di ${name}`,
     /** Si veda la nota in en.ts. */
     modelDescription: {
+      'qwen3.5-2b':
+        'Il più piccolo Qwen 3.5 che valga la pena scegliere al posto del modello di prova. Più veloce del 4B su una macchina con poca memoria; non ancora misurato qui.',
+      'qwen3.5-35b-a3b':
+        'Una miscela di esperti: la velocità di un modello 3B con la memoria di un 35B. Per macchine da 32 GB; non ancora misurato qui.',
+      'ministral-3-14b':
+        'Il Ministral europeo più grande. Per macchine da 16 GB; non ancora misurato qui.',
       'gemma4-e4b':
         'Il modello piccolo di Gemma 4. Un’opzione per 16 GB; la qualità del verbale non è ancora stata misurata qui.',
       'gemma4-26b':

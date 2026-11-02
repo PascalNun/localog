@@ -373,6 +373,8 @@ export const fr: Strings = {
     checkInstalled: 'Vérifier les modèles installés',
     curatedModels: 'Modèles de compte rendu retenus',
     largerModels: 'Modèles plus grands',
+    testOnlyHint:
+      'Uniquement pour les tests. Ce modèle existe pour qu’une machine de développement puisse exécuter la chaîne ; sa sortie n’est pas un document à conserver.',
     downloadIntro:
       'Choisissez un modèle pour cet ordinateur. Les téléchargements restent sur cet appareil ; aucun service d’IA séparé n’est nécessaire.',
     memoryMinimum: (gb: number) => `Classe de RAM minimale : ${gb} Go`,
@@ -408,6 +410,12 @@ export const fr: Strings = {
     downloadingPreset: (name: string) => `Téléchargement de ${name}`,
     /** Voir la note dans en.ts. */
     modelDescription: {
+      'qwen3.5-2b':
+        'Le plus petit Qwen 3.5 qui vaille d’être choisi à la place du modèle de test. Plus rapide que le 4B sur une machine à mémoire limitée ; pas encore mesuré ici.',
+      'qwen3.5-35b-a3b':
+        'Un mélange d’experts : la vitesse d’un modèle 3B avec la mémoire d’un 35B. Pour les machines de 32 Go ; pas encore mesuré ici.',
+      'ministral-3-14b':
+        'Le plus grand Ministral européen. Pour les machines de 16 Go ; pas encore mesuré ici.',
       'gemma4-e4b':
         'Le petit modèle Gemma 4. Une option pour 16 Go ; sa qualité de compte rendu n’a pas encore été mesurée ici.',
       'gemma4-26b':

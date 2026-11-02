@@ -2612,9 +2612,9 @@ button.review-summary[aria-pressed='true'] {
   color: var(--muted);
   font-size: 0.72rem;
 }
-.model-meta span + span::before {
+.model-meta span:not(:last-child)::after {
   content: '·';
-  margin-right: 14px;
+  margin-left: 14px;
   color: var(--line-strong);
 }
 .model-recommendation-action,
@@ -2633,6 +2633,26 @@ button.review-summary[aria-pressed='true'] {
 }
 .model-class:first-of-type {
   margin-top: 8px;
+}
+.larger-models {
+  margin-top: 22px;
+}
+.larger-models > summary {
+  width: fit-content;
+  margin-bottom: 6px;
+  cursor: pointer;
+  list-style: none;
+}
+.larger-models > summary::-webkit-details-marker {
+  display: none;
+}
+.larger-models > summary::before {
+  content: '▸';
+  color: var(--muted);
+  font-size: 0.8em;
+}
+.larger-models[open] > summary::before {
+  content: '▾';
 }
 .model-class > h3 {
   margin: 0 0 2px;

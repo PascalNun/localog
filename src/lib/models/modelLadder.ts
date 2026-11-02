@@ -99,5 +99,54 @@ export function memoryClasses(models: LadderModel[]): MemoryClass[] {
   const order = (gb: number) => (gb < 8 ? Number.MAX_SAFE_INTEGER : gb);
   return [...classes.entries()]
     .sort(([left], [right]) => order(left) - order(right))
-    .map(([minimumMemoryGb, models]) => ({ minimumMemoryGb, models }));
+    .map(([minimumMemoryGb, models]) => ({ minimumMemoryGb, models: displayOrder(models) }));
+}
+
+/**
+ * A class's rows, with each family kept together and the recommendation first.
+ *
+ * The catalogue's order is the recommendation order, which is not a reading
+ * order: it places Ministral 8B between two Gemma rows and puts the 9B before the
+ * 12B it is an alternative to. Sorting for display is safe because `recommended`
+ * is decided before this runs.
+ *
+ * Families are ordered by where they first appear in the catalogue, which puts the
+ * family holding the recommendation first on that machine without hard-coding a
+ * preference. Ordering them by name instead scattered Qwen 4B, Ministral 3B and
+ * Qwen 2B across the 8 GB class.
+ */
+export function displayOrder(models: LadderModel[]): LadderModel[] {
+  const familyRank = new Map<string, number>();
+  for (const [index, entry] of GENERATION_MODEL_CATALOG.entries()) {
+    if (!familyRank.has(entry.family)) familyRank.set(entry.family, index);
+  }
+  const rank = (family: string) => familyRank.get(family) ?? Number.MAX_SAFE_INTEGER;
+
+  return [...models].sort((left, right) => {
+    const family = rank(left.entry.family) - rank(right.entry.family);
+    if (family !== 0) return family;
+    if (left.recommended !== right.recommended) return left.recommended ? -1 : 1;
+    return left.entry.name.localeCompare(right.entry.name);
+  });
+}
+
+/**
+ * The classes a machine should see, and the larger ones behind a disclosure.
+ *
+ * The 4 GB class is separated from `own` so the smoke-test model stays last on
+ * every machine, including a 4 GB one where it is technically the only fit.
+ */
+export interface ClassDisclosure {
+  own: MemoryClass[];
+  larger: MemoryClass[];
+  fallback: MemoryClass[];
+}
+
+export function classDisclosure(classes: MemoryClass[], memoryGb: number | null): ClassDisclosure {
+  if (memoryGb === null) return { own: classes, larger: [], fallback: [] };
+  return {
+    own: classes.filter((group) => group.minimumMemoryGb >= 8 && group.minimumMemoryGb <= memoryGb),
+    larger: classes.filter((group) => group.minimumMemoryGb > memoryGb),
+    fallback: classes.filter((group) => group.minimumMemoryGb < 8),
+  };
 }
