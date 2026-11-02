@@ -350,6 +350,7 @@ export const ja: Strings = {
     european: '欧州製',
     checkInstalled: 'インストール済みのモデルを確認',
     curatedModels: '選定済みの議事録モデル',
+    largerModels: 'より大きなモデル',
     downloadIntro:
       'このコンピューターに合うモデルを選択してください。ダウンロードは端末内に保存され、別のAIサービスは不要です。',
     memoryMinimum: (gb: number) => `最小RAMクラス：${gb} GB`,
@@ -385,6 +386,15 @@ export const ja: Strings = {
     downloadingPreset: (name: string) => `${name} をダウンロード中`,
     /** en.ts の注記を参照。 */
     modelDescription: {
+      'gemma4-e4b':
+        'Gemma 4 の小型モデル。16 GB 向けの選択肢です。プロトコル品質はここではまだ測定していません。',
+      'gemma4-26b':
+        'Gemma 4 の Mixture-of-Experts モデル。4B モデル程度の速度ですが、26B モデル相当のメモリが必要です。ここではまだ測定していません。',
+      'gemma4-31b':
+        'Gemma 4 最大の dense モデル。32 GB マシン向けです。ここではまだ測定していません。',
+      'qwen3.5-9b':
+        'Qwen 3.5 の 9B モデル。16 GB マシンで測定済みの 4B から一段上です。ここではまだ測定していません。',
+      'qwen3.5-27b': 'Qwen 3.5 の 27B モデル。32 GB マシン向けです。ここではまだ測定していません。',
       'qwen3.5-0.8b':
         '開発・動作確認用の小型モデルです。議事録品質は未評価のため、業務用議事録には依存しないでください。',
       'gemma4-12b':

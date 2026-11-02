@@ -372,6 +372,7 @@ export const fr: Strings = {
     european: 'Européen',
     checkInstalled: 'Vérifier les modèles installés',
     curatedModels: 'Modèles de compte rendu retenus',
+    largerModels: 'Modèles plus grands',
     downloadIntro:
       'Choisissez un modèle pour cet ordinateur. Les téléchargements restent sur cet appareil ; aucun service d’IA séparé n’est nécessaire.',
     memoryMinimum: (gb: number) => `Classe de RAM minimale : ${gb} Go`,
@@ -407,6 +408,15 @@ export const fr: Strings = {
     downloadingPreset: (name: string) => `Téléchargement de ${name}`,
     /** Voir la note dans en.ts. */
     modelDescription: {
+      'gemma4-e4b':
+        'Le petit modèle Gemma 4. Une option pour 16 Go ; sa qualité de compte rendu n’a pas encore été mesurée ici.',
+      'gemma4-26b':
+        'Le modèle Gemma 4 à mélange d’experts. Sa vitesse est proche d’un modèle 4B, mais il demande la mémoire d’un modèle 26B ; pas encore mesuré ici.',
+      'gemma4-31b':
+        'Le plus grand modèle Gemma 4 dense. Pour les machines de 32 Go ; pas encore mesuré ici.',
+      'qwen3.5-9b':
+        'Le modèle Qwen 3.5 9B. L’étape au-dessus du 4B mesuré sur une machine de 16 Go ; pas encore mesuré ici.',
+      'qwen3.5-27b': 'Le modèle Qwen 3.5 27B. Pour les machines de 32 Go ; pas encore mesuré ici.',
       'qwen3.5-0.8b':
         'Petit modèle de développement et de test. Qualité des comptes rendus non évaluée ; ne vous y fiez pas pour un compte rendu professionnel.',
       'gemma4-12b':

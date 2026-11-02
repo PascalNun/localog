@@ -394,6 +394,7 @@ export const en = {
     european: 'European',
     checkInstalled: 'Check installed models',
     curatedModels: 'Curated protocol models',
+    largerModels: 'Larger models',
     downloadIntro:
       'Choose a model for this computer. Downloads stay on this device; no separate AI service is needed.',
     memoryMinimum: (gb: number) => `Minimum RAM class: ${gb} GB`,
@@ -438,6 +439,14 @@ export const en = {
      * without a sentence here does not compile.
      */
     modelDescription: {
+      'gemma4-e4b':
+        'The small Gemma 4 model. A 16 GB option; its protocol quality has not been measured here yet.',
+      'gemma4-26b':
+        'The mixture-of-experts Gemma 4. Runs at about 4B speed but needs the memory of a 26B model; not yet measured here.',
+      'gemma4-31b': 'The largest dense Gemma 4. For 32 GB machines; not yet measured here.',
+      'qwen3.5-9b':
+        'The 9B Qwen 3.5. The step up from the measured 4B on a 16 GB machine; not yet measured here.',
+      'qwen3.5-27b': 'The 27B Qwen 3.5. For 32 GB machines; not yet measured here.',
       'qwen3.5-0.8b':
         'A small development and smoke-test model. Protocol quality has not been evaluated; do not rely on it for a professional meeting record.',
       'gemma4-12b':

@@ -67,12 +67,14 @@ export function modelLadder(
     };
   });
 
-  // The catalogue order is the measured quality order. A provider model that is
-  // merely named but not installed is not a recommendation; neither is the 0.8B,
-  // which exists so a 4 GB machine can run something at all.
+  // The measured baseline comes first in the catalogue; later entries are the
+  // rest of the family. Only an evaluated model can be recommended, and a
+  // provider model that is merely named but not installed is not a
+  // recommendation. The 0.8B exists so a 4 GB machine can run something at all.
   const recommended = models.find(
     (model) =>
       model.entry.id !== 'qwen3.5-0.8b' &&
+      model.entry.testedLanguages.length > 0 &&
       model.fits &&
       (model.bundled !== null || model.provider !== null),
   );

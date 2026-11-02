@@ -32,9 +32,14 @@
  */
 export type GenerationModelId =
   | 'qwen3.5-0.8b'
-  | 'gemma4-12b'
-  | 'ministral-8b'
   | 'qwen3.5-4b'
+  | 'qwen3.5-9b'
+  | 'qwen3.5-27b'
+  | 'gemma4-e4b'
+  | 'gemma4-12b'
+  | 'gemma4-26b'
+  | 'gemma4-31b'
+  | 'ministral-8b'
   | 'ministral-3b'
   | 'granite4.1-8b'
   | 'llama-8b';
@@ -73,9 +78,10 @@ export interface GenerationModelEntry {
 export type HardwareTier = 'baseline' | 'standard' | 'larger';
 
 /**
- * The first catalogue stays intentionally short. New models should enter it
- * only after their licence, runtime, memory use and German/English quality
- * have been checked.
+ * The catalogue stays curated: every downloadable file has a verified licence,
+ * runtime and checksum. A new size may enter before it has been measured, but it
+ * carries an empty `testedLanguages` and is never recommended until it has been
+ * run on a reference meeting here.
  */
 export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
   {
@@ -91,6 +97,76 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     origin: 'international',
     licence: 'apache2',
     status: 'baseline',
+  },
+  {
+    id: 'gemma4-26b',
+    name: 'Gemma 4 26B A4B',
+    family: 'Gemma 4',
+    providerNames: ['gemma4:26b'],
+    tier: 'larger',
+    minimumMemoryGb: 24,
+    installedGb: null,
+    languages: ['de', 'en', 'more'],
+    testedLanguages: [],
+    origin: 'international',
+    licence: 'apache2',
+    status: 'candidate',
+  },
+  {
+    id: 'gemma4-31b',
+    name: 'Gemma 4 31B',
+    family: 'Gemma 4',
+    providerNames: ['gemma4:31b'],
+    tier: 'larger',
+    minimumMemoryGb: 32,
+    installedGb: null,
+    languages: ['de', 'en', 'more'],
+    testedLanguages: [],
+    origin: 'international',
+    licence: 'apache2',
+    status: 'candidate',
+  },
+  {
+    id: 'qwen3.5-27b',
+    name: 'Qwen3.5 27B',
+    family: 'Qwen3.5',
+    providerNames: ['qwen3.5:27b'],
+    tier: 'larger',
+    minimumMemoryGb: 32,
+    installedGb: null,
+    languages: ['de', 'en', 'more'],
+    testedLanguages: [],
+    origin: 'international',
+    licence: 'apache2',
+    status: 'candidate',
+  },
+  {
+    id: 'qwen3.5-9b',
+    name: 'Qwen3.5 9B',
+    family: 'Qwen3.5',
+    providerNames: ['qwen3.5:9b'],
+    tier: 'standard',
+    minimumMemoryGb: 16,
+    installedGb: null,
+    languages: ['de', 'en', 'more'],
+    testedLanguages: [],
+    origin: 'international',
+    licence: 'apache2',
+    status: 'candidate',
+  },
+  {
+    id: 'gemma4-e4b',
+    name: 'Gemma 4 E4B',
+    family: 'Gemma 4',
+    providerNames: ['gemma4:e4b'],
+    tier: 'standard',
+    minimumMemoryGb: 16,
+    installedGb: null,
+    languages: ['de', 'en', 'more'],
+    testedLanguages: [],
+    origin: 'international',
+    licence: 'apache2',
+    status: 'candidate',
   },
   {
     id: 'ministral-8b',

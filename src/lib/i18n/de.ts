@@ -380,6 +380,7 @@ export const de: Strings = {
     european: 'Europäisch',
     checkInstalled: 'Installierte Modelle prüfen',
     curatedModels: 'Ausgewählte Protokollmodelle',
+    largerModels: 'Größere Modelle',
     downloadIntro:
       'Wählen Sie ein Modell für diesen Computer. Downloads bleiben auf diesem Gerät; ein zusätzlicher KI-Dienst ist nicht nötig.',
     memoryMinimum: (gb: number) => `RAM-Mindestklasse: ${gb} GB`,
@@ -416,6 +417,15 @@ export const de: Strings = {
     downloadingPreset: (name: string) => `${name} wird geladen`,
     /** Siehe die Anmerkung in en.ts. */
     modelDescription: {
+      'gemma4-e4b':
+        'Das kleine Gemma-4-Modell. Eine Option für 16 GB; die Protokollqualität wurde hier noch nicht gemessen.',
+      'gemma4-26b':
+        'Das Gemma-4-Mixture-of-Experts-Modell. Läuft etwa so schnell wie ein 4B-Modell, braucht aber den Speicher eines 26B-Modells; hier noch nicht gemessen.',
+      'gemma4-31b':
+        'Das größte dichte Gemma-4-Modell. Für 32-GB-Rechner; hier noch nicht gemessen.',
+      'qwen3.5-9b':
+        'Das 9B-Modell von Qwen 3.5. Der Schritt über das gemessene 4B-Modell auf einem 16-GB-Rechner; hier noch nicht gemessen.',
+      'qwen3.5-27b': 'Das 27B-Modell von Qwen 3.5. Für 32-GB-Rechner; hier noch nicht gemessen.',
       'qwen3.5-0.8b':
         'Ein kleines Modell für Entwicklung und Funktionstests. Die Protokollqualität wurde nicht geprüft; verlassen Sie sich für professionelle Besprechungsprotokolle nicht darauf.',
       'gemma4-12b':

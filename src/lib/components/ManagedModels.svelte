@@ -18,6 +18,11 @@
 
   $: ladder = modelLadder(terms, providerStatus.models, memoryGb);
   $: groups = memoryClasses(ladder);
+  let showLarger = false;
+  $: visibleGroups = groups.filter(
+    (group) => showLarger || memoryGb === null || group.minimumMemoryGb <= memoryGb,
+  );
+  $: hasLarger = memoryGb !== null && groups.some((group) => group.minimumMemoryGb > memoryGb);
 
   function sizeOf(option: (typeof ladder)[number]): string {
     if (option.bundled) return formatModelSize(option.bundled.byteCount);
@@ -64,7 +69,14 @@
   {#if memoryGb !== null && memoryGb <= 8}<p class="setting-hint">{$t.settings.memoryTight}</p>{/if}
   <p class="setting-hint">{$t.settings.qualityCaution}</p>
   {#if !status.serverReachable}<p class="setting-hint">{errorMessage(status.message)}</p>{/if}
-  {#each groups as group (group.minimumMemoryGb)}
+  {#if hasLarger}
+    <button
+      class="quiet-action"
+      aria-expanded={showLarger}
+      onclick={() => (showLarger = !showLarger)}>{$t.settings.largerModels}</button
+    >
+  {/if}
+  {#each visibleGroups as group (group.minimumMemoryGb)}
     <div class="model-class">
       <h3>{$t.settings.modelClass(group.minimumMemoryGb)}</h3>
       <div class="model-catalog">

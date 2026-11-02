@@ -362,6 +362,7 @@ export const it: Strings = {
     european: 'Europeo',
     checkInstalled: 'Verifica i modelli installati',
     curatedModels: 'Modelli per i verbali selezionati',
+    largerModels: 'Modelli più grandi',
     downloadIntro:
       'Scegli un modello per questo computer. I download restano qui; non serve un servizio IA separato.',
     memoryMinimum: (gb: number) => `Classe RAM minima: ${gb} GB`,
@@ -397,6 +398,15 @@ export const it: Strings = {
     downloadingPreset: (name: string) => `Scaricamento di ${name}`,
     /** Si veda la nota in en.ts. */
     modelDescription: {
+      'gemma4-e4b':
+        'Il modello piccolo di Gemma 4. Un’opzione per 16 GB; la qualità del verbale non è ancora stata misurata qui.',
+      'gemma4-26b':
+        'Il modello Gemma 4 a miscela di esperti. Va circa alla velocità di un modello 4B, ma richiede la memoria di un modello 26B; non ancora misurato qui.',
+      'gemma4-31b':
+        'Il più grande modello Gemma 4 denso. Per macchine da 32 GB; non ancora misurato qui.',
+      'qwen3.5-9b':
+        'Il modello Qwen 3.5 9B. Il passo successivo al 4B misurato su una macchina da 16 GB; non ancora misurato qui.',
+      'qwen3.5-27b': 'Il modello Qwen 3.5 27B. Per macchine da 32 GB; non ancora misurato qui.',
       'qwen3.5-0.8b':
         'Piccolo modello per sviluppo e test. Qualità dei verbali non valutata; non farvi affidamento per verbali professionali.',
       'gemma4-12b':

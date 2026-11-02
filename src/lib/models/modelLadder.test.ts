@@ -4,6 +4,7 @@ import { memoryClasses, modelLadder } from './modelLadder';
 
 const bundled = [
   ['gemma4-12b', 16],
+  ['gemma4-31b', 32],
   ['qwen3.5-4b', 8],
   ['ministral-3b', 8],
   ['qwen3.5-0.8b', 4],
@@ -32,10 +33,17 @@ describe('the model ladder', () => {
     expect(ladder.find((model) => model.entry.id === 'qwen3.5-0.8b')?.recommended).toBe(false);
   });
 
-  it('orders the visible classes 8, 16, then the 4 GB fallback', () => {
+  it('orders the visible classes upward, then the 4 GB fallback', () => {
     const classes = memoryClasses(modelLadder(bundled, [], 8));
 
-    expect(classes.map((group) => group.minimumMemoryGb)).toEqual([8, 16, 4]);
+    expect(classes.map((group) => group.minimumMemoryGb)).toEqual([8, 16, 24, 32, 4]);
+  });
+
+  it('keeps the recommendation on the measured model when a larger one is available', () => {
+    const ladder = modelLadder(bundled, [], 32);
+
+    expect(ladder.find((model) => model.entry.id === 'gemma4-12b')?.recommended).toBe(true);
+    expect(ladder.find((model) => model.entry.id === 'gemma4-31b')?.recommended).toBe(false);
   });
 
   it('does not recommend the smoke-test 0.8B as the only 4 GB fit', () => {

@@ -353,6 +353,7 @@ export const es: Strings = {
     european: 'Europeo',
     checkInstalled: 'Comprobar los modelos instalados',
     curatedModels: 'Modelos de acta seleccionados',
+    largerModels: 'Modelos más grandes',
     downloadIntro:
       'Elige un modelo para este ordenador. Las descargas permanecen aquí; no hace falta otro servicio de IA.',
     memoryMinimum: (gb: number) => `Clase mínima de RAM: ${gb} GB`,
@@ -389,6 +390,14 @@ export const es: Strings = {
     downloadingPreset: (name: string) => `Descargando ${name}`,
     /** Véase la nota en en.ts. */
     modelDescription: {
+      'gemma4-e4b':
+        'El modelo pequeño de Gemma 4. Una opción para 16 GB; su calidad de acta aún no se ha medido aquí.',
+      'gemma4-26b':
+        'El modelo Gemma 4 de mezcla de expertos. Va a una velocidad parecida a un modelo 4B, pero necesita la memoria de un modelo 26B; aún no medido aquí.',
+      'gemma4-31b': 'El mayor modelo Gemma 4 denso. Para equipos de 32 GB; aún no medido aquí.',
+      'qwen3.5-9b':
+        'El modelo Qwen 3.5 9B. El paso desde el 4B medido en un equipo de 16 GB; aún no medido aquí.',
+      'qwen3.5-27b': 'El modelo Qwen 3.5 27B. Para equipos de 32 GB; aún no medido aquí.',
       'qwen3.5-0.8b':
         'Modelo pequeño para desarrollo y pruebas. Calidad de actas no evaluada; no dependas de él para actas profesionales.',
       'gemma4-12b':

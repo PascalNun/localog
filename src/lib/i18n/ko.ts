@@ -342,6 +342,7 @@ export const ko: Strings = {
     european: '유럽산',
     checkInstalled: '설치된 모델 확인',
     curatedModels: '선별된 회의록 모델',
+    largerModels: '더 큰 모델',
     downloadIntro:
       '이 컴퓨터에 맞는 모델을 선택하세요. 다운로드는 기기에 저장되며 별도 AI 서비스가 필요하지 않습니다.',
     memoryMinimum: (gb: number) => `최소 RAM 등급: ${gb} GB`,
@@ -377,6 +378,16 @@ export const ko: Strings = {
     downloadingPreset: (name: string) => `${name} 내려받는 중`,
     /** en.ts의 설명을 참고하십시오. */
     modelDescription: {
+      'gemma4-e4b':
+        'Gemma 4의 소형 모델입니다. 16GB용 선택지이며, 프로토콜 품질은 아직 여기에서 측정되지 않았습니다.',
+      'gemma4-26b':
+        'Gemma 4의 전문가 혼합 모델입니다. 4B 모델 정도의 속도지만 26B 모델에 해당하는 메모리가 필요합니다. 아직 여기에서 측정되지 않았습니다.',
+      'gemma4-31b':
+        'Gemma 4의 가장 큰 dense 모델입니다. 32GB 컴퓨터용이며 아직 여기에서 측정되지 않았습니다.',
+      'qwen3.5-9b':
+        'Qwen 3.5 9B 모델입니다. 16GB 컴퓨터에서 측정된 4B의 다음 단계이며 아직 여기에서 측정되지 않았습니다.',
+      'qwen3.5-27b':
+        'Qwen 3.5 27B 모델입니다. 32GB 컴퓨터용이며 아직 여기에서 측정되지 않았습니다.',
       'qwen3.5-0.8b':
         '개발 및 동작 확인용 소형 모델입니다. 회의록 품질은 평가되지 않았으며 전문 회의록 작성에 의존하지 마세요.',
       'gemma4-12b':
