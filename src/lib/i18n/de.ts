@@ -334,8 +334,8 @@ export const de: Strings = {
       'LocaLog hält verwaltete Kopien importierter Aufnahmen, aufbereiteter Audiodateien, Transkripte, Protokolle und geladener Modelle in seinem Anwendungsdatenordner. Exporte werden nur dorthin geschrieben, wo Sie es wählen.',
     discoveredRuntime: (path: string) => `Gefundene Laufzeit: ${path}`,
     runtimeVersion: (version: string) => `Version der Laufzeit: ${version}`,
-    evaluatedIn: (languages: string) => `Geprüft in ${languages}`,
-    evaluationPending: 'Qualitätsprüfung steht noch aus',
+    evaluatedIn: (languages: string) => `Getestet auf ${languages}`,
+    evaluationPending: 'Noch nicht getestet',
     otherModelNote:
       'Das ist für Menschen, die bereits wissen, welches lokale Modell sie ausprobieren wollen. Es wird von LocaLog nicht geprüft und nicht empfohlen, und es unterliegt denselben Grenzen von Laufzeit und Arbeitsspeicher.',
     qualityLead:
@@ -374,31 +374,29 @@ export const de: Strings = {
     chooseOnce: 'Einmal wählen, dann weiterarbeiten',
     modelLead:
       'LocaLog verwendet dieses Modell für lokale Protokollentwürfe, bis Sie es ändern. Der normale Ablauf verlangt nicht, für jede Besprechung ein Modell zu wählen.',
-    recommendedForMachine: 'Gemessener Standard',
+    recommendedForMachine: 'Für diesen Computer empfohlen',
     notInstalledYet: 'Noch nicht installiert',
     baseline: 'Grundlage',
     european: 'Europäisch',
     checkInstalled: 'Installierte Modelle prüfen',
-    curatedModels: 'Ausgewählte Protokollmodelle',
-    largerModels: 'Größere Modelle',
-    smallerModels: 'Kleinere Modelle',
+    curatedModels: 'Protokollmodelle',
+    moreModels: 'Weitere Modelle',
     downloadIntro:
       'Wählen Sie ein Modell für diesen Computer. Downloads bleiben auf diesem Gerät; ein zusätzlicher KI-Dienst ist nicht nötig.',
     modelClass: (gb: number) => `Läuft ab ${gb} GB`,
     memoryMinimum: (gb: number) => `RAM-Mindestklasse: ${gb} GB`,
     memoryTooSmall: (gb: number) =>
-      `Benötigt eine RAM-Klasse ab ${gb} GB. Download und Auswahl sind auf diesem Computer nicht verfügbar.`,
+      `Dieses Modell braucht mindestens ${gb} GB Arbeitsspeicher. Es kann auf diesem Computer weder geladen noch ausgewählt werden.`,
     memoryUnknown:
       'Der Arbeitsspeicher konnte nicht ermittelt werden. Prüfen Sie vor dem Download den RAM-Bedarf.',
     memoryTight:
       'Bei 8 GB bleibt wenig Platz für lange Besprechungen. Schließen Sie andere Anwendungen; die CPU-Erstellung kann langsam sein. Die Downloadgröße ist nicht der gesamte RAM-Bedarf.',
     memoryBelowMinimum:
       'Dieser Computer meldet weniger als die 8 GB, die die Protokoll-Pipeline benötigt. Die folgenden Modelle brauchen ein größeres Gerät.',
-    recommendationNote:
-      'Der Standard ist das auf der Referenzbesprechung dieses Projekts gemessene Modell. Größere Größen sind aufgeführt, werden aber erst empfohlen, wenn sie hier gemessen wurden.',
-    selectedModelNotOffered: 'Das ausgewählte Modell steht nicht in dieser kuratierten Liste.',
+    selectedModelNotOffered:
+      'Das derzeit gewählte Modell steht nicht mehr in dieser Liste. Wählen Sie unten ein Modell, um es zu ersetzen.',
     qualityCaution:
-      'Passender Arbeitsspeicher garantiert keine Protokollqualität. Kleinere Kandidaten erfordern sorgfältige Prüfung; frühere Messungen stammen von einem anderen Computer.',
+      'Ein Modell, das in den Arbeitsspeicher passt, kann trotzdem ein schwaches Protokoll schreiben. Prüfen Sie den ersten Entwurf, bevor Sie ihn weitergeben.',
     bundledRuntime: 'Auf diesem Gerät',
     viaOllama: 'Über Ollama',
     bundledRuntimeLead:
@@ -423,24 +421,19 @@ export const de: Strings = {
     downloadingPreset: (name: string) => `${name} wird geladen`,
     /** Siehe die Anmerkung in en.ts. */
     modelDescription: {
-      'qwen3.5-2b':
-        'Das kleinste angebotene Qwen 3.5. Auf Rechnern mit wenig Speicher schneller als das 4B-Modell; hier noch nicht gemessen.',
-      'qwen3.5-35b-a3b':
-        'Ein Mixture-of-Experts-Modell: etwa die Geschwindigkeit eines 3B-Modells bei den Speicheranforderungen eines 35B-Modells. Für 32-GB-Rechner; hier noch nicht gemessen.',
-      'ministral-3-14b':
-        'Das größere europäische Ministral. Für 16-GB-Rechner; hier noch nicht gemessen.',
-      'gemma4-26b':
-        'Das Gemma-4-Mixture-of-Experts-Modell. Läuft etwa so schnell wie ein 4B-Modell, braucht aber den Speicher eines 26B-Modells; hier noch nicht gemessen.',
-      'gemma4-31b':
-        'Das größte dichte Gemma-4-Modell. Für 32-GB-Rechner; hier noch nicht gemessen.',
-      'qwen3.5-9b':
-        'Das 9B-Modell von Qwen 3.5. Der Schritt über das gemessene 4B-Modell auf einem 16-GB-Rechner; hier noch nicht gemessen.',
-      'qwen3.5-27b': 'Das 27B-Modell von Qwen 3.5. Für 32-GB-Rechner; hier noch nicht gemessen.',
-      'gemma4-12b':
-        'Das genaueste und beständigste der gemessenen Modelle: Über drei Läufe hat es 27 bis 31 der 35 Zahlen einer Besprechung erhalten, wo das nächstbeste auf nur 6 kam. Langsamer — etwa vierzehn Minuten für eine achtzigminütige Besprechung.',
       'qwen3.5-4b':
-        'Das schnellste gemessene Modell, etwa fünf Minuten für eine achtzigminütige Besprechung, und die Wahl, wenn der Speicher knapp ist. Die Tabelle der nächsten Schritte, die der formale Stil verlangt, hat es nie erzeugt.',
-      'ministral-3b': 'Der erste europäische Kandidat für den schwächsten unterstützten Mac.',
+        'Schnell und sparsam, die beste Wahl für einen 8-GB-Rechner. Es schreibt ein kürzeres Protokoll und lässt möglicherweise die Tabelle der nächsten Schritte aus; prüfen Sie den Entwurf.',
+      'qwen3.5-9b':
+        'Ein größeres Qwen-Modell für 16-GB-Rechner. Langsamer als das 4B-Modell; noch nicht getestet.',
+      'qwen3.5-27b': 'Das größte dichte Qwen-Modell für 32-GB-Rechner. Noch nicht getestet.',
+      'qwen3.5-35b-a3b':
+        'Ein schnelles Mixture-of-Experts-Modell für 32-GB-Rechner: Es braucht den Speicher eines 35B-Modells, läuft aber etwa so schnell wie ein 3B-Modell. Noch nicht getestet.',
+      'gemma4-12b':
+        'Unsere zuverlässigste Wahl: Es hält Zahlen und Namen gut fest und schreibt ein gleichmäßiges, gut gegliedertes Protokoll. Langsamer als das 4B-Modell — etwa vierzehn Minuten für eine achtzigminütige Besprechung.',
+      'gemma4-26b':
+        'Ein schnelles Mixture-of-Experts-Modell für 24-GB-Rechner: Es braucht den Speicher eines 26B-Modells, läuft aber etwa so schnell wie ein 4B-Modell. Noch nicht getestet.',
+      'gemma4-31b': 'Das größte dichte Gemma-Modell für 32-GB-Rechner. Noch nicht getestet.',
+      'ministral-3-14b': 'Ein größeres europäisches Modell für 16-GB-Rechner. Noch nicht getestet.',
     },
     modelOrigin: {
       international: 'Internationales offenes Modell',

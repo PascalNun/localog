@@ -290,8 +290,8 @@ export const zh: Strings = {
       'LocaLog 会在其应用数据文件夹中，保管导入录音、已准备音频、转写稿、纪要和已下载模型的托管副本。导出只写入您指定的位置。',
     discoveredRuntime: (path: string) => `发现的运行环境：${path}`,
     runtimeVersion: (version: string) => `运行环境版本：${version}`,
-    evaluatedIn: (languages: string) => `已在${languages}中评估`,
-    evaluationPending: '质量评估尚未进行',
+    evaluatedIn: (languages: string) => `已测试${languages}`,
+    evaluationPending: '尚未测试',
     otherModelNote:
       '这是给已经知道自己想试哪个本地模型的人用的。LocaLog 既不评估也不推荐它，且它同样受运行环境与内存的限制。',
     qualityLead: '请选择您想要的质量。LocaLog 首次会下载所需内容，并保存在本机上。',
@@ -327,26 +327,23 @@ export const zh: Strings = {
     chooseOnce: '选一次，然后继续工作',
     modelLead:
       '在您更改之前，LocaLog 会用此模型撰写本地纪要初稿。正常流程不会要求您为每场会议选择模型。',
-    recommendedForMachine: '实测默认',
+    recommendedForMachine: '推荐用于此电脑',
     notInstalledYet: '尚未安装',
     baseline: '基准',
     european: '欧洲出品',
     checkInstalled: '检查已安装的模型',
-    curatedModels: '甄选的纪要模型',
-    largerModels: '更大的模型',
-    smallerModels: '更小的模型',
+    curatedModels: '纪要模型',
+    moreModels: '更多模型',
     downloadIntro: '请选择适合此电脑的模型。下载保存在本机，无需单独的 AI 服务。',
     modelClass: (gb: number) => `${gb} GB 及以上运行`,
     memoryMinimum: (gb: number) => `最低内存档位：${gb} GB`,
-    memoryTooSmall: (gb: number) => `需要至少 ${gb} GB 的内存档位。此电脑无法下载或选择此模型。`,
+    memoryTooSmall: (gb: number) => `此模型至少需要 ${gb} GB 内存。此电脑无法下载或选择它。`,
     memoryUnknown: '无法检测内存。下载前请检查模型的内存需求。',
     memoryTight:
       '8 GB 电脑处理长会议的余量很小。请关闭其他应用；CPU 生成可能较慢。下载大小不等于总内存用量。',
     memoryBelowMinimum: '此电脑的内存低于会议纪要流程所需的 8GB。以下模型需要更大的设备。',
-    recommendationNote:
-      '默认是本项目参考会议上实测的模型。更大的型号也已列出，但在本机实测之前不予推荐。',
-    selectedModelNotOffered: '所选模型不在此甄选列表中。',
-    qualityCaution: '内存适合并不保证会议纪要质量。小模型需要仔细审核；之前的测量来自另一台电脑。',
+    selectedModelNotOffered: '当前所选模型已不在此列表中。请在下方选择另一个模型来替换。',
+    qualityCaution: '即使内存足够，模型也可能写出质量较弱的纪要。分享前请先审阅初稿。',
     bundledRuntime: '在本机上',
     viaOllama: '通过 Ollama',
     bundledRuntimeLead: 'LocaLog 自带撰写会议纪要的引擎。只需一个模型，下载一次即保存在本机。',
@@ -370,20 +367,17 @@ export const zh: Strings = {
     downloadingPreset: (name: string) => `正在下载${name}`,
     /** 参见 en.ts 中的说明。 */
     modelDescription: {
-      'qwen3.5-2b': '所提供的最小 Qwen 3.5。在内存较少的设备上比 4B 更快；此处尚未测量。',
+      'qwen3.5-4b': '快速轻量，最适合 8GB 电脑。纪要较短，可能省略后续事项表，请审阅初稿。',
+      'qwen3.5-9b': '适合 16GB 电脑的更大 Qwen。比 4B 慢；尚未测试。',
+      'qwen3.5-27b': '适合 32GB 电脑的最大的稠密 Qwen。尚未测试。',
       'qwen3.5-35b-a3b':
-        '专家混合模型：速度接近 3B 模型，但需要 35B 模型的内存。适合 32GB 设备；此处尚未测量。',
-      'ministral-3-14b': '更大的欧洲 Ministral。适合 16GB 设备；此处尚未测量。',
-      'gemma4-26b':
-        'Gemma 4 的专家混合模型。速度接近 4B 模型，但需要 26B 模型的内存；此处尚未测量。',
-      'gemma4-31b': 'Gemma 4 最大的稠密模型。适合 32GB 设备；此处尚未测量。',
-      'qwen3.5-9b': 'Qwen 3.5 9B 模型。16GB 设备上从已测 4B 向上的一步；此处尚未测量。',
-      'qwen3.5-27b': 'Qwen 3.5 27B 模型。适合 32GB 设备；此处尚未测量。',
+        '适合 32GB 电脑的快速专家混合模型：需要 35B 模型的内存，但速度接近 3B。尚未测试。',
       'gemma4-12b':
-        '在测得的模型中最准确、也最稳定：三次运行保留了会议 35 个数字里的 27 到 31 个，而次优者最少只保留 6 个。速度较慢——80 分钟的会议约需 14 分钟。',
-      'qwen3.5-4b':
-        '测得最快的模型，80 分钟的会议约需 5 分钟，内存吃紧时可选它。但它从未生成正式体例所要求的后续事项表。',
-      'ministral-3b': '面向所支持的最低配 Mac 的第一个欧洲出品候选。',
+        '我们最可靠的选择：它能较好地保留数字和姓名，写出稳定、结构清晰的纪要。速度比 4B 慢——80 分钟的会议约需 14 分钟。',
+      'gemma4-26b':
+        '适合 24GB 电脑的快速专家混合模型：需要 26B 模型的内存，但速度接近 4B。尚未测试。',
+      'gemma4-31b': '适合 32GB 电脑的最大的稠密 Gemma。尚未测试。',
+      'ministral-3-14b': '适合 16GB 电脑的更大欧洲模型。尚未测试。',
     },
     modelOrigin: {
       international: '国际开放模型',

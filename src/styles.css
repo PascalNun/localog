@@ -2631,28 +2631,23 @@ button.review-summary[aria-pressed='true'] {
 .model-class {
   margin-top: 22px;
 }
-.model-class:first-of-type {
-  margin-top: 8px;
+.recommended-models {
+  margin: 16px 0 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--subtle);
 }
-.model-disclosure {
+.recommended-models .model-catalog {
+  margin-bottom: 0;
+  border-top: 0;
+}
+.recommended-models .model-card {
+  padding: 0;
+  border-bottom: 0;
+}
+.more-models {
   margin-top: 22px;
-}
-.model-disclosure > summary {
-  width: fit-content;
-  margin-bottom: 6px;
-  cursor: pointer;
-  list-style: none;
-}
-.model-disclosure > summary::-webkit-details-marker {
-  display: none;
-}
-.model-disclosure > summary::before {
-  content: '▸';
-  color: var(--muted);
-  font-size: 0.8em;
-}
-.model-disclosure[open] > summary::before {
-  content: '▾';
 }
 .model-class > h3 {
   margin: 0 0 2px;

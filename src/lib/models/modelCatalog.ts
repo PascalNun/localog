@@ -31,7 +31,6 @@
  * a blank card.
  */
 export type GenerationModelId =
-  | 'qwen3.5-2b'
   | 'qwen3.5-4b'
   | 'qwen3.5-9b'
   | 'qwen3.5-27b'
@@ -39,8 +38,7 @@ export type GenerationModelId =
   | 'gemma4-12b'
   | 'gemma4-26b'
   | 'gemma4-31b'
-  | 'ministral-3-14b'
-  | 'ministral-3b';
+  | 'ministral-3-14b';
 
 /** A language a model claims, or `more` for "and many others". */
 export type ModelLanguage = 'de' | 'en' | 'ja' | 'more';
@@ -203,34 +201,6 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     origin: 'international',
     licence: 'apache2',
     status: 'baseline',
-  },
-  {
-    id: 'qwen3.5-2b',
-    name: 'Qwen3.5 2B',
-    family: 'Qwen3.5',
-    providerNames: ['qwen3.5:2b'],
-    tier: 'baseline',
-    minimumMemoryGb: 8,
-    installedGb: null,
-    languages: ['de', 'en', 'more'],
-    testedLanguages: [],
-    origin: 'international',
-    licence: 'apache2',
-    status: 'candidate',
-  },
-  {
-    id: 'ministral-3b',
-    name: 'Ministral 3 3B',
-    family: 'Ministral 3',
-    providerNames: ['ministral-3:3b', 'ministral-3:3b-instruct-2512-q4_K_M'],
-    tier: 'baseline',
-    minimumMemoryGb: 8,
-    installedGb: null,
-    languages: ['de', 'en', 'ja', 'more'],
-    testedLanguages: [],
-    origin: 'european',
-    licence: 'apache2',
-    status: 'candidate',
   },
 ];
 

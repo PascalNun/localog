@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { ModelTerms, ProtocolProviderStatus } from '../workflow/types';
-  import { classDisclosure, memoryClasses, modelLadder } from '../models/modelLadder';
+  import { memoryClasses, modelLadder, withoutModel } from '../models/modelLadder';
   import { t } from '../i18n';
   import { errorMessage } from '../errors';
+  import ModelCard from './ModelCard.svelte';
   import ModelClass from './ModelClass.svelte';
 
   export let terms: ModelTerms[];
@@ -18,8 +19,9 @@
 
   $: ladder = modelLadder(terms, providerStatus.models, memoryGb);
   $: groups = memoryClasses(ladder);
-  $: recommendedClass = ladder.find((model) => model.recommended)?.minimumMemoryGb ?? null;
-  $: disclosure = classDisclosure(groups, memoryGb, recommendedClass);
+  $: recommended = ladder.find((model) => model.recommended) ?? null;
+  $: recommendedId = recommended?.entry.id ?? null;
+  $: more = withoutModel(groups, recommendedId ?? '');
   $: selected = status.selectedModel ?? providerStatus.selectedModel;
   $: selectedIsListed =
     selected === null ||
@@ -48,29 +50,26 @@
   {#if memoryGb !== null && memoryGb < 8}<p class="setting-hint">
       {$t.settings.memoryBelowMinimum}
     </p>{/if}
-  <p class="setting-hint">{$t.settings.recommendationNote}</p>
   <p class="setting-hint">{$t.settings.qualityCaution}</p>
   {#if !status.serverReachable}<p class="setting-hint">{errorMessage(status.message)}</p>{/if}
+
+  {#if recommended}
+    <section class="recommended-models" aria-label={$t.settings.recommendedForMachine}>
+      <p class="model-kicker">{$t.settings.recommendedForMachine}</p>
+      <div class="model-catalog">
+        <ModelCard option={recommended} {...shared} />
+      </div>
+    </section>
+  {/if}
+
   {#if selected !== null && !selectedIsListed}<p class="setting-hint">
       {$t.settings.selectedModelNotOffered}
     </p>{/if}
-  {#each disclosure.own as group (group.minimumMemoryGb)}
+
+  {#if more.length}
+    <p class="model-kicker more-models">{$t.settings.moreModels}</p>
+  {/if}
+  {#each more as group (group.minimumMemoryGb)}
     <ModelClass {...shared} {group} />
   {/each}
-  {#if disclosure.larger.length}
-    <details class="model-disclosure">
-      <summary class="quiet-action">{$t.settings.largerModels}</summary>
-      {#each disclosure.larger as group (group.minimumMemoryGb)}
-        <ModelClass {...shared} {group} />
-      {/each}
-    </details>
-  {/if}
-  {#if disclosure.smaller.length}
-    <details class="model-disclosure">
-      <summary class="quiet-action">{$t.settings.smallerModels}</summary>
-      {#each disclosure.smaller as group (group.minimumMemoryGb)}
-        <ModelClass {...shared} {group} />
-      {/each}
-    </details>
-  {/if}
 </section>

@@ -307,8 +307,8 @@ export const es: Strings = {
       'LocaLog guarda copias propias de las grabaciones importadas, del audio preparado, de las transcripciones, de las actas y de los modelos descargados en su carpeta de datos. Las exportaciones solo se escriben en el lugar que usted elija.',
     discoveredRuntime: (path: string) => `Entorno detectado: ${path}`,
     runtimeVersion: (version: string) => `Versión del entorno: ${version}`,
-    evaluatedIn: (languages: string) => `Evaluado en ${languages}`,
-    evaluationPending: 'Evaluación de calidad todavía pendiente',
+    evaluatedIn: (languages: string) => `Probado en ${languages}`,
+    evaluationPending: 'Aún no probado',
     otherModelNote:
       'Esto es para quien ya sabe qué modelo local quiere probar. LocaLog no lo evalúa ni lo recomienda, y sigue sujeto a los mismos límites de entorno y memoria.',
     qualityLead:
@@ -347,31 +347,29 @@ export const es: Strings = {
     chooseOnce: 'Elija una vez y siga trabajando',
     modelLead:
       'LocaLog usa este modelo para los borradores locales de actas hasta que usted lo cambie. El flujo normal no le pide elegir un modelo en cada reunión.',
-    recommendedForMachine: 'Modelo medido por defecto',
+    recommendedForMachine: 'Recomendado para este ordenador',
     notInstalledYet: 'Todavía no instalado',
     baseline: 'Referencia',
     european: 'Europeo',
     checkInstalled: 'Comprobar los modelos instalados',
-    curatedModels: 'Modelos de acta seleccionados',
-    largerModels: 'Modelos más grandes',
-    smallerModels: 'Modelos más pequeños',
+    curatedModels: 'Modelos para actas',
+    moreModels: 'Más modelos',
     downloadIntro:
       'Elige un modelo para este ordenador. Las descargas permanecen aquí; no hace falta otro servicio de IA.',
     modelClass: (gb: number) => `Necesita ${gb} GB o más`,
     memoryMinimum: (gb: number) => `Clase mínima de RAM: ${gb} GB`,
     memoryTooSmall: (gb: number) =>
-      `Necesita una clase de RAM de al menos ${gb} GB. La descarga y selección no están disponibles en este ordenador.`,
+      `Este modelo necesita al menos ${gb} GB de memoria. No se puede descargar ni seleccionar en este ordenador.`,
     memoryUnknown:
       'No se pudo detectar la memoria. Comprueba los requisitos de RAM antes de descargar.',
     memoryTight:
       'Con 8 GB queda poco margen para reuniones largas. Cierra otras aplicaciones; generar con CPU puede ser lento. El tamaño de descarga no es el uso total de RAM.',
     memoryBelowMinimum:
       'Este ordenador indica menos de los 8 GB que necesita el proceso de actas. Los modelos siguientes requieren un equipo mayor.',
-    recommendationNote:
-      'El modelo por defecto es el medido en la reunión de referencia de este proyecto. Los tamaños mayores se enumeran, pero no se recomiendan hasta que se hayan medido aquí.',
-    selectedModelNotOffered: 'El modelo seleccionado no está en esta lista seleccionada.',
+    selectedModelNotOffered:
+      'El modelo seleccionado ya no está en esta lista. Elige un modelo abajo para reemplazarlo.',
     qualityCaution:
-      'La memoria suficiente no garantiza la calidad. Revisa los modelos pequeños con cuidado; las mediciones anteriores proceden de otro ordenador.',
+      'Un modelo que cabe en la memoria puede escribir igualmente un acta pobre. Revisa el primer borrador antes de compartirlo.',
     bundledRuntime: 'En este dispositivo',
     viaOllama: 'Mediante Ollama',
     bundledRuntimeLead:
@@ -396,23 +394,19 @@ export const es: Strings = {
     downloadingPreset: (name: string) => `Descargando ${name}`,
     /** Véase la nota en en.ts. */
     modelDescription: {
-      'qwen3.5-2b':
-        'El Qwen 3.5 más pequeño ofrecido. Más rápido que el 4B en un equipo con poca memoria; aún no medido aquí.',
-      'qwen3.5-35b-a3b':
-        'Una mezcla de expertos: la velocidad de un modelo 3B con la memoria de un 35B. Para equipos de 32 GB; aún no medido aquí.',
-      'ministral-3-14b':
-        'El Ministral europeo más grande. Para equipos de 16 GB; aún no medido aquí.',
-      'gemma4-26b':
-        'El modelo Gemma 4 de mezcla de expertos. Va a una velocidad parecida a un modelo 4B, pero necesita la memoria de un modelo 26B; aún no medido aquí.',
-      'gemma4-31b': 'El mayor modelo Gemma 4 denso. Para equipos de 32 GB; aún no medido aquí.',
-      'qwen3.5-9b':
-        'El modelo Qwen 3.5 9B. El paso desde el 4B medido en un equipo de 16 GB; aún no medido aquí.',
-      'qwen3.5-27b': 'El modelo Qwen 3.5 27B. Para equipos de 32 GB; aún no medido aquí.',
-      'gemma4-12b':
-        'El más exacto y el más constante de los modelos medidos: en tres ejecuciones conservó de 27 a 31 de las 35 cifras de una reunión, donde el siguiente bajó hasta 6. Más lento: unos catorce minutos para una reunión de ochenta minutos.',
       'qwen3.5-4b':
-        'El modelo medido más rápido, unos cinco minutos para una reunión de ochenta minutos, y la elección cuando la memoria escasea. Nunca produjo la tabla de próximos pasos que pide el estilo formal.',
-      'ministral-3b': 'El primer candidato europeo para el Mac menos potente que se admite.',
+        'Rápido y ligero, la mejor opción para un equipo de 8 GB. Escribe un acta más corta y puede omitir la tabla de próximos pasos; revisa el borrador.',
+      'qwen3.5-9b':
+        'Un Qwen más grande para equipos de 16 GB. Más lento que el 4B; aún no probado.',
+      'qwen3.5-27b': 'El mayor Qwen denso, para equipos de 32 GB. Aún no probado.',
+      'qwen3.5-35b-a3b':
+        'Un modelo de mezcla de expertos rápido para equipos de 32 GB: necesita la memoria de un 35B pero va a la velocidad de un 3B. Aún no probado.',
+      'gemma4-12b':
+        'Nuestra opción más fiable: conserva bien las cifras y los nombres y redacta un acta regular y bien estructurada. Más lento que el 4B: unos catorce minutos para una reunión de ochenta minutos.',
+      'gemma4-26b':
+        'Un modelo de mezcla de expertos rápido para equipos de 24 GB: necesita la memoria de un 26B pero va a la velocidad de un 4B. Aún no probado.',
+      'gemma4-31b': 'El mayor Gemma denso, para equipos de 32 GB. Aún no probado.',
+      'ministral-3-14b': 'Un modelo europeo más grande para equipos de 16 GB. Aún no probado.',
     },
     modelOrigin: {
       international: 'Modelo abierto internacional',

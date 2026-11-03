@@ -298,8 +298,8 @@ export const ko: Strings = {
       'LocaLog는 가져온 녹음, 준비된 오디오, 전사본, 회의록, 내려받은 모델의 관리용 사본을 응용 프로그램 데이터 폴더에 보관합니다. 내보내기는 지정하신 위치에만 기록됩니다.',
     discoveredRuntime: (path: string) => `찾은 런타임: ${path}`,
     runtimeVersion: (version: string) => `런타임 버전: ${version}`,
-    evaluatedIn: (languages: string) => `${languages}에서 평가됨`,
-    evaluationPending: '품질 평가는 아직 진행되지 않았습니다',
+    evaluatedIn: (languages: string) => `${languages}로 테스트함`,
+    evaluationPending: '아직 테스트하지 않음',
     otherModelNote:
       '이것은 어떤 로컬 모델을 써 볼지 이미 알고 계신 분을 위한 것입니다. LocaLog가 평가하거나 권하는 모델이 아니며, 런타임과 메모리의 제약은 똑같이 적용됩니다.',
     qualityLead:
@@ -336,30 +336,28 @@ export const ko: Strings = {
     chooseOnce: '한 번만 고르시면 계속 작업하실 수 있습니다',
     modelLead:
       'LocaLog는 바꾸시기 전까지 이 모델로 로컬 회의록 초안을 만듭니다. 보통의 흐름에서는 회의마다 모델을 고르실 필요가 없습니다.',
-    recommendedForMachine: '측정된 기본값',
+    recommendedForMachine: '이 컴퓨터에 권장',
     notInstalledYet: '아직 설치되지 않음',
     baseline: '기준',
     european: '유럽산',
     checkInstalled: '설치된 모델 확인',
-    curatedModels: '선별된 회의록 모델',
-    largerModels: '더 큰 모델',
-    smallerModels: '더 작은 모델',
+    curatedModels: '회의록 모델',
+    moreModels: '더 많은 모델',
     downloadIntro:
       '이 컴퓨터에 맞는 모델을 선택하세요. 다운로드는 기기에 저장되며 별도 AI 서비스가 필요하지 않습니다.',
     modelClass: (gb: number) => `${gb} GB 이상에서 실행`,
     memoryMinimum: (gb: number) => `최소 RAM 등급: ${gb} GB`,
     memoryTooSmall: (gb: number) =>
-      `${gb} GB 이상의 RAM 등급이 필요합니다. 이 컴퓨터에서는 다운로드하거나 선택할 수 없습니다.`,
+      `이 모델에는 최소 ${gb} GB의 메모리가 필요합니다. 이 컴퓨터에서는 내려받거나 선택할 수 없습니다.`,
     memoryUnknown: '메모리를 감지하지 못했습니다. 다운로드 전에 RAM 요구 사항을 확인하세요.',
     memoryTight:
       '8 GB에서는 긴 회의를 처리할 여유가 적습니다. 다른 앱을 닫으세요. CPU 생성은 느릴 수 있습니다. 다운로드 크기는 전체 RAM 사용량이 아닙니다.',
     memoryBelowMinimum:
       '이 컴퓨터의 메모리는 회의록 파이프라인에 필요한 8GB보다 적습니다. 아래 모델은 더 큰 컴퓨터가 필요합니다.',
-    recommendationNote:
-      '기본값은 이 프로젝트의 기준 회의에서 측정한 모델입니다. 더 큰 크기도 나열되어 있지만, 여기에서 측정되기 전에는 권장하지 않습니다.',
-    selectedModelNotOffered: '선택한 모델이 이 선별 목록에 없습니다.',
+    selectedModelNotOffered:
+      '선택한 모델이 더 이상 이 목록에 없습니다. 아래에서 다른 모델을 선택해 교체하세요.',
     qualityCaution:
-      '메모리가 충분해도 회의록 품질은 보장되지 않습니다. 작은 모델의 결과를 신중히 검토하세요. 이전 측정은 다른 컴퓨터에서 수행되었습니다.',
+      '메모리에 맞는 모델도 약한 회의록을 쓸 수 있습니다. 공유하기 전에 첫 초안을 검토하세요.',
     bundledRuntime: '이 기기에서',
     viaOllama: 'Ollama 경유',
     bundledRuntimeLead:
@@ -384,25 +382,19 @@ export const ko: Strings = {
     downloadingPreset: (name: string) => `${name} 내려받는 중`,
     /** en.ts의 설명을 참고하십시오. */
     modelDescription: {
-      'qwen3.5-2b':
-        '제공하는 가장 작은 Qwen 3.5입니다. 메모리가 적은 컴퓨터에서는 4B보다 빠르며, 아직 여기에서 측정되지 않았습니다.',
-      'qwen3.5-35b-a3b':
-        '전문가 혼합 모델입니다. 3B 모델 정도의 속도에 35B 모델 수준의 메모리가 필요합니다. 32GB 컴퓨터용이며 아직 여기에서 측정되지 않았습니다.',
-      'ministral-3-14b':
-        '더 큰 유럽산 Ministral입니다. 16GB 컴퓨터용이며 아직 여기에서 측정되지 않았습니다.',
-      'gemma4-26b':
-        'Gemma 4의 전문가 혼합 모델입니다. 4B 모델 정도의 속도지만 26B 모델에 해당하는 메모리가 필요합니다. 아직 여기에서 측정되지 않았습니다.',
-      'gemma4-31b':
-        'Gemma 4의 가장 큰 dense 모델입니다. 32GB 컴퓨터용이며 아직 여기에서 측정되지 않았습니다.',
-      'qwen3.5-9b':
-        'Qwen 3.5 9B 모델입니다. 16GB 컴퓨터에서 측정된 4B의 다음 단계이며 아직 여기에서 측정되지 않았습니다.',
-      'qwen3.5-27b':
-        'Qwen 3.5 27B 모델입니다. 32GB 컴퓨터용이며 아직 여기에서 측정되지 않았습니다.',
-      'gemma4-12b':
-        '측정한 모델 가운데 가장 정확하고 가장 안정적입니다. 세 차례 실행에서 회의에 나온 수치 35개 가운데 27~31개를 지켰고, 그다음 모델은 6개까지 떨어졌습니다. 다만 느립니다. 80분짜리 회의에 약 14분이 걸립니다.',
       'qwen3.5-4b':
-        '측정한 모델 가운데 가장 빠릅니다. 80분짜리 회의에 약 5분이 걸리며, 메모리가 부족할 때의 선택지입니다. 다만 정식 서식이 요구하는 다음 단계 표를 한 번도 만들어 내지 못했습니다.',
-      'ministral-3b': '지원하는 Mac 가운데 가장 사양이 낮은 기기를 위한 첫 유럽산 후보입니다.',
+        '빠르고 가벼워 8GB 컴퓨터에 가장 알맞습니다. 회의록이 짧고 다음 단계 표가 빠질 수 있으니 초안을 검토하세요.',
+      'qwen3.5-9b':
+        '16GB 컴퓨터를 위한 더 큰 Qwen입니다. 4B보다 느리며 아직 테스트하지 않았습니다.',
+      'qwen3.5-27b': '32GB 컴퓨터를 위한 가장 큰 dense Qwen입니다. 아직 테스트하지 않았습니다.',
+      'qwen3.5-35b-a3b':
+        '32GB 컴퓨터를 위한 빠른 전문가 혼합 모델입니다. 35B 모델에 해당하는 메모리가 필요하지만 3B 정도의 속도로 실행됩니다. 아직 테스트하지 않았습니다.',
+      'gemma4-12b':
+        '가장 신뢰할 수 있는 선택입니다. 숫자와 이름을 잘 지키고 안정적이고 잘 짜인 회의록을 씁니다. 4B보다 느리며 80분 회의에 약 14분 걸립니다.',
+      'gemma4-26b':
+        '24GB 컴퓨터를 위한 빠른 전문가 혼합 모델입니다. 26B 모델에 해당하는 메모리가 필요하지만 4B 정도의 속도로 실행됩니다. 아직 테스트하지 않았습니다.',
+      'gemma4-31b': '32GB 컴퓨터를 위한 가장 큰 dense Gemma입니다. 아직 테스트하지 않았습니다.',
+      'ministral-3-14b': '16GB 컴퓨터를 위한 더 큰 유럽산 모델입니다. 아직 테스트하지 않았습니다.',
     },
     modelOrigin: {
       international: '국제 공개 모델',

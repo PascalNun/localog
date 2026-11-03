@@ -348,8 +348,8 @@ export const en = {
       'LocaLog keeps managed copies of imported recordings, prepared audio, transcripts, protocols and downloaded models in its application-data folder. Exports are written only to the location you choose.',
     discoveredRuntime: (path: string) => `Discovered runtime: ${path}`,
     runtimeVersion: (version: string) => `Runtime version: ${version}`,
-    evaluatedIn: (languages: string) => `Evaluated in ${languages}`,
-    evaluationPending: 'Quality evaluation still pending',
+    evaluatedIn: (languages: string) => `Tested in ${languages}`,
+    evaluationPending: 'Not tested yet',
     otherModelNote:
       'This is for people who already know which local model they want to try. It is not evaluated or recommended by LocaLog, and it remains subject to the same local runtime and memory limits.',
     qualityLead:
@@ -388,31 +388,29 @@ export const en = {
     chooseOnce: 'Choose once, then keep working',
     modelLead:
       'LocaLog uses this model for local protocol drafts until you change it. The normal workflow does not ask you to choose a model for every meeting.',
-    recommendedForMachine: 'Measured default',
+    recommendedForMachine: 'Recommended for this computer',
     notInstalledYet: 'Not installed yet',
     baseline: 'Baseline',
     european: 'European',
     checkInstalled: 'Check installed models',
-    curatedModels: 'Curated protocol models',
-    largerModels: 'Larger models',
-    smallerModels: 'Smaller models',
+    curatedModels: 'Protocol models',
+    moreModels: 'More models',
     downloadIntro:
       'Choose a model for this computer. Downloads stay on this device; no separate AI service is needed.',
     modelClass: (gb: number) => `Runs on ${gb} GB or more`,
     memoryMinimum: (gb: number) => `Minimum RAM class: ${gb} GB`,
     memoryTooSmall: (gb: number) =>
-      `Needs a ${gb} GB RAM class or larger. Download and selection are unavailable on this computer.`,
+      `This model needs at least ${gb} GB of memory. It cannot be downloaded or selected on this computer.`,
     memoryUnknown:
       'Memory could not be detected. Check the model’s RAM requirement before downloading.',
     memoryTight:
       'An 8 GB computer has little room for long meetings. Close other applications; CPU generation may be slow. Download size is not total RAM use.',
     memoryBelowMinimum:
       'This computer reports less than the 8 GB the protocol pipeline needs. The models below need a larger machine.',
-    recommendationNote:
-      'The default is the model measured on this project’s reference meeting. Larger sizes are listed, but they are not recommended until they have been measured here.',
-    selectedModelNotOffered: 'The selected model is not in this curated list.',
+    selectedModelNotOffered:
+      'The model currently selected is no longer in this list. Choose a model below to replace it.',
     qualityCaution:
-      'Memory suitability does not guarantee protocol quality. Smaller candidates need careful review; earlier measurements were made on a different computer.',
+      'A model that fits your memory can still write a weak protocol. Review the first draft before you share it.',
     bundledRuntime: 'On this device',
     viaOllama: 'Via Ollama',
     bundledRuntimeLead:
@@ -445,23 +443,18 @@ export const en = {
      * without a sentence here does not compile.
      */
     modelDescription: {
-      'qwen3.5-2b':
-        'The smallest Qwen 3.5 offered. Faster than the 4B on a machine with little memory; not yet measured here.',
-      'qwen3.5-35b-a3b':
-        'A mixture of experts: about the speed of a 3B model with the memory of a 35B one. For 32 GB machines; not yet measured here.',
-      'ministral-3-14b':
-        'The larger European Ministral. For 16 GB machines; not yet measured here.',
-      'gemma4-26b':
-        'The mixture-of-experts Gemma 4. Runs at about 4B speed but needs the memory of a 26B model; not yet measured here.',
-      'gemma4-31b': 'The largest dense Gemma 4. For 32 GB machines; not yet measured here.',
-      'qwen3.5-9b':
-        'The 9B Qwen 3.5. The step up from the measured 4B on a 16 GB machine; not yet measured here.',
-      'qwen3.5-27b': 'The 27B Qwen 3.5. For 32 GB machines; not yet measured here.',
-      'gemma4-12b':
-        'The most accurate and the steadiest of the measured models: it kept 27 to 31 of a meeting’s 35 figures across three runs, where the next best kept as few as 6. Slower — about fourteen minutes for an eighty-minute meeting.',
       'qwen3.5-4b':
-        'The fastest measured model, at about five minutes for an eighty-minute meeting, and the choice where memory is short. It never produced the table of next steps the formal style asks for.',
-      'ministral-3b': 'The first European candidate for the weakest supported Mac.',
+        'Fast and light, and the best fit for an 8 GB machine. It writes a shorter protocol and may leave out the table of next steps, so review the draft.',
+      'qwen3.5-9b': 'A larger Qwen for 16 GB machines. Slower than the 4B; not tested yet.',
+      'qwen3.5-27b': 'The largest dense Qwen, for 32 GB machines. Not tested yet.',
+      'qwen3.5-35b-a3b':
+        'A fast mixture-of-experts model for 32 GB machines: it needs the memory of a 35B model but runs at about 3B speed. Not tested yet.',
+      'gemma4-12b':
+        'Our most reliable choice: it keeps figures and names well and writes a steady, well-structured protocol. Slower than the 4B — about fourteen minutes for an eighty-minute meeting.',
+      'gemma4-26b':
+        'A fast mixture-of-experts model for 24 GB machines: it needs the memory of a 26B model but runs at about 4B speed. Not tested yet.',
+      'gemma4-31b': 'The largest dense Gemma, for 32 GB machines. Not tested yet.',
+      'ministral-3-14b': 'A larger European model for 16 GB machines. Not tested yet.',
     },
     modelOrigin: {
       international: 'International open model',

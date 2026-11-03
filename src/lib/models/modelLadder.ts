@@ -88,10 +88,10 @@ export function modelLadder(
 }
 
 /**
- * The ladder, smallest useful class first and the development fallback last.
+ * The ladder, smallest memory class first.
  *
- * The 4 GB class is deliberately after 8 and 16, because the 0.8B is a smoke-test
- * model rather than the first rung of a recommendation.
+ * Classes below 8 GB would be sorted after the rest; the product does not offer
+ * them, but the ordering keeps a future fallback from appearing above a real one.
  */
 export function memoryClasses(models: LadderModel[]): MemoryClass[] {
   const classes = new Map<number, LadderModel[]>();
@@ -108,14 +108,12 @@ export function memoryClasses(models: LadderModel[]): MemoryClass[] {
  * A class's rows, with each family kept together and the recommendation first.
  *
  * The catalogue's order is the recommendation order, which is not a reading
- * order: it places Ministral 8B between two Gemma rows and puts the 9B before the
- * 12B it is an alternative to. Sorting for display is safe because `recommended`
- * is decided before this runs.
+ * order. Sorting for display is safe because `recommended` is decided before this
+ * runs.
  *
  * Families are ordered by where they first appear in the catalogue, which puts the
  * family holding the recommendation first on that machine without hard-coding a
- * preference. Ordering them by name instead scattered Qwen 4B, Ministral 3B and
- * Qwen 2B across the 8 GB class.
+ * preference.
  */
 export function displayOrder(models: LadderModel[]): LadderModel[] {
   const familyRank = new Map<string, number>();
@@ -132,42 +130,12 @@ export function displayOrder(models: LadderModel[]): LadderModel[] {
   });
 }
 
-/**
- * The classes a machine should see, and the ones that need a decision.
- *
- * The machine's own class is the highest class it can run. `own` starts at the
- * class holding the measured default, not at the smallest class, so a 32 GB
- * machine still sees the 12B it is being recommended — hiding it behind "Smaller
- * models" would hide the only recommendation the project is willing to make.
- * Classes below that floor are the fallback; classes above the machine are what a
- * larger machine would offer.
- */
-export interface ClassDisclosure {
-  own: MemoryClass[];
-  smaller: MemoryClass[];
-  larger: MemoryClass[];
-}
-
-export function classDisclosure(
-  classes: MemoryClass[],
-  memoryGb: number | null,
-  recommendedClass: number | null,
-): ClassDisclosure {
-  if (memoryGb === null) return { own: classes, smaller: [], larger: [] };
-
-  const machineClass = classes
-    .filter((group) => group.minimumMemoryGb <= memoryGb)
-    .at(-1)?.minimumMemoryGb;
-  if (machineClass === undefined) {
-    return { own: [], smaller: [], larger: classes };
-  }
-
-  const floor = recommendedClass === null ? machineClass : Math.min(recommendedClass, machineClass);
-  return {
-    own: classes.filter(
-      (group) => group.minimumMemoryGb >= floor && group.minimumMemoryGb <= machineClass,
-    ),
-    smaller: classes.filter((group) => group.minimumMemoryGb < floor),
-    larger: classes.filter((group) => group.minimumMemoryGb > machineClass),
-  };
+/** The classes with one model taken out; a class left empty disappears. */
+export function withoutModel(classes: MemoryClass[], modelId: string): MemoryClass[] {
+  return classes
+    .map((group) => ({
+      ...group,
+      models: group.models.filter((model) => model.entry.id !== modelId),
+    }))
+    .filter((group) => group.models.length > 0);
 }

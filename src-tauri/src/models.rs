@@ -173,11 +173,14 @@ const MODELS: &[ModelSpec] = &[
         licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
         acceptance_required: false,
     },
-    // The Qwen 3.5 family above and below the measured 4B. Same Apache 2.0
-    // licence. The 2B, 9B, 27B and 35B-A3B are options for 8 to 32 GB machines
-    // and have not been measured here yet. The 35B is a mixture of experts with
-    // 3B active, so it keeps the memory of a 35B file and the speed of a small
-    // one.
+    // The Qwen 3.5 family above the measured 4B. Same Apache 2.0 licence. The 9B,
+    // 27B and 35B-A3B are options for 16 and 32 GB machines and have not been
+    // measured here yet. The 35B is a mixture of experts with 3B active, so it
+    // keeps the memory of a 35B file and the speed of a small one.
+    //
+    // The 2B is not offered: the 4B is the smallest size this project has
+    // measured producing a protocol, and a smaller model has to clear that bar
+    // before it can take a place in the picker.
     ModelSpec {
         id: "qwen3.5-35b-a3b",
         file_name: "Qwen3.5-35B-A3B-Q4_K_M.gguf",
@@ -212,17 +215,6 @@ const MODELS: &[ModelSpec] = &[
         acceptance_required: false,
     },
     ModelSpec {
-        id: "qwen3.5-2b",
-        file_name: "Qwen3.5-2B-Q4_K_M.gguf",
-        url: "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf",
-        sha256: "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223",
-        byte_count: 1_280_835_840,
-        kind: ModelKind::Generation,
-        licence: "apache2",
-        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
-        acceptance_required: false,
-    },
-    ModelSpec {
         id: "qwen3.5-4b",
         file_name: "Qwen3.5-4B-Q4_K_M.gguf",
         url: "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-Q4_K_M.gguf",
@@ -233,9 +225,9 @@ const MODELS: &[ModelSpec] = &[
         licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
         acceptance_required: false,
     },
-    // The larger Ministral 3 rungs, so the European family is not a single
-    // weakly supported 3B. The 14B is the option a 16 GB European machine can
-    // run without falling back to an American or Chinese family.
+    // The European option. The 3B was removed from the picker: it is smaller than
+    // the measured 4B and unmeasured, so it did not clear the product's minimum.
+    // The 14B is the smallest European size offered, on 16 GB machines.
     ModelSpec {
         id: "ministral-3-14b",
         file_name: "Ministral-3-14B-Instruct-2512-Q4_K_M.gguf",
@@ -247,17 +239,9 @@ const MODELS: &[ModelSpec] = &[
         licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
         acceptance_required: false,
     },
-    ModelSpec {
-        id: "ministral-3b",
-        file_name: "Ministral-3-3B-Instruct-2512-Q4_K_M.gguf",
-        url: "https://huggingface.co/unsloth/Ministral-3-3B-Instruct-2512-GGUF/resolve/7564922f37fa5bbb62b87f09a55c12f1f91d7a6a/Ministral-3-3B-Instruct-2512-Q4_K_M.gguf",
-        sha256: "fd46fc371ff0509bfa8657ac956b7de8534d7d9baaa4947975c0648c3aa397f4",
-        byte_count: 2146497824,
-        kind: ModelKind::Generation,
-        licence: "apache2",
-        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
-        acceptance_required: false,
-    },
+    // Harness only. It is not offered in Settings: it cannot write a protocol
+    // from a long meeting, and the notes fallback is what keeps the pipeline
+    // testable on the weakest possible model.
     ModelSpec {
         id: "qwen3.5-0.8b",
         file_name: "Qwen3.5-0.8B-Q8_0.gguf",
@@ -455,9 +439,7 @@ pub(crate) fn generation_minimum_memory_gb(model_id: &str) -> Option<u32> {
         | "granite4.1:8b" => Some(16),
         "qwen3.5-4b"
         | "qwen3.5:4b"
-        | "qwen3.5-2b"
         | "qwen3.5:2b"
-        | "ministral-3b"
         | "ministral-3:3b"
         | "ministral-3:3b-instruct-2512-q4_K_M" => Some(8),
         "qwen3.5-0.8b" | "qwen3.5:0.8b" => Some(4),
@@ -1121,7 +1103,6 @@ mod the_catalogue_terms {
 
     #[test]
     fn the_larger_families_need_the_memory_they_claim() {
-        assert_eq!(generation_minimum_memory_gb("qwen3.5-2b"), Some(8));
         assert_eq!(generation_minimum_memory_gb("qwen3.5-9b"), Some(16));
         assert_eq!(generation_minimum_memory_gb("ministral-3-14b"), Some(16));
         assert_eq!(generation_minimum_memory_gb("gemma4-26b"), Some(24));
@@ -1161,8 +1142,8 @@ mod the_catalogue_terms {
                 .model_id,
             "gemma4-12b"
         );
-        assert!(selected_generation_model(&root, Some("ministral-3b"), Some(16)).is_none());
-        assert!(generation_model_path(&root, Some("ministral-3b")).is_none());
+        assert!(selected_generation_model(&root, Some("not-a-model"), Some(16)).is_none());
+        assert!(generation_model_path(&root, Some("not-a-model")).is_none());
         assert!(generation_model_path(&root, Some("base")).is_none());
         assert!(selected_generation_model(&root, None, Some(4)).is_none());
         assert!(!generation_fits("gemma4-12b", Some(8)));

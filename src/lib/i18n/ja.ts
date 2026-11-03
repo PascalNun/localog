@@ -306,8 +306,8 @@ export const ja: Strings = {
       'LocaLogは、取り込んだ録音、準備した音声、文字起こし、議事録、ダウンロードしたモデルの管理用の複製を、アプリケーションデータのフォルダに保管します。書き出しは指定された場所にのみ書き込まれます。',
     discoveredRuntime: (path: string) => `検出したランタイム：${path}`,
     runtimeVersion: (version: string) => `ランタイムのバージョン：${version}`,
-    evaluatedIn: (languages: string) => `${languages}で評価済み`,
-    evaluationPending: '品質の評価はまだ行われていません',
+    evaluatedIn: (languages: string) => `${languages}でテスト済み`,
+    evaluationPending: 'まだテストしていません',
     otherModelNote:
       'これは、どのローカルモデルを試したいかすでに分かっている方のためのものです。LocaLogは評価も推奨もしておらず、ランタイムとメモリの制約は同じように当てはまります。',
     qualityLead:
@@ -344,30 +344,28 @@ export const ja: Strings = {
     chooseOnce: '一度選べば、あとは作業を続けられます',
     modelLead:
       'LocaLogは、変更しないかぎりこのモデルでローカルの議事録の下書きを作ります。通常の流れでは、会議ごとにモデルを選ぶ必要はありません。',
-    recommendedForMachine: '測定済みの標準',
+    recommendedForMachine: 'このコンピューターにおすすめ',
     notInstalledYet: 'まだ未インストール',
     baseline: '基準',
     european: '欧州製',
     checkInstalled: 'インストール済みのモデルを確認',
-    curatedModels: '選定済みの議事録モデル',
-    largerModels: 'より大きなモデル',
-    smallerModels: 'より小さなモデル',
+    curatedModels: '議事録モデル',
+    moreModels: 'その他のモデル',
     downloadIntro:
       'このコンピューターに合うモデルを選択してください。ダウンロードは端末内に保存され、別のAIサービスは不要です。',
     modelClass: (gb: number) => `${gb} GB 以上で動作`,
     memoryMinimum: (gb: number) => `最小RAMクラス：${gb} GB`,
     memoryTooSmall: (gb: number) =>
-      `${gb} GB以上のRAMクラスが必要です。このコンピューターではダウンロード・選択できません。`,
+      `このモデルには少なくとも ${gb} GB のメモリが必要です。このコンピューターではダウンロードも選択もできません。`,
     memoryUnknown: 'メモリを検出できませんでした。ダウンロード前に必要なRAMを確認してください。',
     memoryTight:
       '8 GBでは長い会議を処理する余裕が少なくなります。他のアプリを閉じてください。CPUでの生成は遅くなる場合があります。ダウンロード容量とRAM使用量は異なります。',
     memoryBelowMinimum:
       'このコンピューターのメモリは、議事録パイプラインに必要な 8 GB を下回っています。以下のモデルにはより大きなマシンが必要です。',
-    recommendationNote:
-      '標準は、このプロジェクトの参照会議で測定したモデルです。より大きなサイズも一覧にありますが、ここで測定するまではおすすめしません。',
-    selectedModelNotOffered: '選択中のモデルはこの選定リストにありません。',
+    selectedModelNotOffered:
+      '選択中のモデルはこの一覧にありません。下から別のモデルを選んでください。',
     qualityCaution:
-      'メモリが足りても議事録の品質は保証されません。小型モデルの結果は慎重に確認してください。以前の測定は別のコンピューターで行われました。',
+      'メモリに収まるモデルでも、弱い議事録になることがあります。共有する前に最初の下書きを確認してください。',
     bundledRuntime: 'この端末で',
     viaOllama: 'Ollama経由',
     bundledRuntimeLead:
@@ -392,24 +390,18 @@ export const ja: Strings = {
     downloadingPreset: (name: string) => `${name} をダウンロード中`,
     /** en.ts の注記を参照。 */
     modelDescription: {
-      'qwen3.5-2b':
-        '提供する最小の Qwen 3.5。メモリの少ないマシンでは 4B より高速です。ここではまだ測定していません。',
-      'qwen3.5-35b-a3b':
-        'Mixture-of-Experts モデル。3B モデル程度の速度で、35B モデル相当のメモリが必要です。32 GB マシン向けで、ここではまだ測定していません。',
-      'ministral-3-14b':
-        'より大きな欧州製 Ministral。16 GB マシン向けで、ここではまだ測定していません。',
-      'gemma4-26b':
-        'Gemma 4 の Mixture-of-Experts モデル。4B モデル程度の速度ですが、26B モデル相当のメモリが必要です。ここではまだ測定していません。',
-      'gemma4-31b':
-        'Gemma 4 最大の dense モデル。32 GB マシン向けです。ここではまだ測定していません。',
-      'qwen3.5-9b':
-        'Qwen 3.5 の 9B モデル。16 GB マシンで測定済みの 4B から一段上です。ここではまだ測定していません。',
-      'qwen3.5-27b': 'Qwen 3.5 の 27B モデル。32 GB マシン向けです。ここではまだ測定していません。',
-      'gemma4-12b':
-        '測定したモデルのなかで最も正確で、最も安定しています。3 回の実行で、会議に出てきた 35 個の数値のうち 27 〜 31 を残しました。次点は 6 まで落ちています。速度は遅く、80 分の会議でおよそ 14 分かかります。',
       'qwen3.5-4b':
-        '測定したなかで最も速く、80 分の会議でおよそ 5 分です。メモリが少ないときの選択肢になります。ただし、形式的なスタイルが求める「次の一手」の表を一度も出しませんでした。',
-      'ministral-3b': '対応するなかで最も非力な Mac に向けた、はじめての欧州製の候補です。',
+        '高速で軽量、8 GB マシンに最適です。議事録は短めで、次のステップの表が省かれることがあるため、下書きを確認してください。',
+      'qwen3.5-9b': '16 GB マシン向けのより大きな Qwen。4B より遅く、まだテストしていません。',
+      'qwen3.5-27b': '32 GB マシン向けの最大の dense Qwen。まだテストしていません。',
+      'qwen3.5-35b-a3b':
+        '32 GB マシン向けの高速な Mixture-of-Experts モデル。35B モデル相当のメモリが必要ですが、3B 程度の速度で動きます。まだテストしていません。',
+      'gemma4-12b':
+        '最も信頼できる選択です。数字と名前をよく保ち、安定した構成の議事録を書きます。4B より遅く、80 分の会議で約 14 分かかります。',
+      'gemma4-26b':
+        '24 GB マシン向けの高速な Mixture-of-Experts モデル。26B モデル相当のメモリが必要ですが、4B 程度の速度で動きます。まだテストしていません。',
+      'gemma4-31b': '32 GB マシン向けの最大の dense Gemma。まだテストしていません。',
+      'ministral-3-14b': '16 GB マシン向けのより大きな欧州製モデル。まだテストしていません。',
     },
     modelOrigin: {
       international: '国際的なオープンモデル',
