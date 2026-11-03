@@ -347,25 +347,29 @@ export const es: Strings = {
     chooseOnce: 'Elija una vez y siga trabajando',
     modelLead:
       'LocaLog usa este modelo para los borradores locales de actas hasta que usted lo cambie. El flujo normal no le pide elegir un modelo en cada reunión.',
-    recommendedForMachine: 'Recomendado para esta máquina',
+    recommendedForMachine: 'Modelo medido por defecto',
     notInstalledYet: 'Todavía no instalado',
     baseline: 'Referencia',
     european: 'Europeo',
     checkInstalled: 'Comprobar los modelos instalados',
     curatedModels: 'Modelos de acta seleccionados',
     largerModels: 'Modelos más grandes',
-    testOnlyHint:
-      'Solo para pruebas. Este modelo existe para que un equipo de desarrollo pueda ejecutar el proceso; su salida no es un documento que debas conservar.',
+    smallerModels: 'Modelos más pequeños',
     downloadIntro:
       'Elige un modelo para este ordenador. Las descargas permanecen aquí; no hace falta otro servicio de IA.',
+    modelClass: (gb: number) => `Necesita ${gb} GB o más`,
     memoryMinimum: (gb: number) => `Clase mínima de RAM: ${gb} GB`,
-    modelClass: (gb: number) => `Clase de ${gb} GB`,
     memoryTooSmall: (gb: number) =>
       `Necesita una clase de RAM de al menos ${gb} GB. La descarga y selección no están disponibles en este ordenador.`,
     memoryUnknown:
       'No se pudo detectar la memoria. Comprueba los requisitos de RAM antes de descargar.',
     memoryTight:
       'Con 8 GB queda poco margen para reuniones largas. Cierra otras aplicaciones; generar con CPU puede ser lento. El tamaño de descarga no es el uso total de RAM.',
+    memoryBelowMinimum:
+      'Este ordenador indica menos de los 8 GB que necesita el proceso de actas. Los modelos siguientes requieren un equipo mayor.',
+    recommendationNote:
+      'El modelo por defecto es el medido en la reunión de referencia de este proyecto. Los tamaños mayores se enumeran, pero no se recomiendan hasta que se hayan medido aquí.',
+    selectedModelNotOffered: 'El modelo seleccionado no está en esta lista seleccionada.',
     qualityCaution:
       'La memoria suficiente no garantiza la calidad. Revisa los modelos pequeños con cuidado; las mediciones anteriores proceden de otro ordenador.',
     bundledRuntime: 'En este dispositivo',
@@ -393,31 +397,22 @@ export const es: Strings = {
     /** Véase la nota en en.ts. */
     modelDescription: {
       'qwen3.5-2b':
-        'El Qwen 3.5 más pequeño que merece elegirse en lugar del modelo de prueba. Más rápido que el 4B en un equipo con poca memoria; aún no medido aquí.',
+        'El Qwen 3.5 más pequeño ofrecido. Más rápido que el 4B en un equipo con poca memoria; aún no medido aquí.',
       'qwen3.5-35b-a3b':
         'Una mezcla de expertos: la velocidad de un modelo 3B con la memoria de un 35B. Para equipos de 32 GB; aún no medido aquí.',
       'ministral-3-14b':
         'El Ministral europeo más grande. Para equipos de 16 GB; aún no medido aquí.',
-      'gemma4-e4b':
-        'El modelo pequeño de Gemma 4. Una opción para 16 GB; su calidad de acta aún no se ha medido aquí.',
       'gemma4-26b':
         'El modelo Gemma 4 de mezcla de expertos. Va a una velocidad parecida a un modelo 4B, pero necesita la memoria de un modelo 26B; aún no medido aquí.',
       'gemma4-31b': 'El mayor modelo Gemma 4 denso. Para equipos de 32 GB; aún no medido aquí.',
       'qwen3.5-9b':
         'El modelo Qwen 3.5 9B. El paso desde el 4B medido en un equipo de 16 GB; aún no medido aquí.',
       'qwen3.5-27b': 'El modelo Qwen 3.5 27B. Para equipos de 32 GB; aún no medido aquí.',
-      'qwen3.5-0.8b':
-        'Modelo pequeño para desarrollo y pruebas. Calidad de actas no evaluada; no dependas de él para actas profesionales.',
       'gemma4-12b':
         'El más exacto y el más constante de los modelos medidos: en tres ejecuciones conservó de 27 a 31 de las 35 cifras de una reunión, donde el siguiente bajó hasta 6. Más lento: unos catorce minutos para una reunión de ochenta minutos.',
-      'ministral-8b':
-        'Medido en una reunión en alemán con tres ajustes, redactó un acta utilizable en uno de ellos: los demás produjeron un esbozo de dos líneas y un documento JSON donde se pedía markdown. Se mantiene como candidato europeo, todavía no como alternativa a la referencia.',
       'qwen3.5-4b':
         'El modelo medido más rápido, unos cinco minutos para una reunión de ochenta minutos, y la elección cuando la memoria escasea. Nunca produjo la tabla de próximos pasos que pide el estilo formal.',
       'ministral-3b': 'El primer candidato europeo para el Mac menos potente que se admite.',
-      'granite4.1-8b':
-        'Medido en una reunión en alemán con tres ajustes, conservó 22, 19 y 6 de las 35 cifras enunciadas, con la misma entrada. Una ejecución que pierde cinco sextos de lo dicho no sirve para dejar constancia, así que no se recomienda.',
-      'llama-8b': 'Un puesto de comparación reservado para una versión de Llama verificada.',
     },
     modelOrigin: {
       international: 'Modelo abierto internacional',

@@ -356,24 +356,28 @@ export const it: Strings = {
     chooseOnce: 'Scelga una volta, poi continui a lavorare',
     modelLead:
       'LocaLog usa questo modello per le bozze locali dei verbali finché non lo cambia. Il percorso normale non le chiede di scegliere un modello per ogni riunione.',
-    recommendedForMachine: 'Consigliato per questa macchina',
+    recommendedForMachine: 'Modello misurato predefinito',
     notInstalledYet: 'Non ancora installato',
     baseline: 'Riferimento',
     european: 'Europeo',
     checkInstalled: 'Verifica i modelli installati',
     curatedModels: 'Modelli per i verbali selezionati',
     largerModels: 'Modelli più grandi',
-    testOnlyHint:
-      'Solo per le prove. Questo modello esiste perché una macchina di sviluppo possa eseguire la pipeline; il suo risultato non è un documento da conservare.',
+    smallerModels: 'Modelli più piccoli',
     downloadIntro:
       'Scegli un modello per questo computer. I download restano qui; non serve un servizio IA separato.',
+    modelClass: (gb: number) => `Richiede ${gb} GB o più`,
     memoryMinimum: (gb: number) => `Classe RAM minima: ${gb} GB`,
-    modelClass: (gb: number) => `Classe ${gb} GB`,
     memoryTooSmall: (gb: number) =>
       `Richiede una classe RAM di almeno ${gb} GB. Download e selezione non disponibili su questo computer.`,
     memoryUnknown: 'Memoria non rilevata. Verifica i requisiti RAM prima del download.',
     memoryTight:
-      'Con 8 GB resta poco spazio per riunioni lunghe. Chiudi le altre applicazioni; la generazione su CPU può essere lenta. La dimensione del download non è la RAM totale usata.',
+      'Con 8 GB resta poco spazio per riunioni lunghe. Chiuda le altre applicazioni; la generazione su CPU può essere lenta. La dimensione del download non è la RAM totale usata.',
+    memoryBelowMinimum:
+      'Questo computer dichiara meno degli 8 GB necessari alla pipeline dei verbali. I modelli seguenti richiedono una macchina più grande.',
+    recommendationNote:
+      'Il modello predefinito è quello misurato sulla riunione di riferimento di questo progetto. Le dimensioni maggiori sono elencate, ma non vengono consigliate finché non sono state misurate qui.',
+    selectedModelNotOffered: 'Il modello selezionato non è in questo elenco selezionato.',
     qualityCaution:
       'La memoria sufficiente non garantisce la qualità. Controlla attentamente i modelli piccoli; le misurazioni precedenti provengono da un altro computer.',
     bundledRuntime: 'Su questo dispositivo',
@@ -401,13 +405,11 @@ export const it: Strings = {
     /** Si veda la nota in en.ts. */
     modelDescription: {
       'qwen3.5-2b':
-        'Il più piccolo Qwen 3.5 che valga la pena scegliere al posto del modello di prova. Più veloce del 4B su una macchina con poca memoria; non ancora misurato qui.',
+        'Il più piccolo Qwen 3.5 offerto. Più veloce del 4B su una macchina con poca memoria; non ancora misurato qui.',
       'qwen3.5-35b-a3b':
         'Una miscela di esperti: la velocità di un modello 3B con la memoria di un 35B. Per macchine da 32 GB; non ancora misurato qui.',
       'ministral-3-14b':
         'Il Ministral europeo più grande. Per macchine da 16 GB; non ancora misurato qui.',
-      'gemma4-e4b':
-        'Il modello piccolo di Gemma 4. Un’opzione per 16 GB; la qualità del verbale non è ancora stata misurata qui.',
       'gemma4-26b':
         'Il modello Gemma 4 a miscela di esperti. Va circa alla velocità di un modello 4B, ma richiede la memoria di un modello 26B; non ancora misurato qui.',
       'gemma4-31b':
@@ -415,18 +417,11 @@ export const it: Strings = {
       'qwen3.5-9b':
         'Il modello Qwen 3.5 9B. Il passo successivo al 4B misurato su una macchina da 16 GB; non ancora misurato qui.',
       'qwen3.5-27b': 'Il modello Qwen 3.5 27B. Per macchine da 32 GB; non ancora misurato qui.',
-      'qwen3.5-0.8b':
-        'Piccolo modello per sviluppo e test. Qualità dei verbali non valutata; non farvi affidamento per verbali professionali.',
       'gemma4-12b':
         'Il più accurato e il più costante fra i modelli misurati: su tre esecuzioni ha conservato da 27 a 31 delle 35 cifre di una riunione, dove il successivo è sceso a 6. Più lento: circa quattordici minuti per una riunione di ottanta minuti.',
-      'ministral-8b':
-        'Misurato su una riunione in tedesco con tre impostazioni, ha scritto un verbale utilizzabile con una di esse: le altre hanno prodotto un abbozzo di due righe e un documento JSON dove era richiesto il markdown. Resta il candidato europeo, non ancora un’alternativa al riferimento.',
       'qwen3.5-4b':
         'Il modello misurato più veloce, circa cinque minuti per una riunione di ottanta minuti, e la scelta quando la memoria è poca. Non ha mai prodotto la tabella dei prossimi passi che lo stile formale richiede.',
       'ministral-3b': 'Il primo candidato europeo per il Mac meno potente fra quelli supportati.',
-      'granite4.1-8b':
-        'Misurato su una riunione in tedesco con tre impostazioni, ha conservato 22, 19 e 6 delle 35 cifre dette, a parità di ingresso. Un’esecuzione che perde cinque sesti di quanto è stato detto non è uno strumento per tenere un verbale, perciò non è consigliato.',
-      'llama-8b': 'Un posto di confronto riservato a una versione di Llama verificata.',
     },
     modelOrigin: {
       international: 'Modello aperto internazionale',

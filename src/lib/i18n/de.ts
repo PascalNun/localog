@@ -374,25 +374,29 @@ export const de: Strings = {
     chooseOnce: 'Einmal wählen, dann weiterarbeiten',
     modelLead:
       'LocaLog verwendet dieses Modell für lokale Protokollentwürfe, bis Sie es ändern. Der normale Ablauf verlangt nicht, für jede Besprechung ein Modell zu wählen.',
-    recommendedForMachine: 'Für dieses Gerät empfohlen',
+    recommendedForMachine: 'Gemessener Standard',
     notInstalledYet: 'Noch nicht installiert',
     baseline: 'Grundlage',
     european: 'Europäisch',
     checkInstalled: 'Installierte Modelle prüfen',
     curatedModels: 'Ausgewählte Protokollmodelle',
     largerModels: 'Größere Modelle',
-    testOnlyHint:
-      'Nur zum Testen. Dieses Modell gibt es, damit ein Entwicklungsrechner die Pipeline ausführen kann; seine Ausgabe ist keine Aufzeichnung, die Sie behalten sollten.',
+    smallerModels: 'Kleinere Modelle',
     downloadIntro:
       'Wählen Sie ein Modell für diesen Computer. Downloads bleiben auf diesem Gerät; ein zusätzlicher KI-Dienst ist nicht nötig.',
+    modelClass: (gb: number) => `Läuft ab ${gb} GB`,
     memoryMinimum: (gb: number) => `RAM-Mindestklasse: ${gb} GB`,
-    modelClass: (gb: number) => `${gb}-GB-Klasse`,
     memoryTooSmall: (gb: number) =>
       `Benötigt eine RAM-Klasse ab ${gb} GB. Download und Auswahl sind auf diesem Computer nicht verfügbar.`,
     memoryUnknown:
       'Der Arbeitsspeicher konnte nicht ermittelt werden. Prüfen Sie vor dem Download den RAM-Bedarf.',
     memoryTight:
       'Bei 8 GB bleibt wenig Platz für lange Besprechungen. Schließen Sie andere Anwendungen; die CPU-Erstellung kann langsam sein. Die Downloadgröße ist nicht der gesamte RAM-Bedarf.',
+    memoryBelowMinimum:
+      'Dieser Computer meldet weniger als die 8 GB, die die Protokoll-Pipeline benötigt. Die folgenden Modelle brauchen ein größeres Gerät.',
+    recommendationNote:
+      'Der Standard ist das auf der Referenzbesprechung dieses Projekts gemessene Modell. Größere Größen sind aufgeführt, werden aber erst empfohlen, wenn sie hier gemessen wurden.',
+    selectedModelNotOffered: 'Das ausgewählte Modell steht nicht in dieser kuratierten Liste.',
     qualityCaution:
       'Passender Arbeitsspeicher garantiert keine Protokollqualität. Kleinere Kandidaten erfordern sorgfältige Prüfung; frühere Messungen stammen von einem anderen Computer.',
     bundledRuntime: 'Auf diesem Gerät',
@@ -420,13 +424,11 @@ export const de: Strings = {
     /** Siehe die Anmerkung in en.ts. */
     modelDescription: {
       'qwen3.5-2b':
-        'Das kleinste Qwen 3.5, das gegenüber dem Testmodell eine echte Wahl ist. Auf Rechnern mit wenig Speicher schneller als das 4B-Modell; hier noch nicht gemessen.',
+        'Das kleinste angebotene Qwen 3.5. Auf Rechnern mit wenig Speicher schneller als das 4B-Modell; hier noch nicht gemessen.',
       'qwen3.5-35b-a3b':
         'Ein Mixture-of-Experts-Modell: etwa die Geschwindigkeit eines 3B-Modells bei den Speicheranforderungen eines 35B-Modells. Für 32-GB-Rechner; hier noch nicht gemessen.',
       'ministral-3-14b':
         'Das größere europäische Ministral. Für 16-GB-Rechner; hier noch nicht gemessen.',
-      'gemma4-e4b':
-        'Das kleine Gemma-4-Modell. Eine Option für 16 GB; die Protokollqualität wurde hier noch nicht gemessen.',
       'gemma4-26b':
         'Das Gemma-4-Mixture-of-Experts-Modell. Läuft etwa so schnell wie ein 4B-Modell, braucht aber den Speicher eines 26B-Modells; hier noch nicht gemessen.',
       'gemma4-31b':
@@ -434,18 +436,11 @@ export const de: Strings = {
       'qwen3.5-9b':
         'Das 9B-Modell von Qwen 3.5. Der Schritt über das gemessene 4B-Modell auf einem 16-GB-Rechner; hier noch nicht gemessen.',
       'qwen3.5-27b': 'Das 27B-Modell von Qwen 3.5. Für 32-GB-Rechner; hier noch nicht gemessen.',
-      'qwen3.5-0.8b':
-        'Ein kleines Modell für Entwicklung und Funktionstests. Die Protokollqualität wurde nicht geprüft; verlassen Sie sich für professionelle Besprechungsprotokolle nicht darauf.',
       'gemma4-12b':
         'Das genaueste und beständigste der gemessenen Modelle: Über drei Läufe hat es 27 bis 31 der 35 Zahlen einer Besprechung erhalten, wo das nächstbeste auf nur 6 kam. Langsamer — etwa vierzehn Minuten für eine achtzigminütige Besprechung.',
-      'ministral-8b':
-        'An einer deutschen Besprechung mit drei Einstellungen gemessen und bei einer davon ein brauchbares Protokoll geschrieben: die anderen ergaben einen zweizeiligen Rumpf und ein JSON-Dokument, wo Markdown verlangt war. Bleibt als europäischer Kandidat, noch keine Alternative zur Grundlage.',
       'qwen3.5-4b':
         'Das schnellste gemessene Modell, etwa fünf Minuten für eine achtzigminütige Besprechung, und die Wahl, wenn der Speicher knapp ist. Die Tabelle der nächsten Schritte, die der formale Stil verlangt, hat es nie erzeugt.',
       'ministral-3b': 'Der erste europäische Kandidat für den schwächsten unterstützten Mac.',
-      'granite4.1-8b':
-        'An einer deutschen Besprechung mit drei Einstellungen gemessen und bei identischer Eingabe 22, 19 und 6 der 35 genannten Zahlen erhalten. Ein Lauf, der fünf Sechstel des Gesagten verliert, ist kein Werkzeug, um eine Aufzeichnung zu erstellen, und wird deshalb nicht empfohlen.',
-      'llama-8b': 'Ein späterer Vergleichsplatz für eine geprüfte Llama-Veröffentlichung.',
     },
     modelOrigin: {
       international: 'Internationales offenes Modell',

@@ -5,34 +5,40 @@ hard-coding a single large recommendation. No model is downloaded automatically.
 
 ## The ladder
 
-The picker is grouped by installed-RAM class and lists each family at the sizes
-it publishes, so a 16 GB or 32 GB machine sees real alternatives instead of the
-one model a smaller machine can run.
+The picker shows the machine’s own class and the measured default, with everything
+below or above behind a disclosure. Each family appears at most once per class: a
+smaller sibling that needs the same memory as a larger one is a worse version of
+it, not an alternative.
 
-| Class          | Qwen3.5           | Gemma 4             | Ministral 3 (European) |
-| -------------- | ----------------- | ------------------- | ---------------------- |
-| 8 GB           | 4B (measured), 2B | —                   | 3B                     |
-| 16 GB          | 9B                | 12B (measured), E4B | 8B (measured), 14B     |
-| 24 GB          | —                 | 26B A4B             | —                      |
-| 32 GB          | 27B, 35B A3B      | 31B                 | —                      |
-| 4 GB (testing) | 0.8B              | —                   | —                      |
+| Class | Qwen3.5           | Gemma 4        | Ministral 3 (European) |
+| ----- | ----------------- | -------------- | ---------------------- |
+| 8 GB  | 4B (measured), 2B | —              | 3B                     |
+| 16 GB | 9B                | 12B (measured) | 14B                    |
+| 24 GB | —                 | 26B A4B        | —                      |
+| 32 GB | 27B, 35B A3B      | 31B            | —                      |
 
-Only a model measured on the reference meeting may carry “Recommended for this
-machine”. The sizes added on 2 November 2026 have been verified as downloads but
-not evaluated, so they show “Evaluation pending” and are never the default. The
-measured 12B therefore stays the recommendation on a 32 GB machine as well.
+`status: 'baseline'` is an explicit product judgement, not a measurement. Gemma 4
+12B and Qwen 3.5 4B carry it; the largest baseline that fits is the default, so a
+32 GB machine is still shown the measured 12B rather than the larger, unmeasured
+sizes. Every other entry shows “Evaluation pending” and is never the default. The
+badge says “Measured default” because that is what it is.
 
-Granite 4.1 8B and a future Llama 8B remain as comparison slots: the first is
-measured and unstable, the second is planned and not downloadable. They are listed
-for honesty about what was considered, not as a family.
+A machine sees its own class plus the class holding that default. A 32 GB machine
+therefore sees 16, 24 and 32 GB, with 8 GB under “Smaller models”; an 8 GB machine
+sees 8 GB, with 16, 24 and 32 GB under “Larger models”. Nothing below 8 GB is
+offered, because the pipeline cannot run a protocol there.
+
+Removed from the picker after the 2 November review: Gemma 4 E4B (dominated by the
+12B in the same class), Ministral 3 8B (dominated by the 14B and usable at only one
+of three measured settings), Granite 4.1 8B (lost five sixths of a meeting’s
+figures in one run), Llama 8B (planned, no download), and Qwen 3.5 0.8B (the
+harness still uses it; a person does not).
 
 | Model           | File                           | RAM class | Intended use                                                              |
 | --------------- | ------------------------------ | --------- | ------------------------------------------------------------------------- |
 | Gemma 4 12B     | QAT Q4_0, 6,975,879,296 bytes  | 16 GB     | Strongest previously measured protocol candidate                          |
-| Gemma 4 E4B     | QAT Q4_0, 5,154,941,280 bytes  | 16 GB     | Smallest Gemma 4; protocol evaluation pending                             |
 | Gemma 4 26B A4B | QAT Q4_0, 14,439,363,584 bytes | 24 GB     | Mixture of experts; 4B speed, 26B memory; evaluation pending              |
 | Gemma 4 31B     | QAT Q4_0, 17,651,001,568 bytes | 32 GB     | Largest dense Gemma 4; evaluation pending                                 |
-| Qwen3.5 0.8B    | Q8_0, 833,592,096 bytes        | 4 GB      | Development/smoke tests; professional protocol quality unverified         |
 | Qwen3.5 2B      | Q4_K_M, 1,280,835,840 bytes    | 8 GB      | Cheapest useful Qwen; evaluation pending                                  |
 | Qwen3.5 4B      | Q4_K_M, 2,740,937,888 bytes    | 8 GB      | Smaller, previously measured candidate; factual/format limitations remain |
 | Qwen3.5 9B      | Q4_K_M, 5,680,522,464 bytes    | 16 GB     | Step above the measured 4B; evaluation pending                            |
@@ -40,7 +46,10 @@ for honesty about what was considered, not as a family.
 | Qwen3.5 35B A3B | Q4_K_M, 22,016,023,168 bytes   | 32 GB     | Mixture of experts; 3B speed, 35B memory; evaluation pending              |
 | Ministral 3 3B  | Q4_K_M, 2,146,497,824 bytes    | 8 GB      | Smaller European candidate; protocol evaluation pending                   |
 | Ministral 3 14B | Q4_K_M, 8,239,067,840 bytes    | 16 GB     | Largest European candidate; evaluation pending                            |
-| Ministral 3 8B  | Q4_K_M, about 6.0 GB (Ollama)  | 16 GB     | European comparison; one usable protocol in three measured runs           |
+
+Qwen3.5 0.8B remains in `src-tauri/src/models.rs` for the evaluation harness, which
+uses it to keep testing the notes fallback on the weakest possible model. It is not
+offered in Settings.
 
 These are conservative installed-memory classes, not free-memory measurements,
 GPU capability checks or speed promises. Linux firmware reservations must not turn
@@ -50,11 +59,11 @@ context. Download size does not include runtime, context cache, OS or other apps
 
 Oversized managed downloads and selections are disabled with an explanation; the
 native backend independently enforces the same requirement before network access,
-selection and generation. Unknown memory is shown as unknown. The small test model
-is marked as testing only and is never labelled the recommended professional
-option. Installed Ollama models remain available through the existing disclosure;
-known curated model names use the same memory guard. Arbitrary Ollama models are
-not assigned invented RAM limits.
+selection and generation. Unknown memory is shown as unknown. A selected model that
+is not in the curated list is named as such rather than silently disappearing.
+Installed Ollama models remain available through the existing disclosure; known
+curated model names use the same memory guard. Arbitrary Ollama models are not
+assigned invented RAM limits.
 
 The selected runtime and model are persisted. Choosing Ollama takes precedence
 over installed managed files. Explicit missing bundled models or runtimes report a
@@ -70,7 +79,6 @@ values are in `src-tauri/src/models.rs`. Only metadata was fetched during this
 work; no weights were downloaded and no inference-quality claim follows.
 
 - [Google Gemma 4 12B QAT](https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf), revision `29d097773436b69ff9feafd636ab4cf873786537`.
-- [Google Gemma 4 E4B QAT](https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf), revision `4b4a2c1d584be7264f87aac328a1bc739ce81b6c`.
 - [Google Gemma 4 26B A4B QAT](https://huggingface.co/google/gemma-4-26B-A4B-it-qat-q4_0-gguf), revision `d1c082be9cf3c8a514acf63b8761f4b41935842e`.
 - [Google Gemma 4 31B QAT](https://huggingface.co/google/gemma-4-31B-it-qat-q4_0-gguf), revision `59dde24573e7e61570dba08b18a2e1fe246955ed`.
 - [Unsloth Qwen3.5 0.8B](https://huggingface.co/ggml-org/Qwen3.5-0.8B-GGUF), revision `807dfd9a6fadbf703207aac3bfb0b2b3040d077c`.
@@ -91,12 +99,12 @@ file.
 
 ## Validation
 
-383 Rust tests and 228 frontend tests pass, as do frontend type checks, lint,
+383 Rust tests and 227 frontend tests pass, as do frontend type checks, lint,
 strict Clippy and native/frontend builds. The three files added on 2 November 2026
 returned HTTP 200 with the catalogued content length using HEAD requests. The real
 Settings → Models screen was checked at 672x872 in both themes: the 8 GB class, the
-larger-models disclosure holding the 16, 24 and 32 GB classes, and the disabled
-downloads below the machine's class. Full inference and GNOME/KDE behavior remain
+Larger models disclosure holding the 16, 24 and 32 GB classes, and the disabled
+downloads below the machine’s class. Full inference and GNOME/KDE behavior remain
 untested.
 
 ## First Surface inference check — 22 October 2026

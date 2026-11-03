@@ -42,13 +42,14 @@ No model should become a product requirement merely because it performed well in
 Checked against the publishers' Hugging Face listings and Ollama tags. Sizes are
 the Q4 files, not parameter counts, because the file is what has to fit.
 
-| Family          | Sizes published                                      | Offered in the ladder          | Left out, and why                                                                                                                                                        |
-| --------------- | ---------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Qwen 3.5        | 0.8B, 2B, 4B, 9B, 27B, 35B A3B, 122B A10B, 397B A17B | 0.8B, 2B, 4B, 9B, 27B, 35B A3B | 122B and 397B need 81 GB and more; outside every machine this app targets                                                                                                |
-| Qwen 3.6        | 27B, 35B A3B                                         | none yet                       | Only the two large sizes exist. Mixing 3.6 into a ladder whose lower rungs are 3.5 would make the family look incoherent; evaluate it as a replacement, not an extra row |
-| Gemma 4         | E2B, E4B, 12B, 26B A4B, 31B                          | E4B, 12B, 26B A4B, 31B         | E2B is 3.3 GB but sits below the measured 4B without evidence it is better                                                                                               |
-| Ministral 3     | 3B, 8B, 14B                                          | 3B, 8B, 14B                    | —                                                                                                                                                                        |
-| Mistral Small 4 | 119B                                                 | none                           | A Q4 file is roughly 65–70 GB; a future 64 GB-plus class, not a 32 GB one                                                                                                |
+| Family          | Sizes published                                      | Offered in the ladder    | Left out, and why                                                                                                                                                        |
+| --------------- | ---------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Qwen 3.5        | 0.8B, 2B, 4B, 9B, 27B, 35B A3B, 122B A10B, 397B A17B | 2B, 4B, 9B, 27B, 35B A3B | 122B and 397B need 81 GB and more; 0.8B stays only as the harness model, because it cannot write a protocol                                                              |
+| Qwen 3.6        | 27B, 35B A3B                                         | none yet                 | Only the two large sizes exist. Mixing 3.6 into a ladder whose lower rungs are 3.5 would make the family look incoherent; evaluate it as a replacement, not an extra row |
+| Gemma 4         | E2B, E4B, 12B, 26B A4B, 31B                          | 12B, 26B A4B, 31B        | E2B is 3.3 GB but sits below the measured 4B without evidence it is better; E4B is dominated by the 12B in the same 16 GB class                                          |
+| Ministral 3     | 3B, 8B, 14B                                          | 3B, 14B                  | 8B was dominated by the 14B, which needs the same class, and wrote a usable protocol in only one of three measured runs                                                  |
+| Granite / Llama | Granite 4.1 8B, Llama 8B                             | none                     | Granite lost five sixths of a meeting’s figures in one run; Llama has no download and was only a comparison slot                                                         |
+| Mistral Small 4 | 119B                                                 | none                     | A Q4 file is roughly 65–70 GB; a future 64 GB-plus class, not a 32 GB one                                                                                                |
 
 Two consequences for the catalogue:
 
@@ -61,7 +62,8 @@ Two consequences for the catalogue:
   a preference.
 
 A model enters the catalogue only with a pinned revision, a published SHA-256 and
-an exact size. A model carries a recommendation only after it has been run on the
-reference meeting in German and English. The two rules are separate on purpose:
-the first lets a 32 GB owner see what exists, the second stops the picker claiming
-quality nobody measured.
+an exact size. It becomes the default only when it is marked `baseline`, which is a
+product judgement made after measurement; being measured is not enough. The two
+rules are separate on purpose: the first lets a larger machine see what exists, the
+second stops the picker claiming quality nobody measured, or reusing a model that
+measured badly.

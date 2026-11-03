@@ -327,21 +327,25 @@ export const zh: Strings = {
     chooseOnce: '选一次，然后继续工作',
     modelLead:
       '在您更改之前，LocaLog 会用此模型撰写本地纪要初稿。正常流程不会要求您为每场会议选择模型。',
-    recommendedForMachine: '为本机推荐',
+    recommendedForMachine: '实测默认',
     notInstalledYet: '尚未安装',
     baseline: '基准',
     european: '欧洲出品',
     checkInstalled: '检查已安装的模型',
     curatedModels: '甄选的纪要模型',
     largerModels: '更大的模型',
-    testOnlyHint: '仅供测试。此模型用于让开发设备运行处理流程；其输出不是应保存的记录。',
+    smallerModels: '更小的模型',
     downloadIntro: '请选择适合此电脑的模型。下载保存在本机，无需单独的 AI 服务。',
+    modelClass: (gb: number) => `${gb} GB 及以上运行`,
     memoryMinimum: (gb: number) => `最低内存档位：${gb} GB`,
-    modelClass: (gb: number) => `${gb} GB 级别`,
     memoryTooSmall: (gb: number) => `需要至少 ${gb} GB 的内存档位。此电脑无法下载或选择此模型。`,
     memoryUnknown: '无法检测内存。下载前请检查模型的内存需求。',
     memoryTight:
       '8 GB 电脑处理长会议的余量很小。请关闭其他应用；CPU 生成可能较慢。下载大小不等于总内存用量。',
+    memoryBelowMinimum: '此电脑的内存低于会议纪要流程所需的 8GB。以下模型需要更大的设备。',
+    recommendationNote:
+      '默认是本项目参考会议上实测的模型。更大的型号也已列出，但在本机实测之前不予推荐。',
+    selectedModelNotOffered: '所选模型不在此甄选列表中。',
     qualityCaution: '内存适合并不保证会议纪要质量。小模型需要仔细审核；之前的测量来自另一台电脑。',
     bundledRuntime: '在本机上',
     viaOllama: '通过 Ollama',
@@ -366,29 +370,20 @@ export const zh: Strings = {
     downloadingPreset: (name: string) => `正在下载${name}`,
     /** 参见 en.ts 中的说明。 */
     modelDescription: {
-      'qwen3.5-2b':
-        '值得替代冒烟测试模型的最小 Qwen 3.5。在内存较少的设备上比 4B 更快；此处尚未测量。',
+      'qwen3.5-2b': '所提供的最小 Qwen 3.5。在内存较少的设备上比 4B 更快；此处尚未测量。',
       'qwen3.5-35b-a3b':
         '专家混合模型：速度接近 3B 模型，但需要 35B 模型的内存。适合 32GB 设备；此处尚未测量。',
       'ministral-3-14b': '更大的欧洲 Ministral。适合 16GB 设备；此处尚未测量。',
-      'gemma4-e4b': 'Gemma 4 的小型模型。适合 16GB 设备；此处的协议质量尚未测量。',
       'gemma4-26b':
         'Gemma 4 的专家混合模型。速度接近 4B 模型，但需要 26B 模型的内存；此处尚未测量。',
       'gemma4-31b': 'Gemma 4 最大的稠密模型。适合 32GB 设备；此处尚未测量。',
       'qwen3.5-9b': 'Qwen 3.5 9B 模型。16GB 设备上从已测 4B 向上的一步；此处尚未测量。',
       'qwen3.5-27b': 'Qwen 3.5 27B 模型。适合 32GB 设备；此处尚未测量。',
-      'qwen3.5-0.8b':
-        '用于开发和功能测试的小模型。尚未评估会议纪要质量，请勿依赖它生成专业会议记录。',
       'gemma4-12b':
         '在测得的模型中最准确、也最稳定：三次运行保留了会议 35 个数字里的 27 到 31 个，而次优者最少只保留 6 个。速度较慢——80 分钟的会议约需 14 分钟。',
-      'ministral-8b':
-        '在一场德语会议上以三种设置测得，其中一种写出了可用的会议纪要：另两种给出两行的残稿，以及在要求 Markdown 处返回的 JSON 文档。作为欧洲出品的候选保留，尚不能替代基准。',
       'qwen3.5-4b':
         '测得最快的模型，80 分钟的会议约需 5 分钟，内存吃紧时可选它。但它从未生成正式体例所要求的后续事项表。',
       'ministral-3b': '面向所支持的最低配 Mac 的第一个欧洲出品候选。',
-      'granite4.1-8b':
-        '在一场德语会议上以三种设置测得，输入完全相同，却分别保留了所述 35 个数字中的 22 个、19 个和 6 个。丢掉会上所述六分之五的运行，不是用来留存记录的工具，因此不推荐。',
-      'llama-8b': '为经过验证的 Llama 版本预留的比较位置。',
     },
     modelOrigin: {
       international: '国际开放模型',

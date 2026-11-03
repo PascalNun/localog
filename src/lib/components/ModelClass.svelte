@@ -77,7 +77,6 @@
           <div class="model-meta">
             <span>{option.entry.family}</span>
             <span>{sizeOf(option)}</span>
-            <span>{$t.settings.memoryMinimum(option.minimumMemoryGb)}</span>
             <span>{$t.settings.modelLicence[option.entry.licence]}</span>
             <span>{$t.settings.modelOrigin[option.entry.origin]}</span>
             <span
@@ -87,7 +86,6 @@
                 .join(' · ')}</span
             >
           </div>
-          {#if option.entry.testOnly}<p class="setting-hint">{$t.settings.testOnlyHint}</p>{/if}
           {#if !option.fits}<p class="setting-hint">
               {$t.settings.memoryTooSmall(option.minimumMemoryGb)}
             </p>{/if}

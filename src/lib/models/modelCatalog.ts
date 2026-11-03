@@ -31,21 +31,16 @@
  * a blank card.
  */
 export type GenerationModelId =
-  | 'qwen3.5-0.8b'
   | 'qwen3.5-2b'
   | 'qwen3.5-4b'
   | 'qwen3.5-9b'
   | 'qwen3.5-27b'
   | 'qwen3.5-35b-a3b'
-  | 'gemma4-e4b'
   | 'gemma4-12b'
   | 'gemma4-26b'
   | 'gemma4-31b'
   | 'ministral-3-14b'
-  | 'ministral-8b'
-  | 'ministral-3b'
-  | 'granite4.1-8b'
-  | 'llama-8b';
+  | 'ministral-3b';
 
 /** A language a model claims, or `more` for "and many others". */
 export type ModelLanguage = 'de' | 'en' | 'ja' | 'more';
@@ -76,11 +71,6 @@ export interface GenerationModelEntry {
   origin: ModelOrigin;
   licence: ModelLicence;
   status: 'baseline' | 'candidate' | 'planned';
-  /**
-   * Kept for development and smoke tests. It is downloadable, but it must never
-   * be presented as a model somebody could trust with a meeting record.
-   */
-  testOnly?: boolean;
 }
 
 export type HardwareTier = 'baseline' | 'standard' | 'larger';
@@ -88,8 +78,18 @@ export type HardwareTier = 'baseline' | 'standard' | 'larger';
 /**
  * The catalogue stays curated: every downloadable file has a verified licence,
  * runtime and checksum. A new size may enter before it has been measured, but it
- * carries an empty `testedLanguages` and is never recommended until it has been
+ * carries an empty `testedLanguages` and is never the default until it has been
  * run on a reference meeting here.
+ *
+ * `status: 'baseline'` is the product judgement, not a measurement: it says this
+ * is the model LocaLog falls back to when the machine fits it. Measurement alone
+ * is not enough — a model can be measured and still be unusable, as Ministral 8B
+ * was at one seed in three. The recommendable models are marked explicitly, so
+ * the recommendation no longer depends on catalogue order.
+ *
+ * Each family appears once per memory class. A smaller sibling that needs the same
+ * class as a larger one is not an alternative, it is a worse version of it; the
+ * ones that were dominated or measured unusable are not listed.
  */
 export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
   {
@@ -177,20 +177,6 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     status: 'candidate',
   },
   {
-    id: 'gemma4-e4b',
-    name: 'Gemma 4 E4B',
-    family: 'Gemma 4',
-    providerNames: ['gemma4:e4b'],
-    tier: 'standard',
-    minimumMemoryGb: 16,
-    installedGb: null,
-    languages: ['de', 'en', 'more'],
-    testedLanguages: [],
-    origin: 'international',
-    licence: 'apache2',
-    status: 'candidate',
-  },
-  {
     id: 'ministral-3-14b',
     name: 'Ministral 3 14B',
     family: 'Ministral 3',
@@ -200,20 +186,6 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     installedGb: null,
     languages: ['de', 'en', 'ja', 'more'],
     testedLanguages: [],
-    origin: 'european',
-    licence: 'apache2',
-    status: 'candidate',
-  },
-  {
-    id: 'ministral-8b',
-    name: 'Ministral 3 8B',
-    family: 'Ministral 3',
-    providerNames: ['ministral-3:8b', 'ministral-3:8b-instruct-2512-q4_K_M'],
-    tier: 'standard',
-    minimumMemoryGb: 16,
-    installedGb: null,
-    languages: ['de', 'en', 'ja', 'more'],
-    testedLanguages: ['de'],
     origin: 'european',
     licence: 'apache2',
     status: 'candidate',
@@ -230,7 +202,7 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     testedLanguages: ['de'],
     origin: 'international',
     licence: 'apache2',
-    status: 'candidate',
+    status: 'baseline',
   },
   {
     id: 'qwen3.5-2b',
@@ -259,49 +231,6 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     origin: 'european',
     licence: 'apache2',
     status: 'candidate',
-  },
-  {
-    id: 'granite4.1-8b',
-    name: 'Granite 4.1 8B',
-    family: 'Granite 4.1',
-    providerNames: ['granite4.1:8b'],
-    tier: 'standard',
-    minimumMemoryGb: 16,
-    installedGb: 5.3,
-    languages: ['de', 'en'],
-    testedLanguages: ['de'],
-    origin: 'international',
-    licence: 'apache2',
-    status: 'candidate',
-  },
-  {
-    id: 'llama-8b',
-    name: 'Llama 8B',
-    family: 'Llama',
-    providerNames: [],
-    tier: 'standard',
-    minimumMemoryGb: 16,
-    installedGb: null,
-    languages: ['de', 'en'],
-    testedLanguages: [],
-    origin: 'international',
-    licence: 'modelSpecific',
-    status: 'planned',
-  },
-  {
-    id: 'qwen3.5-0.8b',
-    name: 'Qwen3.5 0.8B',
-    family: 'Qwen3.5',
-    providerNames: ['qwen3.5:0.8b'],
-    tier: 'baseline',
-    minimumMemoryGb: 4,
-    installedGb: null,
-    languages: ['de', 'en', 'more'],
-    testedLanguages: [],
-    origin: 'international',
-    licence: 'apache2',
-    status: 'candidate',
-    testOnly: true,
   },
 ];
 

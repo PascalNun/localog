@@ -366,24 +366,28 @@ export const fr: Strings = {
     chooseOnce: 'Choisissez une fois, puis continuez',
     modelLead:
       'LocaLog utilise ce modèle pour les brouillons de comptes rendus locaux jusqu’à ce que vous en changiez. Le déroulement normal ne vous demande pas de choisir un modèle pour chaque réunion.',
-    recommendedForMachine: 'Recommandé pour cette machine',
+    recommendedForMachine: 'Modèle mesuré par défaut',
     notInstalledYet: 'Pas encore installé',
     baseline: 'Référence',
     european: 'Européen',
     checkInstalled: 'Vérifier les modèles installés',
     curatedModels: 'Modèles de compte rendu retenus',
     largerModels: 'Modèles plus grands',
-    testOnlyHint:
-      'Uniquement pour les tests. Ce modèle existe pour qu’une machine de développement puisse exécuter la chaîne ; sa sortie n’est pas un document à conserver.',
+    smallerModels: 'Modèles plus petits',
     downloadIntro:
       'Choisissez un modèle pour cet ordinateur. Les téléchargements restent sur cet appareil ; aucun service d’IA séparé n’est nécessaire.',
+    modelClass: (gb: number) => `Nécessite ${gb} Go ou plus`,
     memoryMinimum: (gb: number) => `Classe de RAM minimale : ${gb} Go`,
-    modelClass: (gb: number) => `Classe ${gb} Go`,
     memoryTooSmall: (gb: number) =>
       `Nécessite une classe de RAM d’au moins ${gb} Go. Téléchargement et sélection indisponibles sur cet ordinateur.`,
     memoryUnknown: 'Mémoire non détectée. Vérifiez les besoins en RAM avant de télécharger.',
     memoryTight:
       'Avec 8 Go, les longues réunions laissent peu de marge. Fermez les autres applications ; la génération sur CPU peut être lente. La taille du téléchargement n’est pas la RAM totale utilisée.',
+    memoryBelowMinimum:
+      'Cet ordinateur signale moins des 8 Go nécessaires à la chaîne de comptes rendus. Les modèles ci-dessous demandent une machine plus puissante.',
+    recommendationNote:
+      'Le modèle par défaut est celui mesuré sur la réunion de référence de ce projet. Les tailles supérieures sont listées mais ne sont pas recommandées avant d’avoir été mesurées ici.',
+    selectedModelNotOffered: 'Le modèle sélectionné ne figure pas dans cette liste sélectionnée.',
     qualityCaution:
       'Une mémoire suffisante ne garantit pas la qualité. Vérifiez soigneusement les petits modèles ; les mesures précédentes proviennent d’un autre ordinateur.',
     bundledRuntime: 'Sur cet appareil',
@@ -411,13 +415,11 @@ export const fr: Strings = {
     /** Voir la note dans en.ts. */
     modelDescription: {
       'qwen3.5-2b':
-        'Le plus petit Qwen 3.5 qui vaille d’être choisi à la place du modèle de test. Plus rapide que le 4B sur une machine à mémoire limitée ; pas encore mesuré ici.',
+        'Le plus petit Qwen 3.5 proposé. Plus rapide que le 4B sur une machine à mémoire limitée ; pas encore mesuré ici.',
       'qwen3.5-35b-a3b':
         'Un mélange d’experts : la vitesse d’un modèle 3B avec la mémoire d’un 35B. Pour les machines de 32 Go ; pas encore mesuré ici.',
       'ministral-3-14b':
         'Le plus grand Ministral européen. Pour les machines de 16 Go ; pas encore mesuré ici.',
-      'gemma4-e4b':
-        'Le petit modèle Gemma 4. Une option pour 16 Go ; sa qualité de compte rendu n’a pas encore été mesurée ici.',
       'gemma4-26b':
         'Le modèle Gemma 4 à mélange d’experts. Sa vitesse est proche d’un modèle 4B, mais il demande la mémoire d’un modèle 26B ; pas encore mesuré ici.',
       'gemma4-31b':
@@ -425,18 +427,11 @@ export const fr: Strings = {
       'qwen3.5-9b':
         'Le modèle Qwen 3.5 9B. L’étape au-dessus du 4B mesuré sur une machine de 16 Go ; pas encore mesuré ici.',
       'qwen3.5-27b': 'Le modèle Qwen 3.5 27B. Pour les machines de 32 Go ; pas encore mesuré ici.',
-      'qwen3.5-0.8b':
-        'Petit modèle de développement et de test. Qualité des comptes rendus non évaluée ; ne vous y fiez pas pour un compte rendu professionnel.',
       'gemma4-12b':
         'Le plus exact et le plus régulier des modèles mesurés : sur trois exécutions, il a conservé 27 à 31 des 35 chiffres d’une réunion, là où le suivant est descendu à 6. Plus lent — environ quatorze minutes pour une réunion de quatre-vingts minutes.',
-      'ministral-8b':
-        'Mesuré sur une réunion en allemand à trois réglages ; il a rédigé un compte rendu utilisable à l’un d’eux : les autres ont produit une ébauche de deux lignes et un document JSON là où du markdown était demandé. Conservé comme candidat européen, pas encore une solution de rechange à la référence.',
       'qwen3.5-4b':
         'Le modèle mesuré le plus rapide — environ cinq minutes pour une réunion de quatre-vingts minutes — et le choix quand la mémoire est limitée. Il n’a jamais produit le tableau des prochaines étapes que le style formel demande.',
       'ministral-3b': 'Le premier candidat européen pour le Mac le moins puissant pris en charge.',
-      'granite4.1-8b':
-        'Mesuré sur une réunion en allemand à trois réglages, il a conservé 22, 19 puis 6 des 35 chiffres énoncés, à entrée identique. Une exécution qui perd cinq sixièmes de ce qui a été dit n’est pas un outil pour tenir un compte rendu : il n’est donc pas recommandé.',
-      'llama-8b': 'Une place de comparaison réservée à une version de Llama vérifiée.',
     },
     modelOrigin: {
       international: 'Modèle ouvert international',

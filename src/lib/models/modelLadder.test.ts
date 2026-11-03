@@ -8,7 +8,6 @@ const bundled = [
   ['gemma4-31b', 32],
   ['qwen3.5-4b', 8],
   ['ministral-3b', 8],
-  ['qwen3.5-0.8b', 4],
 ].map(([id, ram]): ModelTerms => ({
   modelId: String(id),
   minimumMemoryGb: Number(ram),
@@ -24,85 +23,91 @@ const bundled = [
 const installed = (names: string[]): ProtocolProviderModel[] =>
   names.map((name) => ({ name, size: 1, digest: `sha256:${name}` }));
 
+const recommendedClass = (memoryGb: number | null) =>
+  modelLadder(bundled, [], memoryGb).find((model) => model.recommended)?.minimumMemoryGb ?? null;
+
 describe('the model ladder', () => {
   it('has no duplicate catalogue entries', () => {
     const ids = GENERATION_MODEL_CATALOG.map((entry) => entry.id);
 
     expect(new Set(ids).size).toBe(ids.length);
   });
-  it('puts the measured 4B above the unevaluated 3B on an 8 GB machine', () => {
+
+  it('recommends the measured 4B on an 8 GB machine, not the smaller 3B', () => {
     const ladder = modelLadder(bundled, [], 8);
     const recommended = ladder.find((model) => model.recommended);
 
     expect(recommended?.entry.id).toBe('qwen3.5-4b');
     expect(ladder.find((model) => model.entry.id === 'ministral-3b')?.recommended).toBe(false);
-    expect(ladder.find((model) => model.entry.id === 'qwen3.5-0.8b')?.recommended).toBe(false);
   });
 
-  it('orders the visible classes upward, then the 4 GB fallback', () => {
+  it('lists the classes in ascending order', () => {
     const classes = memoryClasses(modelLadder(bundled, [], 8));
 
-    expect(classes.map((group) => group.minimumMemoryGb)).toEqual([8, 16, 24, 32, 4]);
+    expect(classes.map((group) => group.minimumMemoryGb)).toEqual([8, 16, 24, 32]);
   });
 
-  it('keeps the recommendation on the measured model when a larger one is available', () => {
+  it('keeps the measured default when a larger unmeasured model is available', () => {
     const ladder = modelLadder(bundled, [], 32);
 
     expect(ladder.find((model) => model.entry.id === 'gemma4-12b')?.recommended).toBe(true);
     expect(ladder.find((model) => model.entry.id === 'gemma4-31b')?.recommended).toBe(false);
   });
 
-  it('keeps a family’s rows together, with the recommendation first', () => {
+  it('keeps a family’s rows together', () => {
     const group = memoryClasses(modelLadder(bundled, [], 16)).find(
       (each) => each.minimumMemoryGb === 16,
     );
     const ids = group?.models.map((model) => model.entry.id) ?? [];
 
-    expect(ids[0]).toBe('gemma4-12b');
-    expect(ids[1]).toBe('gemma4-e4b');
-    expect(ids.indexOf('qwen3.5-9b')).toBeGreaterThan(ids.indexOf('gemma4-e4b'));
-    expect(ids.indexOf('ministral-3-14b')).toBeGreaterThan(ids.indexOf('qwen3.5-9b'));
-    expect(ids.indexOf('ministral-8b')).toBe(ids.indexOf('ministral-3-14b') + 1);
+    expect(ids).toEqual(['gemma4-12b', 'qwen3.5-9b', 'ministral-3-14b']);
   });
 
-  it('keeps larger classes behind a disclosure and the test model last', () => {
-    const classes = memoryClasses(modelLadder(bundled, [], 8));
-    const shown = classDisclosure(classes, 8);
+  it('shows only the machine’s own class and the measured default, with both directions disclosed', () => {
+    const classes = (memoryGb: number) => memoryClasses(modelLadder(bundled, [], memoryGb));
 
-    expect(shown.own.map((group) => group.minimumMemoryGb)).toEqual([8]);
-    expect(shown.larger.map((group) => group.minimumMemoryGb)).toEqual([16, 24, 32]);
-    expect(shown.fallback.map((group) => group.minimumMemoryGb)).toEqual([4]);
+    const eight = classDisclosure(classes(8), 8, recommendedClass(8));
+    expect(eight.own.map((group) => group.minimumMemoryGb)).toEqual([8]);
+    expect(eight.smaller).toEqual([]);
+    expect(eight.larger.map((group) => group.minimumMemoryGb)).toEqual([16, 24, 32]);
+
+    const sixteen = classDisclosure(classes(16), 16, recommendedClass(16));
+    expect(sixteen.own.map((group) => group.minimumMemoryGb)).toEqual([16]);
+    expect(sixteen.smaller.map((group) => group.minimumMemoryGb)).toEqual([8]);
+    expect(sixteen.larger.map((group) => group.minimumMemoryGb)).toEqual([24, 32]);
+
+    const thirtyTwo = classDisclosure(classes(32), 32, recommendedClass(32));
+    expect(thirtyTwo.own.map((group) => group.minimumMemoryGb)).toEqual([16, 24, 32]);
+    expect(thirtyTwo.smaller.map((group) => group.minimumMemoryGb)).toEqual([8]);
+    expect(thirtyTwo.larger).toEqual([]);
   });
 
   it('shows every class in one list when memory is unknown', () => {
-    const shown = classDisclosure(memoryClasses(modelLadder(bundled, [], null)), null);
+    const shown = classDisclosure(memoryClasses(modelLadder(bundled, [], null)), null, null);
 
-    expect(shown.own).toHaveLength(5);
+    expect(shown.own).toHaveLength(4);
+    expect(shown.smaller).toEqual([]);
     expect(shown.larger).toEqual([]);
-    expect(shown.fallback).toEqual([]);
   });
 
-  it('does not recommend the smoke-test 0.8B as the only 4 GB fit', () => {
-    const ladder = modelLadder(bundled, [], 4);
-    const small = ladder.find((model) => model.entry.id === 'qwen3.5-0.8b');
+  it('offers only larger classes below the supported minimum', () => {
+    const shown = classDisclosure(
+      memoryClasses(modelLadder(bundled, [], 4)),
+      4,
+      recommendedClass(4),
+    );
 
-    expect(small?.fits).toBe(true);
-    expect(ladder.every((model) => !model.recommended)).toBe(true);
+    expect(shown.own).toEqual([]);
+    expect(shown.smaller).toEqual([]);
+    expect(shown.larger.map((group) => group.minimumMemoryGb)).toEqual([8, 16, 24, 32]);
   });
 
   it('includes an Ollama-only model as a provider row', () => {
-    const ladder = modelLadder(bundled, installed(['ministral-3:8b']), 16);
-    const row = ladder.find((model) => model.entry.id === 'ministral-8b');
+    const ladder = modelLadder(bundled, installed(['qwen3.5:9b']), 16);
+    const row = ladder.find((model) => model.entry.id === 'qwen3.5-9b');
 
     expect(row).toMatchObject({ source: 'provider', installed: true, fits: true });
-    expect(row?.provider?.name).toBe('ministral-3:8b');
-  });
-
-  it('keeps a planned model from looking selectable', () => {
-    const ladder = modelLadder(bundled, [], 16);
-    const row = ladder.find((model) => model.entry.id === 'llama-8b');
-
-    expect(row).toMatchObject({ source: 'planned', installed: false, provider: null });
+    expect(row?.provider?.name).toBe('qwen3.5:9b');
   });
 
   it('invents no hardware recommendation when memory is unknown', () => {

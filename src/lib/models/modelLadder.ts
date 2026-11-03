@@ -67,17 +67,19 @@ export function modelLadder(
     };
   });
 
-  // The measured baseline comes first in the catalogue; later entries are the
-  // rest of the family. Only an evaluated model can be recommended, and a
-  // provider model that is merely named but not installed is not a
-  // recommendation. The 0.8B exists so a 4 GB machine can run something at all.
-  const recommended = models.find(
-    (model) =>
-      model.entry.id !== 'qwen3.5-0.8b' &&
-      model.entry.testedLanguages.length > 0 &&
-      model.fits &&
-      (model.bundled !== null || model.provider !== null),
-  );
+  // A baseline is the model this project has judged fit to be the default, not
+  // merely a model that has been measured. Measurement alone is not enough: a
+  // model can be measured and unusable. The largest baseline that fits wins, so a
+  // 16 GB machine gets the 12B and an 8 GB machine gets the 4B, without either
+  // being decided by the order of this array.
+  const recommended = models
+    .filter(
+      (model) =>
+        model.entry.status === 'baseline' &&
+        model.fits &&
+        (model.bundled !== null || model.provider !== null),
+    )
+    .sort((left, right) => right.minimumMemoryGb - left.minimumMemoryGb)[0];
 
   return models.map((model) => ({
     ...model,
@@ -131,22 +133,41 @@ export function displayOrder(models: LadderModel[]): LadderModel[] {
 }
 
 /**
- * The classes a machine should see, and the larger ones behind a disclosure.
+ * The classes a machine should see, and the ones that need a decision.
  *
- * The 4 GB class is separated from `own` so the smoke-test model stays last on
- * every machine, including a 4 GB one where it is technically the only fit.
+ * The machine's own class is the highest class it can run. `own` starts at the
+ * class holding the measured default, not at the smallest class, so a 32 GB
+ * machine still sees the 12B it is being recommended — hiding it behind "Smaller
+ * models" would hide the only recommendation the project is willing to make.
+ * Classes below that floor are the fallback; classes above the machine are what a
+ * larger machine would offer.
  */
 export interface ClassDisclosure {
   own: MemoryClass[];
+  smaller: MemoryClass[];
   larger: MemoryClass[];
-  fallback: MemoryClass[];
 }
 
-export function classDisclosure(classes: MemoryClass[], memoryGb: number | null): ClassDisclosure {
-  if (memoryGb === null) return { own: classes, larger: [], fallback: [] };
+export function classDisclosure(
+  classes: MemoryClass[],
+  memoryGb: number | null,
+  recommendedClass: number | null,
+): ClassDisclosure {
+  if (memoryGb === null) return { own: classes, smaller: [], larger: [] };
+
+  const machineClass = classes
+    .filter((group) => group.minimumMemoryGb <= memoryGb)
+    .at(-1)?.minimumMemoryGb;
+  if (machineClass === undefined) {
+    return { own: [], smaller: [], larger: classes };
+  }
+
+  const floor = recommendedClass === null ? machineClass : Math.min(recommendedClass, machineClass);
   return {
-    own: classes.filter((group) => group.minimumMemoryGb >= 8 && group.minimumMemoryGb <= memoryGb),
-    larger: classes.filter((group) => group.minimumMemoryGb > memoryGb),
-    fallback: classes.filter((group) => group.minimumMemoryGb < 8),
+    own: classes.filter(
+      (group) => group.minimumMemoryGb >= floor && group.minimumMemoryGb <= machineClass,
+    ),
+    smaller: classes.filter((group) => group.minimumMemoryGb < floor),
+    larger: classes.filter((group) => group.minimumMemoryGb > machineClass),
   };
 }

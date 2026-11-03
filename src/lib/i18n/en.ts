@@ -388,25 +388,29 @@ export const en = {
     chooseOnce: 'Choose once, then keep working',
     modelLead:
       'LocaLog uses this model for local protocol drafts until you change it. The normal workflow does not ask you to choose a model for every meeting.',
-    recommendedForMachine: 'Recommended for this machine',
+    recommendedForMachine: 'Measured default',
     notInstalledYet: 'Not installed yet',
     baseline: 'Baseline',
     european: 'European',
     checkInstalled: 'Check installed models',
     curatedModels: 'Curated protocol models',
     largerModels: 'Larger models',
-    testOnlyHint:
-      'Testing only. This model exists so a development machine can run the pipeline; its output is not a record you should keep.',
+    smallerModels: 'Smaller models',
     downloadIntro:
       'Choose a model for this computer. Downloads stay on this device; no separate AI service is needed.',
+    modelClass: (gb: number) => `Runs on ${gb} GB or more`,
     memoryMinimum: (gb: number) => `Minimum RAM class: ${gb} GB`,
-    modelClass: (gb: number) => `${gb} GB class`,
     memoryTooSmall: (gb: number) =>
       `Needs a ${gb} GB RAM class or larger. Download and selection are unavailable on this computer.`,
     memoryUnknown:
       'Memory could not be detected. Check the model’s RAM requirement before downloading.',
     memoryTight:
       'An 8 GB computer has little room for long meetings. Close other applications; CPU generation may be slow. Download size is not total RAM use.',
+    memoryBelowMinimum:
+      'This computer reports less than the 8 GB the protocol pipeline needs. The models below need a larger machine.',
+    recommendationNote:
+      'The default is the model measured on this project’s reference meeting. Larger sizes are listed, but they are not recommended until they have been measured here.',
+    selectedModelNotOffered: 'The selected model is not in this curated list.',
     qualityCaution:
       'Memory suitability does not guarantee protocol quality. Smaller candidates need careful review; earlier measurements were made on a different computer.',
     bundledRuntime: 'On this device',
@@ -442,31 +446,22 @@ export const en = {
      */
     modelDescription: {
       'qwen3.5-2b':
-        'The smallest Qwen 3.5 that is worth choosing over the smoke-test model. Faster than the 4B on a machine with little memory; not yet measured here.',
+        'The smallest Qwen 3.5 offered. Faster than the 4B on a machine with little memory; not yet measured here.',
       'qwen3.5-35b-a3b':
         'A mixture of experts: about the speed of a 3B model with the memory of a 35B one. For 32 GB machines; not yet measured here.',
       'ministral-3-14b':
         'The larger European Ministral. For 16 GB machines; not yet measured here.',
-      'gemma4-e4b':
-        'The small Gemma 4 model. A 16 GB option; its protocol quality has not been measured here yet.',
       'gemma4-26b':
         'The mixture-of-experts Gemma 4. Runs at about 4B speed but needs the memory of a 26B model; not yet measured here.',
       'gemma4-31b': 'The largest dense Gemma 4. For 32 GB machines; not yet measured here.',
       'qwen3.5-9b':
         'The 9B Qwen 3.5. The step up from the measured 4B on a 16 GB machine; not yet measured here.',
       'qwen3.5-27b': 'The 27B Qwen 3.5. For 32 GB machines; not yet measured here.',
-      'qwen3.5-0.8b':
-        'A small development and smoke-test model. Protocol quality has not been evaluated; do not rely on it for a professional meeting record.',
       'gemma4-12b':
         'The most accurate and the steadiest of the measured models: it kept 27 to 31 of a meeting’s 35 figures across three runs, where the next best kept as few as 6. Slower — about fourteen minutes for an eighty-minute meeting.',
-      'ministral-8b':
-        'Measured on a German meeting at three settings and wrote a usable protocol at one of them: the others produced a two-line stub and a JSON document where markdown was asked for. Kept as the European candidate, not yet an alternative to the baseline.',
       'qwen3.5-4b':
         'The fastest measured model, at about five minutes for an eighty-minute meeting, and the choice where memory is short. It never produced the table of next steps the formal style asks for.',
       'ministral-3b': 'The first European candidate for the weakest supported Mac.',
-      'granite4.1-8b':
-        'Measured on a German meeting at three settings and kept 22, 19 and 6 of its 35 stated figures on identical input. A run that loses five sixths of what a meeting stated is not a tool for producing a record, so it is not recommended.',
-      'llama-8b': 'A later comparison slot for a verified Llama release.',
     },
     modelOrigin: {
       international: 'International open model',

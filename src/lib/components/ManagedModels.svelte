@@ -18,7 +18,14 @@
 
   $: ladder = modelLadder(terms, providerStatus.models, memoryGb);
   $: groups = memoryClasses(ladder);
-  $: disclosure = classDisclosure(groups, memoryGb);
+  $: recommendedClass = ladder.find((model) => model.recommended)?.minimumMemoryGb ?? null;
+  $: disclosure = classDisclosure(groups, memoryGb, recommendedClass);
+  $: selected = status.selectedModel ?? providerStatus.selectedModel;
+  $: selectedIsListed =
+    selected === null ||
+    ladder.some(
+      (model) => model.bundled?.modelId === selected || model.provider?.name === selected,
+    );
   $: shared = {
     status,
     providerStatus,
@@ -38,20 +45,32 @@
     {memoryGb === null ? $t.settings.memoryUnknown : $t.settings.memoryReported(memoryGb)}
   </p>
   {#if memoryGb !== null && memoryGb <= 8}<p class="setting-hint">{$t.settings.memoryTight}</p>{/if}
+  {#if memoryGb !== null && memoryGb < 8}<p class="setting-hint">
+      {$t.settings.memoryBelowMinimum}
+    </p>{/if}
+  <p class="setting-hint">{$t.settings.recommendationNote}</p>
   <p class="setting-hint">{$t.settings.qualityCaution}</p>
   {#if !status.serverReachable}<p class="setting-hint">{errorMessage(status.message)}</p>{/if}
+  {#if selected !== null && !selectedIsListed}<p class="setting-hint">
+      {$t.settings.selectedModelNotOffered}
+    </p>{/if}
   {#each disclosure.own as group (group.minimumMemoryGb)}
     <ModelClass {...shared} {group} />
   {/each}
   {#if disclosure.larger.length}
-    <details class="larger-models">
+    <details class="model-disclosure">
       <summary class="quiet-action">{$t.settings.largerModels}</summary>
       {#each disclosure.larger as group (group.minimumMemoryGb)}
         <ModelClass {...shared} {group} />
       {/each}
     </details>
   {/if}
-  {#each disclosure.fallback as group (group.minimumMemoryGb)}
-    <ModelClass {...shared} {group} />
-  {/each}
+  {#if disclosure.smaller.length}
+    <details class="model-disclosure">
+      <summary class="quiet-action">{$t.settings.smallerModels}</summary>
+      {#each disclosure.smaller as group (group.minimumMemoryGb)}
+        <ModelClass {...shared} {group} />
+      {/each}
+    </details>
+  {/if}
 </section>

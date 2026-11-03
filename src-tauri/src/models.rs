@@ -223,17 +223,6 @@ const MODELS: &[ModelSpec] = &[
         acceptance_required: false,
     },
     ModelSpec {
-        id: "gemma4-e4b",
-        file_name: "gemma-4-E4B_q4_0-it.gguf",
-        url: "https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf/resolve/4b4a2c1d584be7264f87aac328a1bc739ce81b6c/gemma-4-E4B_q4_0-it.gguf",
-        sha256: "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee",
-        byte_count: 5_154_941_280,
-        kind: ModelKind::Generation,
-        licence: "apache2",
-        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
-        acceptance_required: false,
-    },
-    ModelSpec {
         id: "qwen3.5-4b",
         file_name: "Qwen3.5-4B-Q4_K_M.gguf",
         url: "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-Q4_K_M.gguf",
@@ -456,8 +445,6 @@ pub(crate) fn generation_minimum_memory_gb(model_id: &str) -> Option<u32> {
         "gemma4-26b" | "gemma4:26b" => Some(24),
         "gemma4-12b"
         | "gemma4:12b"
-        | "gemma4-e4b"
-        | "gemma4:e4b"
         | "qwen3.5-9b"
         | "qwen3.5:9b"
         | "ministral-3-14b"
@@ -1135,7 +1122,6 @@ mod the_catalogue_terms {
     #[test]
     fn the_larger_families_need_the_memory_they_claim() {
         assert_eq!(generation_minimum_memory_gb("qwen3.5-2b"), Some(8));
-        assert_eq!(generation_minimum_memory_gb("gemma4-e4b"), Some(16));
         assert_eq!(generation_minimum_memory_gb("qwen3.5-9b"), Some(16));
         assert_eq!(generation_minimum_memory_gb("ministral-3-14b"), Some(16));
         assert_eq!(generation_minimum_memory_gb("gemma4-26b"), Some(24));
