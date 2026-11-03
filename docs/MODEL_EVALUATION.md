@@ -407,6 +407,41 @@ Measured on an M1 Pro with 16 GB. One model, one meeting, one style: `granite4.1
 and `gemma4:12b` are installed and untested here, and a model that does follow the
 style would change every line of this section.
 
+### The harness on a short meeting, 2 November 2026
+
+Two runs on the same short meeting (the Riverside renovation discussion, about
+6,200 transcript characters), the same harness and the bundled backend. The only
+variable was the model.
+
+| Model          | Path                              |  Time | Result                                                 |
+| -------------- | --------------------------------- | ----: | ------------------------------------------------------ |
+| Qwen3.5 0.8B   | one pass                          | 154 s | completed, a 3,745-character protocol                  |
+| Ministral 3 3B | one pass, then sectioned fallback | 800 s | failed, `provider_invalid_output` / `responseUnusable` |
+
+**The 3B failed by following the prompt too literally, not by running out of
+capacity.** It answered the one-pass request with a title line and a date
+correction — three times, once per attempt. The harness recognised the answer as a
+bad draw and retried the meeting as a single section, which is the designed
+fallback. The 3B then answered the notes request with one accurate bullet about
+the meeting’s topic, 120 characters long. That was rejected by the notes floor —
+one hundredth of the transcript, at least 200 characters — and with only one
+section there was no other section to keep, so the job failed.
+
+**The 0.8B, on the same meeting, wrote a full protocol in one pass.** This is the
+inverse of the long-meeting result above, and it narrows the earlier claim: the
+0.8B cannot write a protocol from a nineteen-minute meeting, but it can write one
+from a six-thousand-character one, because the one-pass path asks it to hold only
+that much. The harness, not the parameter count alone, decides which is true.
+
+It also exposes the one place the “keep rather than lose” rule does not reach. A
+short meeting has one section, so a rejected notes answer is the whole job, and
+the answer that was rejected was accurate — the floor is about length, not
+content. The trace (`LOCALOG_KEEP_GENERATION`) records all six answers and
+`logs/generation.log` records the reason; the existing protocol was left
+untouched. What to change is a product decision: either the notes floor should be
+lower for a one-section meeting, or the longest rejected note should be kept as a
+clearly labelled notes draft rather than turning into a failed job.
+
 ## Speaker separation
 
 The reference meeting has **no known speaker count**. The owner attended, believes they were not
