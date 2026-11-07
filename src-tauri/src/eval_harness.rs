@@ -889,3 +889,97 @@ fn who_introduced_themselves() {
     }
     println!("\nEvery spelling above is what the transcript says, not what is correct.");
 }
+
+/// Does the hybrid — topics as the organiser, notes as the carrier, one
+/// synthesis — hold proportion and structure where write-by-topic overran?
+///
+/// The question milestone 1 asks, in the shape that can actually ship: the
+/// topic pass no longer writes sections, it only labels and budgets the notes,
+/// and global structure stays in a single synthesis. Run beside
+/// `does_writing_by_topic_stay_in_proportion`, at the same seeds and models,
+/// comparing figures kept, structure and total length against both baselines.
+///
+/// ```text
+/// LOCALOG_ADHERENCE_TRANSCRIPT=<transcript json> \
+/// LOCALOG_ADHERENCE_OUT=<a directory outside the repository> \
+/// LOCALOG_ADHERENCE_MODELS=qwen3.5:4b LOCALOG_ADHERENCE_SEEDS=7 \
+///   cargo test --lib -- --ignored --nocapture does_the_outline_path_stay_in_proportion
+/// ```
+#[test]
+#[ignore = "requires a real transcript and a running provider"]
+fn does_the_outline_path_stay_in_proportion() {
+    let transcript_path = std::env::var("LOCALOG_ADHERENCE_TRANSCRIPT").expect("a transcript");
+    let out = std::path::PathBuf::from(std::env::var("LOCALOG_ADHERENCE_OUT").expect("a folder"));
+    let name = std::env::var("LOCALOG_ADHERENCE_MODELS").unwrap_or("qwen3.5:4b".into());
+    let seed: u64 = std::env::var("LOCALOG_ADHERENCE_SEED")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(7);
+    std::fs::create_dir_all(&out).expect("an output folder");
+
+    let value: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&transcript_path).expect("readable"))
+            .expect("json");
+    let segments: Vec<crate::domain::TranscriptSegment> =
+        serde_json::from_value(value["segments"].clone()).expect("segments");
+    let stated = crate::facts::quantities(&segments);
+    let transcript: Vec<GenerationSegment> = segments.iter().map(GenerationSegment::from).collect();
+
+    let provider = harness_provider();
+    let runtime_version = provider.version().expect("the provider must be running");
+    let model = provider
+        .installed_models()
+        .unwrap()
+        .into_iter()
+        .find(|candidate| candidate.name == name)
+        .expect("the model must be installed");
+
+    let request = GenerationRequest {
+        document_notes: crate::provider::DocumentNotes::english_for_harnesses(),
+        model: model.name.clone(),
+        model_digest: model.digest.clone(),
+        runtime_version,
+        meeting_language: std::env::var("LOCALOG_EVAL_LANGUAGE").unwrap_or("German".into()),
+        style: formal_minutes_style(),
+        vocabulary_revision: "by-outline".into(),
+        vocabulary: Vec::new(),
+        transcript,
+        seed,
+        temperature_milli: 200,
+        context_tokens: std::env::var("LOCALOG_EVAL_CONTEXT")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(40_960),
+        maximum_output_tokens: 8_192,
+    };
+
+    let started = Instant::now();
+    let markdown =
+        match provider.write_by_outline(&request, &AtomicBool::new(false), &mut |_, _| Ok(())) {
+            Ok(markdown) => markdown,
+            Err(error) => {
+                println!("{name:>16} failed: {error:?}");
+                return;
+            }
+        };
+    let seconds = started.elapsed().as_secs();
+    let kept = stated
+        .iter()
+        .filter(|fact| crate::facts::is_accounted_for(fact, &markdown))
+        .count();
+    let headings = markdown
+        .lines()
+        .filter(|l| l.trim_start().starts_with('#'))
+        .count();
+    let safe = name.replace([':', '/', '.'], "-");
+    std::fs::write(
+        out.join(format!("protocol-outline-{safe}-seed{seed}.md")),
+        &markdown,
+    )
+    .expect("written");
+    println!(
+        "{name:>16} seed {seed:>3} seconds {seconds:>6} chars {} headings {headings:>3} figures kept {kept}/{}",
+        markdown.len(),
+        stated.len()
+    );
+}

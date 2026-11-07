@@ -295,6 +295,40 @@ def quantities(text):
     return {m.group(0).lower() for m in QUANTITY.finditer(text)}
 
 
+def cmd_outline(cfg, args):
+    """The milestone-1 experiment: topics organize the notes, one synthesis writes."""
+    meeting = Path(args.meeting).resolve()
+    transcript = Path(args.transcript).resolve() if args.transcript else latest_transcript_artifact(meeting)
+    run = new_run_dir(meeting, args.dry_run)
+    out = run / "outline"
+    if not args.dry_run:
+        out.mkdir(exist_ok=True)
+    models = [m.strip() for m in (args.models or cfg.get("LOCALOG_ADHERENCE_MODELS", "qwen3.5:4b")).split(",") if m.strip()]
+    seeds = [s.strip() for s in (args.seeds or cfg.get("LOCALOG_ADHERENCE_SEEDS", "7,8,9")).split(",") if s.strip()]
+    print(f"transcript:  {transcript}")
+    print(f"models:      {', '.join(models)}  seeds: {', '.join(seeds)}")
+    failures = 0
+    for model in models:
+        for seed in seeds:
+            env = {
+                "LOCALOG_ADHERENCE_TRANSCRIPT": str(transcript),
+                "LOCALOG_ADHERENCE_MODELS": model,
+                "LOCALOG_ADHERENCE_SEED": seed,
+                "LOCALOG_ADHERENCE_OUT": str(out),
+                "LOCALOG_EVAL_LANGUAGE": cfg.get("LOCALOG_EVAL_LANGUAGE"),
+                "LOCALOG_EVAL_CONTEXT": cfg.get("LOCALOG_EVAL_CONTEXT"),
+                "LOCALOG_EVAL_OUTPUT": cfg.get("LOCALOG_EVAL_OUTPUT"),
+                "LOCALOG_PROVIDER_ENDPOINT": cfg.get("LOCALOG_PROVIDER_ENDPOINT"),
+            }
+            code = cargo_test(cfg, "does_the_outline_path_stay_in_proportion", env, run,
+                              f"outline-{model.replace(':', '-')}-seed{seed}.log", args.dry_run)
+            if code not in (None, 0):
+                failures += 1
+    if failures:
+        print(f"{failures} model/seed runs failed — see {run}")
+    return 0 if failures == 0 else 1
+
+
 def cmd_report(cfg, args):
     meeting = Path(args.meeting).resolve()
     runs = sorted((meeting / "runs").glob("*")) if (meeting / "runs").exists() else []
@@ -359,6 +393,13 @@ def main():
     p.add_argument("meeting")
     p.add_argument("--model")
     p.set_defaults(func=cmd_topics)
+
+    p = sub.add_parser("outline", help="milestone-1 experiment: topics organize the notes")
+    p.add_argument("meeting")
+    p.add_argument("--models", help="comma-separated model names")
+    p.add_argument("--seeds", help="comma-separated seeds (default 7,8,9)")
+    p.add_argument("--transcript", help="transcript JSON (default: newest in .workspace)")
+    p.set_defaults(func=cmd_outline)
 
     p = sub.add_parser("report", help="aggregate the newest run into summary.md")
     p.add_argument("meeting")

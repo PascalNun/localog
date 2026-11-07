@@ -26,6 +26,7 @@ python3 scripts/eval-runner.py transcribe eval/<label>                # full pip
 python3 scripts/eval-runner.py sweep eval/<label> --models qwen3.5:4b,gemma4:12b --seeds 7,8,9
 python3 scripts/eval-runner.py generate eval/<label> --model qwen3.5:4b
 python3 scripts/eval-runner.py report eval/<label>                    # summary.md for the newest run
+python3 scripts/eval-runner.py outline eval/<label> --models qwen3.5:4b   # the milestone-1 experiment
 ```
 
 Every command accepts `--dry-run`. Configuration comes from flags, the

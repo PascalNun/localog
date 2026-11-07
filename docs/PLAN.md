@@ -2015,3 +2015,31 @@ and was replaced. A standalone per-user test build avoids Vite reloads during
 user testing. The originally reported file-chooser non-response still needs
 confirmation in that stable copy; do not infer its cause from successful writer
 or PDF-renderer checks.
+
+## Notes, tables and the outline experiment — 07 November 2026
+
+Section notes now say what each bullet _is_: the notes pass tags every bullet
+`[decision]`, `[action]`, `[question]` or `[note]`, and the fixed "at most 20
+bullets" became a bullet budget derived from the section's own size — one
+bullet per three hundred characters, bounded at six and twenty-four — so a
+dense section no longer holds the same number of facts as a thin one. Tags are
+machinery, not content: the merge pass preserves them, the synthesis is told to
+copy none, and the notes-as-draft fallback strips them before a person reads it.
+
+The measured one-in-five protocol that arrives without its table of next steps
+no longer triggers a re-roll of the whole synthesis. A second, surgical pass
+writes only the table, from the notes that hold the agreed actions (only those,
+where the tags allow the subset) and nothing else; where it fails, the document
+still discloses what it is missing, exactly as before.
+
+Milestone 1 now has a runnable answer shape. `write_by_outline` is the hybrid
+the topic experiment pointed at: the topic pass decides which passages belong
+together and each subject's share of the document, and nothing else — a
+subject's scattered passages are packed into window-sized chunks and condensed
+as production does, and ONE synthesis writes the whole protocol from the
+labelled, budgeted notes, so global structure stays in a single answer's hands.
+Bad draws in the topic pass fall back to today's size-sectioned path, so the
+worst case is current behaviour. It is compiled for evaluation only, beside
+`write_by_topic`; `scripts/eval-runner.py outline` runs it per model and seed
+beside both baselines, and nothing moves into the production path until the
+harnesses have measured it at three seeds.
