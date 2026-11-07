@@ -30,6 +30,20 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::time::Instant;
 
+/// The provider this harness talks to when it builds one directly: loopback by
+/// default, or the machine named by LOCALOG_HARNESS_ENDPOINT when the model
+/// being measured lives on a lab box. The whole-pipeline test below still runs
+/// against local Ollama, because that path is owned by processing.rs and stays
+/// inside the product's loopback-only boundary.
+fn harness_provider() -> crate::provider::OllamaProvider {
+    match std::env::var("LOCALOG_HARNESS_ENDPOINT") {
+        Ok(url) if !url.trim().is_empty() => {
+            crate::provider::OllamaProvider::at_url(url.trim().to_string())
+        }
+        _ => crate::provider::OllamaProvider::loopback(),
+    }
+}
+
 fn required(key: &str) -> PathBuf {
     PathBuf::from(std::env::var(key).unwrap_or_else(|_| panic!("set {key}")))
 }
@@ -412,7 +426,7 @@ fn generates_from_an_existing_workspace() {
 #[test]
 #[ignore = "requires a transcribed workspace and a running Ollama"]
 fn finds_the_topics_of_a_real_meeting() {
-    use crate::provider::{GenerationRequest, GenerationSegment, GenerationStyle, OllamaProvider};
+    use crate::provider::{GenerationRequest, GenerationSegment, GenerationStyle};
 
     let root = required("LOCALOG_E2E_ROOT");
     let repository = WorkspaceRepository::open(&root).unwrap();
@@ -428,7 +442,7 @@ fn finds_the_topics_of_a_real_meeting() {
         .map(GenerationSegment::from)
         .collect();
 
-    let provider = OllamaProvider::loopback();
+    let provider = harness_provider();
     let model_name =
         std::env::var("LOCALOG_E2E_MODEL").unwrap_or_else(|_| "qwen3.5:4b".to_string());
     let model = provider

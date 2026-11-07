@@ -15,6 +15,30 @@ eval/<short-label>/
 
 A directory name can still reveal information, so keep labels generic.
 
+## Running the harnesses
+
+`run.py` wraps the ignored Rust harnesses (`src-tauri/src/eval_harness.rs`,
+`e2e_harness.rs`) so evaluation is one command instead of environment variables:
+
+```sh
+python3 eval/run.py check                                  # prerequisites, endpoint, installed models
+python3 eval/run.py transcribe eval/<label>                # full pipeline, keeps eval/<label>/.workspace
+python3 eval/run.py sweep eval/<label> --models qwen3.5:4b,gemma4:12b --seeds 7,8,9
+python3 eval/run.py generate eval/<label> --model qwen3.5:4b
+python3 eval/run.py report eval/<label>                    # summary.md for the newest run
+```
+
+Every command accepts `--dry-run`. Configuration comes from flags, the
+environment, or `eval/config.env` (also ignored): sidecar and model paths,
+language, context/output sizes, seeds, vocabulary, and the endpoint.
+
+`LOCALOG_HARNESS_ENDPOINT` (default `http://127.0.0.1:11434`) points the
+sweep/topic harnesses at another machine — for example a lab box holding the
+larger models that do not fit a laptop. The product's loopback-only boundary is
+untouched: the override exists only in the `#[cfg(test)]` harnesses, reads the
+address from the environment, and never from a stored setting. The
+whole-pipeline run still generates through the local runtime.
+
 ## What leaves the machine
 
 Running the material through the local application is local. Reading it in an assistant conversation is not: content shown to a hosted model leaves the device. Do not use an assistant to inspect sensitive evaluation material merely because it is convenient.

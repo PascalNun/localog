@@ -165,6 +165,9 @@ pub fn can_check_a_rewrite(descriptor: &ModelDescriptor) -> bool {
 pub struct OllamaStatus {
     pub active: bool,
     pub endpoint: String,
+    /// True when the endpoint is a user-configured remote server rather than the
+    /// local default. The interface reads this to say where meeting content goes.
+    pub custom_endpoint: bool,
     pub server_reachable: bool,
     pub runtime_version: Option<String>,
     pub models: Vec<ModelDescriptor>,
@@ -706,6 +709,7 @@ pub fn bundled_status(root: &std::path::Path, selected_model: Option<String>) ->
             .as_ref()
             .map(|path| path.display().to_string())
             .unwrap_or_default(),
+        custom_endpoint: false,
         // The runtime being present, rather than a server being up. Nothing is
         // started until a protocol is asked for.
         server_reachable: executable.is_some(),
@@ -751,6 +755,65 @@ fn machine_memory_gb() -> Option<u32> {
     crate::machine::memory_gb()
 }
 
+/// Validate a user-supplied provider endpoint and normalise it, or answer with a
+/// failure code the interface translates.
+///
+/// Empty means "this device" and normalises to the empty string, which callers
+/// read as loopback. Only http and https are accepted; credentials embedded in
+/// the URL are refused because they would sit in plaintext settings and be shown
+/// in status — a bearer token belongs to a later, keychain-backed design, not
+/// here. Hand-rolled rather than pulled in as a dependency: the rules above are
+/// all the product needs, and a full URL parser is a large addition to justify.
+pub fn normalize_endpoint(raw: &str) -> std::result::Result<String, &'static str> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(String::new());
+    }
+    // The scheme is checked before trailing slashes are trimmed, so "http://"
+    // reads as a missing host rather than a missing scheme.
+    let (scheme, after_scheme) = if let Some(rest) = trimmed.strip_prefix("http://") {
+        ("http", rest)
+    } else if let Some(rest) = trimmed.strip_prefix("https://") {
+        ("https", rest)
+    } else {
+        return Err("endpointNotHttp");
+    };
+    let after_scheme = after_scheme.trim_end_matches('/');
+    if after_scheme.contains('@') {
+        return Err("endpointHasCredentials");
+    }
+    if after_scheme.contains(['?', '#']) {
+        return Err("endpointInvalid");
+    }
+    // host[:port], optionally followed by a path prefix.
+    let host_part = after_scheme.split('/').next().unwrap_or("");
+    let (host, port) = match host_part.split_once(':') {
+        Some((host, port)) => {
+            if port.is_empty() || !port.chars().all(|c| c.is_ascii_digit()) {
+                return Err("endpointInvalid");
+            }
+            let number: u32 = port.parse().map_err(|_| "endpointInvalid")?;
+            if number == 0 || number > 65_535 {
+                return Err("endpointInvalid");
+            }
+            (host, Some(number))
+        }
+        None => (host_part, None),
+    };
+    // A hostname, IPv4 or bracketed IPv6 literal: nothing else may appear before
+    // the first slash. Anything stranger is not an address this product should
+    // be sending meeting content to.
+    if host.is_empty()
+        || !host
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '.' | ':' | '[' | ']'))
+    {
+        return Err("endpointNoHost");
+    }
+    let _ = port;
+    Ok(format!("{scheme}://{after_scheme}"))
+}
+
 impl OllamaProvider {
     pub fn loopback() -> Self {
         Self::at_port(DEFAULT_PORT)
@@ -766,6 +829,20 @@ impl OllamaProvider {
             backend: Backend::Llama,
             ..Self::with_url(base_url)
         }
+    }
+
+    /// A provider at an explicit endpoint. The default everywhere stays
+    /// loopback (decision 24); this is used only for the advanced, explicitly
+    /// acknowledged custom endpoint in Settings, and by the test harnesses for
+    /// a lab machine. The address always comes from a validated setting or the
+    /// environment, never from a model catalogue entry or a stored artifact.
+    pub fn at_url(base_url: String) -> Self {
+        Self::with_url(base_url)
+    }
+
+    fn is_loopback(&self) -> bool {
+        self.backend == Backend::Ollama
+            && self.base_url == format!("http://127.0.0.1:{DEFAULT_PORT}")
     }
 
     /// Which runtime this provider talks to. Only the tests ask; the branches
@@ -823,6 +900,7 @@ impl OllamaProvider {
         let mut status = OllamaStatus {
             active: true,
             endpoint: self.base_url.clone(),
+            custom_endpoint: self.backend == Backend::Ollama && !self.is_loopback(),
             selected_model,
             machine_memory_gb: machine_memory_gb(),
             ..OllamaStatus::default()
@@ -5494,5 +5572,68 @@ mod the_bundled_runtime_status {
             status.message
         );
         let _ = std::fs::remove_dir_all(&root);
+    }
+}
+
+#[cfg(test)]
+mod endpoint_validation {
+    use super::normalize_endpoint;
+
+    #[test]
+    fn empty_means_this_device() {
+        assert_eq!(normalize_endpoint("   ").unwrap(), "");
+    }
+
+    #[test]
+    fn accepts_http_and_https_hosts_with_optional_port_and_path() {
+        assert_eq!(
+            normalize_endpoint("http://192.168.1.20:11434").unwrap(),
+            "http://192.168.1.20:11434"
+        );
+        assert_eq!(
+            normalize_endpoint("https://lab.example.com/ollama/").unwrap(),
+            "https://lab.example.com/ollama"
+        );
+        assert_eq!(
+            normalize_endpoint("http://localhost:11434").unwrap(),
+            "http://localhost:11434"
+        );
+    }
+
+    #[test]
+    fn rejects_other_schemes_and_credentials() {
+        assert_eq!(
+            normalize_endpoint("ftp://lab:11434").unwrap_err(),
+            "endpointNotHttp"
+        );
+        assert_eq!(
+            normalize_endpoint("lab:11434").unwrap_err(),
+            "endpointNotHttp"
+        );
+        assert_eq!(
+            normalize_endpoint("http://user:secret@lab:11434").unwrap_err(),
+            "endpointHasCredentials"
+        );
+    }
+
+    #[test]
+    fn rejects_missing_host_and_bad_ports() {
+        assert_eq!(normalize_endpoint("http://").unwrap_err(), "endpointNoHost");
+        assert_eq!(
+            normalize_endpoint("http://:11434").unwrap_err(),
+            "endpointNoHost"
+        );
+        assert_eq!(
+            normalize_endpoint("http://lab:abc").unwrap_err(),
+            "endpointInvalid"
+        );
+        assert_eq!(
+            normalize_endpoint("http://lab:99999").unwrap_err(),
+            "endpointInvalid"
+        );
+        assert_eq!(
+            normalize_endpoint("http://lab:11434/x?y=1").unwrap_err(),
+            "endpointInvalid"
+        );
     }
 }

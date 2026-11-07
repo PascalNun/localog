@@ -14,6 +14,18 @@ use crate::provider::*;
 use std::sync::atomic::AtomicBool;
 use std::time::Instant;
 
+/// The provider this harness talks to: loopback by default, or the machine named
+/// by LOCALOG_HARNESS_ENDPOINT when the models being measured live elsewhere — a
+/// lab box with more memory than a laptop. The whole-pipeline harness in
+/// e2e_harness.rs still runs against local Ollama, because that path is owned by
+/// processing.rs and stays inside the product's loopback-only boundary.
+fn harness_provider() -> OllamaProvider {
+    match std::env::var("LOCALOG_HARNESS_ENDPOINT") {
+        Ok(url) if !url.trim().is_empty() => OllamaProvider::at_url(url.trim().to_string()),
+        _ => harness_provider(),
+    }
+}
+
 /// Does the model follow the style it was given?
 ///
 /// Asked because three runs of `qwen3.5:4b` produced no table of next steps, which
@@ -55,7 +67,7 @@ fn does_the_model_follow_the_style() {
     let transcript: Vec<GenerationSegment> = segments.iter().map(GenerationSegment::from).collect();
     let stated = crate::facts::quantities(&segments);
 
-    let provider = OllamaProvider::loopback();
+    let provider = harness_provider();
     let runtime_version = provider.version().expect("ollama must be running");
     let installed = provider.installed_models().unwrap();
 
@@ -329,7 +341,7 @@ fn does_attribution_improve_the_protocol() {
         ("scattered", build(&|index| segments[index].speaker.clone())),
     ];
 
-    let provider = OllamaProvider::loopback();
+    let provider = harness_provider();
     let runtime_version = provider.version().expect("ollama must be running");
     let model = provider
         .installed_models()
@@ -453,7 +465,7 @@ fn generates_a_protocol_from_a_real_transcript() {
         .collect();
     assert!(!transcript.is_empty(), "transcript had no usable segments");
 
-    let provider = OllamaProvider::loopback();
+    let provider = harness_provider();
     let runtime_version = provider.version().expect("ollama must be running");
     let model = provider
         .installed_models()
@@ -737,7 +749,7 @@ fn does_writing_by_topic_stay_in_proportion() {
     let stated = crate::facts::quantities(&segments);
     let transcript: Vec<GenerationSegment> = segments.iter().map(GenerationSegment::from).collect();
 
-    let provider = OllamaProvider::loopback();
+    let provider = harness_provider();
     let runtime_version = provider.version().expect("ollama must be running");
     let model = provider
         .installed_models()
@@ -819,7 +831,7 @@ fn who_introduced_themselves() {
         serde_json::from_value(value["segments"].clone()).expect("segments");
     let transcript: Vec<GenerationSegment> = segments.iter().map(GenerationSegment::from).collect();
 
-    let provider = OllamaProvider::loopback();
+    let provider = harness_provider();
     let runtime_version = provider.version().expect("ollama must be running");
     let name = std::env::var("LOCALOG_ADHERENCE_MODELS").unwrap_or("gemma4:12b".into());
     let model = provider
