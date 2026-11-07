@@ -85,7 +85,7 @@ The first complete version focuses on imported audio and video. It includes loca
 
 Recording from the microphone or system audio remains part of the long-term product direction, but the Record action is not shown until it works reliably on the relevant platforms.
 
-The first version does not include accounts, cloud sync, collaboration, calendar integration, live meeting bots, mobile applications, DOCX/PDF export, semantic search, automatic finalisation, a public provider SDK, or automatic model downloads from arbitrary sources.
+The first version does not include accounts, cloud sync, collaboration, calendar integration, live meeting bots, mobile applications, semantic search, automatic finalisation, a public provider SDK, or automatic model downloads from arbitrary sources. Markdown, plain-text, PDF and Word export are part of the first version; the richer template designer around them is not.
 
 Known local models may be downloaded with the user's consent when that is part of the accepted runtime direction. The application must not download anything silently.
 
