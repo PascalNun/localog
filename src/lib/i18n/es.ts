@@ -109,6 +109,16 @@ const failures = {
   endpointNoHost: 'La dirección necesita un host, por ejemplo http://192.168.1.20:11434.',
   endpointHasCredentials: 'Quite el usuario y la contraseña de la dirección; no se guardan.',
   endpointInvalid: 'Esa dirección no es válida.',
+  providerNotReachable:
+    'Ese servidor no respondió. Compruebe la dirección y que el servidor esté en marcha.',
+  providerModelsUnreadable: 'El servidor respondió, pero no se pudo leer su lista de modelos.',
+  providerReadyNoModel: 'El servidor está disponible. Elija un modelo de su lista.',
+  providerModelReady: 'El modelo elegido está disponible en ese servidor.',
+  providerSelectedModelMissing: 'El modelo elegido no figura en ese servidor.',
+  endpointNotReachable:
+    'Nada respondió en esa dirección. Compruébela y que el servidor esté en marcha.',
+  endpointFormatUnsupported:
+    'Esa dirección respondió, pero LocaLog no reconoce su API. Se admiten servidores Ollama, compatibles con OpenAI y compatibles con Anthropic.',
   settingsNotOpened: 'No se han podido abrir los Ajustes del Sistema.',
   presetMissing: 'Esa plantilla de exportación ya no está disponible.',
   downloadStopped: 'La descarga se ha interrumpido.',

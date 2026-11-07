@@ -34,9 +34,12 @@ language, context/output sizes, seeds, vocabulary, and the endpoint.
 
 `LOCALOG_PROVIDER_ENDPOINT` (default `http://127.0.0.1:11434`) points the
 sweep/topic harnesses at another machine — for example one holding the larger
-models that do not fit a laptop. The product's loopback-only boundary is
-untouched: the override exists only in the `#[cfg(test)]` harnesses, reads the
-address from the environment, and never from a stored setting. The
+models that do not fit a laptop. The API flavor is detected by probing the
+address (`/api/version` → Ollama, `/v1/models` → OpenAI-compatible such as LM
+Studio or llama-server, `/v1/messages` → Anthropic-compatible), or forced with
+`LOCALOG_PROVIDER_FORMAT=ollama|openai|anthropic`. The product's loopback-only
+boundary is untouched: the override exists only in the `#[cfg(test)]` harnesses,
+reads the address from the environment, and never from a stored setting. The
 whole-pipeline run still generates through the local runtime.
 
 ## What leaves the machine

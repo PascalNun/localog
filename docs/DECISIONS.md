@@ -144,5 +144,11 @@ credentials — those would sit in plaintext settings, so bearer-token auth is
 deliberately left for a keychain-backed design), and it is recorded with every
 generation job, so an existing protocol always names the server it came from.
 Provider status shows the active endpoint and marks it as remote.
-The test harnesses additionally read `LOCALOG_PROVIDER_ENDPOINT` from the
+
+The API flavor is detected by probing the address when it is saved, never chosen
+by the person: Ollama answers `/api/version`, OpenAI-compatible servers (LM
+Studio, llama-server, vLLM) list `/v1/models`, Anthropic-compatible servers
+answer `/v1/messages`. Any local LM box therefore works without configuration
+beyond its address. The test harnesses additionally read
+`LOCALOG_PROVIDER_ENDPOINT` (and optionally `LOCALOG_PROVIDER_FORMAT`) from the
 environment, which never reaches a stored setting.

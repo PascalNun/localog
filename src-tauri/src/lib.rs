@@ -770,8 +770,9 @@ async fn protocol_provider_status(
         let selected_model = repository
             .read_setting("generation.ollamaModel")?
             .filter(|value| !value.is_empty());
-        let (provider, _) = processing::generation_provider(repository)?;
-        let mut status = provider.status(selected_model);
+        let gen_endpoint = processing::generation_endpoint(repository)?;
+        let mut status = processing::provider_for(&gen_endpoint.endpoint, &gen_endpoint.format)
+            .status(selected_model);
         let backend = repository.read_setting("generation.backend")?;
         status.active = backend.as_deref() == Some("ollama")
             || (backend.is_none()
@@ -799,8 +800,9 @@ async fn configure_protocol_provider(
                 ));
             }
 
-            let (provider, _) = processing::generation_provider(repository)?;
-            let status = provider.status(None);
+            let gen_endpoint = processing::generation_endpoint(repository)?;
+            let status =
+                processing::provider_for(&gen_endpoint.endpoint, &gen_endpoint.format).status(None);
             if !status.server_reachable {
                 return Err(storage::StorageError::InvalidData("providerNeededForModel"));
             }
@@ -821,8 +823,11 @@ async fn configure_protocol_provider(
         let selected_model = repository
             .read_setting("generation.ollamaModel")?
             .filter(|value| !value.is_empty());
-        let (provider, _) = processing::generation_provider(repository)?;
-        Ok(provider.status(selected_model))
+        let gen_endpoint = processing::generation_endpoint(repository)?;
+        Ok(
+            processing::provider_for(&gen_endpoint.endpoint, &gen_endpoint.format)
+                .status(selected_model),
+        )
     })
     .await
 }
@@ -854,11 +859,25 @@ async fn configure_protocol_endpoint(
             ));
         }
         repository.write_setting("generation.endpoint", &normalized)?;
+        // The API flavor is detected by probing, not chosen by the person: any
+        // local LM box — Ollama, LM Studio, llama-server, vLLM, an
+        // Anthropic-compatible gateway — answers one of the well-known routes.
+        let format = if normalized.is_empty() {
+            "ollama".to_string()
+        } else {
+            provider::OllamaProvider::detect_format(&normalized)
+                .map_err(storage::StorageError::InvalidData)?
+                .to_string()
+        };
+        repository.write_setting("generation.endpointFormat", &format)?;
         let selected_model = repository
             .read_setting("generation.ollamaModel")?
             .filter(|value| !value.is_empty());
-        let (provider, _) = processing::generation_provider(repository)?;
-        Ok(provider.status(selected_model))
+        let gen_endpoint = processing::generation_endpoint(repository)?;
+        Ok(
+            processing::provider_for(&gen_endpoint.endpoint, &gen_endpoint.format)
+                .status(selected_model),
+        )
     })
     .await
 }

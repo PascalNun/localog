@@ -115,6 +115,16 @@ const failures = {
   endpointNoHost: "L'indirizzo richiede un host, ad esempio http://192.168.1.20:11434.",
   endpointHasCredentials: "Rimuovi nome utente e password dall'indirizzo; non vengono salvati.",
   endpointInvalid: 'Questo indirizzo non è valido.',
+  providerNotReachable:
+    "Il server non ha risposto. Controlla l'indirizzo e che il server sia in esecuzione.",
+  providerModelsUnreadable: "Il server ha risposto, ma l'elenco dei modelli non è leggibile.",
+  providerReadyNoModel: 'Il server è raggiungibile. Scegli un modello dal suo elenco.',
+  providerModelReady: 'Il modello scelto è disponibile su quel server.',
+  providerSelectedModelMissing: 'Il modello scelto non è elencato su quel server.',
+  endpointNotReachable:
+    "Nessuna risposta da quell'indirizzo. Controllalo e che il server sia in esecuzione.",
+  endpointFormatUnsupported:
+    "Quell'indirizzo ha risposto, ma LocaLog non riconosce la sua API. Sono supportati server Ollama, compatibili OpenAI e compatibili Anthropic.",
   settingsNotOpened: 'Non è stato possibile aprire Impostazioni di Sistema.',
   presetMissing: 'Questo modello di esportazione non è più disponibile.',
   downloadStopped: 'Lo scaricamento si è interrotto.',

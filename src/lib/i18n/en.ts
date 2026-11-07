@@ -125,6 +125,16 @@ const failures = {
   endpointNoHost: 'The address needs a host, for example http://192.168.1.20:11434.',
   endpointHasCredentials: 'Remove the username and password from the address; they are not stored.',
   endpointInvalid: 'That address is not valid.',
+  providerNotReachable:
+    'That server did not answer. Check the address and that its server is running.',
+  providerModelsUnreadable: 'The server answered but its model list could not be read.',
+  providerReadyNoModel: 'The server is reachable. Choose a model from its list.',
+  providerModelReady: 'The selected model is available on that server.',
+  providerSelectedModelMissing: 'The selected model is not listed on that server.',
+  endpointNotReachable:
+    'Nothing answered at that address. Check it and that the server is running.',
+  endpointFormatUnsupported:
+    'That address answered, but LocaLog does not recognise its API. Ollama, OpenAI-compatible and Anthropic-compatible servers are supported.',
   settingsNotOpened: 'System Settings could not be opened.',
   presetMissing: 'That export template is no longer available.',
   downloadStopped: 'The download stopped unexpectedly.',

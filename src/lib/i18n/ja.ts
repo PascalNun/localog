@@ -114,6 +114,16 @@ const failures = {
   endpointNoHost: 'アドレスにはホストが必要です（例: http://192.168.1.20:11434）。',
   endpointHasCredentials: 'アドレスからユーザー名とパスワードを削除してください。保存されません。',
   endpointInvalid: 'そのアドレスは無効です。',
+  providerNotReachable:
+    'そのサーバーは応答しませんでした。アドレスとサーバーが起動しているか確認してください。',
+  providerModelsUnreadable: 'サーバーは応答しましたが、モデル一覧を読み取れませんでした。',
+  providerReadyNoModel: 'サーバーに接続できました。一覧からモデルを選んでください。',
+  providerModelReady: '選択したモデルはそのサーバーで利用できます。',
+  providerSelectedModelMissing: '選択したモデルはそのサーバーに一覧されていません。',
+  endpointNotReachable:
+    'そのアドレスから応答がありません。アドレスとサーバーの起動を確認してください。',
+  endpointFormatUnsupported:
+    'そのアドレスは応答しましたが、LocaLog はその API を認識しません。Ollama、OpenAI 互換、Anthropic 互換のサーバーに対応しています。',
   settingsNotOpened: 'システム設定を開けませんでした。',
   presetMissing: 'その書き出しテンプレートはもう利用できません。',
   downloadStopped: 'ダウンロードが中断しました。',

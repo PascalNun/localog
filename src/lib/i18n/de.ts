@@ -125,6 +125,15 @@ const failures = {
   endpointHasCredentials:
     'Entfernen Sie Benutzername und Passwort aus der Adresse; sie werden nicht gespeichert.',
   endpointInvalid: 'Diese Adresse ist ungültig.',
+  providerNotReachable: 'Dieser Server hat nicht geantwortet. Adresse und Server prüfen.',
+  providerModelsUnreadable:
+    'Der Server hat geantwortet, aber seine Modellliste ließ sich nicht lesen.',
+  providerReadyNoModel: 'Der Server ist erreichbar. Wählen Sie ein Modell aus seiner Liste.',
+  providerModelReady: 'Das gewählte Modell ist auf diesem Server verfügbar.',
+  providerSelectedModelMissing: 'Das gewählte Modell ist auf diesem Server nicht gelistet.',
+  endpointNotReachable: 'An dieser Adresse hat nichts geantwortet. Adresse und Server prüfen.',
+  endpointFormatUnsupported:
+    'Diese Adresse hat geantwortet, aber LocaLog erkennt die API nicht. Unterstützt werden Ollama sowie OpenAI- und Anthropic-kompatible Server.',
   settingsNotOpened: 'Die Systemeinstellungen konnten nicht geöffnet werden.',
   presetMissing: 'Diese Voreinstellung ist nicht mehr verfügbar.',
   downloadStopped: 'Der Download wurde unerwartet beendet.',

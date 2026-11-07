@@ -36,11 +36,26 @@ use std::time::Instant;
 /// against local Ollama, because that path is owned by processing.rs and stays
 /// inside the product's loopback-only boundary.
 fn harness_provider() -> crate::provider::OllamaProvider {
+    use crate::provider::OllamaProvider;
     match std::env::var("LOCALOG_PROVIDER_ENDPOINT") {
         Ok(url) if !url.trim().is_empty() => {
-            crate::provider::OllamaProvider::at_url(url.trim().to_string())
+            let url = url.trim().to_string();
+            let format = std::env::var("LOCALOG_PROVIDER_FORMAT")
+                .ok()
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty());
+            match format.as_deref() {
+                Some("openai") => OllamaProvider::openai_at(url),
+                Some("anthropic") => OllamaProvider::anthropic_at(url),
+                Some(_) => OllamaProvider::at_url(url),
+                None => match OllamaProvider::detect_format(&url) {
+                    Ok("openai") => OllamaProvider::openai_at(url),
+                    Ok("anthropic") => OllamaProvider::anthropic_at(url),
+                    _ => OllamaProvider::at_url(url),
+                },
+            }
         }
-        _ => crate::provider::OllamaProvider::loopback(),
+        _ => OllamaProvider::loopback(),
     }
 }
 

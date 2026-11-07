@@ -168,6 +168,8 @@ pub struct OllamaStatus {
     /// True when the endpoint is a user-configured remote server rather than the
     /// local default. The interface reads this to say where meeting content goes.
     pub custom_endpoint: bool,
+    /// The detected API flavor of the endpoint: "ollama", "openai" or "anthropic".
+    pub endpoint_format: String,
     pub server_reachable: bool,
     pub runtime_version: Option<String>,
     pub models: Vec<ModelDescriptor>,
@@ -359,6 +361,63 @@ fn sent_event(line: &str) -> Event<'_> {
     Event::Payload(payload)
 }
 
+/// One Anthropic SSE payload as a stream chunk. Text arrives in
+/// `content_block_delta` events; the stop reason in `message_delta`
+/// (`max_tokens` becomes "length", the same incomplete-answer signal Ollama's
+/// and OpenAI's use); `message_stop` ends the stream.
+fn anthropic_event(payload: &str) -> std::result::Result<StreamChunk, String> {
+    let value: serde_json::Value = serde_json::from_str(payload)
+        .map_err(|error| truncate(&error.to_string(), MESSAGE_LIMIT))?;
+    let kind = value
+        .get("type")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
+    match kind {
+        "content_block_delta" => Ok(StreamChunk {
+            response: value
+                .get("delta")
+                .and_then(|delta| delta.get("text"))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            thinking: String::new(),
+            done: false,
+            done_reason: String::new(),
+        }),
+        "message_delta" => {
+            let stop = value
+                .get("delta")
+                .and_then(|delta| delta.get("stop_reason"))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("");
+            Ok(StreamChunk {
+                response: String::new(),
+                thinking: String::new(),
+                done: !stop.is_empty(),
+                // Map to the "length" the other backends use for a capped answer.
+                done_reason: if stop == "max_tokens" {
+                    "length".into()
+                } else {
+                    stop.to_string()
+                },
+            })
+        }
+        "message_stop" => Ok(StreamChunk {
+            response: String::new(),
+            thinking: String::new(),
+            done: true,
+            done_reason: "stop".into(),
+        }),
+        // ping, message_start, content_block_start/stop and friends carry no text.
+        _ => Ok(StreamChunk {
+            response: String::new(),
+            thinking: String::new(),
+            done: false,
+            done_reason: String::new(),
+        }),
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct StructuredProtocol {
     protocol_markdown: String,
@@ -511,6 +570,19 @@ struct OllamaRequest<'a> {
 /// the model's own chat template. Handing an instruct model a bare prompt without
 /// the turns it was trained on produces worse output for no reason, and the
 /// template differs per model, which is not a thing this side should know.
+/// An Anthropic-compatible `/v1/messages` request. The format has no seed and
+/// no JSON-schema response format, so structured answers arrive as prose and
+/// are parsed leniently downstream; `max_tokens` is required by the API.
+#[derive(Serialize)]
+struct MessagesRequest<'a> {
+    model: &'a str,
+    max_tokens: u32,
+    system: &'a str,
+    messages: Vec<ChatMessage<'a>>,
+    stream: bool,
+    temperature: f64,
+}
+
 #[derive(Serialize)]
 struct ChatRequest<'a> {
     messages: Vec<ChatMessage<'a>>,
@@ -540,7 +612,8 @@ struct ChatRequest<'a> {
     /// section hit its output cap before writing a word and the whole protocol
     /// failed as incomplete. The model's template exposes the switch, and the
     /// server applies it per request.
-    chat_template_kwargs: ChatTemplateKwargs,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    chat_template_kwargs: Option<ChatTemplateKwargs>,
 }
 
 #[derive(Serialize)]
@@ -557,10 +630,19 @@ struct ChatMessage<'a> {
 /// Schema-constrained JSON, which the server enforces by sampling against a
 /// grammar it derives from the schema — so a malformed answer is not possible
 /// rather than merely unlikely.
+///
+/// Sent as `json_schema`, not `json_object`: LM Studio rejects `json_object`
+/// outright (400), while current llama-server builds accept `json_schema`. The
+/// schema travels nested under `json_schema`, the shape both expect.
 #[derive(Serialize)]
 struct ResponseFormat {
     #[serde(rename = "type")]
     kind: &'static str,
+    json_schema: JsonSchemaBody,
+}
+
+#[derive(Serialize)]
+struct JsonSchemaBody {
     schema: serde_json::Value,
 }
 
@@ -631,13 +713,24 @@ pub struct Spend {
 pub enum Backend {
     /// A machine-wide daemon somebody installed.
     Ollama,
-    /// `llama-server`, bundled and started by this application.
+    /// An OpenAI-compatible chat API (`/v1/chat/completions`, `/v1/models`) —
+    /// `llama-server` bundled and started by this application, or a remote
+    /// server such as LM Studio or vLLM.
     Llama,
+    /// An Anthropic-compatible messages API (`/v1/messages`).
+    Anthropic,
 }
 
 pub struct OllamaProvider {
     backend: Backend,
     base_url: String,
+    /// True for the bundled llama-server this application starts. Only that
+    /// server is sent `chat_template_kwargs` (reasoning off) and a
+    /// `json_schema` response format: LM Studio answers the template kwarg
+    /// with endless reasoning and no content, and a reasoning model under a
+    /// schema constraint puts everything in reasoning and nothing in content.
+    /// Remote servers get plain prose requests; parsing tolerates that.
+    bundled: bool,
     calls: AtomicUsize,
     prompt_chars: AtomicUsize,
     answer_chars: AtomicUsize,
@@ -710,6 +803,7 @@ pub fn bundled_status(root: &std::path::Path, selected_model: Option<String>) ->
             .map(|path| path.display().to_string())
             .unwrap_or_default(),
         custom_endpoint: false,
+        endpoint_format: "bundled".to_string(),
         // The runtime being present, rather than a server being up. Nothing is
         // started until a protocol is asked for.
         server_reachable: executable.is_some(),
@@ -827,6 +921,7 @@ impl OllamaProvider {
     pub fn llama_at(base_url: String) -> Self {
         Self {
             backend: Backend::Llama,
+            bundled: true,
             ..Self::with_url(base_url)
         }
     }
@@ -840,9 +935,87 @@ impl OllamaProvider {
         Self::with_url(base_url)
     }
 
-    fn is_loopback(&self) -> bool {
-        self.backend == Backend::Ollama
-            && self.base_url == format!("http://127.0.0.1:{DEFAULT_PORT}")
+    /// A provider at an explicit endpoint speaking the OpenAI-compatible chat
+    /// API — llama-server or LM Studio, for example. Used for the advanced
+    /// custom endpoint when its format is OpenAI-compatible, and by the test
+    /// harnesses via LOCALOG_PROVIDER_ENDPOINT with LOCALOG_PROVIDER_FORMAT=openai.
+    pub fn openai_at(base_url: String) -> Self {
+        Self {
+            backend: Backend::Llama,
+            ..Self::with_url(base_url)
+        }
+    }
+
+    /// A provider at an explicit endpoint speaking the Anthropic-compatible
+    /// messages API. Local servers of this kind (LM Studio, for example) need
+    /// no credentials; an API key for a hosted endpoint is deliberately not
+    /// supported yet — see the keychain-backed design note on normalize_endpoint.
+    pub fn anthropic_at(base_url: String) -> Self {
+        Self {
+            backend: Backend::Anthropic,
+            ..Self::with_url(base_url)
+        }
+    }
+
+    /// True when the base URL points at this device rather than elsewhere; the
+    /// interface uses it to say whether meeting content would leave the machine.
+    fn is_local_address(&self) -> bool {
+        let host = self
+            .base_url
+            .trim_start_matches("http://")
+            .trim_start_matches("https://")
+            .split(['/', ':'])
+            .next()
+            .unwrap_or("");
+        matches!(host, "127.0.0.1" | "localhost" | "[::1]" | "::1")
+    }
+
+    /// The API flavor a base URL speaks, detected rather than asked for: Ollama
+    /// answers /api/version, OpenAI-compatible servers list /v1/models, and an
+    /// Anthropic-compatible server answers /v1/messages (405 on GET still means
+    /// the endpoint exists). Anything else is unreachable or unsupported.
+    pub fn detect_format(base_url: &str) -> std::result::Result<&'static str, &'static str> {
+        let agent: ureq::Agent = ureq::Agent::config_builder()
+            .timeout_global(Some(Duration::from_secs(5)))
+            .max_redirects(0)
+            .build()
+            .into();
+        let mut answered = false;
+        // status + parsed body; a 4xx/5xx still proves a server answered, only a
+        // transport failure (refused, timeout, DNS) means nothing is there.
+        let mut probe = |path: &str| -> Option<(u16, serde_json::Value)> {
+            match agent.get(format!("{base_url}{path}")).call() {
+                Ok(mut response) => {
+                    answered = true;
+                    let status = response.status().as_u16();
+                    let body = response
+                        .body_mut()
+                        .read_json::<serde_json::Value>()
+                        .unwrap_or(serde_json::Value::Null);
+                    Some((status, body))
+                }
+                Err(ureq::Error::StatusCode(code)) => {
+                    answered = true;
+                    Some((code, serde_json::Value::Null))
+                }
+                Err(_) => None,
+            }
+        };
+        if matches!(probe("/api/version"), Some((200, ref body)) if body.get("version").is_some()) {
+            return Ok("ollama");
+        }
+        if matches!(probe("/v1/models"), Some((200, ref body)) if body.get("data").and_then(serde_json::Value::as_array).is_some())
+        {
+            return Ok("openai");
+        }
+        if matches!(probe("/v1/messages"), Some((status, _)) if matches!(status, 400 | 405)) {
+            return Ok("anthropic");
+        }
+        Err(if answered {
+            "endpointFormatUnsupported"
+        } else {
+            "endpointNotReachable"
+        })
     }
 
     /// Which runtime this provider talks to. Only the tests ask; the branches
@@ -875,6 +1048,7 @@ impl OllamaProvider {
         Self {
             backend: Backend::Ollama,
             base_url,
+            bundled: false,
             generation_agent: generation_config.into(),
             agent: config.into(),
             calls: AtomicUsize::new(0),
@@ -897,10 +1071,37 @@ impl OllamaProvider {
     }
 
     pub fn status(&self, selected_model: Option<String>) -> OllamaStatus {
+        // Message codes differ by backend: the Ollama words say "Ollama", which
+        // would be wrong on a remote LM Studio box. Non-Ollama servers report no
+        // digest, so readiness there means the model is listed, not that a
+        // checksum matched.
+        let (not_running, models_unreadable, ready_no_model, model_ready, model_missing) =
+            match self.backend {
+                Backend::Ollama => (
+                    "ollamaNotRunning",
+                    "ollamaModelsUnreadable",
+                    "ollamaReadyNoModel",
+                    "ollamaModelReady",
+                    "ollamaSelectedModelMissing",
+                ),
+                _ => (
+                    "providerNotReachable",
+                    "providerModelsUnreadable",
+                    "providerReadyNoModel",
+                    "providerModelReady",
+                    "providerSelectedModelMissing",
+                ),
+            };
         let mut status = OllamaStatus {
             active: true,
             endpoint: self.base_url.clone(),
-            custom_endpoint: self.backend == Backend::Ollama && !self.is_loopback(),
+            custom_endpoint: !self.is_local_address(),
+            endpoint_format: match self.backend {
+                Backend::Ollama => "ollama",
+                Backend::Llama => "openai",
+                Backend::Anthropic => "anthropic",
+            }
+            .to_string(),
             selected_model,
             machine_memory_gb: machine_memory_gb(),
             ..OllamaStatus::default()
@@ -913,7 +1114,7 @@ impl OllamaProvider {
                 // interface's to word; the detail is the transport failure verbatim,
                 // because it names the port and the reason and is the only part of
                 // this a person can act on when the guidance is not enough.
-                status.message = format!("ollamaNotRunning:{}", truncate(&error.to_string(), 220));
+                status.message = format!("{not_running}:{}", truncate(&error.to_string(), 220));
                 return status;
             }
         };
@@ -921,7 +1122,7 @@ impl OllamaProvider {
             Ok(models) => models,
             Err(error) => {
                 status.message = format!(
-                    "ollamaModelsUnreadable:{}",
+                    "{models_unreadable}:{}",
                     truncate(&error.to_string(), MESSAGE_LIMIT)
                 );
                 status.runtime_version = Some(version);
@@ -938,18 +1139,34 @@ impl OllamaProvider {
                 .find(|model| model.name == name)
                 .map(|model| model.digest.clone())
         });
-        status.selected_model_ready = status.selected_model_digest.is_some();
+        // Ollama lists a digest for every installed model, so "listed" and "digest
+        // matched" were the same check there; non-Ollama servers carry no digest,
+        // so presence in the list is the check everywhere.
+        status.selected_model_ready = status
+            .selected_model
+            .as_deref()
+            .is_some_and(|name| status.models.iter().any(|model| model.name == name));
         status.message = if status.selected_model.is_none() {
-            "ollamaReadyNoModel".into()
+            ready_no_model.into()
         } else if status.selected_model_ready {
-            "ollamaModelReady".into()
+            model_ready.into()
         } else {
-            "ollamaSelectedModelMissing".into()
+            model_missing.into()
         };
         status
     }
 
     pub fn version(&self) -> Result<String> {
+        // Non-Ollama servers have no /api/version; the format itself is the
+        // runtime version, recorded in provenance like any other.
+        if self.backend != Backend::Ollama {
+            return Ok(match self.backend {
+                Backend::Llama => "openai-compatible",
+                Backend::Anthropic => "anthropic-compatible",
+                Backend::Ollama => unreachable!(),
+            }
+            .into());
+        }
         let mut response = self
             .agent
             .get(format!("{}/api/version", self.base_url))
@@ -973,6 +1190,11 @@ impl OllamaProvider {
     /// found by suffix rather than guessed. Returns `None` when the server does not
     /// report one, leaving the caller to fall back rather than fail.
     pub fn model_context_length(&self, model: &str) -> Option<u32> {
+        // Only Ollama answers /api/show; an OpenAI-compatible server reports no
+        // context length, so the caller falls back to the measured-safe width.
+        if self.backend != Backend::Ollama {
+            return None;
+        }
         let mut response = self
             .agent
             .post(format!("{}/api/show", self.base_url))
@@ -989,6 +1211,38 @@ impl OllamaProvider {
     }
 
     pub fn installed_models(&self) -> Result<Vec<ModelDescriptor>> {
+        // OpenAI- and Anthropic-compatible servers list models at /v1/models as
+        // {"data":[{"id":...}]}. They report no size or digest, so those stay
+        // empty: provenance records the endpoint and the model id, which is what
+        // such a server can honestly vouch for.
+        if self.backend != Backend::Ollama {
+            let mut response = self
+                .agent
+                .get(format!("{}/v1/models", self.base_url))
+                .call()
+                .map_err(http_error)?;
+            let value: serde_json::Value = response.body_mut().read_json().map_err(|error| {
+                ProviderError::InvalidResponse(truncate(&error.to_string(), MESSAGE_LIMIT))
+            })?;
+            let models = value
+                .get("data")
+                .and_then(serde_json::Value::as_array)
+                .map(|entries| {
+                    entries
+                        .iter()
+                        .filter_map(|entry| {
+                            entry.get("id")?.as_str().map(|id| ModelDescriptor {
+                                name: id.to_string(),
+                                size: 0,
+                                digest: String::new(),
+                                details: ModelDetails::default(),
+                            })
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            return Ok(models);
+        }
         let mut response = self
             .agent
             .get(format!("{}/api/tags", self.base_url))
@@ -2100,17 +2354,40 @@ impl OllamaProvider {
                     max_tokens: body.options.num_predict,
                     repeat_penalty: 1.2,
                     repeat_last_n: 512,
-                    response_format: schema.map(|schema| ResponseFormat {
-                        kind: "json_object",
-                        schema,
-                    }),
-                    chat_template_kwargs: ChatTemplateKwargs {
-                        enable_thinking: false,
+                    // Only the bundled server gets the schema and the thinking
+                    // switch; remote servers get prose, which parses fine.
+                    response_format: if self.bundled {
+                        schema.map(|schema| ResponseFormat {
+                            kind: "json_schema",
+                            json_schema: JsonSchemaBody { schema },
+                        })
+                    } else {
+                        None
                     },
+                    chat_template_kwargs: self.bundled.then_some(ChatTemplateKwargs {
+                        enable_thinking: false,
+                    }),
                 };
                 self.generation_agent
                     .post(format!("{}/v1/chat/completions", self.base_url))
                     .send_json(&chat)
+                    .map_err(generation_http_error)?
+            }
+            Backend::Anthropic => {
+                let messages = MessagesRequest {
+                    model: &request.model,
+                    max_tokens: body.options.num_predict,
+                    system: call.system,
+                    messages: vec![ChatMessage {
+                        role: "user",
+                        content: call.prompt,
+                    }],
+                    stream: true,
+                    temperature: body.options.temperature,
+                };
+                self.generation_agent
+                    .post(format!("{}/v1/messages", self.base_url))
+                    .send_json(&messages)
                     .map_err(generation_http_error)?
             }
         };
@@ -2199,6 +2476,13 @@ impl OllamaProvider {
                             done: !finish.is_empty(),
                             done_reason: finish,
                         }
+                    }
+                },
+                Backend::Anthropic => match sent_event(&line) {
+                    Event::Nothing => continue,
+                    Event::Finished => break,
+                    Event::Payload(payload) => {
+                        anthropic_event(payload).map_err(ProviderError::InvalidResponse)?
                     }
                 },
             };
@@ -4367,9 +4651,9 @@ mod tests {
             repeat_penalty: 1.2,
             repeat_last_n: 512,
             response_format: None,
-            chat_template_kwargs: ChatTemplateKwargs {
+            chat_template_kwargs: Some(ChatTemplateKwargs {
                 enable_thinking: false,
-            },
+            }),
         };
         let value = serde_json::to_value(request).expect("a request serialises");
         assert_eq!(value["chat_template_kwargs"]["enable_thinking"], false);
@@ -5635,5 +5919,45 @@ mod endpoint_validation {
             normalize_endpoint("http://lab:11434/x?y=1").unwrap_err(),
             "endpointInvalid"
         );
+    }
+}
+
+#[cfg(test)]
+mod anthropic_events {
+    use super::anthropic_event;
+
+    #[test]
+    fn text_deltas_carry_the_answer() {
+        let chunk = anthropic_event(
+            "{\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"## Protokoll\"}}",
+        )
+        .unwrap();
+        assert_eq!(chunk.response, "## Protokoll");
+        assert!(!chunk.done);
+    }
+
+    #[test]
+    fn max_tokens_maps_to_the_length_signal() {
+        let chunk =
+            anthropic_event(r#"{"type":"message_delta","delta":{"stop_reason":"max_tokens"}}"#)
+                .unwrap();
+        assert!(chunk.done);
+        assert_eq!(chunk.done_reason, "length");
+    }
+
+    #[test]
+    fn message_stop_ends_the_stream() {
+        let chunk = anthropic_event(r#"{"type":"message_stop"}"#).unwrap();
+        assert!(chunk.done);
+        assert_eq!(chunk.done_reason, "stop");
+    }
+
+    #[test]
+    fn lifecycle_events_carry_no_text() {
+        for kind in ["message_start", "content_block_start", "ping"] {
+            let chunk = anthropic_event(&format!(r#"{{"type":"{kind}"}}"#)).unwrap();
+            assert!(chunk.response.is_empty());
+            assert!(!chunk.done);
+        }
     }
 }

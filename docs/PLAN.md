@@ -23,7 +23,10 @@ own language, that recordings and transcripts will be sent to that server. The
 address is validated (http/https, a host, no embedded credentials), and every
 generation job records the endpoint it used, so an existing protocol always names
 the server that produced it. Provider status shows the active endpoint and marks
-it as remote. Bearer-token authentication is deliberately not included yet.
+it as remote. The API flavor is detected by probing the address — Ollama,
+OpenAI-compatible (LM Studio, llama-server, vLLM) and Anthropic-compatible
+servers are all accepted, so any local LM box works without picking a format.
+Bearer-token authentication is deliberately not included yet.
 
 The evaluation harnesses can be pointed at the same kind of machine without
 touching the product: `LOCALOG_PROVIDER_ENDPOINT` (see `eval/README.md`), and

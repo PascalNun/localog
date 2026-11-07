@@ -268,6 +268,10 @@ struct QueuedGenerationConfig {
     /// change cannot rewrite what an existing artifact was produced with.
     #[serde(default)]
     endpoint: String,
+    /// The detected API format of that endpoint ("ollama", "openai", "anthropic");
+    /// empty on jobs queued before the field existed, which were Ollama jobs.
+    #[serde(default)]
+    endpoint_format: String,
     model: String,
     model_digest: String,
     runtime_version: String,
@@ -839,22 +843,41 @@ fn transcription_language_code(language: &str) -> String {
         .unwrap_or_else(|| "auto".to_string())
 }
 
-/// The provider protocol generation talks to: the advanced custom endpoint when
-/// one is configured (and still valid), loopback otherwise. Returns the provider
-/// and the normalised endpoint it stands for, so the job can snapshot both.
-pub(crate) fn generation_provider(
+/// The endpoint protocol generation talks to: the advanced custom endpoint when
+/// one is configured (and still valid), loopback otherwise, in the API format
+/// detected when the endpoint was saved. Snapshotted into every job so a later
+/// settings change never rewrites where an existing artifact came from.
+pub(crate) struct GenerationEndpoint {
+    pub endpoint: String,
+    pub format: String,
+}
+
+pub(crate) fn generation_endpoint(
     repository: &WorkspaceRepository,
-) -> StorageResult<(provider::OllamaProvider, String)> {
+) -> StorageResult<GenerationEndpoint> {
     let raw = repository
         .read_setting("generation.endpoint")?
         .unwrap_or_default();
     let endpoint = provider::normalize_endpoint(&raw).map_err(StorageError::InvalidData)?;
-    let provider = if endpoint.is_empty() {
+    let format = repository
+        .read_setting("generation.endpointFormat")?
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "ollama".to_string());
+    Ok(GenerationEndpoint { endpoint, format })
+}
+
+/// The provider for a normalised endpoint in a detected format. Empty endpoint
+/// means this device's loopback Ollama.
+pub(crate) fn provider_for(endpoint: &str, format: &str) -> provider::OllamaProvider {
+    if endpoint.is_empty() {
         provider::OllamaProvider::loopback()
     } else {
-        provider::OllamaProvider::at_url(endpoint.clone())
-    };
-    Ok((provider, endpoint))
+        match format {
+            "openai" => provider::OllamaProvider::openai_at(endpoint.to_string()),
+            "anthropic" => provider::OllamaProvider::anthropic_at(endpoint.to_string()),
+            _ => provider::OllamaProvider::at_url(endpoint.to_string()),
+        }
+    }
 }
 
 pub(crate) fn queue_generation(
@@ -988,71 +1011,76 @@ fn generation_metadata(
 
     // The Ollama-side provider, hoisted so context sizing below queries the same
     // server the status above did. Loopback unless a custom endpoint is set.
-    let mut ollama_provider = provider::OllamaProvider::loopback();
-    let (runtime, model, model_digest, runtime_version, model_bytes, endpoint) = match bundled {
-        Some(model) => {
-            let status = provider::bundled_status(root, Some(model.model_id.clone()));
-            (
-                GenerationRuntime::Bundled,
-                model.model_id.clone(),
-                // The catalogue's checksum. Ollama answers with a digest of its
-                // own and this is the same promise kept the same way: the file
-                // that produced a protocol can be named exactly.
-                models::generation_digest(&model.model_id)
-                    .unwrap_or_default()
-                    .to_string(),
-                status
+    let gen_endpoint = generation_endpoint(repository)?;
+    let ollama_provider = provider_for(&gen_endpoint.endpoint, &gen_endpoint.format);
+    let (runtime, model, model_digest, runtime_version, model_bytes, endpoint, endpoint_format) =
+        match bundled {
+            Some(model) => {
+                let status = provider::bundled_status(root, Some(model.model_id.clone()));
+                (
+                    GenerationRuntime::Bundled,
+                    model.model_id.clone(),
+                    // The catalogue's checksum. Ollama answers with a digest of its
+                    // own and this is the same promise kept the same way: the file
+                    // that produced a protocol can be named exactly.
+                    models::generation_digest(&model.model_id)
+                        .unwrap_or_default()
+                        .to_string(),
+                    status
+                        .runtime_version
+                        .unwrap_or_else(|| "bundled".to_string()),
+                    model.byte_count,
+                    // The bundled runtime runs on this device; there is no endpoint.
+                    String::new(),
+                    String::new(),
+                )
+            }
+            None => {
+                let selected_model = repository
+                    .read_setting("generation.ollamaModel")?
+                    .filter(|value| !value.is_empty());
+                let status = ollama_provider.status(selected_model);
+                let endpoint = gen_endpoint.endpoint.clone();
+                let endpoint_format = gen_endpoint.format.clone();
+                if !status.server_reachable {
+                    return Err(StorageError::InvalidData("providerNeededForGeneration"));
+                }
+                let model = status
+                    .selected_model
+                    .ok_or(StorageError::InvalidData("providerModelRequired"))?;
+                if !models::generation_fits(&model, crate::machine::memory_gb()) {
+                    return Err(StorageError::InvalidData("generationModelNeedsMoreMemory"));
+                }
+                let model_digest = status
+                    .selected_model_digest
+                    .ok_or(StorageError::InvalidData("ollamaModelGone"))?;
+                let runtime_version = status
                     .runtime_version
-                    .unwrap_or_else(|| "bundled".to_string()),
-                model.byte_count,
-                // The bundled runtime runs on this device; there is no endpoint.
-                String::new(),
-            )
-        }
-        None => {
-            let selected_model = repository
-                .read_setting("generation.ollamaModel")?
-                .filter(|value| !value.is_empty());
-            let (provider, endpoint) = generation_provider(repository)?;
-            let status = provider.status(selected_model);
-            ollama_provider = provider;
-            if !status.server_reachable {
-                return Err(StorageError::InvalidData("providerNeededForGeneration"));
+                    .unwrap_or_else(|| "unknown".to_string());
+                // The model's own size, which with the machine's memory decides how
+                // much context it can be given without spilling onto the CPU.
+                let model_bytes = status
+                    .models
+                    .iter()
+                    .find(|candidate| candidate.name == model)
+                    .map(|candidate| candidate.size)
+                    .unwrap_or_default();
+                (
+                    GenerationRuntime::Ollama,
+                    model,
+                    model_digest,
+                    runtime_version,
+                    model_bytes,
+                    endpoint,
+                    endpoint_format,
+                )
             }
-            let model = status
-                .selected_model
-                .ok_or(StorageError::InvalidData("providerModelRequired"))?;
-            if !models::generation_fits(&model, crate::machine::memory_gb()) {
-                return Err(StorageError::InvalidData("generationModelNeedsMoreMemory"));
-            }
-            let model_digest = status
-                .selected_model_digest
-                .ok_or(StorageError::InvalidData("ollamaModelGone"))?;
-            let runtime_version = status
-                .runtime_version
-                .unwrap_or_else(|| "unknown".to_string());
-            // The model's own size, which with the machine's memory decides how
-            // much context it can be given without spilling onto the CPU.
-            let model_bytes = status
-                .models
-                .iter()
-                .find(|candidate| candidate.name == model)
-                .map(|candidate| candidate.size)
-                .unwrap_or_default();
-            (
-                GenerationRuntime::Ollama,
-                model,
-                model_digest,
-                runtime_version,
-                model_bytes,
-                endpoint,
-            )
-        }
-    };
+        };
     let config = QueuedGenerationConfig {
         document_notes: notes.clone(),
         runtime,
         endpoint,
+        endpoint_format,
         model: model.clone(),
         model_digest: model_digest.clone(),
         runtime_version: runtime_version.clone(),
@@ -1312,13 +1340,9 @@ fn execute_generation(
         };
         match config.runtime {
             GenerationRuntime::Ollama => {
-                // The endpoint the job was queued with, snapshotted above: a
-                // custom server stays the server even if Settings changed since.
-                let provider = if config.endpoint.is_empty() {
-                    provider::OllamaProvider::loopback()
-                } else {
-                    provider::OllamaProvider::at_url(config.endpoint.clone())
-                };
+                // The endpoint and format the job was queued with, snapshotted
+                // above: a custom server stays the server even if Settings changed.
+                let provider = provider_for(&config.endpoint, &config.endpoint_format);
                 provider
                     .generate(&request, cancellation, &mut provider_progress)
                     .map_err(|error| {

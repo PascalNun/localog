@@ -123,6 +123,14 @@ const failures = {
   endpointHasCredentials:
     "Retirez l'identifiant et le mot de passe de l'adresse ; ils ne sont pas enregistrés.",
   endpointInvalid: "Cette adresse n'est pas valide.",
+  providerNotReachable: "Ce serveur n'a pas répondu. Vérifiez l'adresse et que le serveur tourne.",
+  providerModelsUnreadable: "Le serveur a répondu, mais sa liste de modèles n'a pas pu être lue.",
+  providerReadyNoModel: 'Le serveur est joignable. Choisissez un modèle dans sa liste.',
+  providerModelReady: 'Le modèle choisi est disponible sur ce serveur.',
+  providerSelectedModelMissing: 'Le modèle choisi ne figure pas sur ce serveur.',
+  endpointNotReachable: "Rien n'a répondu à cette adresse. Vérifiez-la et que le serveur tourne.",
+  endpointFormatUnsupported:
+    'Cette adresse a répondu, mais LocaLog ne reconnaît pas son API. Les serveurs Ollama, compatibles OpenAI et compatibles Anthropic sont pris en charge.',
   settingsNotOpened: 'Les Réglages Système n’ont pas pu être ouverts.',
   presetMissing: 'Ce modèle d’export n’est plus disponible.',
   downloadStopped: 'Le téléchargement s’est interrompu.',

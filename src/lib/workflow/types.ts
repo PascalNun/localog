@@ -727,6 +727,8 @@ export interface ProtocolProviderStatus {
   endpoint: string;
   /** True when endpoint is a user-configured remote server, not this device. */
   customEndpoint?: boolean;
+  /** Detected API flavor of the endpoint: "ollama", "openai" or "anthropic". */
+  endpointFormat?: string;
   serverReachable: boolean;
   runtimeVersion: string | null;
   models: ProtocolProviderModel[];

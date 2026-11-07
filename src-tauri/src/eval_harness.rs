@@ -21,8 +21,25 @@ use std::time::Instant;
 /// processing.rs and stays inside the product's loopback-only boundary.
 fn harness_provider() -> OllamaProvider {
     match std::env::var("LOCALOG_PROVIDER_ENDPOINT") {
-        Ok(url) if !url.trim().is_empty() => OllamaProvider::at_url(url.trim().to_string()),
-        _ => harness_provider(),
+        Ok(url) if !url.trim().is_empty() => {
+            let url = url.trim().to_string();
+            let format = std::env::var("LOCALOG_PROVIDER_FORMAT")
+                .ok()
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty());
+            match format.as_deref() {
+                Some("openai") => OllamaProvider::openai_at(url),
+                Some("anthropic") => OllamaProvider::anthropic_at(url),
+                Some(_) => OllamaProvider::at_url(url),
+                // No format given: probe the endpoint, same as Settings does.
+                None => match OllamaProvider::detect_format(&url) {
+                    Ok("openai") => OllamaProvider::openai_at(url),
+                    Ok("anthropic") => OllamaProvider::anthropic_at(url),
+                    _ => OllamaProvider::at_url(url),
+                },
+            }
+        }
+        _ => OllamaProvider::loopback(),
     }
 }
 
