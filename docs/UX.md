@@ -111,7 +111,7 @@ The protocol editor is a writing surface with a calm margin, readable line lengt
 
 Generated text is a draft. Review applies to one exact revision. If the person edits after reviewing, the interface says **changed since review** and preserves the reviewed revision.
 
-Export is explicit. Markdown and plain text are offered from the editor, and an existing destination is never silently overwritten.
+Export is explicit. Markdown, plain text, PDF and Word are offered from the editor, and an existing destination is never silently overwritten.
 
 ## Background work and status
 

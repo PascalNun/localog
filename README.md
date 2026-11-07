@@ -55,7 +55,7 @@ The repository currently contains:
 - local media probing and normalisation through supervised FFmpeg processes;
 - a whisper.cpp boundary for local transcription, with consent-gated verified model downloads;
 - a bundled llama.cpp server for writing protocols, and an Ollama provider for anyone already running one;
-- transcript review, Markdown editing, autosave, revision history, and Markdown/plain-text export;
+- transcript review, Markdown editing, autosave, revision history, and Markdown, plain-text, PDF and Word export;
 - synthetic fixtures, evaluation harnesses, and isolated architecture spikes.
 
 Seven sidecars ship inside the application: whisper.cpp, FFmpeg and ffprobe, the llama.cpp server, speaker diarisation and embedding, and the recorder. A locally supplied whisper.cpp executable and a user-managed Ollama server are both still accepted. Signing and notarisation, M1/8 GB performance validation, accessibility auditing, and backup/restore are open.

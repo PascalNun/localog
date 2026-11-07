@@ -22,7 +22,7 @@ This is not a disposable demo. The interface, privacy behaviour, storage, and re
 - use a named professional protocol style rather than an arbitrary prompt box;
 - generate a local protocol draft through a validated provider boundary;
 - edit Markdown with autosave, revision history, review state, and restoration;
-- export Markdown or deterministic plain text to a location chosen by the user;
+- export to a location chosen by the user, as Markdown, deterministic plain text, PDF or Word;
 - recover queued, running, cancelled, failed, and interrupted work without presenting partial files as finished.
 
 ### The surrounding experience

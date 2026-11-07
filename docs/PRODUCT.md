@@ -48,7 +48,7 @@ Stable meeting progress and temporary processing are different things. A meeting
 Create a project → create a meeting → import a recording
 → prepare and transcribe it locally → review the transcript
 → generate a protocol draft locally → edit and review it
-→ export Markdown or plain text
+→ export it as Markdown, plain text, PDF or Word
 ```
 
 The user should be able to stop between each step, understand what has happened, correct mistakes, and return after a restart without losing work.
@@ -81,7 +81,7 @@ The product should feel like a carefully made desktop writing and productivity t
 
 ## Scope of the first version
 
-The first complete version focuses on imported audio and video. It includes local transcription, transcript review, local protocol generation, Markdown editing, and Markdown/plain-text export.
+The first complete version focuses on imported audio and video. It includes local transcription, transcript review, local protocol generation, Markdown editing, and Markdown, plain-text, PDF and Word export.
 
 Recording from the microphone or system audio remains part of the long-term product direction, but the Record action is not shown until it works reliably on the relevant platforms.
 
