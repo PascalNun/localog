@@ -30,7 +30,7 @@ Bearer-token authentication is deliberately not included yet.
 
 The evaluation harnesses can be pointed at the same kind of machine without
 touching the product: `LOCALOG_PROVIDER_ENDPOINT` (see `eval/README.md`), and
-`eval/run.py` now wraps the ignored harnesses as one command each — `check`,
+`scripts/eval-runner.py` now wraps the ignored harnesses as one command each — `check`,
 `transcribe`, `sweep`, `generate`, `topics`, `report`, each with `--dry-run`.
 
 ## Model setup — 21 October 2026
@@ -1965,7 +1965,7 @@ Only after the workflow and runtime choices are credible should the project enab
 They take minutes to hours against real models, which makes a few things easy to get
 wrong and expensive to get wrong:
 
-- **Use `eval/run.py` rather than assembling the environment by hand** — `check`,
+- **Use `scripts/eval-runner.py` rather than assembling the environment by hand** — `check`,
   `transcribe`, `sweep`, `generate`, `topics`, `report`, each with `--dry-run`;
   configuration comes from flags, the environment, or `eval/config.env`, and
   `LOCALOG_PROVIDER_ENDPOINT` points the sweeps at another machine. See
