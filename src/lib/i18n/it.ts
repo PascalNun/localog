@@ -109,6 +109,12 @@ const failures = {
   nothingRecording: 'Non è in corso alcuna registrazione.',
   privacySettingsOnlyOnMac: 'L’apertura delle impostazioni sulla privacy è prevista solo su macOS.',
   providerNeededForModel: 'Avvii la sua installazione di Ollama prima di scegliere un modello.',
+  endpointNotAcknowledged:
+    'Conferma di aver capito che il contenuto delle riunioni verrà inviato a questo server.',
+  endpointNotHttp: "L'indirizzo deve iniziare con http:// o https://.",
+  endpointNoHost: "L'indirizzo richiede un host, ad esempio http://192.168.1.20:11434.",
+  endpointHasCredentials: "Rimuovi nome utente e password dall'indirizzo; non vengono salvati.",
+  endpointInvalid: 'Questo indirizzo non è valido.',
   settingsNotOpened: 'Non è stato possibile aprire Impostazioni di Sistema.',
   presetMissing: 'Questo modello di esportazione non è più disponibile.',
   downloadStopped: 'Lo scaricamento si è interrotto.',
@@ -440,6 +446,17 @@ export const it: Strings = {
     modelSizeSmall: 'modello piccolo per la macchina',
     modelSizeLarger: 'modello locale più grande',
     useOllamaInstead: 'Usare invece il proprio Ollama',
+    customEndpoint: 'Usa un altro server',
+    customEndpointNote:
+      "Punta LocaLog a qualsiasi server compatibile con Ollama raggiungibile — ad esempio un altro computer della tua rete con più memoria. Registrazioni e trascrizioni vengono inviate a quell'indirizzo; usa https:// per un server al di fuori della tua rete. Nulla viene inviato da nessuna parte finché non lo imposti.",
+    endpointLabel: 'Indirizzo del server',
+    endpointPlaceholder: 'http://192.168.1.20:11434',
+    endpointAcknowledge:
+      'Ho capito che il contenuto delle riunioni verrà inviato a questo indirizzo.',
+    useThisServer: 'Usa questo server',
+    backToThisDevice: 'Torna a questo dispositivo',
+    endpointActive: (address: string) =>
+      `I protocolli vengono generati su ${address}. Il contenuto delle riunioni esce da questo dispositivo.`,
     useAnotherModel: 'Usa un altro modello installato',
     installedModel: 'Modello installato',
     chooseInstalledModel: 'Scegli un modello installato',

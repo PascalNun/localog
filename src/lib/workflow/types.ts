@@ -725,6 +725,8 @@ export interface ModelTerms {
 export interface ProtocolProviderStatus {
   active?: boolean;
   endpoint: string;
+  /** True when endpoint is a user-configured remote server, not this device. */
+  customEndpoint?: boolean;
   serverReachable: boolean;
   runtimeVersion: string | null;
   models: ProtocolProviderModel[];
@@ -897,4 +899,14 @@ export interface WorkflowBridge {
   getModelTerms(): Promise<ModelTerms[]>;
   acceptModelLicence(modelId: string): Promise<ModelTerms[]>;
   configureProtocolProvider(model: string | null): Promise<ProtocolProviderStatus>;
+  /**
+   * Set or clear the advanced custom generation endpoint. `null` or empty means
+   * this device. Setting one requires `acknowledged`, which the interface only
+   * passes after the person ticked the warning that meeting content leaves the
+   * device.
+   */
+  configureProtocolEndpoint(
+    endpoint: string | null,
+    acknowledged: boolean,
+  ): Promise<ProtocolProviderStatus>;
 }

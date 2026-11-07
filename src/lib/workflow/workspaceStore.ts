@@ -203,6 +203,10 @@ export interface WorkspaceStore {
   getModelTerms: () => Promise<ModelTerms[]>;
   acceptModelLicence: (modelId: string) => Promise<ModelTerms[]>;
   configureProtocolProvider: (model: string | null) => Promise<ProtocolProviderStatus>;
+  configureProtocolEndpoint: (
+    endpoint: string | null,
+    acknowledged: boolean,
+  ) => Promise<ProtocolProviderStatus>;
 }
 
 /** A title as a filename: legible, and without anything a filesystem argues with. */
@@ -771,6 +775,16 @@ class TauriWorkspaceStore implements WorkspaceStore {
 
   configureProtocolProvider(model: string | null): Promise<ProtocolProviderStatus> {
     return invoke<ProtocolProviderStatus>('configure_protocol_provider', { model });
+  }
+
+  configureProtocolEndpoint(
+    endpoint: string | null,
+    acknowledged: boolean,
+  ): Promise<ProtocolProviderStatus> {
+    return invoke<ProtocolProviderStatus>('configure_protocol_endpoint', {
+      endpoint,
+      acknowledged,
+    });
   }
 }
 

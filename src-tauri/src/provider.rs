@@ -833,8 +833,8 @@ impl OllamaProvider {
 
     /// A provider at an explicit endpoint. The default everywhere stays
     /// loopback (decision 24); this is used only for the advanced, explicitly
-    /// acknowledged custom endpoint in Settings, and by the test harnesses for
-    /// a lab machine. The address always comes from a validated setting or the
+    /// acknowledged custom endpoint in Settings, and by the test harnesses. The
+    /// address always comes from a validated setting or the
     /// environment, never from a model catalogue entry or a stored artifact.
     pub fn at_url(base_url: String) -> Self {
         Self::with_url(base_url)

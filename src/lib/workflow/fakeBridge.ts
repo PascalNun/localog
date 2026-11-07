@@ -1493,6 +1493,18 @@ export class FakeWorkflowBridge implements WorkflowBridge {
     return this.getProtocolProviderStatus();
   }
 
+  async configureProtocolEndpoint(
+    endpoint: string | null,
+    acknowledged: boolean,
+  ): Promise<import('./types').ProtocolProviderStatus> {
+    if (this.workspaceStore) {
+      return this.workspaceStore.configureProtocolEndpoint(endpoint, acknowledged);
+    }
+    void endpoint;
+    void acknowledged;
+    return this.getProtocolProviderStatus();
+  }
+
   private startJob(meetingId: string, kind: JobKind, attempt = 1): void {
     if (this.timer) clearInterval(this.timer);
     this.findMeeting(meetingId);

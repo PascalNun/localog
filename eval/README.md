@@ -32,9 +32,9 @@ Every command accepts `--dry-run`. Configuration comes from flags, the
 environment, or `eval/config.env` (also ignored): sidecar and model paths,
 language, context/output sizes, seeds, vocabulary, and the endpoint.
 
-`LOCALOG_HARNESS_ENDPOINT` (default `http://127.0.0.1:11434`) points the
-sweep/topic harnesses at another machine — for example a lab box holding the
-larger models that do not fit a laptop. The product's loopback-only boundary is
+`LOCALOG_PROVIDER_ENDPOINT` (default `http://127.0.0.1:11434`) points the
+sweep/topic harnesses at another machine — for example one holding the larger
+models that do not fit a laptop. The product's loopback-only boundary is
 untouched: the override exists only in the `#[cfg(test)]` harnesses, reads the
 address from the environment, and never from a stored setting. The
 whole-pipeline run still generates through the local runtime.

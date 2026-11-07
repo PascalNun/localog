@@ -31,12 +31,12 @@ use std::sync::atomic::AtomicBool;
 use std::time::Instant;
 
 /// The provider this harness talks to when it builds one directly: loopback by
-/// default, or the machine named by LOCALOG_HARNESS_ENDPOINT when the model
-/// being measured lives on a lab box. The whole-pipeline test below still runs
+/// default, or the machine named by LOCALOG_PROVIDER_ENDPOINT when the provider
+/// runs on another machine. The whole-pipeline test below still runs
 /// against local Ollama, because that path is owned by processing.rs and stays
 /// inside the product's loopback-only boundary.
 fn harness_provider() -> crate::provider::OllamaProvider {
-    match std::env::var("LOCALOG_HARNESS_ENDPOINT") {
+    match std::env::var("LOCALOG_PROVIDER_ENDPOINT") {
         Ok(url) if !url.trim().is_empty() => {
             crate::provider::OllamaProvider::at_url(url.trim().to_string())
         }

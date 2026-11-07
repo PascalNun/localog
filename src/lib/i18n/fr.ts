@@ -116,6 +116,13 @@ const failures = {
   privacySettingsOnlyOnMac:
     'L’ouverture des réglages de confidentialité n’est câblée que sur macOS.',
   providerNeededForModel: 'Démarrez votre installation Ollama avant de choisir un modèle.',
+  endpointNotAcknowledged:
+    'Veuillez confirmer que vous comprenez que le contenu des réunions sera envoyé à ce serveur.',
+  endpointNotHttp: "L'adresse doit commencer par http:// ou https://.",
+  endpointNoHost: "L'adresse a besoin d'un hôte, par exemple http://192.168.1.20:11434.",
+  endpointHasCredentials:
+    "Retirez l'identifiant et le mot de passe de l'adresse ; ils ne sont pas enregistrés.",
+  endpointInvalid: "Cette adresse n'est pas valide.",
   settingsNotOpened: 'Les Réglages Système n’ont pas pu être ouverts.',
   presetMissing: 'Ce modèle d’export n’est plus disponible.',
   downloadStopped: 'Le téléchargement s’est interrompu.',
@@ -451,6 +458,16 @@ export const fr: Strings = {
     modelSizeSmall: 'petit modèle embarqué',
     modelSizeLarger: 'modèle local plus grand',
     useOllamaInstead: 'Utiliser plutôt votre propre Ollama',
+    customEndpoint: 'Utiliser un autre serveur',
+    customEndpointNote:
+      "Dirigez LocaLog vers n'importe quel serveur compatible Ollama joignable — par exemple un autre ordinateur de votre réseau avec plus de mémoire. Les enregistrements et transcriptions sont envoyés à cette adresse ; utilisez https:// pour un serveur hors de votre réseau. Rien n'est envoyé ailleurs tant que vous n'en définissez pas.",
+    endpointLabel: 'Adresse du serveur',
+    endpointPlaceholder: 'http://192.168.1.20:11434',
+    endpointAcknowledge: 'Je comprends que le contenu des réunions sera envoyé à cette adresse.',
+    useThisServer: 'Utiliser ce serveur',
+    backToThisDevice: 'Revenir à cet appareil',
+    endpointActive: (address: string) =>
+      `Les protocoles sont générés sur ${address}. Le contenu des réunions quitte cet appareil.`,
     useAnotherModel: 'Utiliser un autre modèle installé',
     installedModel: 'Modèle installé',
     chooseInstalledModel: 'Choisir un modèle installé',

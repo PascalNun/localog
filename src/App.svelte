@@ -1215,6 +1215,14 @@
               providerError = errorMessage(error);
             }
           }}
+          onConfigureEndpoint={async (endpoint, acknowledged) => {
+            try {
+              providerStatus = await bridge.configureProtocolEndpoint(endpoint, acknowledged);
+              providerError = null;
+            } catch (error) {
+              providerError = errorMessage(error);
+            }
+          }}
         />
       {:else}
         <StartView

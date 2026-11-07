@@ -42,7 +42,7 @@ Still ahead: search across local projects, and structured views for decisions an
 
 A mobile or iPad application is a larger job than it looks, and larger than a Windows or Linux port. This architecture spawns sidecars, and iOS does not let a sandboxed application execute another binary. Whisper and the diariser would have to be linked in and called as libraries rather than run as commands, which is a second build of the engine rather than a port of this one. Worth knowing before it is counted alongside the desktop platforms.
 
-Remote processing is not automatically incompatible with local-first, but it changes the promise from “the content stays on this device” to something weaker. It would require explicit consent, clear destination language, and a separate product decision.
+Remote processing is not automatically incompatible with local-first, but it changes the promise from “the content stays on this device” to something weaker. It would require explicit consent, clear destination language, and a separate product decision. The narrow version of this now exists as an opt-in: one custom server address in advanced settings, behind a translated acknowledgement, recorded per job (07 November 2026, see DECISIONS.md). Organisation-controlled remote processing — where the destination is chosen for people rather than by them — remains here, undecided.
 
 ## How to use this roadmap
 

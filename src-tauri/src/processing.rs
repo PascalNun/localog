@@ -263,6 +263,11 @@ struct QueuedGenerationConfig {
     /// job, so reading one as such is correct rather than a guess.
     #[serde(default)]
     runtime: GenerationRuntime,
+    /// The validated endpoint the job was queued against; empty means this
+    /// device's loopback. Snapshotted like everything else so a later settings
+    /// change cannot rewrite what an existing artifact was produced with.
+    #[serde(default)]
+    endpoint: String,
     model: String,
     model_digest: String,
     runtime_version: String,
@@ -834,6 +839,24 @@ fn transcription_language_code(language: &str) -> String {
         .unwrap_or_else(|| "auto".to_string())
 }
 
+/// The provider protocol generation talks to: the advanced custom endpoint when
+/// one is configured (and still valid), loopback otherwise. Returns the provider
+/// and the normalised endpoint it stands for, so the job can snapshot both.
+pub(crate) fn generation_provider(
+    repository: &WorkspaceRepository,
+) -> StorageResult<(provider::OllamaProvider, String)> {
+    let raw = repository
+        .read_setting("generation.endpoint")?
+        .unwrap_or_default();
+    let endpoint = provider::normalize_endpoint(&raw).map_err(StorageError::InvalidData)?;
+    let provider = if endpoint.is_empty() {
+        provider::OllamaProvider::loopback()
+    } else {
+        provider::OllamaProvider::at_url(endpoint.clone())
+    };
+    Ok((provider, endpoint))
+}
+
 pub(crate) fn queue_generation(
     root: &Path,
     meeting_id: &str,
@@ -963,7 +986,10 @@ fn generation_metadata(
         crate::machine::memory_gb(),
     )?;
 
-    let (runtime, model, model_digest, runtime_version, model_bytes) = match bundled {
+    // The Ollama-side provider, hoisted so context sizing below queries the same
+    // server the status above did. Loopback unless a custom endpoint is set.
+    let mut ollama_provider = provider::OllamaProvider::loopback();
+    let (runtime, model, model_digest, runtime_version, model_bytes, endpoint) = match bundled {
         Some(model) => {
             let status = provider::bundled_status(root, Some(model.model_id.clone()));
             (
@@ -979,13 +1005,17 @@ fn generation_metadata(
                     .runtime_version
                     .unwrap_or_else(|| "bundled".to_string()),
                 model.byte_count,
+                // The bundled runtime runs on this device; there is no endpoint.
+                String::new(),
             )
         }
         None => {
             let selected_model = repository
                 .read_setting("generation.ollamaModel")?
                 .filter(|value| !value.is_empty());
-            let status = provider::OllamaProvider::loopback().status(selected_model);
+            let (provider, endpoint) = generation_provider(repository)?;
+            let status = provider.status(selected_model);
+            ollama_provider = provider;
             if !status.server_reachable {
                 return Err(StorageError::InvalidData("providerNeededForGeneration"));
             }
@@ -1015,12 +1045,14 @@ fn generation_metadata(
                 model_digest,
                 runtime_version,
                 model_bytes,
+                endpoint,
             )
         }
     };
     let config = QueuedGenerationConfig {
         document_notes: notes.clone(),
         runtime,
+        endpoint,
         model: model.clone(),
         model_digest: model_digest.clone(),
         runtime_version: runtime_version.clone(),
@@ -1046,7 +1078,7 @@ fn generation_metadata(
         // The protocol's minimum context can still exceed the free-memory budget;
         // Settings warns about this on small machines.
         context_tokens: affordable_context(
-            &provider::OllamaProvider::loopback(),
+            &ollama_provider,
             &model,
             model_bytes,
             machine_memory_bytes(),
@@ -1279,12 +1311,21 @@ fn execute_generation(
             })
         };
         match config.runtime {
-            GenerationRuntime::Ollama => provider::OllamaProvider::loopback()
-                .generate(&request, cancellation, &mut provider_progress)
-                .map_err(|error| {
-                    record_generation_failure(root, job, &error);
-                    provider_processing_error(error)
-                })?,
+            GenerationRuntime::Ollama => {
+                // The endpoint the job was queued with, snapshotted above: a
+                // custom server stays the server even if Settings changed since.
+                let provider = if config.endpoint.is_empty() {
+                    provider::OllamaProvider::loopback()
+                } else {
+                    provider::OllamaProvider::at_url(config.endpoint.clone())
+                };
+                provider
+                    .generate(&request, cancellation, &mut provider_progress)
+                    .map_err(|error| {
+                        record_generation_failure(root, job, &error);
+                        provider_processing_error(error)
+                    })?
+            }
             GenerationRuntime::Bundled => {
                 let model = models::generation_model_path(root, Some(&request.model)).ok_or(
                     ProcessingError::Runtime {

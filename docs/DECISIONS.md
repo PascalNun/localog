@@ -128,3 +128,21 @@ file and the shared no-overwrite publication boundary. Linux Export PDF opens a
 save chooser, not a print panel. The macOS/Windows print path remains unchanged
 until a direct native implementation is validated. Errors must be visible; a
 screen-reader announcement alone is insufficient export feedback.
+
+## 07 November 2026 — Optional custom generation endpoint
+
+The protocol provider can be pointed at an explicit Ollama-compatible endpoint
+(`generation.endpoint` in Settings, behind the existing advanced disclosure),
+defaulting to loopback exactly as before. Decision 24's loopback-only boundary
+remains the default and the product promise: nothing is sent anywhere unless
+somebody deliberately sets an address.
+
+Setting a non-empty address requires a ticked acknowledgement, written in the
+interface's own language, that recordings and transcripts will be sent to that
+server. The address is validated (http/https only, a host, no embedded
+credentials — those would sit in plaintext settings, so bearer-token auth is
+deliberately left for a keychain-backed design), and it is recorded with every
+generation job, so an existing protocol always names the server it came from.
+Provider status shows the active endpoint and marks it as remote.
+The test harnesses additionally read `LOCALOG_PROVIDER_ENDPOINT` from the
+environment, which never reaches a stored setting.

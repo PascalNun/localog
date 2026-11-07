@@ -93,6 +93,10 @@
   });
   export let onRefreshProvider: () => Promise<void>;
   export let onConfigureProvider: (model: string | null) => Promise<void>;
+  export let onConfigureEndpoint: (
+    endpoint: string | null,
+    acknowledged: boolean,
+  ) => Promise<void> = async () => undefined;
   export let providerError: string | null = null;
   export let speakerStatus: SpeakerSeparationStatus = SPEAKER_SEPARATION_UNREADY;
   export let speakerError: string | null = null;
@@ -141,6 +145,8 @@
   $: sectionLabel = sections.find((each) => each.id === section)?.label ?? section;
   let executablePath = '';
   let selectedProviderModel = '';
+  let endpointInput = '';
+  let endpointAcknowledged = false;
   /// What the backend measured, and only then what the browser guessed.
   ///
   /// The browser is asked last because in this shell it cannot answer:
@@ -165,10 +171,23 @@
   $: uncataloguedModels = (providerStatus?.models ?? []).filter(
     (model) => !GENERATION_MODEL_CATALOG.some((entry) => entry.providerNames.includes(model.name)),
   );
+  // Pre-fill the field with the configured server when there is one, so the
+  // person sees where their content would go before changing anything.
+  $: if (providerStatus?.customEndpoint) endpointInput = providerStatus.endpoint;
 
   async function chooseProviderModel(model: string) {
     selectedProviderModel = model;
     await onConfigureProvider(model);
+  }
+
+  async function saveEndpoint() {
+    await onConfigureEndpoint(endpointInput.trim() || null, endpointAcknowledged);
+    endpointAcknowledged = false;
+  }
+
+  async function clearEndpoint() {
+    endpointInput = '';
+    await onConfigureEndpoint(null, false);
   }
 
   /// What has been put away, and the way back.
@@ -508,6 +527,42 @@
               disabled={!providerStatus.serverReachable || !selectedProviderModel}
               >{$t.settings.useInstalledModel}</button
             >
+          </details>
+          {#if providerStatus.customEndpoint}
+            <p class="setting-hint" role="status">
+              {$t.settings.endpointActive(providerStatus.endpoint)}
+            </p>
+          {/if}
+          <details class="advanced-disclosure">
+            <summary>{$t.settings.customEndpoint}</summary>
+            <p>{$t.settings.customEndpointNote}</p>
+            <div class="setting-field">
+              <label for="custom-endpoint">{$t.settings.endpointLabel}</label>
+              <input
+                id="custom-endpoint"
+                type="text"
+                bind:value={endpointInput}
+                placeholder={$t.settings.endpointPlaceholder}
+                spellcheck="false"
+              />
+            </div>
+            <label>
+              <input type="checkbox" bind:checked={endpointAcknowledged} />
+              {$t.settings.endpointAcknowledge}
+            </label>
+            <div class="setting-actions">
+              <button
+                class="secondary-action"
+                onclick={saveEndpoint}
+                disabled={!endpointInput.trim() || !endpointAcknowledged}
+                >{$t.settings.useThisServer}</button
+              >
+              {#if providerStatus.customEndpoint}
+                <button class="secondary-action" onclick={clearEndpoint}
+                  >{$t.settings.backToThisDevice}</button
+                >
+              {/if}
+            </div>
           </details>
           <div class="notice-inline">
             {$t.settings.catalogueNote}

@@ -13,6 +13,23 @@ Linux window chrome now extends the app surfaces to the top edge with compact
 minimize, maximize/restore and close controls, native dragging and eight resize
 edges. Browser previews and the macOS/Windows frame choices remain platform-specific.
 
+## Custom generation endpoint — 07 November 2026
+
+Settings can now point protocol generation at a different Ollama-compatible server
+instead of this device, behind the existing advanced disclosure. The default is
+unchanged: loopback on this machine, and nothing is sent anywhere unless somebody
+sets an address. Setting one requires a ticked acknowledgement, in the interface's
+own language, that recordings and transcripts will be sent to that server. The
+address is validated (http/https, a host, no embedded credentials), and every
+generation job records the endpoint it used, so an existing protocol always names
+the server that produced it. Provider status shows the active endpoint and marks
+it as remote. Bearer-token authentication is deliberately not included yet.
+
+The evaluation harnesses can be pointed at the same kind of machine without
+touching the product: `LOCALOG_PROVIDER_ENDPOINT` (see `eval/README.md`), and
+`eval/run.py` now wraps the ignored harnesses as one command each — `check`,
+`transcribe`, `sweep`, `generate`, `topics`, `report`, each with `--dry-run`.
+
 ## Model setup — 21 October 2026
 
 The managed download screen now exposes four verified entries, with per-model RAM
@@ -859,7 +876,7 @@ feature is one that helps a person label speakers rather than one that claims to
 
 ### Protocol generation — Partial; the main quality work
 
-The Ollama provider is narrow, loopback-only, cancellable, bounded, provenance-aware, and restricted to already available models. Generation is sectioned for long transcripts and has style and vocabulary inputs.
+The Ollama provider is narrow, cancellable, bounded, provenance-aware, and restricted to already available models. It is loopback-only by default, with one optional custom endpoint (07 November 2026 entry above). Generation is sectioned for long transcripts and has style and vocabulary inputs.
 
 Generation records what it found about its own result: how many stated quantities the protocol keeps,
 which figures it states that the meeting did not, and its length against the transcript. Those numbers
@@ -1944,6 +1961,12 @@ Only after the workflow and runtime choices are credible should the project enab
 
 They take minutes to hours against real models, which makes a few things easy to get
 wrong and expensive to get wrong:
+
+- **Use `eval/run.py` rather than assembling the environment by hand** — `check`,
+  `transcribe`, `sweep`, `generate`, `topics`, `report`, each with `--dry-run`;
+  configuration comes from flags, the environment, or `eval/config.env`, and
+  `LOCALOG_PROVIDER_ENDPOINT` points the sweeps at another machine. See
+  `eval/README.md`.
 
 - **Check what is already running before starting anything.** Two generations on a
   16 GB machine compete for memory, spill onto the CPU and produce timings that mean

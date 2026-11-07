@@ -770,7 +770,8 @@ async fn protocol_provider_status(
         let selected_model = repository
             .read_setting("generation.ollamaModel")?
             .filter(|value| !value.is_empty());
-        let mut status = provider::OllamaProvider::loopback().status(selected_model);
+        let (provider, _) = processing::generation_provider(repository)?;
+        let mut status = provider.status(selected_model);
         let backend = repository.read_setting("generation.backend")?;
         status.active = backend.as_deref() == Some("ollama")
             || (backend.is_none()
@@ -798,7 +799,8 @@ async fn configure_protocol_provider(
                 ));
             }
 
-            let status = provider::OllamaProvider::loopback().status(None);
+            let (provider, _) = processing::generation_provider(repository)?;
+            let status = provider.status(None);
             if !status.server_reachable {
                 return Err(storage::StorageError::InvalidData("providerNeededForModel"));
             }
@@ -819,7 +821,44 @@ async fn configure_protocol_provider(
         let selected_model = repository
             .read_setting("generation.ollamaModel")?
             .filter(|value| !value.is_empty());
-        Ok(provider::OllamaProvider::loopback().status(selected_model))
+        let (provider, _) = processing::generation_provider(repository)?;
+        Ok(provider.status(selected_model))
+    })
+    .await
+}
+
+/// Set or clear the advanced custom generation endpoint.
+///
+/// An empty endpoint means "this device" and always clears. A non-empty one is
+/// validated, and refused unless the caller says the acknowledgement was shown
+/// and ticked — the person must have been told, in the interface's own language,
+/// that meeting content will be sent to that address before anything is stored.
+/// The endpoint is snapshotted into every generation job, so changing it later
+/// never rewrites where an existing protocol came from.
+#[tauri::command]
+async fn configure_protocol_endpoint(
+    storage: State<'_, StorageState>,
+    endpoint: Option<String>,
+    acknowledged: bool,
+) -> Result<provider::OllamaStatus, String> {
+    with_repository(storage.root.clone(), move |repository| {
+        let normalized = match endpoint.as_deref() {
+            None => String::new(),
+            Some(raw) => {
+                provider::normalize_endpoint(raw).map_err(storage::StorageError::InvalidData)?
+            }
+        };
+        if !normalized.is_empty() && !acknowledged {
+            return Err(storage::StorageError::InvalidData(
+                "endpointNotAcknowledged",
+            ));
+        }
+        repository.write_setting("generation.endpoint", &normalized)?;
+        let selected_model = repository
+            .read_setting("generation.ollamaModel")?
+            .filter(|value| !value.is_empty());
+        let (provider, _) = processing::generation_provider(repository)?;
+        Ok(provider.status(selected_model))
     })
     .await
 }
@@ -2089,6 +2128,7 @@ pub fn run() {
             model_terms,
             accept_model_licence,
             configure_protocol_provider,
+            configure_protocol_endpoint,
             load_workspace,
             create_project,
             create_meeting,

@@ -16,7 +16,7 @@ The first audience is German-speaking project teams, but the product is not a Ge
 
 Meeting recordings can contain personal information, internal decisions, client details, and material subject to professional or contractual duties. LocaLog is privacy-focused for a practical reason: the core workflow is designed so the content stays on the user's device.
 
-There is no required account, LocaLog cloud, telemetry, or third-party AI service. A future organisation-controlled runtime may be considered, but it would require a separate decision and a plain explanation before any meeting data moved elsewhere.
+There is no required account, LocaLog cloud, telemetry, or third-party AI service, and the default is that everything runs on this device. A different server can be configured as an advanced option — with a plain, translated warning that meeting content will be sent to it, and a ticked acknowledgement before it is saved — and every protocol records which server produced it. Organisation-controlled remote processing, where the destination is chosen for people rather than by them, remains a separate decision that has not been made.
 
 Local processing is not the whole promise. A private application that is confusing, slow, or careless with revisions would still fail its users. Privacy, data safety, and interface quality belong together.
 

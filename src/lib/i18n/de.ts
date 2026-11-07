@@ -118,6 +118,13 @@ const failures = {
     'Das Öffnen der Datenschutzeinstellungen ist bisher nur unter macOS eingerichtet.',
   providerNeededForModel:
     'Starten Sie Ihre vorhandene Ollama-Installation, bevor Sie ein Modell wählen.',
+  endpointNotAcknowledged:
+    'Bitte bestätigen Sie, dass Ihnen klar ist, dass Besprechungsinhalte an diesen Server gesendet werden.',
+  endpointNotHttp: 'Die Adresse muss mit http:// oder https:// beginnen.',
+  endpointNoHost: 'Die Adresse braucht einen Host, zum Beispiel http://192.168.1.20:11434.',
+  endpointHasCredentials:
+    'Entfernen Sie Benutzername und Passwort aus der Adresse; sie werden nicht gespeichert.',
+  endpointInvalid: 'Diese Adresse ist ungültig.',
   settingsNotOpened: 'Die Systemeinstellungen konnten nicht geöffnet werden.',
   presetMissing: 'Diese Voreinstellung ist nicht mehr verfügbar.',
   downloadStopped: 'Der Download wurde unerwartet beendet.',
@@ -459,6 +466,16 @@ export const de: Strings = {
     modelSizeSmall: 'kleines Modell für das Gerät',
     modelSizeLarger: 'größeres lokales Modell',
     useOllamaInstead: 'Stattdessen eigenes Ollama verwenden',
+    customEndpoint: 'Einen anderen Server verwenden',
+    customEndpointNote:
+      'Verweisen Sie LocaLog auf einen erreichbaren Ollama-kompatiblen Server — zum Beispiel einen anderen Computer in Ihrem Netzwerk mit mehr Arbeitsspeicher. Aufnahmen und Transkripte werden an diese Adresse gesendet; für einen Server außerhalb Ihres Netzwerks verwenden Sie https://. Es wird nichts irgendwohin gesendet, solange Sie keine Adresse festlegen.',
+    endpointLabel: 'Serveradresse',
+    endpointPlaceholder: 'http://192.168.1.20:11434',
+    endpointAcknowledge: 'Mir ist klar, dass Besprechungsinhalte an diese Adresse gesendet werden.',
+    useThisServer: 'Diesen Server verwenden',
+    backToThisDevice: 'Zurück zu diesem Gerät',
+    endpointActive: (address: string) =>
+      `Protokolle werden auf ${address} erstellt. Besprechungsinhalte verlassen dieses Gerät.`,
     useAnotherModel: 'Ein anderes installiertes Modell verwenden',
     installedModel: 'Installiertes Modell',
     chooseInstalledModel: 'Ein installiertes Modell wählen',

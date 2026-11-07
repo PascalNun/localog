@@ -37,6 +37,8 @@ const SAME_IN_BOTH = new Set([
   'Word',
   'Markdown',
   'Apache 2.0',
+  // An example address is an address in every language.
+  'http://192.168.1.20:11434',
   'Optional',
   'optional',
   'Status',
