@@ -135,6 +135,8 @@ const failures = {
     'Nothing answered at that address. Check it and that the server is running.',
   endpointFormatUnsupported:
     'That address answered, but LocaLog does not recognise its API. Ollama, OpenAI-compatible and Anthropic-compatible servers are supported.',
+  modelSpentOnReasoning:
+    "The model spent the whole answer budget on internal reasoning. Turn the model's reasoning off in its server's settings (in LM Studio, for example), or choose a model that does not reason.",
   settingsNotOpened: 'System Settings could not be opened.',
   presetMissing: 'That export template is no longer available.',
   downloadStopped: 'The download stopped unexpectedly.',

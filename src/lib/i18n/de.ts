@@ -134,6 +134,8 @@ const failures = {
   endpointNotReachable: 'An dieser Adresse hat nichts geantwortet. Adresse und Server prüfen.',
   endpointFormatUnsupported:
     'Diese Adresse hat geantwortet, aber LocaLog erkennt die API nicht. Unterstützt werden Ollama sowie OpenAI- und Anthropic-kompatible Server.',
+  modelSpentOnReasoning:
+    'Das Modell hat das gesamte Antwort-Budget für interne Gedankengänge verbraucht. Schalten Sie das Reasoning des Modells in den Einstellungen seines Servers aus (z. B. in LM Studio) oder wählen Sie ein Modell ohne Reasoning.',
   settingsNotOpened: 'Die Systemeinstellungen konnten nicht geöffnet werden.',
   presetMissing: 'Diese Voreinstellung ist nicht mehr verfügbar.',
   downloadStopped: 'Der Download wurde unerwartet beendet.',

@@ -119,6 +119,8 @@ const failures = {
     'Nada respondió en esa dirección. Compruébela y que el servidor esté en marcha.',
   endpointFormatUnsupported:
     'Esa dirección respondió, pero LocaLog no reconoce su API. Se admiten servidores Ollama, compatibles con OpenAI y compatibles con Anthropic.',
+  modelSpentOnReasoning:
+    'El modelo gastó todo el presupuesto de la respuesta en razonamiento interno. Desactive el razonamiento del modelo en los ajustes de su servidor (por ejemplo, en LM Studio) o elija un modelo que no razone.',
   settingsNotOpened: 'No se han podido abrir los Ajustes del Sistema.',
   presetMissing: 'Esa plantilla de exportación ya no está disponible.',
   downloadStopped: 'La descarga se ha interrumpido.',

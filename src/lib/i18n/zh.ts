@@ -120,6 +120,8 @@ const failures = {
   endpointNotReachable: '该地址没有任何响应。请检查地址以及服务器是否正在运行。',
   endpointFormatUnsupported:
     '该地址有响应，但 LocaLog 无法识别其 API。支持 Ollama、OpenAI 兼容和 Anthropic 兼容服务器。',
+  modelSpentOnReasoning:
+    '该模型将全部回答预算用于内部推理。请在服务器设置（例如 LM Studio）中关闭该模型的推理，或选择不进行推理的模型。',
   settingsNotOpened: '未能打开系统设置。',
   presetMissing: '该导出模板已不可用。',
   downloadStopped: '下载意外中断。',

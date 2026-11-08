@@ -118,6 +118,8 @@ const failures = {
   endpointNotReachable: '해당 주소에서 아무 응답이 없습니다. 주소와 서버 실행 여부를 확인하세요.',
   endpointFormatUnsupported:
     '해당 주소가 응답했지만 LocaLog가 해당 API를 인식하지 못합니다. Ollama, OpenAI 호환, Anthropic 호환 서버를 지원합니다.',
+  modelSpentOnReasoning:
+    '해당 모델이 답변 예산 전체를 내부 추론에 사용했습니다. 서버 설정(예: LM 스튜디오)에서 모델의 추론을 끄거나, 추론하지 않는 모델을 선택하세요.',
   settingsNotOpened: '시스템 설정을 열지 못했습니다.',
   presetMissing: '해당 내보내기 서식을 더 이상 사용할 수 없습니다.',
   downloadStopped: '내려받기가 중단되었습니다.',

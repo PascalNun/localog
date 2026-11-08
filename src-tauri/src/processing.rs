@@ -504,6 +504,10 @@ fn provider_processing_error(error: provider::ProviderError) -> ProcessingError 
             code: "provider_response_too_large",
             message: "responseTooLarge".into(),
         },
+        provider::ProviderError::SpentOnReasoning { .. } => ProcessingError::Runtime {
+            code: "generation_reasoning_overhead",
+            message: "modelSpentOnReasoning".into(),
+        },
         provider::ProviderError::IncompleteResponse => ProcessingError::Runtime {
             code: "provider_incomplete_output",
             message: "responseIncomplete".into(),

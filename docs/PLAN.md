@@ -2043,3 +2043,29 @@ worst case is current behaviour. It is compiled for evaluation only, beside
 `write_by_topic`; `scripts/eval-runner.py outline` runs it per model and seed
 beside both baselines, and nothing moves into the production path until the
 harnesses have measured it at three seeds.
+
+## Reasoning overhead, made visible and actionable — 07 November 2026
+
+A reasoning model spends its answer budget twice: it thinks first and answers
+second, and on a small machine the thinking is the whole bill. Measured on a
+27B through LM Studio: a notes call streamed thousands of reasoning characters,
+no answer at all, and stopped at the token cap — which the pipeline reported as
+"incomplete", words nobody could act on. The guardrails now:
+
+- reasoning is **counted** per answer (both field names servers use), never
+  copied into output, and carried into the spend record the harnesses print —
+  the adherence table has a `think kch` column beside `answ kch`;
+- a capped answer whose reasoning outweighs the answer several times over is
+  its own diagnosis, `SpentOnReasoning`, whose correction text tells the next
+  attempt to begin with the answer — and bad-draw retries now carry the
+  error's own words as the correction, rather than retrying silently;
+- when the diagnosis is what ended the job, the interface says, in the user's
+  own language, what to do about it: turn the model's reasoning off in its
+  server's settings (LM Studio, for example), or choose a model that does not
+  reason.
+
+What LocaLog cannot do is enforce it remotely: Ollama gets `think: false` and
+the bundled llama-server gets reasoning switched off in its template, but a
+remote OpenAI- or Anthropic-compatible server decides its own behaviour. The
+honest boundary is diagnosis and wording; the leap over it is the server
+operator's.

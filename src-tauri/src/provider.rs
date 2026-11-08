@@ -49,6 +49,17 @@ pub enum ProviderError {
         expected: usize,
         ceiling: usize,
     },
+    /// The answer's whole token budget went on reasoning and none on the answer.
+    ///
+    /// Measured on a 27B reasoning model served through LM Studio: a notes call
+    /// streamed thousands of reasoning characters, no answer, and hit the token
+    /// cap — and `IncompleteResponse` said nothing the next attempt, or the
+    /// person reading the job, could act on. The correction text for this one
+    /// tells the model to begin with the answer; the interface tells the person
+    /// which setting or model choice removes the behaviour.
+    SpentOnReasoning {
+        reasoning_chars: usize,
+    },
 }
 
 impl ProviderError {
@@ -64,6 +75,7 @@ impl ProviderError {
             Self::InvalidResponse(_)
                 | Self::ResponseTooLarge
                 | Self::IncompleteResponse
+                | Self::SpentOnReasoning { .. }
                 | Self::Stalled
         )
     }
@@ -104,6 +116,10 @@ impl Display for ProviderError {
             Self::IncompleteResponse => {
                 write!(formatter, "the local model response was incomplete")
             }
+            Self::SpentOnReasoning { reasoning_chars } => write!(
+                formatter,
+                "the whole token budget went on internal reasoning — {reasoning_chars} characters of it — and the answer never began. Write no reasoning; begin with the first character of the answer"
+            ),
             Self::BeyondOneAnswer { expected, ceiling } => write!(
                 formatter,
                 "a protocol of this meeting is about {expected} characters and one \
@@ -740,6 +756,10 @@ struct ChatChoice {
 struct ChatDelta {
     #[serde(default)]
     content: Option<String>,
+    /// Reasoning tokens, under the name the server happens to use. Counted and
+    /// never copied: reasoning is overhead the answer pays for, not part of it.
+    #[serde(default, alias = "reasoning")]
+    reasoning_content: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -771,6 +791,9 @@ pub struct Spend {
     pub prompt_chars: usize,
     /// Characters received.
     pub answer_chars: usize,
+    /// Reasoning characters received — overhead the answer paid for, and
+    /// none of it answer text.
+    pub reasoning_chars: usize,
     /// Time inside the model, as distinct from time in this crate.
     pub model_millis: u64,
 }
@@ -806,6 +829,7 @@ pub struct OllamaProvider {
     calls: AtomicUsize,
     prompt_chars: AtomicUsize,
     answer_chars: AtomicUsize,
+    reasoning_chars: AtomicUsize,
     model_millis: AtomicU64,
     /// Discovery must answer quickly or be treated as unavailable.
     agent: ureq::Agent,
@@ -1126,6 +1150,7 @@ impl OllamaProvider {
             calls: AtomicUsize::new(0),
             prompt_chars: AtomicUsize::new(0),
             answer_chars: AtomicUsize::new(0),
+            reasoning_chars: AtomicUsize::new(0),
             model_millis: AtomicU64::new(0),
         }
     }
@@ -1138,6 +1163,7 @@ impl OllamaProvider {
             calls: self.calls.load(Ordering::Relaxed),
             prompt_chars: self.prompt_chars.load(Ordering::Relaxed),
             answer_chars: self.answer_chars.load(Ordering::Relaxed),
+            reasoning_chars: self.reasoning_chars.load(Ordering::Relaxed),
             model_millis: self.model_millis.load(Ordering::Relaxed),
         }
     }
@@ -2769,6 +2795,9 @@ impl OllamaProvider {
         let mut reader = BufReader::new(reader);
         let mut line = String::new();
         let mut generated = String::new();
+        // Reasoning characters this answer paid for, summed across the chunks that
+        // carried them, for the diagnosis and the spend record — never the text.
+        let mut reasoning_total = 0usize;
         let mut done = false;
         let mut last_progress = Instant::now() - Duration::from_millis(100);
         // When the last byte arrived, so a model that has stopped answering can be
@@ -2843,6 +2872,13 @@ impl OllamaProvider {
                             delta: ChatDelta::default(),
                             finish_reason: None,
                         });
+                        // Counted, never copied: reasoning is not answer text.
+                        reasoning_total += choice
+                            .delta
+                            .reasoning_content
+                            .as_deref()
+                            .map(|reasoning| reasoning.chars().count())
+                            .unwrap_or(0);
                         let finish = choice.finish_reason.unwrap_or_default();
                         StreamChunk {
                             response: choice.delta.content.unwrap_or_default(),
@@ -2874,6 +2910,22 @@ impl OllamaProvider {
             }
             if chunk.done {
                 if chunk.done_reason == "length" {
+                    // A reasoning model that spent its whole budget thinking
+                    // has not failed to write the answer — it never reached it.
+                    // Measured on a 27B via LM Studio: a notes call returned
+                    // thousands of reasoning characters, no answer at all, and
+                    // "incomplete" said nothing a person could act on.
+                    if reasoning_ate_the_budget(reasoning_total, generated.chars().count()) {
+                        trace_generation(
+                            call.system,
+                            call.prompt,
+                            &generated,
+                            "incomplete: reasoning spent the budget",
+                        );
+                        return Err(ProviderError::SpentOnReasoning {
+                            reasoning_chars: reasoning_total,
+                        });
+                    }
                     trace_generation(call.system, call.prompt, &generated, "incomplete: length");
                     return Err(ProviderError::IncompleteResponse);
                 }
@@ -2896,6 +2948,8 @@ impl OllamaProvider {
             .fetch_add(call_prompt_chars, Ordering::Relaxed);
         self.answer_chars
             .fetch_add(generated.len(), Ordering::Relaxed);
+        self.reasoning_chars
+            .fetch_add(reasoning_total, Ordering::Relaxed);
         self.model_millis
             .fetch_add(started.elapsed().as_millis() as u64, Ordering::Relaxed);
 
@@ -4183,8 +4237,11 @@ fn with_correction<T>(
             // A section that hit its cap is one draw going wrong, not the end of
             // that stretch of the meeting. Measured on the 0.8B: section two wrote
             // one bullet until the cap, and its usable opening was discarded as a
-            // gap without a second ask.
+            // gap without a second ask. The diagnosis travels as the correction,
+            // so a budget spent on reasoning is a fault the next attempt is told
+            // how to fix rather than a repeated one.
             Err(error) if error.is_a_bad_draw() => {
+                correction = Some(error.to_string());
                 last = Some(error);
                 continue;
             }
@@ -4205,6 +4262,14 @@ fn with_correction<T>(
 
 /// Characters of German a token carries, measured on this project's own drafts.
 const CHARS_PER_OUTPUT_TOKEN: usize = 4;
+
+/// Whether a capped answer was really a reasoning bill: reasoning that
+/// outweighs the answer several times over means the cap was spent before the
+/// answer began, while a little thinking in front of a real answer is a model
+/// doing its job. The floor keeps a two-character answer from qualifying.
+fn reasoning_ate_the_budget(reasoning_chars: usize, answer_chars: usize) -> bool {
+    reasoning_chars >= 400 && reasoning_chars >= answer_chars.saturating_mul(2)
+}
 
 /// Roughly what fraction of what was said ends up in a protocol of it.
 ///
@@ -6437,5 +6502,40 @@ mod note_tags {
         assert_eq!(bullet_budget(1_800), 6);
         assert_eq!(bullet_budget(3_000), 10);
         assert_eq!(bullet_budget(30_000), 24);
+    }
+}
+
+#[cfg(test)]
+mod reasoning_budget {
+    use super::{ChatChunk, reasoning_ate_the_budget};
+
+    #[test]
+    fn a_reasoning_bill_is_not_a_short_answer() {
+        // Measured shape: thousands of reasoning characters, none of the answer.
+        assert!(reasoning_ate_the_budget(4_000, 0));
+        assert!(reasoning_ate_the_budget(400, 100));
+        // A little thinking in front of a real answer is a model doing its job.
+        assert!(!reasoning_ate_the_budget(300, 0));
+        assert!(!reasoning_ate_the_budget(2_000, 3_000));
+    }
+
+    #[test]
+    fn both_reasoning_field_names_are_counted() {
+        let a: ChatChunk = serde_json::from_str(
+            r#"{"choices":[{"delta":{"reasoning_content":"Erst denken"},"finish_reason":null}]}"#,
+        )
+        .unwrap();
+        let b: ChatChunk = serde_json::from_str(
+            r#"{"choices":[{"delta":{"reasoning":"Then Think"},"finish_reason":"stop"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            a.choices[0].delta.reasoning_content.as_deref(),
+            Some("Erst denken")
+        );
+        assert_eq!(
+            b.choices[0].delta.reasoning_content.as_deref(),
+            Some("Then Think")
+        );
     }
 }

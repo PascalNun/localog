@@ -125,6 +125,8 @@ const failures = {
     "Nessuna risposta da quell'indirizzo. Controllalo e che il server sia in esecuzione.",
   endpointFormatUnsupported:
     "Quell'indirizzo ha risposto, ma LocaLog non riconosce la sua API. Sono supportati server Ollama, compatibili OpenAI e compatibili Anthropic.",
+  modelSpentOnReasoning:
+    "Il modello ha speso l'intero budget della risposta in ragionamento interno. Disattiva il ragionamento del modello nelle impostazioni del suo server (ad esempio in LM Studio) o scegli un modello che non ragiona.",
   settingsNotOpened: 'Non è stato possibile aprire Impostazioni di Sistema.',
   presetMissing: 'Questo modello di esportazione non è più disponibile.',
   downloadStopped: 'Lo scaricamento si è interrotto.',

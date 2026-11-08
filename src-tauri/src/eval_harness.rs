@@ -89,13 +89,14 @@ fn does_the_model_follow_the_style() {
     let installed = provider.installed_models().unwrap();
 
     println!(
-        "{:>16} {:>5} {:>8} {:>6} {:>9} {:>9} {:>9} {:>9} {:>7} {:>8} {:>13}",
+        "{:>16} {:>5} {:>8} {:>6} {:>9} {:>9} {:>9} {:>9} {:>9} {:>7} {:>8} {:>13}",
         "model",
         "seed",
         "seconds",
         "calls",
         "sent kch",
         "answ kch",
+        "think kch",
         "in model",
         "headings",
         "tables",
@@ -178,6 +179,10 @@ fn does_the_model_follow_the_style() {
         // What the model wrote across every attempt, against what survived into the
         // protocol. Much larger means answers were produced and thrown away.
         let answered_kch = after.answer_chars.saturating_sub(before.answer_chars) / 1_000;
+        // Reasoning overhead made visible: a model that thinks before it answers
+        // spends its budget twice, and an answer that never began reads here as
+        // think-kch with an answer of zero.
+        let reasoning_kch = after.reasoning_chars.saturating_sub(before.reasoning_chars) / 1_000;
 
         let lines: Vec<&str> = markdown.lines().collect();
         let headings = lines
@@ -215,7 +220,7 @@ fn does_the_model_follow_the_style() {
         .expect("written");
         println!(
             "{name:>16} {seed:>5} {seconds:>8} {calls:>6} {sent_kch:>9} {answered_kch:>9} \
-             {in_model:>9} {headings:>9} {dividers:>7} {bullets:>8} {:>13}",
+             {reasoning_kch:>9} {in_model:>9} {headings:>9} {dividers:>7} {bullets:>8} {:>13}",
             format!("{kept}/{}", stated.len()),
         );
         summary.push_str(&format!(
