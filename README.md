@@ -26,7 +26,7 @@ before you rely on the output.
 
 Meeting recordings can contain personal information, internal decisions, client details, and material that should not leave an organisation's controlled environment. LocaLog is designed around that:
 
-- meeting content stays on the device through the core workflow;
+- meeting content stays on the device through the core workflow; an advanced setting can point protocol generation at a server you name, and it says plainly that meeting content will be sent there and requires an explicit acknowledgement before anything is;
 - no LocaLog account, cloud workspace, telemetry, or hosted AI service is required;
 - generated text is visible and editable before it becomes an exported record;
 - projects and meetings provide context for every recording and document;

@@ -105,6 +105,12 @@ Protocol model choice is made once in Settings and then reused. The Settings vie
 
 Generation is a background job. The interface should make it clear that the transcript remains available and that the user can navigate while the draft is being prepared.
 
+### A different generation server
+
+Settings can point protocol generation at a server somebody names — another computer of their own on the network, or any Ollama-, OpenAI- or Anthropic-compatible endpoint it can reach. This belongs to the advanced disclosure beside the Ollama choice, never to the normal workflow, and it is never the default.
+
+Three things are true before such an address is saved: the person has typed an address; a ticked acknowledgement — in the interface's own language — says that recordings and transcripts will be sent there; and the address answers a known API, which LocaLog detects by probing it rather than by asking a format question. While such a server is active, Settings says so in one visible line: protocols are generated on that address, and meeting content leaves this device. Clearing the address returns generation to this device without further questions, and every protocol records the server that produced it.
+
 ## Protocol editing
 
 The protocol editor is a writing surface with a calm margin, readable line length, native undo/redo, find, text scaling, and a clear autosave state. It should make the document feel owned by the person editing it, not by the generator that produced the first draft.
