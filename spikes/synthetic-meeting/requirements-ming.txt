@@ -1,0 +1,3 @@
+# Evaluation-only environment. Do not add these to application dependencies.
+mlx-audio==0.6.2
+soundfile==0.14.0
