@@ -13,6 +13,36 @@ Linux window chrome now extends the app surfaces to the top edge with compact
 minimize, maximize/restore and close controls, native dragging and eight resize
 edges. Browser previews and the macOS/Windows frame choices remain platform-specific.
 
+## Ming synthetic recording — 27 October 2026
+
+Ming 3.0's 0.5B model now runs locally through MLX in an isolated evaluation
+environment. It regenerated the same script as an exact thirty-minute recording.
+The same Whisper-base content check shows 3.86% word edits, versus 21.87% on the
+Apple-TTS recording; this is an ASR-based comparison, not a naturalness rating.
+
+Speaker attribution remains unreliable: 73.60% reference-window agreement with
+four speakers supplied on the Whisper path, while automatic mode finds two.
+The average hides an almost unresolved participant, and the known-turn pass
+also fails. Next verify synthetic voice consistency by listening, then compare
+an independent embedding model before tuning grouping. See the
+[measured Ming results](../spikes/synthetic-meeting/MING_RESULTS.md).
+No production behaviour or application dependencies changed.
+
+## Long synthetic speaker check — 26 October 2026
+
+A local 30-minute German fixture now has four TTS voices, 120 turns and timed
+speaker references. The shipped embedding runtime and actual Rust clustering
+were checked against both the known turns and a full Whisper base transcript.
+With four speakers supplied, attribution is 74.87% on known turn windows and
+71.26% on Whisper windows; automatic mode finds two speakers. These are synthetic
+utterance-window measurements, not standard DER or human-meeting accuracy.
+
+The test exposes similar TTS voices, short-turn fallback labels and transcript
+segments crossing speaker changes. The next quality check needs independently
+voiced material before any threshold or model change. See the
+[fixture and measured results](../spikes/synthetic-meeting/RESULTS.md).
+No application behaviour changed, and the generated media remains local.
+
 ## Model setup — 21 October 2026
 
 The managed download screen now exposes four verified entries, with per-model RAM

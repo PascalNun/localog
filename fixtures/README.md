@@ -4,6 +4,11 @@ This directory contains small, redistributable material made specifically for Lo
 
 Keep it safe to publish. Never add real meeting audio, client or project names, transcripts, protocols, user paths, model files, exports, databases, logs, secrets, or diagnostic bundles.
 
+The [thirty-minute synthetic meeting](../spikes/synthetic-meeting/README.md)
+provides an invented German script, four local TTS voices and timed speaker
+references. Its generated audio stays local; the script and evaluation tools
+are kept separately from model weights and recordings.
+
 ## The rule this directory states was broken once
 
 Between 16 and 30 August 2026 the names of people, a firm and a project from the
