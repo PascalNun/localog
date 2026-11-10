@@ -443,18 +443,20 @@ export const de: Strings = {
     downloadingPreset: (name: string) => `${name} wird geladen`,
     /** Siehe die Anmerkung in en.ts. */
     modelDescription: {
-      'qwen3.5-0.8b':
-        'Ein kleines Modell für Entwicklung und Funktionstests. Die Protokollqualität wurde nicht geprüft; verlassen Sie sich für professionelle Besprechungsprotokolle nicht darauf.',
-      'gemma4-12b':
-        'Das genaueste und beständigste der gemessenen Modelle: Über drei Läufe hat es 27 bis 31 der 35 Zahlen einer Besprechung erhalten, wo das nächstbeste auf nur 6 kam. Langsamer — etwa vierzehn Minuten für eine achtzigminütige Besprechung.',
-      'ministral-8b':
-        'An einer deutschen Besprechung mit drei Einstellungen gemessen und bei einer davon ein brauchbares Protokoll geschrieben: die anderen ergaben einen zweizeiligen Rumpf und ein JSON-Dokument, wo Markdown verlangt war. Bleibt als europäischer Kandidat, noch keine Alternative zur Grundlage.',
       'qwen3.5-4b':
         'Das schnellste gemessene Modell, etwa fünf Minuten für eine achtzigminütige Besprechung, und die Wahl, wenn der Speicher knapp ist. Die Tabelle der nächsten Schritte, die der formale Stil verlangt, hat es nie erzeugt.',
-      'ministral-3b': 'Der erste europäische Kandidat für den schwächsten unterstützten Mac.',
-      'granite4.1-8b':
-        'An einer deutschen Besprechung mit drei Einstellungen gemessen und bei identischer Eingabe 22, 19 und 6 der 35 genannten Zahlen erhalten. Ein Lauf, der fünf Sechstel des Gesagten verliert, ist kein Werkzeug, um eine Aufzeichnung zu erstellen, und wird deshalb nicht empfohlen.',
-      'llama-8b': 'Ein späterer Vergleichsplatz für eine geprüfte Llama-Veröffentlichung.',
+      'qwen3.5-9b':
+        'Ein größeres Qwen-Modell für 16-GB-Rechner. Langsamer als das 4B-Modell; noch nicht getestet.',
+      'qwen3.5-27b': 'Das größte dichte Qwen-Modell für 32-GB-Rechner. Noch nicht getestet.',
+      'qwen3.5-35b-a3b':
+        'Ein schnelles Mixture-of-Experts-Modell für 32-GB-Rechner: Es braucht den Speicher eines 35B-Modells, läuft aber etwa so schnell wie ein 3B-Modell. Noch nicht getestet.',
+
+      'gemma4-12b':
+        'Das genaueste und beständigste der gemessenen Modelle: Über drei Läufe hat es 27 bis 31 der 35 Zahlen einer Besprechung erhalten, wo das nächstbeste auf nur 6 kam. Langsamer — etwa vierzehn Minuten für eine achtzigminütige Besprechung.',
+      'gemma4-26b':
+        'Ein schnelles Mixture-of-Experts-Modell für 24-GB-Rechner: Es braucht den Speicher eines 26B-Modells, läuft aber etwa so schnell wie ein 4B-Modell. Noch nicht getestet.',
+      'gemma4-31b': 'Das größte dichte Gemma-Modell für 32-GB-Rechner. Noch nicht getestet.',
+      'ministral-3-14b': 'Ein größeres europäisches Modell für 16-GB-Rechner. Noch nicht getestet.',
     },
     modelOrigin: {
       international: 'Internationales offenes Modell',

@@ -433,18 +433,21 @@ export const fr: Strings = {
     downloadingPreset: (name: string) => `Téléchargement de ${name}`,
     /** Voir la note dans en.ts. */
     modelDescription: {
-      'qwen3.5-0.8b':
-        'Petit modèle de développement et de test. Qualité des comptes rendus non évaluée ; ne vous y fiez pas pour un compte rendu professionnel.',
-      'gemma4-12b':
-        'Le plus exact et le plus régulier des modèles mesurés : sur trois exécutions, il a conservé 27 à 31 des 35 chiffres d’une réunion, là où le suivant est descendu à 6. Plus lent — environ quatorze minutes pour une réunion de quatre-vingts minutes.',
-      'ministral-8b':
-        'Mesuré sur une réunion en allemand à trois réglages ; il a rédigé un compte rendu utilisable à l’un d’eux : les autres ont produit une ébauche de deux lignes et un document JSON là où du markdown était demandé. Conservé comme candidat européen, pas encore une solution de rechange à la référence.',
       'qwen3.5-4b':
         'Le modèle mesuré le plus rapide — environ cinq minutes pour une réunion de quatre-vingts minutes — et le choix quand la mémoire est limitée. Il n’a jamais produit le tableau des prochaines étapes que le style formel demande.',
-      'ministral-3b': 'Le premier candidat européen pour le Mac le moins puissant pris en charge.',
-      'granite4.1-8b':
-        'Mesuré sur une réunion en allemand à trois réglages, il a conservé 22, 19 puis 6 des 35 chiffres énoncés, à entrée identique. Une exécution qui perd cinq sixièmes de ce qui a été dit n’est pas un outil pour tenir un compte rendu : il n’est donc pas recommandé.',
-      'llama-8b': 'Une place de comparaison réservée à une version de Llama vérifiée.',
+      'qwen3.5-9b':
+        'Un Qwen plus grand pour les machines de 16 Go. Plus lent que le 4B ; pas encore testé.',
+      'qwen3.5-27b': 'Le plus grand Qwen dense, pour les machines de 32 Go. Pas encore testé.',
+      'qwen3.5-35b-a3b':
+        'Un modèle à mélange d’experts rapide pour les machines de 32 Go : il demande la mémoire d’un 35B mais tourne à la vitesse d’un 3B. Pas encore testé.',
+
+      'gemma4-12b':
+        'Le plus exact et le plus régulier des modèles mesurés : sur trois exécutions, il a conservé 27 à 31 des 35 chiffres d’une réunion, là où le suivant est descendu à 6. Plus lent — environ quatorze minutes pour une réunion de quatre-vingts minutes.',
+      'gemma4-26b':
+        'Un modèle à mélange d’experts rapide pour les machines de 24 Go : il demande la mémoire d’un 26B mais tourne à la vitesse d’un 4B. Pas encore testé.',
+      'gemma4-31b': 'Le plus grand Gemma dense, pour les machines de 32 Go. Pas encore testé.',
+      'ministral-3-14b':
+        'Un modèle européen plus grand pour les machines de 16 Go. Pas encore testé.',
     },
     modelOrigin: {
       international: 'Modèle ouvert international',

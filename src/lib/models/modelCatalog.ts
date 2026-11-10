@@ -1,5 +1,3 @@
-import type { ProtocolProviderModel } from '../workflow/types';
-
 /**
  * A deliberately small catalogue for the normal model picker.
  *
@@ -33,13 +31,14 @@ import type { ProtocolProviderModel } from '../workflow/types';
  * a blank card.
  */
 export type GenerationModelId =
-  | 'qwen3.5-0.8b'
-  | 'gemma4-12b'
-  | 'ministral-8b'
   | 'qwen3.5-4b'
-  | 'ministral-3b'
-  | 'granite4.1-8b'
-  | 'llama-8b';
+  | 'qwen3.5-9b'
+  | 'qwen3.5-27b'
+  | 'qwen3.5-35b-a3b'
+  | 'gemma4-12b'
+  | 'gemma4-26b'
+  | 'gemma4-31b'
+  | 'ministral-3-14b';
 
 /** A language a model claims, or `more` for "and many others". */
 export type ModelLanguage = 'de' | 'en' | 'ja' | 'more';
@@ -49,9 +48,6 @@ export type ModelOrigin = 'international' | 'european';
 
 /** Which licence a model is offered under. */
 export type ModelLicence = 'apache2' | 'gemma' | 'modelSpecific';
-
-/** What the picker can say about a model right now. */
-export type ModelStatus = 'installed' | 'notInstalled' | 'plannedCandidate';
 
 export interface GenerationModelEntry {
   id: GenerationModelId;
@@ -78,9 +74,20 @@ export interface GenerationModelEntry {
 export type HardwareTier = 'baseline' | 'standard' | 'larger';
 
 /**
- * The first catalogue stays intentionally short. New models should enter it
- * only after their licence, runtime, memory use and German/English quality
- * have been checked.
+ * The catalogue stays curated: every downloadable file has a verified licence,
+ * runtime and checksum. A new size may enter before it has been measured, but it
+ * carries an empty `testedLanguages` and is never the default until it has been
+ * run on a reference meeting here.
+ *
+ * `status: 'baseline'` is the product judgement, not a measurement: it says this
+ * is the model LocaLog falls back to when the machine fits it. Measurement alone
+ * is not enough — a model can be measured and still be unusable, as Ministral 8B
+ * was at one seed in three. The recommendable models are marked explicitly, so
+ * the recommendation no longer depends on catalogue order.
+ *
+ * Each family appears once per memory class. A smaller sibling that needs the same
+ * class as a larger one is not an alternative, it is a worse version of it; the
+ * ones that were dominated or measured unusable are not listed.
  */
 export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
   {
@@ -98,15 +105,85 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     status: 'baseline',
   },
   {
-    id: 'ministral-8b',
-    name: 'Ministral 3 8B',
+    id: 'gemma4-26b',
+    name: 'Gemma 4 26B A4B',
+    family: 'Gemma 4',
+    providerNames: ['gemma4:26b'],
+    tier: 'larger',
+    minimumMemoryGb: 24,
+    installedGb: null,
+    languages: ['de', 'en', 'more'],
+    testedLanguages: [],
+    origin: 'international',
+    licence: 'apache2',
+    status: 'candidate',
+  },
+  {
+    id: 'gemma4-31b',
+    name: 'Gemma 4 31B',
+    family: 'Gemma 4',
+    providerNames: ['gemma4:31b'],
+    tier: 'larger',
+    minimumMemoryGb: 32,
+    installedGb: null,
+    languages: ['de', 'en', 'more'],
+    testedLanguages: [],
+    origin: 'international',
+    licence: 'apache2',
+    status: 'candidate',
+  },
+  {
+    id: 'qwen3.5-35b-a3b',
+    name: 'Qwen3.5 35B A3B',
+    family: 'Qwen3.5',
+    providerNames: ['qwen3.5:35b-a3b'],
+    tier: 'larger',
+    minimumMemoryGb: 32,
+    installedGb: null,
+    languages: ['de', 'en', 'more'],
+    testedLanguages: [],
+    origin: 'international',
+    licence: 'apache2',
+    status: 'candidate',
+  },
+  {
+    id: 'qwen3.5-27b',
+    name: 'Qwen3.5 27B',
+    family: 'Qwen3.5',
+    providerNames: ['qwen3.5:27b'],
+    tier: 'larger',
+    minimumMemoryGb: 32,
+    installedGb: null,
+    languages: ['de', 'en', 'more'],
+    testedLanguages: [],
+    origin: 'international',
+    licence: 'apache2',
+    status: 'candidate',
+  },
+  {
+    id: 'qwen3.5-9b',
+    name: 'Qwen3.5 9B',
+    family: 'Qwen3.5',
+    providerNames: ['qwen3.5:9b'],
+    tier: 'standard',
+    minimumMemoryGb: 16,
+    installedGb: null,
+    languages: ['de', 'en', 'more'],
+    testedLanguages: [],
+    origin: 'international',
+    licence: 'apache2',
+    status: 'candidate',
+  },
+  {
+    id: 'ministral-3-14b',
+    name: 'Ministral 3 14B',
     family: 'Ministral 3',
-    providerNames: ['ministral-3:8b', 'ministral-3:8b-instruct-2512-q4_K_M'],
+    providerNames: ['ministral-3:14b', 'ministral-3:14b-instruct-2512-q4_K_M'],
     tier: 'standard',
     minimumMemoryGb: 16,
     installedGb: null,
     languages: ['de', 'en', 'ja', 'more'],
-    testedLanguages: ['de'],
+    testedLanguages: [],
     origin: 'european',
     licence: 'apache2',
     status: 'candidate',
@@ -123,63 +200,7 @@ export const GENERATION_MODEL_CATALOG: GenerationModelEntry[] = [
     testedLanguages: ['de'],
     origin: 'international',
     licence: 'apache2',
-    status: 'candidate',
-  },
-  {
-    id: 'ministral-3b',
-    name: 'Ministral 3 3B',
-    family: 'Ministral 3',
-    providerNames: ['ministral-3:3b', 'ministral-3:3b-instruct-2512-q4_K_M'],
-    tier: 'baseline',
-    minimumMemoryGb: 8,
-    installedGb: null,
-    languages: ['de', 'en', 'ja', 'more'],
-    testedLanguages: [],
-    origin: 'european',
-    licence: 'apache2',
-    status: 'candidate',
-  },
-  {
-    id: 'granite4.1-8b',
-    name: 'Granite 4.1 8B',
-    family: 'Granite 4.1',
-    providerNames: ['granite4.1:8b'],
-    tier: 'standard',
-    minimumMemoryGb: 16,
-    installedGb: 5.3,
-    languages: ['de', 'en'],
-    testedLanguages: ['de'],
-    origin: 'international',
-    licence: 'apache2',
-    status: 'candidate',
-  },
-  {
-    id: 'llama-8b',
-    name: 'Llama 8B',
-    family: 'Llama',
-    providerNames: [],
-    tier: 'standard',
-    minimumMemoryGb: 16,
-    installedGb: null,
-    languages: ['de', 'en'],
-    testedLanguages: [],
-    origin: 'international',
-    licence: 'modelSpecific',
-    status: 'planned',
-  },
-  {
-    id: 'qwen3.5-0.8b',
-    name: 'Qwen3.5 0.8B',
-    family: 'Qwen3.5',
-    providerNames: ['qwen3.5:0.8b'],
-    tier: 'baseline',
-    minimumMemoryGb: 4,
-    installedGb: null,
-    languages: ['de', 'en', 'more'],
-    testedLanguages: [],
-    origin: 'international',
-    licence: 'apache2',
-    status: 'candidate',
+    status: 'baseline',
   },
 ];
 
@@ -198,52 +219,4 @@ export function browserMemoryGb(): number | null {
   if (typeof navigator === 'undefined') return null;
   const value = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
-}
-
-export function installedProviderModel(
-  entry: GenerationModelEntry,
-  models: ProtocolProviderModel[],
-): ProtocolProviderModel | null {
-  return models.find((model) => entry.providerNames.includes(model.name)) ?? null;
-}
-
-export function recommendationFor(
-  models: ProtocolProviderModel[],
-  memoryGb: number | null,
-): { entry: GenerationModelEntry; installed: ProtocolProviderModel | null } {
-  const allowed = GENERATION_MODEL_CATALOG.filter(
-    (entry) => entry.minimumMemoryGb <= (memoryGb ?? 8),
-  );
-
-  // Prefer a verified installed model. The catalogue order is what was measured on
-  // a German meeting at three settings each, best first:
-  //
-  //   Gemma 4 12B   27-31 of 35 figures, a protocol at every setting
-  //   Ministral 8B  28 of 35 at its best, a protocol at one setting of three
-  //   Qwen 4B       20-24 of 35, and never the table of next steps the style asks
-  //   Granite 8B    22, 19 and 6 on identical input — not recommended
-  //
-  // Qwen still comes before the untested 3B, so an eight-gigabyte machine — where
-  // neither Gemma nor Ministral 8B fits — is offered the one that has been run.
-  const installed = allowed
-    .map((entry) => ({ entry, installed: installedProviderModel(entry, models) }))
-    .find(({ installed }) => installed !== null);
-  if (installed) return installed;
-
-  const fallback =
-    allowed[0] ??
-    GENERATION_MODEL_CATALOG.reduce((smallest, entry) =>
-      entry.minimumMemoryGb < smallest.minimumMemoryGb ? entry : smallest,
-    );
-  return { entry: fallback, installed: installedProviderModel(fallback, models) };
-}
-
-/** Which of the three things the picker can say about this model is true. */
-export function modelStatus(
-  entry: GenerationModelEntry,
-  installed: ProtocolProviderModel | null,
-): ModelStatus {
-  if (installed) return 'installed';
-  if (entry.status === 'planned') return 'plannedCandidate';
-  return 'notInstalled';
 }

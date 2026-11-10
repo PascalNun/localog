@@ -475,13 +475,15 @@
         <ManagedModels
           terms={modelTerms}
           status={generationStatus}
+          {providerStatus}
           {memoryGb}
           {downloading}
+          {downloadErrors}
           {onAcceptLicence}
           {onDownloadModel}
           {onCancelDownload}
-          {downloadErrors}
           onChoose={onConfigureGeneration}
+          onChooseProvider={chooseProviderModel}
         />
         {#if providerError}<p class="setting-error" role="alert">{providerError}</p>{/if}
 

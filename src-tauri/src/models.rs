@@ -148,6 +148,769 @@ const MODELS: &[ModelSpec] = &[
         acceptance_required: false,
     },
     ModelSpec {
+        id: "speaker-segmentation",
+        file_name: "speaker-segmentation.onnx",
+        url: "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/main/model.onnx",
+        sha256: "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079",
+        byte_count: 5_992_913,
+        kind: ModelKind::Speakers,
+        licence: "mit",
+        licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "speaker-embedding",
+        file_name: "speaker-embedding.onnx",
+        url: "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx",
+        sha256: "1a331345f04805badbb495c775a6ddffcdd1a732567d5ec8b3d5749e3c7a5e4b",
+        byte_count: 39_593_761,
+        kind: ModelKind::Speakers,
+        licence: "mit",
+        licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "tiny",
+        file_name: "ggml-tiny.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
+        sha256: "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
+        byte_count: 77_691_713,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "base",
+        file_name: "ggml-base.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
+        sha256: "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
+        byte_count: 147_951_465,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "medium",
+        file_name: "ggml-medium.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
+        sha256: "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208",
+        byte_count: 1_533_763_059,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    // The model that writes the protocol, and the one recommended first: it kept
+    // 27 to 31 of a reference meeting's 35 stated figures across three runs, where
+    // the next best kept as few as 6.
+    //
+    // Google's own quantisation-aware build rather than a community quantisation.
+    // QAT is trained to be quantised, so it holds up at four bits far better than
+    // the same weights squeezed afterwards — and holding up means keeping numbers,
+    // which is the measure this model was chosen on.
+    //
+    // Metadata checked against Google's model card and published LFS metadata.
+    // Gemma 4 is Apache 2.0; earlier Gemma licence assumptions do not apply.
+    ModelSpec {
+        id: "gemma4-12b",
+        file_name: "gemma-4-12b-it-qat-q4_0.gguf",
+        url: "https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/resolve/29d097773436b69ff9feafd636ab4cf873786537/gemma-4-12b-it-qat-q4_0.gguf",
+        sha256: "93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b",
+        byte_count: 6_975_879_296,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    // The rest of the Gemma 4 family, from Google's own QAT GGUF releases.
+    // Apache 2.0, like the 12B. These are options for larger machines and have
+    // not been measured on this project's reference meeting, so the picker shows
+    // them without a recommendation.
+    ModelSpec {
+        id: "gemma4-26b",
+        file_name: "gemma-4-26B_q4_0-it.gguf",
+        url: "https://huggingface.co/google/gemma-4-26B-A4B-it-qat-q4_0-gguf/resolve/d1c082be9cf3c8a514acf63b8761f4b41935842e/gemma-4-26B_q4_0-it.gguf",
+        sha256: "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d",
+        byte_count: 14_439_363_584,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "speaker-segmentation",
+        file_name: "speaker-segmentation.onnx",
+        url: "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/main/model.onnx",
+        sha256: "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079",
+        byte_count: 5_992_913,
+        kind: ModelKind::Speakers,
+        licence: "mit",
+        licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "speaker-embedding",
+        file_name: "speaker-embedding.onnx",
+        url: "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx",
+        sha256: "1a331345f04805badbb495c775a6ddffcdd1a732567d5ec8b3d5749e3c7a5e4b",
+        byte_count: 39_593_761,
+        kind: ModelKind::Speakers,
+        licence: "mit",
+        licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "tiny",
+        file_name: "ggml-tiny.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
+        sha256: "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
+        byte_count: 77_691_713,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "base",
+        file_name: "ggml-base.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
+        sha256: "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
+        byte_count: 147_951_465,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "medium",
+        file_name: "ggml-medium.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
+        sha256: "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208",
+        byte_count: 1_533_763_059,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    // The model that writes the protocol, and the one recommended first: it kept
+    // 27 to 31 of a reference meeting's 35 stated figures across three runs, where
+    // the next best kept as few as 6.
+    //
+    // Google's own quantisation-aware build rather than a community quantisation.
+    // QAT is trained to be quantised, so it holds up at four bits far better than
+    // the same weights squeezed afterwards — and holding up means keeping numbers,
+    // which is the measure this model was chosen on.
+    //
+    // Metadata checked against Google's model card and published LFS metadata.
+    // Gemma 4 is Apache 2.0; earlier Gemma licence assumptions do not apply.
+    ModelSpec {
+        id: "gemma4-12b",
+        file_name: "gemma-4-12b-it-qat-q4_0.gguf",
+        url: "https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/resolve/29d097773436b69ff9feafd636ab4cf873786537/gemma-4-12b-it-qat-q4_0.gguf",
+        sha256: "93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b",
+        byte_count: 6_975_879_296,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    // The rest of the Gemma 4 family, from Google's own QAT GGUF releases.
+    // Apache 2.0, like the 12B. These are options for larger machines and have
+    // not been measured on this project's reference meeting, so the picker shows
+    // them without a recommendation.
+    ModelSpec {
+        id: "gemma4-26b",
+        file_name: "gemma-4-26B_q4_0-it.gguf",
+        url: "https://huggingface.co/google/gemma-4-26B-A4B-it-qat-q4_0-gguf/resolve/d1c082be9cf3c8a514acf63b8761f4b41935842e/gemma-4-26B_q4_0-it.gguf",
+        sha256: "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d",
+        byte_count: 14_439_363_584,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "gemma4-31b",
+        file_name: "gemma-4-31B_q4_0-it.gguf",
+        url: "https://huggingface.co/google/gemma-4-31B-it-qat-q4_0-gguf/resolve/59dde24573e7e61570dba08b18a2e1fe246955ed/gemma-4-31B_q4_0-it.gguf",
+        sha256: "179cfb99212709597eae5929112cfca677e1bbf566178b479ae1da0c4772874b",
+        byte_count: 17_651_001_568,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "speaker-segmentation",
+        file_name: "speaker-segmentation.onnx",
+        url: "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/main/model.onnx",
+        sha256: "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079",
+        byte_count: 5_992_913,
+        kind: ModelKind::Speakers,
+        licence: "mit",
+        licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "speaker-embedding",
+        file_name: "speaker-embedding.onnx",
+        url: "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx",
+        sha256: "1a331345f04805badbb495c775a6ddffcdd1a732567d5ec8b3d5749e3c7a5e4b",
+        byte_count: 39_593_761,
+        kind: ModelKind::Speakers,
+        licence: "mit",
+        licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "tiny",
+        file_name: "ggml-tiny.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
+        sha256: "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
+        byte_count: 77_691_713,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "base",
+        file_name: "ggml-base.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
+        sha256: "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
+        byte_count: 147_951_465,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "medium",
+        file_name: "ggml-medium.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
+        sha256: "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208",
+        byte_count: 1_533_763_059,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    // The model that writes the protocol, and the one recommended first: it kept
+    // 27 to 31 of a reference meeting's 35 stated figures across three runs, where
+    // the next best kept as few as 6.
+    //
+    // Google's own quantisation-aware build rather than a community quantisation.
+    // QAT is trained to be quantised, so it holds up at four bits far better than
+    // the same weights squeezed afterwards — and holding up means keeping numbers,
+    // which is the measure this model was chosen on.
+    //
+    // Metadata checked against Google's model card and published LFS metadata.
+    // Gemma 4 is Apache 2.0; earlier Gemma licence assumptions do not apply.
+    ModelSpec {
+        id: "gemma4-12b",
+        file_name: "gemma-4-12b-it-qat-q4_0.gguf",
+        url: "https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/resolve/29d097773436b69ff9feafd636ab4cf873786537/gemma-4-12b-it-qat-q4_0.gguf",
+        sha256: "93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b",
+        byte_count: 6_975_879_296,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    // The rest of the Gemma 4 family, from Google's own QAT GGUF releases.
+    // Apache 2.0, like the 12B. These are options for larger machines and have
+    // not been measured on this project's reference meeting, so the picker shows
+    // them without a recommendation.
+    ModelSpec {
+        id: "gemma4-26b",
+        file_name: "gemma-4-26B_q4_0-it.gguf",
+        url: "https://huggingface.co/google/gemma-4-26B-A4B-it-qat-q4_0-gguf/resolve/d1c082be9cf3c8a514acf63b8761f4b41935842e/gemma-4-26B_q4_0-it.gguf",
+        sha256: "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d",
+        byte_count: 14_439_363_584,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "gemma4-31b",
+        file_name: "gemma-4-31B_q4_0-it.gguf",
+        url: "https://huggingface.co/google/gemma-4-31B-it-qat-q4_0-gguf/resolve/59dde24573e7e61570dba08b18a2e1fe246955ed/gemma-4-31B_q4_0-it.gguf",
+        sha256: "179cfb99212709597eae5929112cfca677e1bbf566178b479ae1da0c4772874b",
+        byte_count: 17_651_001_568,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    // The Qwen 3.5 family above the measured 4B. Same Apache 2.0 licence. The 9B,
+    // 27B and 35B-A3B are options for 16 and 32 GB machines and have not been
+    // measured here yet. The 35B is a mixture of experts with 3B active, so it
+    // keeps the memory of a 35B file and the speed of a small one.
+    //
+    // The 2B is not offered: the 4B is the smallest size this project has
+    // measured producing a protocol, and a smaller model has to clear that bar
+    // before it can take a place in the picker.
+    ModelSpec {
+        id: "qwen3.5-35b-a3b",
+        file_name: "Qwen3.5-35B-A3B-Q4_K_M.gguf",
+        url: "https://huggingface.co/unsloth/Qwen3.5-35B-A3B-GGUF/resolve/bc014a17be43adabd7066b7a86075ff935c6a4e2/Qwen3.5-35B-A3B-Q4_K_M.gguf",
+        sha256: "3b46d1066bc91cc2d613e3bc22ce691dd77e6f0d33c9060690d24ce6de494375",
+        byte_count: 22_016_023_168,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "speaker-segmentation",
+        file_name: "speaker-segmentation.onnx",
+        url: "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/main/model.onnx",
+        sha256: "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079",
+        byte_count: 5_992_913,
+        kind: ModelKind::Speakers,
+        licence: "mit",
+        licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "speaker-embedding",
+        file_name: "speaker-embedding.onnx",
+        url: "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx",
+        sha256: "1a331345f04805badbb495c775a6ddffcdd1a732567d5ec8b3d5749e3c7a5e4b",
+        byte_count: 39_593_761,
+        kind: ModelKind::Speakers,
+        licence: "mit",
+        licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "tiny",
+        file_name: "ggml-tiny.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
+        sha256: "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
+        byte_count: 77_691_713,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "base",
+        file_name: "ggml-base.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
+        sha256: "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
+        byte_count: 147_951_465,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "medium",
+        file_name: "ggml-medium.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
+        sha256: "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208",
+        byte_count: 1_533_763_059,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    // The model that writes the protocol, and the one recommended first: it kept
+    // 27 to 31 of a reference meeting's 35 stated figures across three runs, where
+    // the next best kept as few as 6.
+    //
+    // Google's own quantisation-aware build rather than a community quantisation.
+    // QAT is trained to be quantised, so it holds up at four bits far better than
+    // the same weights squeezed afterwards — and holding up means keeping numbers,
+    // which is the measure this model was chosen on.
+    //
+    // Metadata checked against Google's model card and published LFS metadata.
+    // Gemma 4 is Apache 2.0; earlier Gemma licence assumptions do not apply.
+    ModelSpec {
+        id: "gemma4-12b",
+        file_name: "gemma-4-12b-it-qat-q4_0.gguf",
+        url: "https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/resolve/29d097773436b69ff9feafd636ab4cf873786537/gemma-4-12b-it-qat-q4_0.gguf",
+        sha256: "93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b",
+        byte_count: 6_975_879_296,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    // The rest of the Gemma 4 family, from Google's own QAT GGUF releases.
+    // Apache 2.0, like the 12B. These are options for larger machines and have
+    // not been measured on this project's reference meeting, so the picker shows
+    // them without a recommendation.
+    ModelSpec {
+        id: "gemma4-26b",
+        file_name: "gemma-4-26B_q4_0-it.gguf",
+        url: "https://huggingface.co/google/gemma-4-26B-A4B-it-qat-q4_0-gguf/resolve/d1c082be9cf3c8a514acf63b8761f4b41935842e/gemma-4-26B_q4_0-it.gguf",
+        sha256: "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d",
+        byte_count: 14_439_363_584,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "gemma4-31b",
+        file_name: "gemma-4-31B_q4_0-it.gguf",
+        url: "https://huggingface.co/google/gemma-4-31B-it-qat-q4_0-gguf/resolve/59dde24573e7e61570dba08b18a2e1fe246955ed/gemma-4-31B_q4_0-it.gguf",
+        sha256: "179cfb99212709597eae5929112cfca677e1bbf566178b479ae1da0c4772874b",
+        byte_count: 17_651_001_568,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    // The Qwen 3.5 family above the measured 4B. Same Apache 2.0 licence. The 9B,
+    // 27B and 35B-A3B are options for 16 and 32 GB machines and have not been
+    // measured here yet. The 35B is a mixture of experts with 3B active, so it
+    // keeps the memory of a 35B file and the speed of a small one.
+    //
+    // The 2B is not offered: the 4B is the smallest size this project has
+    // measured producing a protocol, and a smaller model has to clear that bar
+    // before it can take a place in the picker.
+    ModelSpec {
+        id: "qwen3.5-35b-a3b",
+        file_name: "Qwen3.5-35B-A3B-Q4_K_M.gguf",
+        url: "https://huggingface.co/unsloth/Qwen3.5-35B-A3B-GGUF/resolve/bc014a17be43adabd7066b7a86075ff935c6a4e2/Qwen3.5-35B-A3B-Q4_K_M.gguf",
+        sha256: "3b46d1066bc91cc2d613e3bc22ce691dd77e6f0d33c9060690d24ce6de494375",
+        byte_count: 22_016_023_168,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "qwen3.5-27b",
+        file_name: "Qwen3.5-27B-Q4_K_M.gguf",
+        url: "https://huggingface.co/unsloth/Qwen3.5-27B-GGUF/resolve/3221f178a6b842d04f1fb42f1c413534adcc0a6a/Qwen3.5-27B-Q4_K_M.gguf",
+        sha256: "84b5f7f112156d63836a01a69dc3f11a6ba63b10a23b8ca7a7efaf52d5a2d806",
+        byte_count: 16_740_812_704,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "speaker-segmentation",
+        file_name: "speaker-segmentation.onnx",
+        url: "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/main/model.onnx",
+        sha256: "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079",
+        byte_count: 5_992_913,
+        kind: ModelKind::Speakers,
+        licence: "mit",
+        licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "speaker-embedding",
+        file_name: "speaker-embedding.onnx",
+        url: "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx",
+        sha256: "1a331345f04805badbb495c775a6ddffcdd1a732567d5ec8b3d5749e3c7a5e4b",
+        byte_count: 39_593_761,
+        kind: ModelKind::Speakers,
+        licence: "mit",
+        licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "tiny",
+        file_name: "ggml-tiny.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
+        sha256: "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
+        byte_count: 77_691_713,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "base",
+        file_name: "ggml-base.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
+        sha256: "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
+        byte_count: 147_951_465,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "medium",
+        file_name: "ggml-medium.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
+        sha256: "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208",
+        byte_count: 1_533_763_059,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    // The model that writes the protocol, and the one recommended first: it kept
+    // 27 to 31 of a reference meeting's 35 stated figures across three runs, where
+    // the next best kept as few as 6.
+    //
+    // Google's own quantisation-aware build rather than a community quantisation.
+    // QAT is trained to be quantised, so it holds up at four bits far better than
+    // the same weights squeezed afterwards — and holding up means keeping numbers,
+    // which is the measure this model was chosen on.
+    //
+    // Metadata checked against Google's model card and published LFS metadata.
+    // Gemma 4 is Apache 2.0; earlier Gemma licence assumptions do not apply.
+    ModelSpec {
+        id: "gemma4-12b",
+        file_name: "gemma-4-12b-it-qat-q4_0.gguf",
+        url: "https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/resolve/29d097773436b69ff9feafd636ab4cf873786537/gemma-4-12b-it-qat-q4_0.gguf",
+        sha256: "93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b",
+        byte_count: 6_975_879_296,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    // The rest of the Gemma 4 family, from Google's own QAT GGUF releases.
+    // Apache 2.0, like the 12B. These are options for larger machines and have
+    // not been measured on this project's reference meeting, so the picker shows
+    // them without a recommendation.
+    ModelSpec {
+        id: "gemma4-26b",
+        file_name: "gemma-4-26B_q4_0-it.gguf",
+        url: "https://huggingface.co/google/gemma-4-26B-A4B-it-qat-q4_0-gguf/resolve/d1c082be9cf3c8a514acf63b8761f4b41935842e/gemma-4-26B_q4_0-it.gguf",
+        sha256: "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d",
+        byte_count: 14_439_363_584,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "gemma4-31b",
+        file_name: "gemma-4-31B_q4_0-it.gguf",
+        url: "https://huggingface.co/google/gemma-4-31B-it-qat-q4_0-gguf/resolve/59dde24573e7e61570dba08b18a2e1fe246955ed/gemma-4-31B_q4_0-it.gguf",
+        sha256: "179cfb99212709597eae5929112cfca677e1bbf566178b479ae1da0c4772874b",
+        byte_count: 17_651_001_568,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    // The Qwen 3.5 family above the measured 4B. Same Apache 2.0 licence. The 9B,
+    // 27B and 35B-A3B are options for 16 and 32 GB machines and have not been
+    // measured here yet. The 35B is a mixture of experts with 3B active, so it
+    // keeps the memory of a 35B file and the speed of a small one.
+    //
+    // The 2B is not offered: the 4B is the smallest size this project has
+    // measured producing a protocol, and a smaller model has to clear that bar
+    // before it can take a place in the picker.
+    ModelSpec {
+        id: "qwen3.5-35b-a3b",
+        file_name: "Qwen3.5-35B-A3B-Q4_K_M.gguf",
+        url: "https://huggingface.co/unsloth/Qwen3.5-35B-A3B-GGUF/resolve/bc014a17be43adabd7066b7a86075ff935c6a4e2/Qwen3.5-35B-A3B-Q4_K_M.gguf",
+        sha256: "3b46d1066bc91cc2d613e3bc22ce691dd77e6f0d33c9060690d24ce6de494375",
+        byte_count: 22_016_023_168,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "qwen3.5-27b",
+        file_name: "Qwen3.5-27B-Q4_K_M.gguf",
+        url: "https://huggingface.co/unsloth/Qwen3.5-27B-GGUF/resolve/3221f178a6b842d04f1fb42f1c413534adcc0a6a/Qwen3.5-27B-Q4_K_M.gguf",
+        sha256: "84b5f7f112156d63836a01a69dc3f11a6ba63b10a23b8ca7a7efaf52d5a2d806",
+        byte_count: 16_740_812_704,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "qwen3.5-9b",
+        file_name: "Qwen3.5-9B-Q4_K_M.gguf",
+        url: "https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/3885219b6810b007914f3a7950a8d1b469d598a5/Qwen3.5-9B-Q4_K_M.gguf",
+        sha256: "03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8",
+        byte_count: 5_680_522_464,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "speaker-segmentation",
+        file_name: "speaker-segmentation.onnx",
+        url: "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/main/model.onnx",
+        sha256: "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079",
+        byte_count: 5_992_913,
+        kind: ModelKind::Speakers,
+        licence: "mit",
+        licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "speaker-embedding",
+        file_name: "speaker-embedding.onnx",
+        url: "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx",
+        sha256: "1a331345f04805badbb495c775a6ddffcdd1a732567d5ec8b3d5749e3c7a5e4b",
+        byte_count: 39_593_761,
+        kind: ModelKind::Speakers,
+        licence: "mit",
+        licence_url: "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "tiny",
+        file_name: "ggml-tiny.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
+        sha256: "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
+        byte_count: 77_691_713,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "base",
+        file_name: "ggml-base.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
+        sha256: "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
+        byte_count: 147_951_465,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "medium",
+        file_name: "ggml-medium.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
+        sha256: "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208",
+        byte_count: 1_533_763_059,
+        kind: ModelKind::Transcription,
+        licence: "mit",
+        licence_url: "https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE",
+        acceptance_required: false,
+    },
+    // The model that writes the protocol, and the one recommended first: it kept
+    // 27 to 31 of a reference meeting's 35 stated figures across three runs, where
+    // the next best kept as few as 6.
+    //
+    // Google's own quantisation-aware build rather than a community quantisation.
+    // QAT is trained to be quantised, so it holds up at four bits far better than
+    // the same weights squeezed afterwards — and holding up means keeping numbers,
+    // which is the measure this model was chosen on.
+    //
+    // Metadata checked against Google's model card and published LFS metadata.
+    // Gemma 4 is Apache 2.0; earlier Gemma licence assumptions do not apply.
+    ModelSpec {
+        id: "gemma4-12b",
+        file_name: "gemma-4-12b-it-qat-q4_0.gguf",
+        url: "https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/resolve/29d097773436b69ff9feafd636ab4cf873786537/gemma-4-12b-it-qat-q4_0.gguf",
+        sha256: "93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b",
+        byte_count: 6_975_879_296,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    // The rest of the Gemma 4 family, from Google's own QAT GGUF releases.
+    // Apache 2.0, like the 12B. These are options for larger machines and have
+    // not been measured on this project's reference meeting, so the picker shows
+    // them without a recommendation.
+    ModelSpec {
+        id: "gemma4-26b",
+        file_name: "gemma-4-26B_q4_0-it.gguf",
+        url: "https://huggingface.co/google/gemma-4-26B-A4B-it-qat-q4_0-gguf/resolve/d1c082be9cf3c8a514acf63b8761f4b41935842e/gemma-4-26B_q4_0-it.gguf",
+        sha256: "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d",
+        byte_count: 14_439_363_584,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "gemma4-31b",
+        file_name: "gemma-4-31B_q4_0-it.gguf",
+        url: "https://huggingface.co/google/gemma-4-31B-it-qat-q4_0-gguf/resolve/59dde24573e7e61570dba08b18a2e1fe246955ed/gemma-4-31B_q4_0-it.gguf",
+        sha256: "179cfb99212709597eae5929112cfca677e1bbf566178b479ae1da0c4772874b",
+        byte_count: 17_651_001_568,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    // The Qwen 3.5 family above the measured 4B. Same Apache 2.0 licence. The 9B,
+    // 27B and 35B-A3B are options for 16 and 32 GB machines and have not been
+    // measured here yet. The 35B is a mixture of experts with 3B active, so it
+    // keeps the memory of a 35B file and the speed of a small one.
+    //
+    // The 2B is not offered: the 4B is the smallest size this project has
+    // measured producing a protocol, and a smaller model has to clear that bar
+    // before it can take a place in the picker.
+    ModelSpec {
+        id: "qwen3.5-35b-a3b",
+        file_name: "Qwen3.5-35B-A3B-Q4_K_M.gguf",
+        url: "https://huggingface.co/unsloth/Qwen3.5-35B-A3B-GGUF/resolve/bc014a17be43adabd7066b7a86075ff935c6a4e2/Qwen3.5-35B-A3B-Q4_K_M.gguf",
+        sha256: "3b46d1066bc91cc2d613e3bc22ce691dd77e6f0d33c9060690d24ce6de494375",
+        byte_count: 22_016_023_168,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "qwen3.5-27b",
+        file_name: "Qwen3.5-27B-Q4_K_M.gguf",
+        url: "https://huggingface.co/unsloth/Qwen3.5-27B-GGUF/resolve/3221f178a6b842d04f1fb42f1c413534adcc0a6a/Qwen3.5-27B-Q4_K_M.gguf",
+        sha256: "84b5f7f112156d63836a01a69dc3f11a6ba63b10a23b8ca7a7efaf52d5a2d806",
+        byte_count: 16_740_812_704,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "qwen3.5-9b",
+        file_name: "Qwen3.5-9B-Q4_K_M.gguf",
+        url: "https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/3885219b6810b007914f3a7950a8d1b469d598a5/Qwen3.5-9B-Q4_K_M.gguf",
+        sha256: "03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8",
+        byte_count: 5_680_522_464,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
+        id: "qwen3.5-4b",
+        file_name: "Qwen3.5-4B-Q4_K_M.gguf",
+        url: "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-Q4_K_M.gguf",
+        sha256: "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+        byte_count: 2740937888,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    // The European option. The 3B was removed from the picker: it is smaller than
+    // the measured 4B and unmeasured, so it did not clear the product's minimum.
+    // The 14B is the smallest European size offered, on 16 GB machines.
+    ModelSpec {
+        id: "ministral-3-14b",
+        file_name: "Ministral-3-14B-Instruct-2512-Q4_K_M.gguf",
+        url: "https://huggingface.co/unsloth/Ministral-3-14B-Instruct-2512-GGUF/resolve/9b948841b705cc11285ff274b84ba6c885908b19/Ministral-3-14B-Instruct-2512-Q4_K_M.gguf",
+        sha256: "76ce697c065f2e40f1e8e958118b02cab38e2c10a6015f7d7908036a292dc8c8",
+        byte_count: 8_239_067_840,
+        kind: ModelKind::Generation,
+        licence: "apache2",
+        licence_url: "https://www.apache.org/licenses/LICENSE-2.0",
+        acceptance_required: false,
+    },
+    ModelSpec {
         id: "qwen3.5-4b",
         file_name: "Qwen3.5-4B-Q4_K_M.gguf",
         url: "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-Q4_K_M.gguf",
@@ -369,8 +1132,16 @@ pub(crate) fn terms(root: &Path, model_id: &str) -> Option<ModelTerms> {
 /// Conservative installed-RAM classes, not a promise about speed or current free RAM.
 pub(crate) fn generation_minimum_memory_gb(model_id: &str) -> Option<u32> {
     match model_id {
+        "gemma4-31b" | "gemma4:31b" | "qwen3.5-27b" | "qwen3.5:27b" | "qwen3.5-35b-a3b"
+        | "qwen3.5:35b-a3b" => Some(32),
+        "gemma4-26b" | "gemma4:26b" => Some(24),
         "gemma4-12b"
         | "gemma4:12b"
+        | "qwen3.5-9b"
+        | "qwen3.5:9b"
+        | "ministral-3-14b"
+        | "ministral-3:14b"
+        | "ministral-3:14b-instruct-2512-q4_K_M"
         | "ministral-8b"
         | "ministral-3:8b"
         | "ministral-3:8b-instruct-2512-q4_K_M"
@@ -1255,5 +2026,40 @@ mod reading_free_space {
     #[test]
     fn a_full_disk_is_not_the_same_as_no_answer() {
         assert_eq!(parse_free_bytes("0\r\n"), Some(0));
+    }
+}
+
+#[cfg(test)]
+mod ladder_memory_classes {
+    use super::{MODELS, ModelKind, generation_fits, generation_minimum_memory_gb};
+
+    /// Every generation model must state the memory class it needs, or the ladder
+    /// cannot place it and the picker will offer it to a machine that cannot run it.
+    #[test]
+    fn every_generation_model_has_a_memory_class() {
+        for model in MODELS
+            .iter()
+            .filter(|model| model.kind == ModelKind::Generation)
+        {
+            assert!(
+                generation_minimum_memory_gb(model.id).is_some(),
+                "{} has no memory class",
+                model.id
+            );
+        }
+    }
+
+    #[test]
+    fn the_larger_families_need_the_memory_they_claim() {
+        assert_eq!(generation_minimum_memory_gb("qwen3.5-9b"), Some(16));
+        assert_eq!(generation_minimum_memory_gb("ministral-3-14b"), Some(16));
+        assert_eq!(generation_minimum_memory_gb("gemma4-26b"), Some(24));
+        assert_eq!(generation_minimum_memory_gb("gemma4-31b"), Some(32));
+        assert_eq!(generation_minimum_memory_gb("qwen3.5-27b"), Some(32));
+        assert_eq!(generation_minimum_memory_gb("qwen3.5-35b-a3b"), Some(32));
+        assert!(!generation_fits("gemma4-26b", Some(16)));
+        assert!(generation_fits("gemma4-26b", Some(24)));
+        // A 22 GB file plus context does not belong in the 24 GB class.
+        assert!(!generation_fits("qwen3.5-35b-a3b", Some(24)));
     }
 }
