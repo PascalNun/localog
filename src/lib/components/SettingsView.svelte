@@ -58,6 +58,7 @@
   export let capability: TranscriptionCapability;
   export let downloading: Record<string, number> = {};
   export let modelError: string | null = null;
+  export let downloadErrors: Record<string, string> = {};
   export let onSelectPreset: (preset: TranscriptionPreset) => Promise<void>;
   export let onDownloadModel: (modelId: string) => Promise<void>;
   export let onCancelDownload: (modelId: string) => Promise<void>;
@@ -474,14 +475,13 @@
         <ManagedModels
           terms={modelTerms}
           status={generationStatus}
-          {providerStatus}
           {memoryGb}
           {downloading}
           {onAcceptLicence}
           {onDownloadModel}
           {onCancelDownload}
+          {downloadErrors}
           onChoose={onConfigureGeneration}
-          onChooseProvider={chooseProviderModel}
         />
         {#if providerError}<p class="setting-error" role="alert">{providerError}</p>{/if}
 
@@ -625,6 +625,9 @@
                 {/if}
               </div>
             </div>
+            {#if downloadErrors[preset.modelId]}
+              <p class="setting-error" role="alert">{downloadErrors[preset.modelId]}</p>
+            {/if}
           {/each}
         </div>
         {#if modelError}<p class="setting-error" role="alert">{modelError}</p>{/if}

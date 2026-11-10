@@ -224,6 +224,8 @@ const failures = {
   licenceNotAccepted: 'Queste condizioni vanno accettate prima di poter scaricare questo modello.',
   generationRuntimeReady: 'Pronto a scrivere verbali su questo dispositivo.',
   generationModelNotDownloaded: 'Non è ancora stato scaricato alcun modello per scrivere verbali.',
+  generationModelChanged:
+    'Il modello locale selezionato è cambiato dopo che questa attività è stata messa in coda. Riprova per verificarlo di nuovo.',
   generationRuntimeMissing:
     'Non è installato alcun motore di scrittura. LocaLog ne include uno; questa versione non lo trova.',
   generationRuntimeNoPort:
@@ -398,6 +400,8 @@ export const it: Strings = {
       'Un modello che entra nella memoria può comunque scrivere un verbale debole. Rileggi la prima bozza prima di condividerla.',
     bundledRuntime: 'Su questo dispositivo',
     viaOllama: 'Tramite Ollama',
+    bundledAlternative: 'Disponibile anche',
+    wantsMemory: (gb: number) => `Richiede circa ${gb} GB`,
     bundledRuntimeLead:
       'LocaLog porta con sé il proprio motore per scrivere verbali. Serve un modello, scaricato una volta e conservato qui.',
     licenceHeading: 'Prima di scaricare',
@@ -420,19 +424,18 @@ export const it: Strings = {
     downloadingPreset: (name: string) => `Scaricamento di ${name}`,
     /** Si veda la nota in en.ts. */
     modelDescription: {
-      'qwen3.5-4b':
-        'Veloce e leggero, la scelta migliore per una macchina da 8 GB. Scrive un verbale più breve e può omettere la tabella dei prossimi passi; rileggi la bozza.',
-      'qwen3.5-9b':
-        'Un Qwen più grande per macchine da 16 GB. Più lento del 4B; non ancora testato.',
-      'qwen3.5-27b': 'Il più grande Qwen denso, per macchine da 32 GB. Non ancora testato.',
-      'qwen3.5-35b-a3b':
-        'Un modello a miscela di esperti veloce per macchine da 32 GB: richiede la memoria di un 35B ma va alla velocità di un 3B. Non ancora testato.',
+      'qwen3.5-0.8b':
+        'Piccolo modello per sviluppo e test. Qualità dei verbali non valutata; non farvi affidamento per verbali professionali.',
       'gemma4-12b':
-        'La nostra scelta più affidabile: tiene bene cifre e nomi e scrive un verbale regolare e ben strutturato. Più lento del 4B: circa quattordici minuti per una riunione di ottanta minuti.',
-      'gemma4-26b':
-        'Un modello a miscela di esperti veloce per macchine da 24 GB: richiede la memoria di un 26B ma va alla velocità di un 4B. Non ancora testato.',
-      'gemma4-31b': 'Il più grande Gemma denso, per macchine da 32 GB. Non ancora testato.',
-      'ministral-3-14b': 'Un modello europeo più grande per macchine da 16 GB. Non ancora testato.',
+        'Il più accurato e il più costante fra i modelli misurati: su tre esecuzioni ha conservato da 27 a 31 delle 35 cifre di una riunione, dove il successivo è sceso a 6. Più lento: circa quattordici minuti per una riunione di ottanta minuti.',
+      'ministral-8b':
+        'Misurato su una riunione in tedesco con tre impostazioni, ha scritto un verbale utilizzabile con una di esse: le altre hanno prodotto un abbozzo di due righe e un documento JSON dove era richiesto il markdown. Resta il candidato europeo, non ancora un’alternativa al riferimento.',
+      'qwen3.5-4b':
+        'Il modello misurato più veloce, circa cinque minuti per una riunione di ottanta minuti, e la scelta quando la memoria è poca. Non ha mai prodotto la tabella dei prossimi passi che lo stile formale richiede.',
+      'ministral-3b': 'Il primo candidato europeo per il Mac meno potente fra quelli supportati.',
+      'granite4.1-8b':
+        'Misurato su una riunione in tedesco con tre impostazioni, ha conservato 22, 19 e 6 delle 35 cifre dette, a parità di ingresso. Un’esecuzione che perde cinque sesti di quanto è stato detto non è uno strumento per tenere un verbale, perciò non è consigliato.',
+      'llama-8b': 'Un posto di confronto riservato a una versione di Llama verificata.',
     },
     modelOrigin: {
       international: 'Modello aperto internazionale',

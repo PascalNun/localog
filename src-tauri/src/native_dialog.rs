@@ -10,6 +10,7 @@
 //! transient parent, so it floats and is modal. Other platforms keep the dialog
 //! plugin and never call these.
 
+#[cfg(target_os = "linux")]
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
@@ -20,6 +21,8 @@ use gtk::prelude::*;
 
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+// Non-Linux commands keep the same IPC shape but use the dialog plugin instead.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub struct DialogFilter {
     pub name: String,
     pub extensions: Vec<String>,

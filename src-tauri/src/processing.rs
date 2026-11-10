@@ -1013,23 +1013,31 @@ fn generation_metadata(
         crate::machine::memory_gb(),
     )?;
 
-    // The Ollama-side provider, hoisted so context sizing below queries the same
-    // server the status above did. Loopback unless a custom endpoint is set.
+    // The provider generation talks to, hoisted so context sizing below queries
+    // the same server the status above did. Loopback unless a custom endpoint
+    // is set, in the format detected when the endpoint was saved.
     let gen_endpoint = generation_endpoint(repository)?;
     let ollama_provider = provider_for(&gen_endpoint.endpoint, &gen_endpoint.format);
     let (runtime, model, model_digest, runtime_version, model_bytes, endpoint, endpoint_format) =
         match bundled {
             Some(model) => {
                 let status = provider::bundled_status(root, Some(model.model_id.clone()));
+                // The provenance the download wrote, checked against the
+                // catalogue's checksum: selection means this machine actually
+                // holds the model, and the digest the job records is the
+                // installed file's own rather than the catalogue's claim.
+                let path = models::generation_model_path(root, Some(&model.model_id))
+                    .ok_or(StorageError::InvalidData("generationModelNotDownloaded"))?;
+                let provenance = cached_model_provenance(repository, &path)?;
+                let expected_digest = models::expected_model_digest(&model.model_id)
+                    .ok_or(StorageError::InvalidData("generationModelNotDownloaded"))?;
+                if provenance.digest != expected_digest {
+                    return Err(StorageError::InvalidData("generationModelChanged"));
+                }
                 (
                     GenerationRuntime::Bundled,
                     model.model_id.clone(),
-                    // The catalogue's checksum. Ollama answers with a digest of its
-                    // own and this is the same promise kept the same way: the file
-                    // that produced a protocol can be named exactly.
-                    models::generation_digest(&model.model_id)
-                        .unwrap_or_default()
-                        .to_string(),
+                    provenance.digest,
                     status
                         .runtime_version
                         .unwrap_or_else(|| "bundled".to_string()),
@@ -1125,7 +1133,10 @@ fn generation_metadata(
     let runtime_config_json = serde_json::to_string(&config)
         .map_err(|_| StorageError::InvalidData("providerConfigNotSaved"))?;
     Ok((
-        "ollama",
+        match runtime {
+            GenerationRuntime::Bundled => "llama.cpp",
+            GenerationRuntime::Ollama => "ollama",
+        },
         runtime_version,
         model_digest,
         settings_json,
@@ -1361,6 +1372,24 @@ fn execute_generation(
                         message: "generationModelNotDownloaded".into(),
                     },
                 )?;
+                // The queued digest is a promise about this exact model file.
+                // Reuse the identity-keyed cache when it is unchanged, but do
+                // not start a replacement file merely because it has the same
+                // name and size.
+                let provenance = cached_model_provenance(repository, &model)?;
+                let expected_digest = models::expected_model_digest(&request.model).ok_or(
+                    ProcessingError::Runtime {
+                        code: "provider_model_missing",
+                        message: "generationModelNotDownloaded".into(),
+                    },
+                )?;
+                if provenance.digest != expected_digest || provenance.digest != request.model_digest
+                {
+                    return Err(ProcessingError::Runtime {
+                        code: "provider_model_changed",
+                        message: "generationModelChanged".into(),
+                    });
+                }
                 // Started here and stopped when this scope ends, which is what
                 // makes the memory question answerable: nothing is resident
                 // before a protocol is asked for, and nothing stays resident

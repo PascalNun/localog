@@ -854,16 +854,17 @@ pub fn bundled_status(root: &std::path::Path, selected_model: Option<String>) ->
     let models: Vec<ModelDescriptor> = crate::models::generation_models(root)
         .into_iter()
         .filter(|model| model.installed)
-        .map(|model| ModelDescriptor {
-            name: model.model_id.clone(),
-            size: model.byte_count,
-            // The catalogue's checksum, which is what makes a downloaded file
-            // the file it claims to be. Ollama answers with its own digest here
-            // and this is the same promise kept a different way.
-            digest: crate::models::generation_digest(&model.model_id)
-                .unwrap_or_default()
-                .to_string(),
-            details: ModelDetails::default(),
+        .map(|model| {
+            let digest = crate::models::expected_model_digest(&model.model_id).unwrap_or_default();
+            ModelDescriptor {
+                name: model.model_id,
+                size: model.byte_count,
+                // The catalogue's checksum, which is what makes a downloaded file
+                // the file it claims to be. Ollama answers with its own digest here
+                // and this is the same promise kept a different way.
+                digest,
+                details: ModelDetails::default(),
+            }
         })
         .collect();
 

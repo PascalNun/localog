@@ -63,11 +63,11 @@ pub(crate) enum StartFailure {
     /// No port could be claimed to give it.
     NoPort,
     /// The process would not start at all.
-    LaunchFailed,
+    LaunchFailed(String),
     /// It started and never reported itself ready.
     NeverReady,
     /// It started and then stopped on its own.
-    Stopped,
+    Stopped(Option<i32>),
 }
 
 impl StartFailure {
@@ -77,12 +77,31 @@ impl StartFailure {
         match self {
             Self::Missing => "generationRuntimeMissing".into(),
             Self::NoPort => "generationRuntimeNoPort".into(),
-            Self::LaunchFailed => "generationRuntimeNotStarted".into(),
+            Self::LaunchFailed(_) => "generationRuntimeNotStarted".into(),
             Self::NeverReady => "generationRuntimeNeverReady".into(),
-            Self::Stopped => "generationRuntimeStopped".into(),
+            Self::Stopped(_) => "generationRuntimeStopped".into(),
         }
     }
 }
+
+impl std::fmt::Display for StartFailure {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Missing => write!(formatter, "generation runtime is missing"),
+            Self::NoPort => write!(formatter, "no local port was available"),
+            Self::LaunchFailed(detail) => {
+                write!(formatter, "generation runtime did not start: {detail}")
+            }
+            Self::NeverReady => write!(formatter, "generation runtime did not become ready"),
+            Self::Stopped(status) => write!(
+                formatter,
+                "generation runtime stopped with status {status:?}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for StartFailure {}
 
 /// A running generation server, stopped when this is dropped.
 pub(crate) struct Server {
@@ -156,7 +175,7 @@ pub(crate) fn start_with(
         if error.kind() == ErrorKind::NotFound {
             StartFailure::Missing
         } else {
-            StartFailure::LaunchFailed
+            StartFailure::LaunchFailed(error.to_string())
         }
     })?;
 
@@ -177,8 +196,8 @@ fn wait_until_ready(server: &mut Server) -> Result<(), StartFailure> {
     while Instant::now() < deadline {
         // A server that stopped will never become ready, and waiting the full
         // three minutes to say so helps nobody.
-        if let Ok(Some(_)) = server.child.try_wait() {
-            return Err(StartFailure::Stopped);
+        if let Ok(Some(status)) = server.child.try_wait() {
+            return Err(StartFailure::Stopped(status.code()));
         }
         if agent.get(&health).call().is_ok() {
             return Ok(());
@@ -223,9 +242,9 @@ mod tests {
         for failure in [
             StartFailure::Missing,
             StartFailure::NoPort,
-            StartFailure::LaunchFailed,
+            StartFailure::LaunchFailed("x".into()),
             StartFailure::NeverReady,
-            StartFailure::Stopped,
+            StartFailure::Stopped(Some(1)),
         ] {
             let code = failure.code();
             assert!(!code.is_empty(), "{failure:?}");

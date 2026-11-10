@@ -207,6 +207,7 @@ const failures = {
   licenceNotAccepted: '下载此模型前，需要先接受这些条款。',
   generationRuntimeReady: '已可在本机上撰写会议纪要。',
   generationModelNotDownloaded: '尚未下载用于撰写会议纪要的模型。',
+  generationModelChanged: '此任务排队后，所选本地模型发生了变化。请重试以重新验证。',
   generationRuntimeMissing: '未安装用于撰写纪要的运行环境。LocaLog 自带一个，但此版本找不到它。',
   generationRuntimeNoPort: '未能为本地运行环境取得空闲端口。请关闭一些应用后重试。',
   generationRuntimeNotStarted: '未能启动本地运行环境。',
@@ -361,6 +362,8 @@ export const zh: Strings = {
     qualityCaution: '即使内存足够，模型也可能写出质量较弱的纪要。分享前请先审阅初稿。',
     bundledRuntime: '在本机上',
     viaOllama: '通过 Ollama',
+    bundledAlternative: '同样可用',
+    wantsMemory: (gb: number) => `需要约 ${gb} GB`,
     bundledRuntimeLead: 'LocaLog 自带撰写会议纪要的引擎。只需一个模型，下载一次即保存在本机。',
     licenceHeading: '下载之前',
     licenceBody: (licence: string) =>
@@ -382,17 +385,18 @@ export const zh: Strings = {
     downloadingPreset: (name: string) => `正在下载${name}`,
     /** 参见 en.ts 中的说明。 */
     modelDescription: {
-      'qwen3.5-4b': '快速轻量，最适合 8GB 电脑。纪要较短，可能省略后续事项表，请审阅初稿。',
-      'qwen3.5-9b': '适合 16GB 电脑的更大 Qwen。比 4B 慢；尚未测试。',
-      'qwen3.5-27b': '适合 32GB 电脑的最大的稠密 Qwen。尚未测试。',
-      'qwen3.5-35b-a3b':
-        '适合 32GB 电脑的快速专家混合模型：需要 35B 模型的内存，但速度接近 3B。尚未测试。',
+      'qwen3.5-0.8b':
+        '用于开发和功能测试的小模型。尚未评估会议纪要质量，请勿依赖它生成专业会议记录。',
       'gemma4-12b':
-        '我们最可靠的选择：它能较好地保留数字和姓名，写出稳定、结构清晰的纪要。速度比 4B 慢——80 分钟的会议约需 14 分钟。',
-      'gemma4-26b':
-        '适合 24GB 电脑的快速专家混合模型：需要 26B 模型的内存，但速度接近 4B。尚未测试。',
-      'gemma4-31b': '适合 32GB 电脑的最大的稠密 Gemma。尚未测试。',
-      'ministral-3-14b': '适合 16GB 电脑的更大欧洲模型。尚未测试。',
+        '在测得的模型中最准确、也最稳定：三次运行保留了会议 35 个数字里的 27 到 31 个，而次优者最少只保留 6 个。速度较慢——80 分钟的会议约需 14 分钟。',
+      'ministral-8b':
+        '在一场德语会议上以三种设置测得，其中一种写出了可用的会议纪要：另两种给出两行的残稿，以及在要求 Markdown 处返回的 JSON 文档。作为欧洲出品的候选保留，尚不能替代基准。',
+      'qwen3.5-4b':
+        '测得最快的模型，80 分钟的会议约需 5 分钟，内存吃紧时可选它。但它从未生成正式体例所要求的后续事项表。',
+      'ministral-3b': '面向所支持的最低配 Mac 的第一个欧洲出品候选。',
+      'granite4.1-8b':
+        '在一场德语会议上以三种设置测得，输入完全相同，却分别保留了所述 35 个数字中的 22 个、19 个和 6 个。丢掉会上所述六分之五的运行，不是用来留存记录的工具，因此不推荐。',
+      'llama-8b': '为经过验证的 Llama 版本预留的比较位置。',
     },
     modelOrigin: {
       international: '国际开放模型',

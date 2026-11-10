@@ -233,6 +233,8 @@ const failures = {
   licenceNotAccepted: 'These terms have to be accepted before this model can be downloaded.',
   generationRuntimeReady: 'Ready to write protocols on this device.',
   generationModelNotDownloaded: 'No model for writing protocols has been downloaded yet.',
+  generationModelChanged:
+    'The selected local model changed after this job was queued. Retry to verify it again.',
   generationRuntimeMissing:
     'No protocol-writing runtime is installed. LocaLog ships one; this build cannot find it.',
   generationRuntimeNoPort:
@@ -431,6 +433,8 @@ export const en = {
       'A model that fits your memory can still write a weak protocol. Review the first draft before you share it.',
     bundledRuntime: 'On this device',
     viaOllama: 'Via Ollama',
+    bundledAlternative: 'Also available',
+    wantsMemory: (gb: number) => `Wants about ${gb} GB`,
     bundledRuntimeLead:
       'LocaLog brings its own engine for writing protocols. It needs one model, downloaded once and kept here.',
     licenceHeading: 'Before downloading',
@@ -461,18 +465,18 @@ export const en = {
      * without a sentence here does not compile.
      */
     modelDescription: {
-      'qwen3.5-4b':
-        'Fast and light, and the best fit for an 8 GB machine. It writes a shorter protocol and may leave out the table of next steps, so review the draft.',
-      'qwen3.5-9b': 'A larger Qwen for 16 GB machines. Slower than the 4B; not tested yet.',
-      'qwen3.5-27b': 'The largest dense Qwen, for 32 GB machines. Not tested yet.',
-      'qwen3.5-35b-a3b':
-        'A fast mixture-of-experts model for 32 GB machines: it needs the memory of a 35B model but runs at about 3B speed. Not tested yet.',
+      'qwen3.5-0.8b':
+        'A small development and smoke-test model. Protocol quality has not been evaluated; do not rely on it for a professional meeting record.',
       'gemma4-12b':
-        'Our most reliable choice: it keeps figures and names well and writes a steady, well-structured protocol. Slower than the 4B — about fourteen minutes for an eighty-minute meeting.',
-      'gemma4-26b':
-        'A fast mixture-of-experts model for 24 GB machines: it needs the memory of a 26B model but runs at about 4B speed. Not tested yet.',
-      'gemma4-31b': 'The largest dense Gemma, for 32 GB machines. Not tested yet.',
-      'ministral-3-14b': 'A larger European model for 16 GB machines. Not tested yet.',
+        'The most accurate and the steadiest of the measured models: it kept 27 to 31 of a meeting’s 35 figures across three runs, where the next best kept as few as 6. Slower — about fourteen minutes for an eighty-minute meeting.',
+      'ministral-8b':
+        'Measured on a German meeting at three settings and wrote a usable protocol at one of them: the others produced a two-line stub and a JSON document where markdown was asked for. Kept as the European candidate, not yet an alternative to the baseline.',
+      'qwen3.5-4b':
+        'The fastest measured model, at about five minutes for an eighty-minute meeting, and the choice where memory is short. It never produced the table of next steps the formal style asks for.',
+      'ministral-3b': 'The first European candidate for the weakest supported Mac.',
+      'granite4.1-8b':
+        'Measured on a German meeting at three settings and kept 22, 19 and 6 of its 35 stated figures on identical input. A run that loses five sixths of what a meeting stated is not a tool for producing a record, so it is not recommended.',
+      'llama-8b': 'A later comparison slot for a verified Llama release.',
     },
     modelOrigin: {
       international: 'International open model',

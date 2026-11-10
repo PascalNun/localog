@@ -215,6 +215,8 @@ const failures = {
   licenceNotAccepted: 'Hay que aceptar estas condiciones antes de poder descargar este modelo.',
   generationRuntimeReady: 'Listo para redactar actas en este dispositivo.',
   generationModelNotDownloaded: 'Todavía no se ha descargado ningún modelo para redactar actas.',
+  generationModelChanged:
+    'El modelo local seleccionado cambió después de poner esta tarea en cola. Vuelve a intentarlo para verificarlo de nuevo.',
   generationRuntimeMissing:
     'No hay ningún motor de redacción instalado. LocaLog incluye uno; esta versión no lo encuentra.',
   generationRuntimeNoPort:
@@ -390,6 +392,8 @@ export const es: Strings = {
       'Un modelo que cabe en la memoria puede escribir igualmente un acta pobre. Revisa el primer borrador antes de compartirlo.',
     bundledRuntime: 'En este dispositivo',
     viaOllama: 'Mediante Ollama',
+    bundledAlternative: 'También disponible',
+    wantsMemory: (gb: number) => `Necesita unos ${gb} GB`,
     bundledRuntimeLead:
       'LocaLog trae su propio motor para redactar actas. Necesita un modelo, descargado una vez y conservado aquí.',
     licenceHeading: 'Antes de descargar',
@@ -412,19 +416,18 @@ export const es: Strings = {
     downloadingPreset: (name: string) => `Descargando ${name}`,
     /** Véase la nota en en.ts. */
     modelDescription: {
-      'qwen3.5-4b':
-        'Rápido y ligero, la mejor opción para un equipo de 8 GB. Escribe un acta más corta y puede omitir la tabla de próximos pasos; revisa el borrador.',
-      'qwen3.5-9b':
-        'Un Qwen más grande para equipos de 16 GB. Más lento que el 4B; aún no probado.',
-      'qwen3.5-27b': 'El mayor Qwen denso, para equipos de 32 GB. Aún no probado.',
-      'qwen3.5-35b-a3b':
-        'Un modelo de mezcla de expertos rápido para equipos de 32 GB: necesita la memoria de un 35B pero va a la velocidad de un 3B. Aún no probado.',
+      'qwen3.5-0.8b':
+        'Modelo pequeño para desarrollo y pruebas. Calidad de actas no evaluada; no dependas de él para actas profesionales.',
       'gemma4-12b':
-        'Nuestra opción más fiable: conserva bien las cifras y los nombres y redacta un acta regular y bien estructurada. Más lento que el 4B: unos catorce minutos para una reunión de ochenta minutos.',
-      'gemma4-26b':
-        'Un modelo de mezcla de expertos rápido para equipos de 24 GB: necesita la memoria de un 26B pero va a la velocidad de un 4B. Aún no probado.',
-      'gemma4-31b': 'El mayor Gemma denso, para equipos de 32 GB. Aún no probado.',
-      'ministral-3-14b': 'Un modelo europeo más grande para equipos de 16 GB. Aún no probado.',
+        'El más exacto y el más constante de los modelos medidos: en tres ejecuciones conservó de 27 a 31 de las 35 cifras de una reunión, donde el siguiente bajó hasta 6. Más lento: unos catorce minutos para una reunión de ochenta minutos.',
+      'ministral-8b':
+        'Medido en una reunión en alemán con tres ajustes, redactó un acta utilizable en uno de ellos: los demás produjeron un esbozo de dos líneas y un documento JSON donde se pedía markdown. Se mantiene como candidato europeo, todavía no como alternativa a la referencia.',
+      'qwen3.5-4b':
+        'El modelo medido más rápido, unos cinco minutos para una reunión de ochenta minutos, y la elección cuando la memoria escasea. Nunca produjo la tabla de próximos pasos que pide el estilo formal.',
+      'ministral-3b': 'El primer candidato europeo para el Mac menos potente que se admite.',
+      'granite4.1-8b':
+        'Medido en una reunión en alemán con tres ajustes, conservó 22, 19 y 6 de las 35 cifras enunciadas, con la misma entrada. Una ejecución que pierde cinco sextos de lo dicho no sirve para dejar constancia, así que no se recomienda.',
+      'llama-8b': 'Un puesto de comparación reservado para una versión de Llama verificada.',
     },
     modelOrigin: {
       international: 'Modelo abierto internacional',
